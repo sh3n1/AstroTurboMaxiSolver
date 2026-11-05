@@ -2,12 +2,15 @@ import type { Routes } from '@angular/router';
 
 export const routes: Routes = [
   {
-    path: 'home',
-    loadComponent: () => import('./home/home.page').then((m) => m.HomePage),
+    path: 'tabs',
+    loadComponent: () => import('./tabs/tabs.page').then((m) => m.TabsPage),
+    children: [
+      { path: 'sky', loadComponent: () => import('./pages/sky.page').then((m) => m.SkyPage) },
+      { path: 'targets', loadComponent: () => import('./pages/targets.page').then((m) => m.TargetsPage) },
+      { path: 'plan', loadComponent: () => import('./pages/plan.page').then((m) => m.PlanPage) },
+      { path: 'settings', loadComponent: () => import('./pages/settings.page').then((m) => m.SettingsPage) },
+      { path: '', redirectTo: 'sky', pathMatch: 'full' },
+    ],
   },
-  {
-    path: '',
-    redirectTo: 'home',
-    pathMatch: 'full',
-  },
+  { path: '', redirectTo: 'tabs/sky', pathMatch: 'full' },
 ];

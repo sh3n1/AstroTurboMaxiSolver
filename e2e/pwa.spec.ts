@@ -3,10 +3,12 @@
 // playwright.config.ts for how the build is served.
 import { expect, test } from '@playwright/test';
 
+const starCanvas = 'app-sky canvas:not([data-star-count="0"])';
+
 test('reloads from the service worker while offline', async ({ context, page }) => {
   // First visit: this is what installs the service worker.
   await page.goto('/');
-  await expect(page.locator('#container')).toContainText('AstroFinder');
+  await expect(page.locator(starCanvas)).toBeAttached();
 
   // Wait until the worker is active and controlling this page.
   await page.evaluate(async () => {
@@ -36,7 +38,7 @@ test('reloads from the service worker while offline', async ({ context, page }) 
   const response = await page.reload();
 
   expect(response?.fromServiceWorker()).toBe(true);
-  await expect(page.locator('#container')).toContainText('AstroFinder');
+  await expect(page.locator(starCanvas)).toBeAttached();
 });
 
 test('serves a complete web app manifest', async ({ page, request }) => {

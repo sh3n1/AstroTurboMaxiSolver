@@ -34,4 +34,18 @@
 
 /* @import "@ionic/angular/css/palettes/dark.always.css"; */
 /* @import "@ionic/angular/css/palettes/dark.class.css"; */
-@import '@ionic/angular/css/palettes/dark.system.css';
+@import '@ionic/angular/css/palettes/dark.always.css';
+
+/*
+ * Red night mode. An SVG filter in index.html removes all green and blue light
+ * from everything the app draws, including the sky map, to protect dark adaptation.
+ */
+html.night ion-app {
+  filter: url(#night-vision);
+}
+
+/* Layout rounding can expose a sliver of page background at the screen's edge. */
+html.night,
+html.night body {
+  background: #000;
+}
