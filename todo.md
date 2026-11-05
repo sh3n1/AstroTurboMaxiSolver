@@ -41,6 +41,7 @@ Built while waiting for a clear night. Aiming is by dragging until real sensors 
 - [x] Sky map, aiming circle, guidance arrow and eyepiece view
 - [x] Target search, session plan list and saved equipment settings
 - [x] Red night mode
+- [x] Polish: night-sky theme, pinch zoom, cleaner labels, alt-az grid and movement directions
 - [ ] Try it on the Magic5 Pro and refine the layout
 - [ ] Check the star data's licence before release
 
@@ -78,9 +79,9 @@ Do these before building features, because they could change the design. Items m
 
 Keep this as plain TypeScript with no Angular dependency, so it is easy to test.
 
-- [ ] Evaluate `astronomy-engine` (MIT) for coordinates and ephemerides before writing any of this ourselves
+- [x] Adopt `astronomy-engine` (MIT) for coordinates and ephemerides
 - [ ] Define coordinate types and units (RA/Dec, alt/az, quaternions)
-- [ ] Convert between RA/Dec and alt/az using time and location
+- [x] Convert between RA/Dec and alt/az using time and location, including precession
 - [ ] Decide how to handle precession and atmospheric refraction
 - [ ] Add unit tests checked against reference values from a trusted source
 - [ ] Calculate rise, set and transit times, altitude and airmass for a time and place
@@ -119,10 +120,12 @@ Keep this as plain TypeScript with no Angular dependency, so it is easy to test.
 
 ## 8. Telescope alignment
 
-- [ ] Propose the most visible alignment stars for the current time and place
-- [ ] Guide the user to centre a proposed star in the eyepiece and confirm it
-- [ ] Calculate the offset between the phone's camera and the telescope's optical axis, including the large angle of a mirror mount
-- [ ] Save the alignment, so no further alignment is needed while the phone stays in its mount
+- [x] Propose the most visible alignment stars for the current time and place
+- [x] Guide the user to centre a proposed star in the eyepiece and confirm it
+- [ ] Replace the simulated camera position in the alignment flow with a real plate solve
+- [x] Calculate the offset between the phone's camera and the telescope's optical axis, including the large angle of a mirror mount
+- [ ] Use the saved offset to draw the aiming circle at the telescope's position once a real camera is connected
+- [x] Save the alignment, so no further alignment is needed while the phone stays in its mount, and clear it when the mount type changes
 - [ ] Decide how to handle a phone removed and refitted between sessions, since this changes the offset
 - [ ] Add equipment profiles for telescope, eyepieces and mount type
 
@@ -156,7 +159,7 @@ Keep this as plain TypeScript with no Angular dependency, so it is easy to test.
 
 ## 12. Session planning
 
-- [ ] Calculate tonight's darkness window and Moon phase and position
+- [x] Calculate tonight's darkness window and Moon phase and position
 - [ ] Create and save a session plan with a list of chosen targets
 - [ ] Suggest a session, ranking targets by altitude, timing, brightness and the user's equipment
 - [ ] Order targets by when each is best placed
@@ -167,6 +170,6 @@ Keep this as plain TypeScript with no Angular dependency, so it is easy to test.
 - [ ] Replace the placeholder icon if wanted
 - [ ] Prompt users when a new app version is ready
 - [ ] Add install instructions, particularly for iOS, which has no install prompt
-- [ ] Add a settings page for location and display options
+- [x] Add a settings page for location and display options
 - [ ] Add an accessibility pass and larger touch targets for use in the dark
 - [ ] Write a README and credit catalogues and libraries as their licences require

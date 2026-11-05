@@ -1,11 +1,13 @@
 import { DecimalPipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
+import { Router } from '@angular/router';
 import {
   IonButton,
   IonContent,
   IonHeader,
   IonInput,
   IonItem,
+  IonLabel,
   IonList,
   IonListHeader,
   IonNote,
@@ -32,6 +34,7 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg' | 'telescopeFocalMm' | 'eye
     IonHeader,
     IonInput,
     IonItem,
+    IonLabel,
     IonList,
     IonListHeader,
     IonNote,
@@ -49,7 +52,7 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg' | 'telescopeFocalMm' | 'eye
     </ion-header>
 
     <ion-content>
-      <ion-list>
+      <ion-list inset="true">
         <ion-list-header>Display</ion-list-header>
         <ion-item>
           <ion-toggle
@@ -131,7 +134,7 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg' | 'telescopeFocalMm' | 'eye
           >
         </ion-item>
 
-        <ion-list-header>Phone mount</ion-list-header>
+        <ion-list-header>Phone mount and alignment</ion-list-header>
         <ion-item>
           <ion-select
             label="Mount type"
@@ -143,12 +146,19 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg' | 'telescopeFocalMm' | 'eye
             <ion-select-option value="mirror">Parallel with mirror</ion-select-option>
           </ion-select>
         </ion-item>
+        <ion-item button detail="true" data-testid="open-alignment" (click)="openAlignment()">
+          <ion-label>Telescope alignment</ion-label>
+          <ion-note slot="end">{{
+            state.alignment() ? 'Aligned on ' + state.alignment()!.starId : 'Not aligned'
+          }}</ion-note>
+        </ion-item>
       </ion-list>
     </ion-content>
   `,
 })
 export class SettingsPage {
   protected readonly state = inject(AppState);
+  private readonly router = inject(Router);
   protected readonly settings = this.state.settings;
   protected readonly gpsMessage = signal('');
 
@@ -166,6 +176,10 @@ export class SettingsPage {
     if (raw !== '' && raw != null && Number.isFinite(value) && value >= min && value <= max) {
       this.state.updateSettings({ [key]: value } as Partial<Settings>);
     }
+  }
+
+  protected openAlignment(): void {
+    void this.router.navigateByUrl('/align');
   }
 
   protected useGps(): void {

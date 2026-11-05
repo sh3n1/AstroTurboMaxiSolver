@@ -3,10 +3,29 @@ import { Component, inject, input } from '@angular/core';
 import { Router } from '@angular/router';
 import { IonBadge, IonButton, IonIcon, IonItem, IonLabel, IonList, IonNote } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { bookmark, bookmarkOutline } from 'ionicons/icons';
+import {
+  bookmark,
+  bookmarkOutline,
+  cloudOutline,
+  ellipseOutline,
+  planetOutline,
+  sparklesOutline,
+  starOutline,
+} from 'ionicons/icons';
 
 import { AppState } from './app-state.service';
-import type { Target } from './targets';
+import type { Target, TargetKind } from './targets';
+
+const KIND_ICONS: Record<TargetKind, string> = {
+  Galaxy: 'planet-outline',
+  Nebula: 'cloud-outline',
+  'Open cluster': 'sparkles-outline',
+  'Globular cluster': 'ellipse-outline',
+  Star: 'star-outline',
+};
+
+// Below this altitude, targets are dimmed by the atmosphere and hidden by buildings.
+const GOOD_ALTITUDE_DEG = 30;
 
 /** A list of targets, used by both the Targets and Plan tabs. */
 @Component({
@@ -15,16 +34,19 @@ import type { Target } from './targets';
   template: `
     <ion-list>
       @for (target of targets(); track target.id) {
-        @let position = state.positionOf(target);
+        @let altDeg = altitudeOf(target);
         <ion-item button detail="false" (click)="aimAt(target)">
+          <ion-icon slot="start" color="medium" aria-hidden="true" [name]="iconFor(target)"></ion-icon>
           <ion-label>
             <h2>{{ target.id }}</h2>
-            <p>{{ target.name }} · {{ target.kind }} · mag {{ target.mag | number: '1.1-1' }}</p>
+            <p>{{ target.name }} · mag {{ target.mag | number: '1.1-1' }}</p>
           </ion-label>
-          @if (position.altDeg > 0) {
-            <ion-badge slot="end" color="success">{{ position.altDeg | number: '1.0-0' }}°</ion-badge>
+          @if (altDeg > 0) {
+            <ion-badge slot="end" [color]="altDeg >= goodAltitude ? 'success' : 'warning'"
+              >{{ altDeg | number: '1.0-0' }}°</ion-badge
+            >
           } @else {
-            <ion-note slot="end">Below horizon</ion-note>
+            <ion-note slot="end">Set</ion-note>
           }
           <ion-button
             slot="end"
@@ -41,12 +63,24 @@ import type { Target } from './targets';
 })
 export class TargetListComponent {
   readonly targets = input.required<readonly Target[]>();
+  /** The time altitudes are shown for. Defaults to right now. */
+  readonly at = input<Date | null>(null);
 
   protected readonly state = inject(AppState);
+  protected readonly goodAltitude = GOOD_ALTITUDE_DEG;
   private readonly router = inject(Router);
 
   constructor() {
-    addIcons({ bookmark, bookmarkOutline });
+    addIcons({ bookmark, bookmarkOutline, cloudOutline, ellipseOutline, planetOutline, sparklesOutline, starOutline });
+  }
+
+  protected altitudeOf(target: Target): number {
+    const at = this.at();
+    return (at ? this.state.positionAt(target, at) : this.state.positionOf(target)).altDeg;
+  }
+
+  protected iconFor(target: Target): string {
+    return KIND_ICONS[target.kind];
   }
 
   protected isPlanned(target: Target): boolean {

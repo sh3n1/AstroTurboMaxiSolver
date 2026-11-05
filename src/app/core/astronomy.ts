@@ -1,13 +1,16 @@
-// Plain astronomy and projection maths, with no Angular dependency.
+// Astronomy and projection maths, with no Angular dependency.
+//
+// astronomy-engine does the astronomy: where the sky is for a time and place, and
+// where the Sun and Moon are. This file adapts it and adds the view projection.
 //
 // Angles are in degrees unless a name says otherwise. Azimuth is measured from
-// north through east. Local vectors use the axes east, north, up.
-//
-// These formulas are good enough for the UI preview. They ignore precession and
-// refraction. Stage 4 of todo.md evaluates astronomy-engine as a replacement.
+// north through east. Local vectors use the axes east, north, up. Catalogue
+// positions are J2000. Atmospheric refraction is not applied yet.
+
+import { Body, Equator, Horizon, Illumination, Observer, Rotation_EQJ_HOR, SearchAltitude } from 'astronomy-engine';
 
 export type Vector3 = readonly [number, number, number];
-type Matrix3 = readonly [Vector3, Vector3, Vector3];
+export type Matrix3 = readonly [Vector3, Vector3, Vector3];
 
 export interface Horizontal {
   altDeg: number;
@@ -21,10 +24,24 @@ export interface ViewBasis {
   forward: Vector3;
 }
 
-const RAD = Math.PI / 180;
-const normalizeDeg = (deg: number) => ((deg % 360) + 360) % 360;
+/** Observing conditions for a time and place. */
+export interface SkyConditions {
+  sunAltDeg: number;
+  /** When full darkness starts, or null if it is already dark or never gets dark. */
+  darkFrom: Date | null;
+  /** When full darkness ends, or null if it isn't reached in the next day. */
+  darkUntil: Date | null;
+  moonAltDeg: number;
+  moonIlluminatedPercent: number;
+}
 
-const dot = (a: Vector3, b: Vector3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const RAD = Math.PI / 180;
+// The Sun's altitude when astronomical twilight ends and the sky is fully dark.
+const FULL_DARKNESS_SUN_ALT_DEG = -18;
+
+const normalizeDeg = (deg: number): number => ((deg % 360) + 360) % 360;
+
+const dot = (a: Vector3, b: Vector3): number => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const cross = (a: Vector3, b: Vector3): Vector3 => [
   a[1] * b[2] - a[2] * b[1],
   a[2] * b[0] - a[0] * b[2],
@@ -35,34 +52,7 @@ const normalize = (a: Vector3): Vector3 => {
   return [a[0] / length, a[1] / length, a[2] / length];
 };
 
-/** Greenwich mean sidereal time, from Meeus, Astronomical Algorithms, equation 12.4. */
-export function greenwichSiderealDeg(date: Date): number {
-  const daysSinceJ2000 = date.getTime() / 86_400_000 + 2_440_587.5 - 2_451_545;
-  const centuries = daysSinceJ2000 / 36_525;
-  return normalizeDeg(
-    280.46061837 + 360.98564736629 * daysSinceJ2000 + 0.000387933 * centuries ** 2 - centuries ** 3 / 38_710_000,
-  );
-}
-
-/** Local sidereal time. Longitude is positive to the east. */
-export function localSiderealDeg(date: Date, longitudeDeg: number): number {
-  return normalizeDeg(greenwichSiderealDeg(date) + longitudeDeg);
-}
-
-/** Converts a sky position to altitude and azimuth for a place and sidereal time. */
-export function equatorialToHorizontal(raDeg: number, decDeg: number, latitudeDeg: number, lstDeg: number): Horizontal {
-  const hourAngle = (lstDeg - raDeg) * RAD;
-  const dec = decDeg * RAD;
-  const lat = latitudeDeg * RAD;
-  const altitude = Math.asin(Math.sin(lat) * Math.sin(dec) + Math.cos(lat) * Math.cos(dec) * Math.cos(hourAngle));
-  const azimuth = Math.atan2(
-    -Math.cos(dec) * Math.sin(hourAngle),
-    Math.sin(dec) * Math.cos(lat) - Math.cos(dec) * Math.cos(hourAngle) * Math.sin(lat),
-  );
-  return { altDeg: altitude / RAD, azDeg: normalizeDeg(azimuth / RAD) };
-}
-
-/** Unit vector for a sky position, with x towards RA 0 and z towards the north pole. */
+/** Unit vector for a J2000 sky position, with x towards RA 0 and z towards the north pole. */
 export function equatorialVector(raDeg: number, decDeg: number): Vector3 {
   const ra = raDeg * RAD;
   const dec = decDeg * RAD;
@@ -70,18 +60,16 @@ export function equatorialVector(raDeg: number, decDeg: number): Vector3 {
 }
 
 /**
- * Rotation from equatorial vectors to local vectors. Building it once per frame
- * is much faster than running equatorialToHorizontal for thousands of stars.
+ * Rotation from J2000 sky vectors to local east, north, up vectors, including
+ * precession. Build it once and reuse it, since it is applied to thousands of stars.
  */
-export function equatorialToLocalMatrix(latitudeDeg: number, lstDeg: number): Matrix3 {
-  const sinLat = Math.sin(latitudeDeg * RAD);
-  const cosLat = Math.cos(latitudeDeg * RAD);
-  const sinLst = Math.sin(lstDeg * RAD);
-  const cosLst = Math.cos(lstDeg * RAD);
+export function skyRotation(date: Date, latitudeDeg: number, longitudeDeg: number): Matrix3 {
+  // The library stores this matrix by columns, and its local axes are north, west, up.
+  const { rot } = Rotation_EQJ_HOR(date, new Observer(latitudeDeg, longitudeDeg, 0));
   return [
-    [-sinLst, cosLst, 0],
-    [-sinLat * cosLst, -sinLat * sinLst, cosLat],
-    [cosLat * cosLst, cosLat * sinLst, sinLat],
+    [-rot[0][1], -rot[1][1], -rot[2][1]],
+    [rot[0][0], rot[1][0], rot[2][0]],
+    [rot[0][2], rot[1][2], rot[2][2]],
   ];
 }
 
@@ -94,12 +82,34 @@ export function horizontalVector({ altDeg, azDeg }: Horizontal): Vector3 {
   return [Math.cos(alt) * Math.sin(az), Math.cos(alt) * Math.cos(az), Math.sin(alt)];
 }
 
+/** Altitude and azimuth for a local unit vector. */
+export function vectorToHorizontal([east, north, up]: Vector3): Horizontal {
+  return { altDeg: Math.asin(Math.max(-1, Math.min(1, up))) / RAD, azDeg: normalizeDeg(Math.atan2(east, north) / RAD) };
+}
+
+/** Altitude and azimuth of a J2000 sky position, using a rotation from skyRotation. */
+export function equatorialToHorizontal(rotation: Matrix3, raDeg: number, decDeg: number): Horizontal {
+  return vectorToHorizontal(applyMatrix(rotation, equatorialVector(raDeg, decDeg)));
+}
+
 /** Angle between two sky positions in altitude and azimuth. */
 export function separationDeg(a: Horizontal, b: Horizontal): number {
   const va = horizontalVector(a);
   const vb = horizontalVector(b);
   // atan2 stays accurate for very small and very large angles, unlike acos.
   return Math.atan2(Math.hypot(...cross(va, vb)), dot(va, vb)) / RAD;
+}
+
+/** Shortest azimuth change from one position to another. Positive means turn right. */
+export function azimuthChangeDeg(fromDeg: number, toDeg: number): number {
+  const change = normalizeDeg(toDeg - fromDeg);
+  return change > 180 ? change - 360 : change;
+}
+
+/** Names an azimuth as one of the eight main compass directions. */
+export function compassPoint(azDeg: number): string {
+  const names = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
+  return names[Math.round(normalizeDeg(azDeg) / 45) % 8];
 }
 
 /** Orientation of a view looking at a pointing, with the horizon level. */
@@ -113,6 +123,15 @@ export function viewBasis(pointing: Horizontal): ViewBasis {
 /** Coordinates of a local vector along the view's right, up and forward axes. */
 export function toViewCoordinates(basis: ViewBasis, v: Vector3): Vector3 {
   return [dot(v, basis.right), dot(v, basis.up), dot(v, basis.forward)];
+}
+
+/** Local vector for coordinates along the view's axes. The inverse of toViewCoordinates. */
+export function fromViewCoordinates({ right, up, forward }: ViewBasis, [x, y, z]: Vector3): Vector3 {
+  return [
+    x * right[0] + y * up[0] + z * forward[0],
+    x * right[1] + y * up[1] + z * forward[1],
+    x * right[2] + y * up[2] + z * forward[2],
+  ];
 }
 
 /**
@@ -141,3 +160,29 @@ export const magnification = (telescopeFocalMm: number, eyepieceFocalMm: number)
 /** Approximate field of view through an eyepiece: apparent field divided by magnification. */
 export const trueFieldDeg = (telescopeFocalMm: number, eyepieceFocalMm: number, apparentFieldDeg: number): number =>
   apparentFieldDeg / magnification(telescopeFocalMm, eyepieceFocalMm);
+
+/** Altitude of the Sun or Moon for a time and place. */
+function bodyAltitudeDeg(body: Body, date: Date, observer: Observer): number {
+  const { ra, dec } = Equator(body, date, observer, true, true);
+  return Horizon(date, observer, ra, dec).altitude;
+}
+
+/** Works out the darkness window and Moon for a time and place. */
+export function skyConditions(date: Date, latitudeDeg: number, longitudeDeg: number): SkyConditions {
+  const observer = new Observer(latitudeDeg, longitudeDeg, 0);
+  const sunAltDeg = bodyAltitudeDeg(Body.Sun, date, observer);
+  const alreadyDark = sunAltDeg <= FULL_DARKNESS_SUN_ALT_DEG;
+
+  // Search forward one day. Far enough north in summer, it never gets fully dark.
+  const start = alreadyDark ? null : SearchAltitude(Body.Sun, observer, -1, date, 1, FULL_DARKNESS_SUN_ALT_DEG);
+  const end =
+    alreadyDark || start ? SearchAltitude(Body.Sun, observer, +1, start ?? date, 1, FULL_DARKNESS_SUN_ALT_DEG) : null;
+
+  return {
+    sunAltDeg,
+    darkFrom: start?.date ?? null,
+    darkUntil: end?.date ?? null,
+    moonAltDeg: bodyAltitudeDeg(Body.Moon, date, observer),
+    moonIlluminatedPercent: Illumination(Body.Moon, date).phase_fraction * 100,
+  };
+}

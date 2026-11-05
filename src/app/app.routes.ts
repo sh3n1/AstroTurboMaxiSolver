@@ -12,5 +12,6 @@ export const routes: Routes = [
       { path: '', redirectTo: 'sky', pathMatch: 'full' },
     ],
   },
+  { path: 'align', loadComponent: () => import('./pages/align.page').then((m) => m.AlignPage) },
   { path: '', redirectTo: 'tabs/sky', pathMatch: 'full' },
 ];

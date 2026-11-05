@@ -33,6 +33,7 @@ Features:
 
 - Ionic 9 and Angular 22 with standalone components
 - TypeScript
+- `astronomy-engine` for sky positions, the Sun and the Moon
 - Vitest for unit tests, Playwright for end-to-end tests
 
 ## Commands
@@ -77,7 +78,7 @@ Before finishing a change, run: `npm run lint`, `npm run test:unit` and `npm run
   - Aim for at least 1/8 s per frame, with stacked frames as the fallback.
   - Design for a bright city sky. The reference case is central Valencia, about 17.5 mag/arcsec², on an Honor Magic5 Pro.
 - **Sensor fusion approach:** Sensors give live movement between solves and a hint that narrows the search. Plate solves correct drift. Treat the compass as a coarse hint only. TODO: choose the filter after the sensor spike.
-- **Coordinate systems and units:** TODO
+- **Coordinate systems and units:** Catalogue positions are J2000. `astronomy-engine` converts them to the local sky, including precession. Angles are in degrees, and azimuth runs from north through east. Refraction is not applied yet.
 - **Accuracy and performance targets:** Target within 0.5° of centre, so it lands in a low-power eyepiece field. About 2 s to solve on a still phone using the sensor hint. Live sensor updates while moving. Revisit after the feasibility spikes.
 
 ## Conventions

@@ -1,16 +1,15 @@
 import { DecimalPipe } from '@angular/common';
 import type { AfterViewInit, ElementRef, OnDestroy } from '@angular/core';
 import { Component, computed, effect, inject, signal, viewChild } from '@angular/core';
+import { Router } from '@angular/router';
 import {
   IonButton,
-  IonButtons,
   IonContent,
   IonHeader,
   IonIcon,
   IonLabel,
   IonSegment,
   IonSegmentButton,
-  IonTitle,
   IonToolbar,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
@@ -20,11 +19,10 @@ import { AppState } from '../core/app-state.service';
 import type { Vector3 } from '../core/astronomy';
 import {
   applyMatrix,
+  azimuthChangeDeg,
   bearingInViewDeg,
-  equatorialToLocalMatrix,
   equatorialVector,
   horizontalVector,
-  localSiderealDeg,
   magnification,
   separationDeg,
   stereographic,
@@ -36,15 +34,28 @@ import {
 import { TARGETS } from '../core/targets';
 
 type ViewMode = 'sky' | 'eyepiece';
+type Project = (v: Vector3) => { x: number; y: number } | null;
 
 interface Star {
   vector: Vector3;
   mag: number;
 }
 
-const ZOOM_LEVELS_DEG = [120, 90, 60, 40, 25, 15, 8];
+interface Box {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+}
+
+const MIN_FIELD_DEG = 5;
+const MAX_FIELD_DEG = 120;
+const ZOOM_STEP = 1.5;
 const AIM_CIRCLE_FRACTION = 0.13; // Aiming circle radius, as a share of the screen's short side
 const MAX_ALTITUDE_DEG = 89; // Looking exactly straight up has no defined "right"
+const MIN_ALTITUDE_DEG = -20;
+const GRID_ALTITUDES_DEG = [30, 60];
+const GRID_AZIMUTH_STEP_DEG = 45;
 const CARDINALS = [
   { label: 'N', azDeg: 0 },
   { label: 'E', azDeg: 90 },
@@ -52,25 +63,20 @@ const CARDINALS = [
   { label: 'W', azDeg: 270 },
 ];
 
+/** Faint stars only clutter a wide view, so show more of them when zoomed in. */
+function magnitudeLimit(fieldDeg: number): number {
+  if (fieldDeg >= 90) return 5.5;
+  if (fieldDeg >= 40) return 6;
+  return 6.5;
+}
+
 /**
  * The sky map, aiming circle, guidance arrow and eyepiece view. Until real sensors
  * are connected, the user aims by dragging, and the page says so.
  */
 @Component({
   selector: 'app-sky',
-  imports: [
-    DecimalPipe,
-    IonButton,
-    IonButtons,
-    IonContent,
-    IonHeader,
-    IonIcon,
-    IonLabel,
-    IonSegment,
-    IonSegmentButton,
-    IonTitle,
-    IonToolbar,
-  ],
+  imports: [DecimalPipe, IonButton, IonContent, IonHeader, IonIcon, IonLabel, IonSegment, IonSegmentButton, IonToolbar],
   styles: `
     .stage {
       position: relative;
@@ -82,7 +88,7 @@ const CARDINALS = [
       display: block;
       width: 100%;
       height: 100%;
-      /* Stops the browser scrolling the page while the user drags the map. */
+      /* Stops the browser scrolling the page while the user drags or pinches the map. */
       touch-action: none;
       cursor: grab;
     }
@@ -103,6 +109,23 @@ const CARDINALS = [
     }
     .status {
       top: 12px;
+      right: auto;
+      font-size: 12px;
+      color: #a8b0c6;
+    }
+    .alignment {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      padding: 8px 12px;
+      border: 0;
+      border-radius: 10px;
+      background: rgb(10 14 28 / 85%);
+      color: #ffb454;
+      font-size: 12px;
+    }
+    .alignment.aligned {
+      color: #6fcf9f;
     }
     .guidance {
       bottom: 12px;
@@ -115,21 +138,25 @@ const CARDINALS = [
       color: #a8b0c6;
       font-size: 12px;
     }
+    .directions {
+      color: #ffb454;
+      font-size: 13px;
+    }
     .zoom {
       position: absolute;
       right: 12px;
-      top: 76px;
+      top: 68px;
       display: flex;
       flex-direction: column;
       gap: 4px;
     }
+    .zoom ion-button {
+      --background: rgb(10 14 28 / 85%);
+      --color: #e8ebf5;
+    }
   `,
   template: `
     <ion-header>
-      <ion-toolbar>
-        <ion-title>AstroFinder</ion-title>
-        <ion-buttons slot="end"></ion-buttons>
-      </ion-toolbar>
       <ion-toolbar>
         <ion-segment [value]="mode()" (ionChange)="mode.set($any($event).detail.value)">
           <ion-segment-button value="sky"><ion-label>Sky map</ion-label></ion-segment-button>
@@ -142,36 +169,53 @@ const CARDINALS = [
       <div class="stage">
         <canvas
           #canvas
-          aria-label="Sky map. Drag to aim."
+          aria-label="Sky map. Drag to aim, pinch to zoom."
           [attr.data-star-count]="stars().length"
-          (pointerdown)="startDrag($event)"
-          (pointermove)="drag($event)"
-          (pointerup)="endDrag($event)"
-          (pointercancel)="endDrag($event)"
+          (pointerdown)="pointerDown($event)"
+          (pointermove)="pointerMove($event)"
+          (pointerup)="pointerUp($event)"
+          (pointercancel)="pointerUp($event)"
+          (wheel)="wheel($event)"
         ></canvas>
 
-        <div class="panel status">
-          <div>Preview: drag to aim</div>
-          <div class="muted">
-            Pointing alt {{ state.pointing().altDeg | number: '1.0-0' }}°, az
-            {{ state.pointing().azDeg | number: '1.0-0' }}°
-            @if (mode() === 'eyepiece') {
-              · {{ power() | number: '1.0-0' }}× · {{ eyepieceField() | number: '1.1-2' }}° field
-            }
-          </div>
+        <div class="panel status" data-testid="pointing">
+          Preview: drag to aim<br />
+          Alt {{ state.pointing().altDeg | number: '1.0-0' }}°, az {{ state.pointing().azDeg | number: '1.0-0' }}°
+          @if (mode() === 'eyepiece') {
+            <br />{{ power() | number: '1.0-0' }}× · {{ eyepieceField() | number: '1.1-2' }}° field
+          }
         </div>
+
+        <button
+          type="button"
+          class="alignment"
+          data-testid="alignment-status"
+          [class.aligned]="state.alignment()"
+          (click)="openAlignment()"
+        >
+          @if (state.alignment(); as alignment) {
+            Aligned: {{ alignment.starId }}
+          } @else {
+            Not aligned
+          }
+        </button>
 
         @if (mode() === 'sky') {
           <div class="zoom">
             <ion-button
               size="small"
               aria-label="Zoom in"
-              [disabled]="zoomIndex() === zoomLevels.length - 1"
-              (click)="zoom(1)"
+              [disabled]="fieldDeg() <= minField"
+              (click)="zoomBy(1 / zoomStep)"
             >
               <ion-icon slot="icon-only" name="add"></ion-icon>
             </ion-button>
-            <ion-button size="small" aria-label="Zoom out" [disabled]="zoomIndex() === 0" (click)="zoom(-1)">
+            <ion-button
+              size="small"
+              aria-label="Zoom out"
+              [disabled]="fieldDeg() >= maxField"
+              (click)="zoomBy(zoomStep)"
+            >
               <ion-icon slot="icon-only" name="remove"></ion-icon>
             </ion-button>
           </div>
@@ -185,6 +229,7 @@ const CARDINALS = [
           @if (state.selectedTarget(); as target) {
             <div>
               <strong>{{ target.id }}</strong> {{ target.name }}
+              <div class="directions" data-testid="directions">{{ directions() }}</div>
               <div class="muted" data-testid="guidance">
                 {{ targetDistance() | number: '1.1-1' }}° away
                 @if (targetBelowHorizon()) {
@@ -192,10 +237,17 @@ const CARDINALS = [
                 }
               </div>
             </div>
-            <ion-button fill="clear" size="small" data-testid="aim-at-target" (click)="aimAtTarget()">Aim</ion-button>
-            <ion-button fill="clear" size="small" aria-label="Clear target" (click)="state.selectedTargetId.set(null)">
-              <ion-icon slot="icon-only" name="close-circle"></ion-icon>
-            </ion-button>
+            <div>
+              <ion-button fill="clear" size="small" data-testid="aim-at-target" (click)="aimAtTarget()">Aim</ion-button>
+              <ion-button
+                fill="clear"
+                size="small"
+                aria-label="Clear target"
+                (click)="state.selectedTargetId.set(null)"
+              >
+                <ion-icon slot="icon-only" name="close-circle"></ion-icon>
+              </ion-button>
+            </div>
           } @else {
             <div class="muted">Choose a target from the Targets tab for guidance.</div>
           }
@@ -206,9 +258,13 @@ const CARDINALS = [
 })
 export class SkyPage implements AfterViewInit, OnDestroy {
   protected readonly state = inject(AppState);
+  private readonly router = inject(Router);
+
   protected readonly mode = signal<ViewMode>('sky');
-  protected readonly zoomLevels = ZOOM_LEVELS_DEG;
-  protected readonly zoomIndex = signal(1);
+  protected readonly fieldDeg = signal(90);
+  protected readonly minField = MIN_FIELD_DEG;
+  protected readonly maxField = MAX_FIELD_DEG;
+  protected readonly zoomStep = ZOOM_STEP;
   protected readonly stars = signal<Star[]>([]);
   /** How many stars the eyepiece circle holds, so an empty field can be explained. */
   protected readonly starsInEyepiece = signal(0);
@@ -230,10 +286,28 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     return !!target && this.state.positionOf(target).altDeg < 0;
   });
 
+  /** Which way to move the telescope, in the terms an alt-az mount uses. */
+  protected readonly directions = computed(() => {
+    const target = this.state.selectedTarget();
+    if (!target) return '';
+    const position = this.state.positionOf(target);
+    const pointing = this.state.pointing();
+    if (separationDeg(pointing, position) < 0.5) return 'On target';
+    const altChange = position.altDeg - pointing.altDeg;
+    const azChange = azimuthChangeDeg(pointing.azDeg, position.azDeg);
+    const vertical = `${altChange >= 0 ? 'Up' : 'Down'} ${Math.abs(altChange).toFixed(0)}°`;
+    const horizontal = `${azChange >= 0 ? 'Right' : 'Left'} ${Math.abs(azChange).toFixed(0)}°`;
+    return `${vertical} · ${horizontal}`;
+  });
+
   private readonly canvasRef = viewChild.required<ElementRef<HTMLCanvasElement>>('canvas');
   private resizeObserver?: ResizeObserver;
   private drawQueued = false;
+
+  // Fingers currently on the screen. One drags and two pinch.
+  private readonly pointers = new Map<number, { x: number; y: number }>();
   private dragStart?: { x: number; y: number; altDeg: number; azDeg: number };
+  private pinchStart?: { distance: number; fieldDeg: number };
 
   constructor() {
     addIcons({ add, closeCircle, remove });
@@ -245,7 +319,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       this.state.selectedTarget();
       this.state.now();
       this.mode();
-      this.zoomIndex();
+      this.fieldDeg();
       this.stars();
       this.queueDraw();
     });
@@ -261,6 +335,10 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     this.resizeObserver?.disconnect();
   }
 
+  protected openAlignment(): void {
+    void this.router.navigateByUrl('/align');
+  }
+
   /**
    * Jumps straight to the target. A preview shortcut, because dragging across the
    * sky is impractical in the eyepiece's narrow field. Real aiming will use sensors.
@@ -272,36 +350,79 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     this.state.pointing.set({ altDeg: Math.min(altDeg, MAX_ALTITUDE_DEG), azDeg });
   }
 
-  protected zoom(step: number): void {
-    this.zoomIndex.update((i) => Math.min(ZOOM_LEVELS_DEG.length - 1, Math.max(0, i + step)));
+  protected zoomBy(factor: number): void {
+    this.setField(this.fieldDeg() * factor);
   }
 
-  protected startDrag(event: PointerEvent): void {
+  protected wheel(event: WheelEvent): void {
+    if (this.mode() === 'sky') this.zoomBy(event.deltaY > 0 ? 1.1 : 1 / 1.1);
+  }
+
+  protected pointerDown(event: PointerEvent): void {
     (event.target as HTMLElement).setPointerCapture(event.pointerId);
-    this.dragStart = { x: event.clientX, y: event.clientY, ...this.state.pointing() };
+    this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    this.restartGesture();
+  }
+
+  protected pointerMove(event: PointerEvent): void {
+    if (!this.pointers.has(event.pointerId)) return;
+    this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (this.pinchStart) this.pinch();
+    else if (this.dragStart) this.drag(event);
+  }
+
+  protected pointerUp(event: PointerEvent): void {
+    (event.target as HTMLElement).releasePointerCapture?.(event.pointerId);
+    this.pointers.delete(event.pointerId);
+    this.restartGesture();
+  }
+
+  /** Starts a drag or pinch from the current fingers, so the map doesn't jump. */
+  private restartGesture(): void {
+    const fingers = [...this.pointers.values()];
+    this.dragStart = fingers.length === 1 ? { ...fingers[0], ...this.state.pointing() } : undefined;
+    this.pinchStart =
+      fingers.length === 2 && this.mode() === 'sky'
+        ? { distance: Math.hypot(fingers[0].x - fingers[1].x, fingers[0].y - fingers[1].y), fieldDeg: this.fieldDeg() }
+        : undefined;
+  }
+
+  private pinch(): void {
+    const [a, b] = [...this.pointers.values()];
+    if (!this.pinchStart || !a || !b) return;
+    const distance = Math.hypot(a.x - b.x, a.y - b.y);
+    this.setField((this.pinchStart.fieldDeg * this.pinchStart.distance) / Math.max(distance, 1));
   }
 
   /** Dragging moves the sky with the finger, so aiming moves the opposite way. */
-  protected drag(event: PointerEvent): void {
+  private drag(event: PointerEvent): void {
     if (!this.dragStart) return;
-    const width = this.canvasRef().nativeElement.clientWidth;
-    const degPerPixel = this.viewFieldDeg() / Math.max(width, 1);
-    const altDeg = this.dragStart.altDeg + (event.clientY - this.dragStart.y) * degPerPixel;
-    const clampedAlt = Math.max(-20, Math.min(MAX_ALTITUDE_DEG, altDeg));
+    const { x: flipX, y: flipY } = this.imageFlip();
+    const degPerPixel = this.viewFieldDeg() / Math.max(this.canvasRef().nativeElement.clientWidth, 1);
+    const altDeg = this.dragStart.altDeg + flipY * (event.clientY - this.dragStart.y) * degPerPixel;
+    const clampedAlt = Math.max(MIN_ALTITUDE_DEG, Math.min(MAX_ALTITUDE_DEG, altDeg));
     // A sideways drag covers more azimuth high in the sky, where its circles are smaller.
     const azScale = 1 / Math.max(Math.cos((clampedAlt * Math.PI) / 180), 0.1);
-    const azDeg = this.dragStart.azDeg - (event.clientX - this.dragStart.x) * degPerPixel * azScale;
+    const azDeg = this.dragStart.azDeg - flipX * (event.clientX - this.dragStart.x) * degPerPixel * azScale;
     this.state.pointing.set({ altDeg: clampedAlt, azDeg: ((azDeg % 360) + 360) % 360 });
   }
 
-  protected endDrag(event: PointerEvent): void {
-    (event.target as HTMLElement).releasePointerCapture?.(event.pointerId);
-    this.dragStart = undefined;
+  private setField(fieldDeg: number): void {
+    this.fieldDeg.set(Math.max(MIN_FIELD_DEG, Math.min(MAX_FIELD_DEG, fieldDeg)));
   }
 
   /** Width of sky shown, in degrees. The eyepiece shows a little around its circle. */
   private viewFieldDeg(): number {
-    return this.mode() === 'eyepiece' ? this.eyepieceField() * 1.25 : ZOOM_LEVELS_DEG[this.zoomIndex()];
+    return this.mode() === 'eyepiece' ? this.eyepieceField() * 1.25 : this.fieldDeg();
+  }
+
+  /**
+   * Telescopes change the image. A Newtonian turns it upside down, and a diagonal
+   * mirrors it. The sky map always shows the sky as seen by eye.
+   */
+  private imageFlip(): { x: number; y: number } {
+    if (this.mode() !== 'eyepiece') return { x: 1, y: 1 };
+    return { x: -1, y: this.state.settings().telescopeType === 'newtonian' ? -1 : 1 };
   }
 
   private async loadStars(): Promise<void> {
@@ -339,67 +460,32 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     ctx.fillStyle = '#05070f';
     ctx.fillRect(0, 0, width, height);
 
-    const { latitudeDeg, longitudeDeg, telescopeType } = this.state.settings();
-    const toLocal = equatorialToLocalMatrix(latitudeDeg, localSiderealDeg(this.state.now(), longitudeDeg));
     const basis = viewBasis(this.state.pointing());
     const isEyepiece = this.mode() === 'eyepiece';
-
-    // Telescopes change the image. A Newtonian turns it upside down, and a
-    // diagonal mirrors it. The sky map always shows the sky as seen by eye.
-    const flipX = isEyepiece ? -1 : 1;
-    const flipY = isEyepiece && telescopeType === 'newtonian' ? -1 : 1;
+    const flip = this.imageFlip();
 
     // Pixels per projected unit, so the chosen field fits the screen's width.
     const scale = width / 2 / stereographicRadius(this.viewFieldDeg() / 2);
-    const project = (v: Vector3) => {
+    const project: Project = (v) => {
       const view = toViewCoordinates(basis, v);
       if (view[2] < -0.2) return null; // Too far behind the viewer to draw
       const { x, y } = stereographic(view);
-      return { x: width / 2 + flipX * x * scale, y: height / 2 - flipY * y * scale };
+      return { x: width / 2 + flip.x * x * scale, y: height / 2 - flip.y * y * scale };
     };
 
-    this.drawStars(ctx, toLocal, project, width, height);
+    if (!isEyepiece) this.drawGrid(ctx, project);
+    this.drawStars(ctx, project, width, height, scale);
     this.drawHorizon(ctx, project);
-    this.drawTargets(ctx, toLocal, project);
+    this.drawTargets(ctx, project);
     if (isEyepiece) this.drawEyepieceMask(ctx, width, height, scale);
     else this.drawAimingCircle(ctx, width, height, basis);
   }
 
-  private drawStars(
-    ctx: CanvasRenderingContext2D,
-    toLocal: ReturnType<typeof equatorialToLocalMatrix>,
-    project: (v: Vector3) => { x: number; y: number } | null,
-    width: number,
-    height: number,
-  ): void {
-    const scale = width / 2 / stereographicRadius(this.viewFieldDeg() / 2);
-    const eyepieceRadius = stereographicRadius(this.eyepieceField() / 2) * scale;
-    let inEyepiece = 0;
-
-    ctx.fillStyle = '#ffffff';
-    for (const star of this.stars()) {
-      const local = applyMatrix(toLocal, star.vector);
-      if (local[2] < 0) continue; // Below the horizon
-      const point = project(local);
-      if (!point || point.x < 0 || point.x > width || point.y < 0 || point.y > height) continue;
-      // Brighter stars are larger, and faint ones also fade.
-      if (Math.hypot(point.x - width / 2, point.y - height / 2) <= eyepieceRadius) inEyepiece++;
-      ctx.globalAlpha = Math.min(1, Math.max(0.35, 1.1 - star.mag * 0.11));
-      ctx.beginPath();
-      ctx.arc(point.x, point.y, Math.max(0.6, 2.8 - star.mag * 0.38), 0, 2 * Math.PI);
-      ctx.fill();
-    }
-    ctx.globalAlpha = 1;
-    this.starsInEyepiece.set(inEyepiece);
-  }
-
-  private drawHorizon(ctx: CanvasRenderingContext2D, project: (v: Vector3) => { x: number; y: number } | null): void {
-    ctx.strokeStyle = '#3f8f6a';
-    ctx.lineWidth = 1.5;
+  /** Draws a line through points, lifting the pen wherever a point can't be shown. */
+  private drawCurve(ctx: CanvasRenderingContext2D, points: ({ x: number; y: number } | null)[]): void {
     ctx.beginPath();
     let penDown = false;
-    for (let azDeg = 0; azDeg <= 360; azDeg += 2) {
-      const point = project(horizontalVector({ altDeg: 0, azDeg }));
+    for (const point of points) {
       if (!point) {
         penDown = false;
       } else if (penDown) {
@@ -410,6 +496,61 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       }
     }
     ctx.stroke();
+  }
+
+  /** Faint altitude and azimuth lines, which help judge distance and direction. */
+  private drawGrid(ctx: CanvasRenderingContext2D, project: Project): void {
+    ctx.strokeStyle = '#1b2336';
+    ctx.lineWidth = 1;
+    for (const altDeg of GRID_ALTITUDES_DEG) {
+      const points = [];
+      for (let azDeg = 0; azDeg <= 360; azDeg += 3) points.push(project(horizontalVector({ altDeg, azDeg })));
+      this.drawCurve(ctx, points);
+    }
+    for (let azDeg = 0; azDeg < 360; azDeg += GRID_AZIMUTH_STEP_DEG) {
+      const points = [];
+      for (let altDeg = 0; altDeg <= 90; altDeg += 5) points.push(project(horizontalVector({ altDeg, azDeg })));
+      this.drawCurve(ctx, points);
+    }
+  }
+
+  private drawStars(
+    ctx: CanvasRenderingContext2D,
+    project: Project,
+    width: number,
+    height: number,
+    scale: number,
+  ): void {
+    const toLocal = this.state.skyRotation();
+    const isEyepiece = this.mode() === 'eyepiece';
+    const limit = isEyepiece ? Infinity : magnitudeLimit(this.fieldDeg());
+    const eyepieceRadius = stereographicRadius(this.eyepieceField() / 2) * scale;
+    let inEyepiece = 0;
+
+    ctx.fillStyle = '#ffffff';
+    for (const star of this.stars()) {
+      if (star.mag > limit) break; // The file is sorted brightest first
+      const local = applyMatrix(toLocal, star.vector);
+      if (local[2] < 0) continue; // Below the horizon
+      const point = project(local);
+      if (!point || point.x < 0 || point.x > width || point.y < 0 || point.y > height) continue;
+      if (Math.hypot(point.x - width / 2, point.y - height / 2) <= eyepieceRadius) inEyepiece++;
+      // Brighter stars are larger, and faint ones also fade.
+      ctx.globalAlpha = Math.min(1, Math.max(0.35, 1.1 - star.mag * 0.11));
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, Math.max(0.6, 2.8 - star.mag * 0.38), 0, 2 * Math.PI);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    this.starsInEyepiece.set(inEyepiece);
+  }
+
+  private drawHorizon(ctx: CanvasRenderingContext2D, project: Project): void {
+    ctx.strokeStyle = '#3f8f6a';
+    ctx.lineWidth = 1.5;
+    const points = [];
+    for (let azDeg = 0; azDeg <= 360; azDeg += 2) points.push(project(horizontalVector({ altDeg: 0, azDeg })));
+    this.drawCurve(ctx, points);
 
     ctx.fillStyle = '#6fcf9f';
     ctx.font = 'bold 14px sans-serif';
@@ -420,28 +561,46 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     }
   }
 
-  private drawTargets(
-    ctx: CanvasRenderingContext2D,
-    toLocal: ReturnType<typeof equatorialToLocalMatrix>,
-    project: (v: Vector3) => { x: number; y: number } | null,
-  ): void {
+  private drawTargets(ctx: CanvasRenderingContext2D, project: Project): void {
+    const toLocal = this.state.skyRotation();
     const selectedId = this.state.selectedTargetId();
+    const labels: Box[] = [];
     ctx.font = '12px sans-serif';
     ctx.textAlign = 'left';
-    for (const target of TARGETS) {
+
+    // The selected target goes first, so its label always wins a clash.
+    const ordered = [...TARGETS].sort((a, b) => Number(b.id === selectedId) - Number(a.id === selectedId));
+    for (const target of ordered) {
       const local = applyMatrix(toLocal, equatorialVector(target.raDeg, target.decDeg));
       const isSelected = target.id === selectedId;
       if (local[2] < 0 && !isSelected) continue;
       const point = project(local);
       if (!point) continue;
-      const color = isSelected ? '#ffb454' : '#8fb7ff';
+
+      // Stars are already drawn as dots, so only deep-sky objects need a marker.
+      const color = isSelected ? '#ffb454' : target.kind === 'Star' ? '#a8b0c6' : '#8fb7ff';
       ctx.strokeStyle = color;
       ctx.fillStyle = color;
       ctx.lineWidth = isSelected ? 2 : 1;
-      ctx.beginPath();
-      ctx.arc(point.x, point.y, isSelected ? 9 : 5, 0, 2 * Math.PI);
-      ctx.stroke();
-      ctx.fillText(target.id, point.x + 11, point.y + 4);
+      if (isSelected || target.kind !== 'Star') {
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, isSelected ? 9 : 5, 0, 2 * Math.PI);
+        ctx.stroke();
+      }
+
+      // Skip a label that would overlap one already drawn.
+      const box: Box = {
+        left: point.x + 11,
+        right: point.x + 11 + ctx.measureText(target.id).width,
+        top: point.y - 8,
+        bottom: point.y + 6,
+      };
+      const clashes = labels.some(
+        (o) => box.left < o.right && box.right > o.left && box.top < o.bottom && box.bottom > o.top,
+      );
+      if (clashes) continue;
+      labels.push(box);
+      ctx.fillText(target.id, box.left, point.y + 4);
     }
   }
 
@@ -455,21 +614,21 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     const cx = width / 2;
     const cy = height / 2;
     const radius = Math.min(width, height) * AIM_CIRCLE_FRACTION;
-    ctx.strokeStyle = '#e5484d';
-    ctx.fillStyle = '#e5484d';
+    const target = this.state.selectedTarget();
+    const position = target ? this.state.positionOf(target) : null;
+
+    // The circle turns green once the target is inside it.
+    const fieldPerRadius = (this.viewFieldDeg() / width) * radius;
+    const onTarget = !!position && separationDeg(this.state.pointing(), position) < fieldPerRadius;
+    const color = onTarget ? '#6fcf9f' : '#e5484d';
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.arc(cx, cy, radius, 0, 2 * Math.PI);
     ctx.stroke();
 
-    const target = this.state.selectedTarget();
-    if (!target) return;
-
-    // No arrow once the target is inside the aiming circle.
-    const position = this.state.positionOf(target);
-    const fieldPerRadius = (this.viewFieldDeg() / width) * radius;
-    if (separationDeg(this.state.pointing(), position) < fieldPerRadius) return;
-
+    if (!position || onTarget) return;
     const bearing = (bearingInViewDeg(basis, position) * Math.PI) / 180;
     ctx.save();
     ctx.translate(cx, cy);

@@ -1,7 +1,7 @@
 import { Injectable, computed, effect, signal } from '@angular/core';
 
-import type { Horizontal } from './astronomy';
-import { equatorialToHorizontal, localSiderealDeg } from './astronomy';
+import type { Horizontal, Vector3 } from './astronomy';
+import { equatorialToHorizontal, skyConditions, skyRotation } from './astronomy';
 import type { Target } from './targets';
 import { TARGETS } from './targets';
 
@@ -20,6 +20,14 @@ export interface Settings {
   nightMode: boolean;
 }
 
+/** A completed alignment. It stays valid while the phone stays fixed in its mount. */
+export interface Alignment {
+  starId: string;
+  alignedAt: string; // ISO date
+  mount: MountType;
+  offset: Vector3; // The telescope's direction in the camera's axes
+}
+
 // Starts at Valencia, with a common beginner telescope and eyepiece.
 const DEFAULT_SETTINGS: Settings = {
   latitudeDeg: 39.47,
@@ -34,9 +42,10 @@ const DEFAULT_SETTINGS: Settings = {
 
 const SETTINGS_KEY = 'astrofinder.settings';
 const PLAN_KEY = 'astrofinder.plan';
+const ALIGNMENT_KEY = 'astrofinder.alignment';
 
 // Browser storage can be blocked or cleared, so the app must work without it.
-function load<T>(key: string, fallback: T): T {
+function load<T extends object>(key: string, fallback: T): T {
   try {
     const stored = localStorage.getItem(key);
     return stored ? { ...fallback, ...JSON.parse(stored) } : fallback;
@@ -67,18 +76,35 @@ export class AppState {
   /** Target ids the user has added to their session plan. */
   readonly planIds = signal<string[]>(load<{ ids: string[] }>(PLAN_KEY, { ids: [] }).ids);
 
+  readonly alignment = signal<Alignment | null>(
+    load<{ value: Alignment | null }>(ALIGNMENT_KEY, { value: null }).value,
+  );
+
   /** Current time, refreshed each minute, so positions keep up with the sky. */
   readonly now = signal(new Date());
+
+  /** Rotation from catalogue positions to the local sky, right now. */
+  readonly skyRotation = computed(() => this.rotationAt(this.now()));
+
+  /** The darkness window and Moon, right now. */
+  readonly conditions = computed(() => {
+    const { latitudeDeg, longitudeDeg } = this.settings();
+    return skyConditions(this.now(), latitudeDeg, longitudeDeg);
+  });
 
   constructor() {
     setInterval(() => this.now.set(new Date()), 60_000);
     effect(() => save(SETTINGS_KEY, this.settings()));
     effect(() => save(PLAN_KEY, { ids: this.planIds() }));
+    effect(() => save(ALIGNMENT_KEY, { value: this.alignment() }));
     // CSS in global.scss turns the whole app red when this class is present.
     effect(() => document.documentElement.classList.toggle('night', this.settings().nightMode));
   }
 
   updateSettings(changes: Partial<Settings>): void {
+    // A different mount puts the camera at a different angle to the telescope.
+    const alignment = this.alignment();
+    if (changes.mount && alignment && changes.mount !== alignment.mount) this.alignment.set(null);
     this.settings.update((current) => ({ ...current, ...changes }));
   }
 
@@ -88,7 +114,16 @@ export class AppState {
 
   /** Where a target is right now from the user's location. */
   positionOf(target: Pick<Target, 'raDeg' | 'decDeg'>): Horizontal {
+    return equatorialToHorizontal(this.skyRotation(), target.raDeg, target.decDeg);
+  }
+
+  /** Where a target will be at a given time from the user's location. */
+  positionAt(target: Pick<Target, 'raDeg' | 'decDeg'>, date: Date): Horizontal {
+    return equatorialToHorizontal(this.rotationAt(date), target.raDeg, target.decDeg);
+  }
+
+  private rotationAt(date: Date): ReturnType<typeof skyRotation> {
     const { latitudeDeg, longitudeDeg } = this.settings();
-    return equatorialToHorizontal(target.raDeg, target.decDeg, latitudeDeg, localSiderealDeg(this.now(), longitudeDeg));
+    return skyRotation(date, latitudeDeg, longitudeDeg);
   }
 }
