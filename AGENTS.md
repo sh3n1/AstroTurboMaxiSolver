@@ -20,9 +20,14 @@ Features:
 .
 
 - **Platform:** PWA only. Do not add native iOS or Android projects, native plugins, or anything that needs an app store build.
+- **Hosting:** localhost only for now. Do not set up or run a deployment.
 - **Current state:** Work in progress
 - **Target users:** Amateur astronomers
 - **Supported devices and browsers:** Only pwa, targeted on smartphones
+  - Android Chrome is the priority. iOS Safari must also be supported, and any feature it can't fully do must degrade gracefully.
+  - Support phones as old as possible without the experience becoming frustrating. Set the exact minimum by measuring performance on real phones.
+  - The browser floor is in `.browserslistrc` (currently Chrome, Edge and Firefox 119+, Safari and iOS 17+).
+- **Licence:** Closed source. Never add GPL, AGPL or other copyleft code or data. Check the licence of every library and catalogue before using it, and keep required attributions.
 
 ## Stack
 
@@ -39,9 +44,9 @@ Features:
 | Lint, type check and format check | `npm run lint` |
 | Fix lint and formatting | `npm run lint:fix` |
 | Unit tests | `npm run test:unit` |
-| End-to-end tests (port 4210) | `npm run test:e2e` |
+| End-to-end tests (ports 4210 and 4211, includes a production build) | `npm run test:e2e` |
 
-Before finishing a change, run: TODO
+Before finishing a change, run: `npm run lint`, `npm run test:unit` and `npm run test:e2e`
 
 ## Project structure
 
@@ -58,29 +63,37 @@ Before finishing a change, run: TODO
 
 ## Domain
 
-- **Plate solving approach:** TODO (for example where it runs, which index data it uses)
+- **Mounting:** The camera always looks at the sky, not through the eyepiece. Support these setups:
+  - Camera pointing directly at the sky, with or without a small add-on phone telescope, so the field of view varies by setup.
+  - Phone parallel to the tube with a mirror, like the Celestron StarSense Explorer. The mirror flips the image, and the camera points at a large angle to the telescope.
+- **Plate solving approach:** Must run in the browser and work offline. Astrometry.net can't be used because its distribution is GPL. tetra3 and cedar-solve are Apache-2.0 candidates. TODO: final choice after the solver spike.
 - **Sensor fusion approach:** TODO
 - **Coordinate systems and units:** TODO
-- **Accuracy and performance targets:** TODO
+- **Accuracy and performance targets:** Target within 0.5° of centre, so it lands in a low-power eyepiece field. About 2 s to solve on a still phone using the sensor hint. Live sensor updates while moving. Revisit after the feasibility spikes.
 
 ## Conventions
 
 - Code style: Clean code, kiss, dont reinvent the wheel, human readable, very commented
-- Naming: TODO
-- Testing expectations: TODO
-- Dependencies: TODO (when an agent may add one)
+- Naming: Angular defaults
+- Testing expectations: Unit tests for astronomy, solver and fusion logic. End-to-end tests for main flows.
+- Dependencies: Ask before adding one. Prefer a well-maintained, permissively licensed library over custom code.
 
 ## Git
 
-- Branching: TODO
-- Commit messages: TODO
+- Branching: `main` plus short-lived feature branches
+- Commit messages: Short and imperative
 
 ## Boundaries
 
 Agents must ask before:
 
-- TODO
+- Adding a dependency
+- Committing or pushing
+- Changing the PWA-only or hosting rules
 
 Agents must never:
 
-- TODO
+- Add copyleft code or data
+- Deploy
+- Commit secrets
+- Force-push `main`
