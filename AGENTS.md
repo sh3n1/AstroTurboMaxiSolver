@@ -13,9 +13,9 @@ Features:
 - Alignament with telescope. Propose the most visible stars for that moment at that place.
 - Once aligned with telescope no more alignment will be needed as the rest will be done by the app
 - We will need to be able to search on different catalogs for the target object
-- An skymap will be show in realtime when moving, on still plate solving will recalibrate.
+- An skymap will be show in realtime when moving, on still, plate solving will recalibrate.
 - Some kind of arrow on the aiming circle will guide the user to the target object
-- Telescope eye piece view will be offered.
+- Telescope eye piece point of view will be offered, setting telescope type and eyepiece.
 - Session planing and suggested session wil be offered. 
 .
 
@@ -52,7 +52,10 @@ Before finishing a change, run: `npm run lint`, `npm run test:unit` and `npm run
 
 - `src/app/` - application code
 - `e2e/` - Playwright tests
-- TODO: describe where features, services and shared code should live
+- `spikes/` - feasibility experiments, not part of the app build
+- `src/app/core/` - shared state, astronomy maths and shared components
+- `src/app/pages/` - one file per tab
+- `src/assets/data/` - generated star data, built by `scripts/build-star-data.mjs`
 
 ## PWA constraints
 
@@ -67,7 +70,13 @@ Before finishing a change, run: `npm run lint`, `npm run test:unit` and `npm run
   - Camera pointing directly at the sky, with or without a small add-on phone telescope, so the field of view varies by setup.
   - Phone parallel to the tube with a mirror, like the Celestron StarSense Explorer. The mirror flips the image, and the camera points at a large angle to the telescope.
 - **Plate solving approach:** Must run in the browser and work offline. Astrometry.net can't be used because its distribution is GPL. tetra3 and cedar-solve are Apache-2.0 candidates. TODO: final choice after the solver spike.
-- **Sensor fusion approach:** TODO
+  - Use a strict confidence check. Weak frames can produce wrong matches, and the app must never show an unverified position as correct.
+  - Record in each mount profile whether the image is flipped, so the solver doesn't have to try both.
+- **Camera approach:** Simulated, not yet measured. See `spikes/sky-sim/RESULTS.md`.
+  - Default to the main camera. The telephoto and ultrawide needed much longer exposures in simulation.
+  - Aim for at least 1/8 s per frame, with stacked frames as the fallback.
+  - Design for a bright city sky. The reference case is central Valencia, about 17.5 mag/arcsec², on an Honor Magic5 Pro.
+- **Sensor fusion approach:** Sensors give live movement between solves and a hint that narrows the search. Plate solves correct drift. Treat the compass as a coarse hint only. TODO: choose the filter after the sensor spike.
 - **Coordinate systems and units:** TODO
 - **Accuracy and performance targets:** Target within 0.5° of centre, so it lands in a low-power eyepiece field. About 2 s to solve on a still phone using the sensor hint. Live sensor updates while moving. Revisit after the feasibility spikes.
 

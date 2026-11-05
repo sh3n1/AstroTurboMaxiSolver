@@ -33,25 +33,46 @@ Target within 0.5° of centre, so it lands in a low-power eyepiece field. About 
 - [x] Project licence, which also affects which solvers and catalogues can be used
 Our app will be closed source 
 
+## UI preview
+
+Built while waiting for a clear night. Aiming is by dragging until real sensors are connected.
+
+- [x] Tabs for Sky, Targets, Plan and Settings
+- [x] Sky map, aiming circle, guidance arrow and eyepiece view
+- [x] Target search, session plan list and saved equipment settings
+- [x] Red night mode
+- [ ] Try it on the Magic5 Pro and refine the layout
+- [ ] Check the star data's licence before release
+
 ## 3. Feasibility spikes
 
-Do these before building features, because they could change the design.
+Do these before building features, because they could change the design. Items marked "daylight" don't need a clear night.
 
-- [ ] **Camera:** test whether `getUserMedia` can capture enough stars at night on target phones
-  - Check exposure, ISO and focus control on each browser
+- [x] **Simulation:** model star detection and solving on the Honor Magic5 Pro from central Valencia. See `spikes/sky-sim/RESULTS.md`. The model suggests solving is feasible, but its key assumptions are unmeasured
+
+- [ ] **Camera (daylight):** build a small test page and run it on the Magic5 Pro over USB
+  - Read the maximum exposure, ISO and focus controls for each camera from `getCapabilities()`
+  - Check that manual exposure actually takes effect and doesn't turn the image black
+  - Check that focus can be locked at infinity, using a distant building
+  - Check which video resolutions and frame rates are available
+- [ ] **Camera (clear night):** test whether `getUserMedia` can capture enough stars on target phones
+  - Compare real star counts with the simulation, starting with the main camera at 1/8 s or longer
+  - Measure how much image processing reduces signal to noise, the largest unknown in the simulation
+  - Repeat the exposure, ISO and focus checks on iOS Safari
   - Test whether stacking video frames recovers enough faint stars
   - Test each mount: direct, with a small add-on phone telescope, and with a mirror
   - Collect the results and sample images as test data
 - [ ] **Solver:** compare a TypeScript solver with a WebAssembly build of an existing one
   - Candidates to evaluate: tetra3 and cedar-solve (both Apache-2.0, written in Python, so they would need porting). Astrometry.net is ruled out because its distribution is GPL
   - Compare speed on a phone and index size across the fields of view each mount gives
-  - Check that mirrored images from a mirror mount can be solved
-- [ ] **Sensors:** log orientation data on target phones
+  - Confirm that mirrored images from a mirror mount can be solved
+  - Test the confidence check that rejects wrong matches on weak frames
+- [ ] **Sensors (daylight):** log orientation data on target phones
   - Compare Android with iOS, which needs a permission request from a user gesture
   - Measure gyroscope drift over time
   - Measure compass error when the phone is mounted near the telescope
 
-**Decision point:** if the browser can't capture enough stars on a target platform, review the scope or the PWA-only choice for that platform.
+**Decision point:** if the browser can't reach about 1/8 s per frame or stack about 2 s of frames on a target platform, or real star counts fall well below the simulation, review the scope or the PWA-only choice for that platform.
 
 ## 4. Astronomy core
 
@@ -68,9 +89,9 @@ Keep this as plain TypeScript with no Angular dependency, so it is easy to test.
 
 - [ ] Build a camera service with permission, error and restart handling
 - [ ] Build a live camera page
-- [ ] Add frame capture and optional stacking
+- [ ] Add frame capture and stacking, which was the most robust option in simulation
 - [ ] Detect star centroids in a Web Worker, so the UI stays responsive
-- [ ] Add a calibration flow for the camera's field of view, with a profile for each mount
+- [ ] Add a calibration flow for the camera's field of view, with a profile for each mount that records whether the image is flipped
 
 ## 6. Plate solving
 
@@ -79,6 +100,7 @@ Keep this as plain TypeScript with no Angular dependency, so it is easy to test.
 - [ ] Download the index and store it for offline use, with progress and storage-limit handling
 - [ ] Request persistent storage and handle data being evicted, especially on iOS
 - [ ] Run the solver in a Web Worker
+- [ ] Reject low-confidence solves, and show the user when a frame could not be solved
 - [ ] Use the sensor estimate to narrow the search, with a fallback to a full-sky solve
 - [ ] Add regression tests using real sky images with known solutions
 - [ ] Add a page that shows the solved position and a confidence value
