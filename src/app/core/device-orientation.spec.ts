@@ -1,4 +1,4 @@
-import { cameraPointing, rearCameraVector, smoothVector, summarize, summarizeAngles } from './device-orientation';
+import { cameraPointing, rearCameraVector, summarize, summarizeAngles } from './device-orientation';
 
 describe('device orientation', () => {
   describe('rear camera direction', () => {
@@ -36,18 +36,6 @@ describe('device orientation', () => {
 
   it('keeps pointings clear of straight up', () => {
     expect(cameraPointing(rearCameraVector(0, 180, 0)).altDeg).toBe(89);
-  });
-
-  describe('smoothing', () => {
-    it('starts from the first reading', () => {
-      expect(smoothVector(null, [0, 1, 0], 0.2)).toEqual([0, 1, 0]);
-    });
-
-    it('moves part of the way and stays a unit vector', () => {
-      const result = smoothVector([0, 1, 0], [1, 0, 0], 0.5);
-      expect(result[0]).toBeCloseTo(Math.SQRT1_2, 9);
-      expect(result[1]).toBeCloseTo(Math.SQRT1_2, 9);
-    });
   });
 
   describe('statistics', () => {

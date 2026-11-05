@@ -45,6 +45,8 @@ const messier = readJson(messierPath).features.map(({ id, properties, geometry }
     raDeg: toRa(geometry.coordinates[0]),
     decDeg: round(geometry.coordinates[1]),
     mag: properties.mag,
+    // The source gives sizes in arcminutes, as "6x4" or "13". The longer side comes first.
+    ...(Number.parseFloat(properties.dim) ? { sizeArcmin: Number.parseFloat(properties.dim) } : {}),
   };
 });
 

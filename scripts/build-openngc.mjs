@@ -61,6 +61,8 @@ const targets = rows
       raDeg: Number((sexagesimal(row.RA) * 15).toFixed(3)),
       decDeg: Number(sexagesimal(row.Dec).toFixed(3)),
       mag: Number(row['V-Mag'] || row['B-Mag'] || UNKNOWN_MAG),
+      // The major axis is in arcminutes, and many objects don't have one.
+      ...(Number(row.MajAx) ? { sizeArcmin: Number(row.MajAx) } : {}),
     };
   });
 

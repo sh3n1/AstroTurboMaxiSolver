@@ -22,7 +22,8 @@ import { AppState } from '../core/app-state.service';
 import type { Settings } from '../core/app-state.service';
 import { magnification, trueFieldDeg } from '../core/astronomy';
 
-type NumericSetting = 'latitudeDeg' | 'longitudeDeg' | 'telescopeFocalMm' | 'eyepieceFocalMm' | 'eyepieceFieldDeg';
+type NumericSetting =
+  'latitudeDeg' | 'longitudeDeg' | 'telescopeFocalMm' | 'eyepieceFocalMm' | 'eyepieceFieldDeg' | 'finderFieldDeg';
 
 /** Display, location and equipment settings. */
 @Component({
@@ -129,6 +130,16 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg' | 'telescopeFocalMm' | 'eye
           ></ion-input>
         </ion-item>
         <ion-item>
+          <ion-input
+            label="Finder field of view (°)"
+            labelPlacement="stacked"
+            type="number"
+            data-testid="finder-field"
+            [value]="settings().finderFieldDeg"
+            (ionChange)="setNumber('finderFieldDeg', $event, 0.5, 60)"
+          ></ion-input>
+        </ion-item>
+        <ion-item>
           <ion-note
             >{{ power() | number: '1.0-0' }}× magnification · {{ field() | number: '1.1-2' }}° field of view</ion-note
           >
@@ -157,7 +168,7 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg' | 'telescopeFocalMm' | 'eye
       <ion-list inset="true">
         <ion-list-header>Testing</ion-list-header>
         <ion-item button detail="true" data-testid="open-device-test" (click)="openDeviceTest()">
-          <ion-label>Test this phone's camera and sensors</ion-label>
+          <ion-label>Device test: camera, sensors and plate solving</ion-label>
         </ion-item>
 
         <ion-list-header>Data credits</ion-list-header>
@@ -172,7 +183,9 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg' | 'telescopeFocalMm' | 'eye
           </ion-label>
         </ion-item>
         <ion-item>
-          <ion-label class="ion-text-wrap">Stars and star names from the XHIP catalogue, via d3-celestial.</ion-label>
+          <ion-label class="ion-text-wrap"
+            >Stars, star names and constellation lines from XHIP and the IAU, via d3-celestial.</ion-label
+          >
         </ion-item>
         <ion-item>
           <ion-label class="ion-text-wrap">Messier data by H. Frommert, seds.org, via d3-celestial.</ion-label>

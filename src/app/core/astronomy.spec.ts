@@ -1,9 +1,16 @@
 import { Body, Equator, Horizon, Observer } from 'astronomy-engine';
 
 import {
+  applyMatrix,
   azimuthChangeDeg,
   bearingInViewDeg,
   compassPoint,
+  equatorialVector,
+  formatDec,
+  formatRa,
+  localToEquatorial,
+  rotateInView,
+  viewRollDeg,
   equatorialToHorizontal,
   fromViewCoordinates,
   horizontalVector,
@@ -127,6 +134,49 @@ describe('astronomy', () => {
       const { darkFrom, darkUntil } = skyConditions(midnight, VALENCIA.lat, VALENCIA.lon);
       expect(darkFrom).toBeNull();
       expect(darkUntil!.getTime()).toBeGreaterThan(midnight.getTime());
+    });
+  });
+
+  describe('readouts', () => {
+    it('recovers a sky position from where it appears locally', () => {
+      const rotation = skyRotation(new Date(Date.UTC(2026, 10, 5, 20)), VALENCIA.lat, VALENCIA.lon);
+      const { raDeg, decDeg } = localToEquatorial(rotation, applyMatrix(rotation, equatorialVector(279.23, 38.78)));
+      expect(raDeg).toBeCloseTo(279.23, 9);
+      expect(decDeg).toBeCloseTo(38.78, 9);
+    });
+
+    it('formats right ascension and declination', () => {
+      expect(formatRa(84.15)).toBe('5h 37m');
+      expect(formatRa(359.999)).toBe('0h 00m');
+      expect(formatDec(38.78)).toBe('+38° 47′');
+      expect(formatDec(-5.5)).toBe('−5° 30′');
+      expect(formatDec(-0.001)).toBe('+0° 00′');
+    });
+  });
+
+  describe('view roll', () => {
+    const pointing = { altDeg: 0, azDeg: 0 }; // Looking north at the horizon
+
+    it('is zero with the phone level, top up', () => {
+      expect(viewRollDeg(pointing, [0, 0, 1])).toBeCloseTo(0, 9);
+    });
+
+    it('is negative with the phone turned anticlockwise, top towards the west', () => {
+      expect(viewRollDeg(pointing, [-1, 0, 0])).toBeCloseTo(-90, 9);
+    });
+
+    it('moves the sky the opposite way on screen, so the sky stays put', () => {
+      // Turn the phone anticlockwise, and straight up in the sky is now to the phone's right.
+      const onScreen = rotateInView(0, 1, -90);
+      expect(onScreen.x).toBeCloseTo(1, 9);
+      expect(onScreen.y).toBeCloseTo(0, 9);
+    });
+
+    it("puts the phone's own up direction at the top of the screen", () => {
+      const phoneUp = { x: Math.sin((30 * Math.PI) / 180), y: Math.cos((30 * Math.PI) / 180) };
+      const onScreen = rotateInView(phoneUp.x, phoneUp.y, 30);
+      expect(onScreen.x).toBeCloseTo(0, 9);
+      expect(onScreen.y).toBeCloseTo(1, 9);
     });
   });
 

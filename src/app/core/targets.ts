@@ -14,6 +14,8 @@ export interface Target {
   raDeg: number;
   decDeg: number;
   mag: number;
+  /** Apparent size along the longest side, where known. */
+  sizeArcmin?: number;
   /** Set for planets and the Moon, whose positions must be recalculated over time. */
   body?: string;
 }

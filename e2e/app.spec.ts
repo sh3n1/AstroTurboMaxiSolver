@@ -6,6 +6,30 @@ test('visits the app root url', async ({ page }) => {
   await expect(page.getByRole('tab', { name: 'Targets' })).toBeVisible();
 });
 
+test('opens on a close zoom with the sky data loaded', async ({ page }) => {
+  await page.goto('/');
+  const canvas = page.locator('app-sky canvas');
+  await expect(canvas).toHaveAttribute('data-field', '20');
+  await expect(page.locator('app-sky canvas:not([data-constellation-count="0"])')).toBeAttached();
+  await expect(page.locator('[data-testid=pointing]')).toContainText('RA');
+
+  // Zoom changes what the canvas shows.
+  await page.locator('[data-testid=zoom-out]').click();
+  await expect(canvas).toHaveAttribute('data-field', '30');
+});
+
+test('shows target details from the target bar', async ({ page }) => {
+  await page.goto('/tabs/targets');
+  await page.locator('app-targets ion-searchbar input').fill('M31');
+  // Wait for the search to apply, because the list updates just after typing.
+  await expect(page.locator('app-targets ion-item').first()).toContainText('M31');
+  await page.locator('app-targets ion-item').first().click();
+  await expect(page.locator('[data-testid=target-bar]')).toContainText('M31');
+  await page.locator('[data-testid=target-info]').click();
+  await expect(page.locator('[data-testid=target-details]')).toContainText('across');
+  await expect(page.locator('[data-testid=target-details]')).toContainText('NGC 224');
+});
+
 test('finds a target, guides to it and shows it in the eyepiece', async ({ page }) => {
   await page.goto('/');
 

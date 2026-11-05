@@ -230,10 +230,10 @@ export async function runSensorTest(seconds: number): Promise<SensorReport> {
     motionEvents++;
     const rate = event.rotationRate;
     if (rate?.alpha == null || rate.beta == null || rate.gamma == null) return;
-    // The specification maps alpha, beta and gamma rates to the phone's z, x and y axes.
-    gyroZ.push(rate.alpha);
-    gyroX.push(rate.beta);
-    gyroY.push(rate.gamma);
+    // The specification maps alpha, beta and gamma rates to the phone's x, y and z axes.
+    gyroX.push(rate.alpha);
+    gyroY.push(rate.beta);
+    gyroZ.push(rate.gamma);
   };
 
   window.addEventListener('deviceorientationabsolute', onOrientation as EventListener);

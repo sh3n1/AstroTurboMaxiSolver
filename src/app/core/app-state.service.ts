@@ -1,7 +1,14 @@
 import { Injectable, computed, effect, signal } from '@angular/core';
 
 import type { Horizontal, Vector3 } from './astronomy';
-import { equatorialToHorizontal, skyConditions, skyRotation, solarSystemPosition } from './astronomy';
+import {
+  equatorialToHorizontal,
+  horizontalVector,
+  localToEquatorial,
+  skyConditions,
+  skyRotation,
+  solarSystemPosition,
+} from './astronomy';
 import type { Target } from './targets';
 import { SOLAR_SYSTEM_BODIES } from './targets';
 
@@ -16,6 +23,7 @@ export interface Settings {
   telescopeFocalMm: number;
   eyepieceFocalMm: number;
   eyepieceFieldDeg: number; // The eyepiece's apparent field of view
+  finderFieldDeg: number; // The true field of view of the finder, or of the widest eyepiece
   mount: MountType;
   nightMode: boolean;
 }
@@ -36,6 +44,7 @@ const DEFAULT_SETTINGS: Settings = {
   telescopeFocalMm: 650,
   eyepieceFocalMm: 25,
   eyepieceFieldDeg: 52,
+  finderFieldDeg: 8,
   mount: 'direct',
   nightMode: false,
 };
@@ -76,6 +85,9 @@ export class AppState {
   /** Where the telescope points. Set by the sensors, or by dragging when they are off. */
   readonly pointing = signal<Horizontal>({ altDeg: 45, azDeg: 90 });
 
+  /** How far the map is turned to match the phone. Zero when sensors are off. */
+  readonly viewRollDeg = signal(0);
+
   readonly selectedTargetId = signal<string | null>(null);
 
   /** Fixed objects from the catalogue file. Empty until it has loaded. */
@@ -101,6 +113,7 @@ export class AppState {
       id: body,
       name: body === 'Moon' ? "Earth's Moon" : 'Planet',
       kind: body === 'Moon' ? 'Moon' : 'Planet',
+      ...(body === 'Moon' ? { sizeArcmin: 31 } : {}),
       body,
       ...solarSystemPosition(body, this.now(), latitudeDeg, longitudeDeg),
     }));
@@ -109,6 +122,11 @@ export class AppState {
 
   /** Rotation from catalogue positions to the local sky, right now. */
   readonly skyRotation = computed(() => this.rotationAt(this.now()));
+
+  /** Where the telescope points, in catalogue coordinates. */
+  readonly pointingEquatorial = computed(() =>
+    localToEquatorial(this.skyRotation(), horizontalVector(this.pointing())),
+  );
 
   /** The darkness window and Moon, right now. */
   readonly conditions = computed(() => {

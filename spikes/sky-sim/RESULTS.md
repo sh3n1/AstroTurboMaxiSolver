@@ -33,6 +33,14 @@ From the device test on the Honor Magic5 Pro in Chrome, in daylight. These are r
 - Telephoto and ultrawide results below don't apply to this phone in a browser, unless zoom turns out to switch lens.
 - Still unmeasured: how much image processing reduces signal to noise, whether the longest focus setting is sharp on stars, and real star counts. These need a clear night.
 
+## Clear-sky test
+
+The app now has a real test on its device test page: four captures, star detection and a plate solve. Its results will replace the simulated figures below. It has only run on rendered images and a fake camera so far, not on a real sky.
+
+Testing it found that a fixed match count gave confident wrong answers on a starless image. Answers now need matches that are very unlikely by chance. Expect to tune this on real images, because lens distortion may reduce real matches.
+
+The first real run was indoors under white artificial light, so its frames were overexposed and say nothing about the night sky. It did confirm that manual settings work in this test, and it exposed a false solve on overexposed frames, now fixed and kept as a regression test.
+
 ## Solve rate
 
 Percentage of frames solved correctly with no sensor hint, for two levels of signal lost to the phone's image processing: nominal (SNR × 0.7) / pessimistic (SNR × 0.4).

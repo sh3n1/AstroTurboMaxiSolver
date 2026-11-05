@@ -200,3 +200,41 @@ export function skyConditions(date: Date, latitudeDeg: number, longitudeDeg: num
     moonIlluminatedPercent: Illumination(Body.Moon, date).phase_fraction * 100,
   };
 }
+
+/** A J2000 position for a local vector, using a rotation from skyRotation. */
+export function localToEquatorial(rotation: Matrix3, [east, north, up]: Vector3): { raDeg: number; decDeg: number } {
+  // A rotation's inverse is its transpose.
+  const x = rotation[0][0] * east + rotation[1][0] * north + rotation[2][0] * up;
+  const y = rotation[0][1] * east + rotation[1][1] * north + rotation[2][1] * up;
+  const z = rotation[0][2] * east + rotation[1][2] * north + rotation[2][2] * up;
+  return { raDeg: normalizeDeg(Math.atan2(y, x) / RAD), decDeg: Math.asin(Math.max(-1, Math.min(1, z))) / RAD };
+}
+
+/** Right ascension as hours and minutes, such as "5h 36m". */
+export function formatRa(raDeg: number): string {
+  const totalMinutes = Math.round((normalizeDeg(raDeg) / 15) * 60) % (24 * 60);
+  return `${Math.floor(totalMinutes / 60)}h ${String(totalMinutes % 60).padStart(2, '0')}m`;
+}
+
+/** Declination as degrees and minutes, such as "+38° 47′". */
+export function formatDec(decDeg: number): string {
+  const totalMinutes = Math.round(Math.abs(decDeg) * 60);
+  const sign = decDeg < 0 && totalMinutes > 0 ? '−' : '+';
+  return `${sign}${Math.floor(totalMinutes / 60)}° ${String(totalMinutes % 60).padStart(2, '0')}′`;
+}
+
+/**
+ * How far the phone is turned about the camera's axis, away from level. Zero means the
+ * top of the phone points up the sky. The phone's up direction is a local vector.
+ */
+export function viewRollDeg(pointing: Horizontal, phoneUp: Vector3): number {
+  const basis = viewBasis(pointing);
+  return Math.atan2(dot(phoneUp, basis.right), dot(phoneUp, basis.up)) / RAD;
+}
+
+/** Turns view coordinates to match the phone's roll, so the map turns with the phone. */
+export function rotateInView(x: number, y: number, rollDeg: number): { x: number; y: number } {
+  if (rollDeg === 0) return { x, y };
+  const [sin, cos] = [Math.sin(rollDeg * RAD), Math.cos(rollDeg * RAD)];
+  return { x: x * cos - y * sin, y: x * sin + y * cos };
+}

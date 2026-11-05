@@ -25,18 +25,6 @@ export function rearCameraVector(alphaDeg: number, betaDeg: number, gammaDeg: nu
   return [-(cosA * sinG + sinA * sinB * cosG), -(sinA * sinG - cosA * sinB * cosG), -(cosB * cosG)];
 }
 
-/** Blends a new reading into the previous one, to steady a jittery sensor. */
-export function smoothVector(previous: Vector3 | null, next: Vector3, weight: number): Vector3 {
-  if (!previous) return next;
-  const blended: Vector3 = [
-    previous[0] + (next[0] - previous[0]) * weight,
-    previous[1] + (next[1] - previous[1]) * weight,
-    previous[2] + (next[2] - previous[2]) * weight,
-  ];
-  const length = Math.hypot(blended[0], blended[1], blended[2]);
-  return length > 0 ? [blended[0] / length, blended[1] / length, blended[2] / length] : next;
-}
-
 /** A pointing for a camera direction, kept clear of the straight up and down limits. */
 export function cameraPointing(vector: Vector3): Horizontal {
   const { altDeg, azDeg } = vectorToHorizontal(vector);

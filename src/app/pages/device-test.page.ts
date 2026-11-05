@@ -12,6 +12,7 @@ import {
 
 import type { CameraReport, SensorReport } from '../core/device-test';
 import { runCameraTest, runSensorTest } from '../core/device-test';
+import { SkyTestPanelComponent } from '../core/sky-test-panel.component';
 
 const SENSOR_TEST_SECONDS = 30;
 
@@ -21,7 +22,17 @@ const SENSOR_TEST_SECONDS = 30;
  */
 @Component({
   selector: 'app-device-test',
-  imports: [IonBackButton, IonButton, IonButtons, IonContent, IonHeader, IonText, IonTitle, IonToolbar],
+  imports: [
+    IonBackButton,
+    IonButton,
+    IonButtons,
+    IonContent,
+    IonHeader,
+    IonText,
+    IonTitle,
+    IonToolbar,
+    SkyTestPanelComponent,
+  ],
   styles: `
     pre {
       white-space: pre-wrap;
@@ -41,7 +52,7 @@ const SENSOR_TEST_SECONDS = 30;
     </ion-header>
 
     <ion-content class="ion-padding">
-      <p>These tests measure what this phone can really do. They don't need a clear sky.</p>
+      <p>These tests measure what this phone can really do. Only the third one needs a clear sky.</p>
 
       <h2>1. Camera</h2>
       <p>Point the phone at something with some light and detail, and allow camera access. The screen may look odd.</p>
@@ -76,6 +87,9 @@ const SENSOR_TEST_SECONDS = 30;
         </ion-button>
         <pre data-testid="test-report">{{ text }}</pre>
       }
+
+      <h2>3. Clear-sky plate solving</h2>
+      <app-sky-test-panel></app-sky-test-panel>
     </ion-content>
   `,
 })
