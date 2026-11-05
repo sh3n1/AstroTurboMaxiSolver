@@ -4,6 +4,35 @@ Simulated feasibility of plate solving on an Honor Magic5 Pro from central Valen
 
 Run with `node simulate.mjs <stars.8.json> 200 results.json`. The star file comes from `data/stars.8.json` in [d3-celestial](https://github.com/ofrohn/d3-celestial) and is used for analysis only. All assumptions are at the top of `simulate.mjs`.
 
+## Measured on the real phone
+
+From the device test on the Honor Magic5 Pro in Chrome, in daylight. These are real measurements, and they replace the simulation's assumptions where they differ.
+
+| Rear camera in the browser | Measured |
+| --- | --- |
+| Cameras offered | One rear camera and one front camera. The telephoto and ultrawide are not offered separately |
+| Longest manual exposure | 0.332 s, about 1/3 s |
+| Manual exposure takes effect | Yes. Brightness went from 2.5 to 194.9 out of 255 between the shortest and longest exposure |
+| ISO range | 100 to 96,000 |
+| Largest image | 4032×3024. The test ran at 1080×1920 |
+| Zoom | 1× to 8×. Whether this switches lens or is digital is unknown |
+| Manual focus | Available and applied, up to a focus distance of 12.96 |
+
+| Sensors, phone resting still for 30 s | Measured |
+| --- | --- |
+| Gyroscope drift rate, worst axis | 0.0034°/s, about 12° per hour. The other two axes were about 0.0001°/s |
+| Gyroscope noise, worst axis | 0.07°/s standard deviation |
+| Tilt noise | 0.08° standard deviation |
+| Compass heading noise | 0.37° standard deviation |
+| Absolute orientation (uses the compass) | Available, about 13 readings per second |
+| Motion readings (gyroscope) | 60 per second |
+
+- These show how steady the sensors are at rest, not how accurate. Drift while moving is likely to be worse, and the compass could be steady but wrong. Compass error on a telescope is unmeasured.
+- At the measured rate, drift would take about 2 minutes to reach the 0.5° target, so a plate solve whenever the phone is still should comfortably correct it.
+- 1/3 s is above the 1/8 s minimum, so the browser exposure question in the decision point is answered for this phone.
+- Telephoto and ultrawide results below don't apply to this phone in a browser, unless zoom turns out to switch lens.
+- Still unmeasured: how much image processing reduces signal to noise, whether the longest focus setting is sharp on stars, and real star counts. These need a clear night.
+
 ## Solve rate
 
 Percentage of frames solved correctly with no sensor hint, for two levels of signal lost to the phone's image processing: nominal (SNR × 0.7) / pessimistic (SNR × 0.4).

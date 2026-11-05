@@ -28,6 +28,7 @@ Features:
   - Support phones as old as possible without the experience becoming frustrating. Set the exact minimum by measuring performance on real phones.
   - The browser floor is in `.browserslistrc` (currently Chrome, Edge and Firefox 119+, Safari and iOS 17+).
 - **Licence:** Closed source. Never add GPL, AGPL or other copyleft code or data. Check the licence of every library and catalogue before using it, and keep required attributions.
+  - One approved exception: OpenNGC data (CC-BY-SA-4.0). Keep it in its own file, `src/assets/data/openngc.json`, which is itself CC-BY-SA, and keep its credit in Settings. Don't merge other data into that file.
 
 ## Stack
 
@@ -56,7 +57,7 @@ Before finishing a change, run: `npm run lint`, `npm run test:unit` and `npm run
 - `spikes/` - feasibility experiments, not part of the app build
 - `src/app/core/` - shared state, astronomy maths and shared components
 - `src/app/pages/` - one file per tab
-- `src/assets/data/` - generated star data, built by `scripts/build-star-data.mjs`
+- `src/assets/data/` - generated star and target data, built by the scripts in `scripts/`
 
 ## PWA constraints
 
@@ -74,8 +75,8 @@ Before finishing a change, run: `npm run lint`, `npm run test:unit` and `npm run
   - Use a strict confidence check. Weak frames can produce wrong matches, and the app must never show an unverified position as correct.
   - Record in each mount profile whether the image is flipped, so the solver doesn't have to try both.
 - **Camera approach:** Simulated, not yet measured. See `spikes/sky-sim/RESULTS.md`.
-  - Default to the main camera. The telephoto and ultrawide needed much longer exposures in simulation.
-  - Aim for at least 1/8 s per frame, with stacked frames as the fallback.
+  - Default to the main camera. The telephoto and ultrawide needed much longer exposures in simulation, and Chrome on the Magic5 Pro only offers one rear camera anyway.
+  - Aim for at least 1/8 s per frame, with stacked frames as the fallback. The Honor Magic5 Pro allows up to 1/3 s in Chrome, measured.
   - Design for a bright city sky. The reference case is central Valencia, about 17.5 mag/arcsec², on an Honor Magic5 Pro.
 - **Sensor fusion approach:** Sensors give live movement between solves and a hint that narrows the search. Plate solves correct drift. Treat the compass as a coarse hint only. TODO: choose the filter after the sensor spike.
 - **Coordinate systems and units:** Catalogue positions are J2000. `astronomy-engine` converts them to the local sky, including precession. Angles are in degrees, and azimuth runs from north through east. Refraction is not applied yet.
@@ -103,7 +104,7 @@ Agents must ask before:
 
 Agents must never:
 
-- Add copyleft code or data
+- Add copyleft code or data, apart from the OpenNGC exception under Licence
 - Deploy
 - Commit secrets
 - Force-push `main`

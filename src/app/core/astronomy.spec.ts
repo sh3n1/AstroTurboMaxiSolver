@@ -1,3 +1,5 @@
+import { Body, Equator, Horizon, Observer } from 'astronomy-engine';
+
 import {
   azimuthChangeDeg,
   bearingInViewDeg,
@@ -9,6 +11,7 @@ import {
   separationDeg,
   skyConditions,
   skyRotation,
+  solarSystemPosition,
   stereographic,
   stereographicRadius,
   toViewCoordinates,
@@ -77,6 +80,28 @@ describe('astronomy', () => {
       const position = equatorialToHorizontal(skyRotation(new Date(), VALENCIA.lat, VALENCIA.lon), 37.95, 89.26);
       expect(Math.abs(position.altDeg - VALENCIA.lat)).toBeLessThan(1);
       expect(Math.abs(azimuthChangeDeg(0, position.azDeg))).toBeLessThan(2);
+    });
+  });
+
+  describe('planets and the Moon', () => {
+    const date = new Date(Date.UTC(2026, 10, 5, 20));
+
+    it('have positions consistent with the star positions', () => {
+      // The library's own altitude and azimuth for the Moon, a separate calculation path.
+      const observer = new Observer(VALENCIA.lat, VALENCIA.lon, 0);
+      const ofDate = Equator(Body.Moon, date, observer, true, true);
+      const direct = Horizon(date, observer, ofDate.ra, ofDate.dec);
+
+      const { raDeg, decDeg } = solarSystemPosition('Moon', date, VALENCIA.lat, VALENCIA.lon);
+      const viaRotation = equatorialToHorizontal(skyRotation(date, VALENCIA.lat, VALENCIA.lon), raDeg, decDeg);
+      const expected = { altDeg: direct.altitude, azDeg: direct.azimuth };
+      expect(separationDeg(viaRotation, expected)).toBeLessThan(0.02);
+    });
+
+    it('have sensible brightness', () => {
+      const jupiter = solarSystemPosition('Jupiter', date, VALENCIA.lat, VALENCIA.lon);
+      expect(jupiter.mag).toBeLessThan(-1.5);
+      expect(jupiter.mag).toBeGreaterThan(-3.5);
     });
   });
 

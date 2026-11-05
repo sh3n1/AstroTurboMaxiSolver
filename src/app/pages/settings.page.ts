@@ -153,6 +153,34 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg' | 'telescopeFocalMm' | 'eye
           }}</ion-note>
         </ion-item>
       </ion-list>
+
+      <ion-list inset="true">
+        <ion-list-header>Testing</ion-list-header>
+        <ion-item button detail="true" data-testid="open-device-test" (click)="openDeviceTest()">
+          <ion-label>Test this phone's camera and sensors</ion-label>
+        </ion-item>
+
+        <ion-list-header>Data credits</ion-list-header>
+        <ion-item
+          data-testid="credit-openngc"
+          href="https://github.com/mattiaverga/OpenNGC"
+          target="_blank"
+          rel="noopener"
+        >
+          <ion-label class="ion-text-wrap">
+            NGC and IC objects from OpenNGC by Mattia Verga, CC BY-SA 4.0. Converted and filtered for this app.
+          </ion-label>
+        </ion-item>
+        <ion-item>
+          <ion-label class="ion-text-wrap">Stars and star names from the XHIP catalogue, via d3-celestial.</ion-label>
+        </ion-item>
+        <ion-item>
+          <ion-label class="ion-text-wrap">Messier data by H. Frommert, seds.org, via d3-celestial.</ion-label>
+        </ion-item>
+        <ion-item>
+          <ion-label class="ion-text-wrap">Planets, Moon and sky positions by Astronomy Engine, Don Cross.</ion-label>
+        </ion-item>
+      </ion-list>
     </ion-content>
   `,
 })
@@ -176,6 +204,10 @@ export class SettingsPage {
     if (raw !== '' && raw != null && Number.isFinite(value) && value >= min && value <= max) {
       this.state.updateSettings({ [key]: value } as Partial<Settings>);
     }
+  }
+
+  protected openDeviceTest(): void {
+    void this.router.navigateByUrl('/device-test');
   }
 
   protected openAlignment(): void {

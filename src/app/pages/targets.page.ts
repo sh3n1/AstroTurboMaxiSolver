@@ -3,11 +3,20 @@ import { IonChip, IonContent, IonHeader, IonSearchbar, IonText, IonTitle, IonToo
 
 import { AppState } from '../core/app-state.service';
 import { TargetListComponent } from '../core/target-list.component';
-import { TARGETS } from '../core/targets';
+import type { Target } from '../core/targets';
 
 /** Target types the user can filter by. Clusters combine open and globular. */
-const FILTERS = ['All', 'Galaxy', 'Nebula', 'Cluster', 'Star'] as const;
+const MAX_RESULTS = 40;
+
+const FILTERS = ['All', 'Solar system', 'Galaxy', 'Nebula', 'Cluster', 'Star'] as const;
 type Filter = (typeof FILTERS)[number];
+
+function matchesFilter(target: Target, filter: Filter): boolean {
+  if (filter === 'All') return true;
+  if (filter === 'Solar system') return !!target.body;
+  if (filter === 'Cluster') return target.kind.includes('cluster');
+  return target.kind === filter;
+}
 
 /** Search for a target by designation, name or type. */
 @Component({
@@ -31,7 +40,7 @@ type Filter = (typeof FILTERS)[number];
       </ion-toolbar>
       <ion-toolbar>
         <ion-searchbar
-          placeholder="Search M31, Vega, galaxy…"
+          placeholder="Search M31, Vega, Jupiter, NGC 224…"
           [debounce]="100"
           (ionInput)="query.set($any($event).detail.value ?? '')"
         ></ion-searchbar>
@@ -51,6 +60,13 @@ type Filter = (typeof FILTERS)[number];
 
     <ion-content>
       <app-target-list [targets]="results()"></app-target-list>
+      @if (matchCount() > maxResults) {
+        <ion-text color="medium" data-testid="more-results">
+          <p class="ion-text-center ion-padding">
+            Showing {{ maxResults }} of {{ matchCount() }}. Search to narrow them down.
+          </p>
+        </ion-text>
+      }
       @if (results().length === 0) {
         <ion-text color="medium">
           <p class="ion-text-center ion-padding">No targets match your search.</p>
@@ -65,14 +81,35 @@ export class TargetsPage {
   protected readonly filter = signal<Filter>('All');
   protected readonly query = signal('');
 
-  /** Matching targets, with those highest in the sky first. */
-  protected readonly results = computed(() => {
+  /** Every target that matches, before limiting how many are shown. */
+  private readonly matches = computed(() => {
     const term = this.query().trim().toLowerCase();
     const filter = this.filter();
-    return TARGETS.filter(
-      (t) =>
-        (filter === 'All' || t.kind.includes(filter === 'Cluster' ? 'cluster' : filter)) &&
-        `${t.id} ${t.name} ${t.kind}`.toLowerCase().includes(term),
-    ).sort((a, b) => this.state.positionOf(b).altDeg - this.state.positionOf(a).altDeg);
+    return this.state
+      .targets()
+      .filter(
+        (t) =>
+          matchesFilter(t, filter) && `${t.id} ${t.name} ${t.kind} ${t.aliases ?? ''}`.toLowerCase().includes(term),
+      );
+  });
+
+  protected readonly matchCount = computed(() => this.matches().length);
+  protected readonly maxResults = MAX_RESULTS;
+
+  /**
+   * The best matches: exact designations first, then whatever is up and brightest.
+   * Rendering thousands of rows would freeze a phone, so the list is limited.
+   */
+  protected readonly results = computed(() => {
+    const term = this.query().trim().toLowerCase();
+    return this.matches()
+      .map((target) => {
+        const isExact = ` ${target.id} ${target.aliases ?? ''} `.toLowerCase().includes(` ${term} `);
+        const isUp = this.state.positionOf(target).altDeg > 0;
+        return { target, rank: (term && isExact ? 0 : 2000) + (isUp ? 0 : 1000) + target.mag };
+      })
+      .sort((a, b) => a.rank - b.rank)
+      .slice(0, MAX_RESULTS)
+      .map(({ target }) => target);
   });
 }

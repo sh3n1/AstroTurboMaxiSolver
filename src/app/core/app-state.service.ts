@@ -1,9 +1,9 @@
 import { Injectable, computed, effect, signal } from '@angular/core';
 
 import type { Horizontal, Vector3 } from './astronomy';
-import { equatorialToHorizontal, skyConditions, skyRotation } from './astronomy';
+import { equatorialToHorizontal, skyConditions, skyRotation, solarSystemPosition } from './astronomy';
 import type { Target } from './targets';
-import { TARGETS } from './targets';
+import { SOLAR_SYSTEM_BODIES } from './targets';
 
 export type TelescopeType = 'newtonian' | 'refractor' | 'cassegrain';
 export type MountType = 'direct' | 'clip-on' | 'mirror';
@@ -67,11 +67,20 @@ function save(key: string, value: unknown): void {
 export class AppState {
   readonly settings = signal<Settings>(load(SETTINGS_KEY, DEFAULT_SETTINGS));
 
-  /** Where the telescope points. Set by dragging until real sensors are connected. */
+  /** True while the phone's sensors are steering the map instead of dragging. */
+  readonly sensorsActive = signal(false);
+
+  /** Where the camera points according to the sensors, or null when they are off. */
+  readonly cameraPointing = signal<Horizontal | null>(null);
+
+  /** Where the telescope points. Set by the sensors, or by dragging when they are off. */
   readonly pointing = signal<Horizontal>({ altDeg: 45, azDeg: 90 });
 
   readonly selectedTargetId = signal<string | null>(null);
-  readonly selectedTarget = computed(() => TARGETS.find((t) => t.id === this.selectedTargetId()) ?? null);
+
+  /** Fixed objects from the catalogue file. Empty until it has loaded. */
+  private readonly catalog = signal<Target[]>([]);
+  readonly selectedTarget = computed(() => this.targets().find((t) => t.id === this.selectedTargetId()) ?? null);
 
   /** Target ids the user has added to their session plan. */
   readonly planIds = signal<string[]>(load<{ ids: string[] }>(PLAN_KEY, { ids: [] }).ids);
@@ -80,8 +89,23 @@ export class AppState {
     load<{ value: Alignment | null }>(ALIGNMENT_KEY, { value: null }).value,
   );
 
+  private lastRotation?: { key: string; rotation: ReturnType<typeof skyRotation> };
+
   /** Current time, refreshed each minute, so positions keep up with the sky. */
   readonly now = signal(new Date());
+
+  /** Everything the user can aim at, with planets and the Moon where they are now. */
+  readonly targets = computed<Target[]>(() => {
+    const { latitudeDeg, longitudeDeg } = this.settings();
+    const solarSystem = SOLAR_SYSTEM_BODIES.map((body): Target => ({
+      id: body,
+      name: body === 'Moon' ? "Earth's Moon" : 'Planet',
+      kind: body === 'Moon' ? 'Moon' : 'Planet',
+      body,
+      ...solarSystemPosition(body, this.now(), latitudeDeg, longitudeDeg),
+    }));
+    return [...solarSystem, ...this.catalog()];
+  });
 
   /** Rotation from catalogue positions to the local sky, right now. */
   readonly skyRotation = computed(() => this.rotationAt(this.now()));
@@ -94,6 +118,8 @@ export class AppState {
 
   constructor() {
     setInterval(() => this.now.set(new Date()), 60_000);
+    void this.loadCatalog('assets/data/targets.json');
+    void this.loadCatalog('assets/data/openngc.json');
     effect(() => save(SETTINGS_KEY, this.settings()));
     effect(() => save(PLAN_KEY, { ids: this.planIds() }));
     effect(() => save(ALIGNMENT_KEY, { value: this.alignment() }));
@@ -118,12 +144,34 @@ export class AppState {
   }
 
   /** Where a target will be at a given time from the user's location. */
-  positionAt(target: Pick<Target, 'raDeg' | 'decDeg'>, date: Date): Horizontal {
-    return equatorialToHorizontal(this.rotationAt(date), target.raDeg, target.decDeg);
+  positionAt(target: Pick<Target, 'raDeg' | 'decDeg' | 'body'>, date: Date): Horizontal {
+    // Planets and the Moon will have moved by then, unlike the fixed catalogue objects.
+    const { latitudeDeg, longitudeDeg } = this.settings();
+    const { raDeg, decDeg } = target.body ? solarSystemPosition(target.body, date, latitudeDeg, longitudeDeg) : target;
+    return equatorialToHorizontal(this.rotationAt(date), raDeg, decDeg);
   }
 
+  /** Each file loads on its own, so one failing still leaves the others usable. */
+  private async loadCatalog(path: string): Promise<void> {
+    try {
+      const response = await fetch(path);
+      const targets = (await response.json()) as Target[];
+      this.catalog.update((current) => [...current, ...targets]);
+    } catch {
+      // Planets and the Moon still work without the catalogue files.
+    }
+  }
+
+  /**
+   * Remembers the last result, because working out positions for thousands of
+   * targets at one time would otherwise repeat this slow calculation for each one.
+   */
   private rotationAt(date: Date): ReturnType<typeof skyRotation> {
     const { latitudeDeg, longitudeDeg } = this.settings();
-    return skyRotation(date, latitudeDeg, longitudeDeg);
+    const key = `${date.getTime()}/${latitudeDeg}/${longitudeDeg}`;
+    if (this.lastRotation?.key !== key) {
+      this.lastRotation = { key, rotation: skyRotation(date, latitudeDeg, longitudeDeg) };
+    }
+    return this.lastRotation.rotation;
   }
 }

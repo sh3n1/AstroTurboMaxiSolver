@@ -24,7 +24,6 @@ import { AppState } from '../core/app-state.service';
 import type { Horizontal } from '../core/astronomy';
 import { compassPoint } from '../core/astronomy';
 import type { Target } from '../core/targets';
-import { TARGETS } from '../core/targets';
 
 type Step = 'choose' | 'centre' | 'done';
 
@@ -123,7 +122,16 @@ const PREVIEW_CAMERA_ERROR: Horizontal = { altDeg: 2, azDeg: 3 };
             >
             <ion-button expand="block" fill="clear" (click)="step.set('choose')">Choose another star</ion-button>
             <ion-text color="medium">
-              <p>Preview: this uses a simulated camera position. The finished app will plate solve here.</p>
+              @if (usesSensors()) {
+                <p data-testid="alignment-source">
+                  Using your phone's sensors for the camera's direction. The finished app will plate solve here, which
+                  is far more accurate.
+                </p>
+              } @else {
+                <p data-testid="alignment-source">
+                  Preview: this uses a simulated camera position. Turn on sensors on the sky map to use your phone's.
+                </p>
+              }
             </ion-text>
           }
         }
@@ -131,9 +139,10 @@ const PREVIEW_CAMERA_ERROR: Horizontal = { altDeg: 2, azDeg: 3 };
         @case ('done') {
           @if (state.alignment(); as current) {
             <h2>Aligned on {{ current.starId }}</h2>
-            <p>
-              Your camera points {{ offsetAngle() | number: '1.1-1' }}° away from your telescope (simulated in this
-              preview). The app will now allow for this difference.
+            <p data-testid="alignment-result">
+              Your camera points {{ offsetAngle() | number: '1.1-1' }}° away from your telescope{{
+                wasMeasured() ? ', according to the sensors' : ' (simulated in this preview)'
+              }}. The app will now allow for this difference.
             </p>
             <p>No further alignment is needed unless the phone moves in its mount.</p>
             <ion-button expand="block" data-testid="alignment-done" (click)="finish()">Done</ion-button>
@@ -150,16 +159,22 @@ export class AlignPage {
 
   protected readonly step = signal<Step>('choose');
   protected readonly chosen = signal<Target | null>(null);
+  protected readonly usesSensors = computed(() => this.state.cameraPointing() !== null);
+  /** Whether the last confirmed alignment came from the sensors. */
+  protected readonly wasMeasured = signal(false);
 
   protected readonly skyIsBright = computed(() => this.state.conditions().sunAltDeg > BRIGHT_SKY_SUN_ALT_DEG);
 
   protected readonly suggestions = computed(() =>
     suggestAlignmentStars(
-      TARGETS.filter((target) => target.kind === 'Star').map((star) => ({
-        star,
-        mag: star.mag,
-        position: this.state.positionOf(star),
-      })),
+      this.state
+        .targets()
+        .filter((target) => target.kind === 'Star')
+        .map((star) => ({
+          star,
+          mag: star.mag,
+          position: this.state.positionOf(star),
+        })),
     ),
   );
 
@@ -183,7 +198,10 @@ export class AlignPage {
     const star = this.chosen();
     if (!star) return;
     const telescope = this.state.positionOf(star);
-    const camera = {
+    // The sensors say where the camera really points. Without them, simulate it.
+    const measured = this.state.cameraPointing();
+    this.wasMeasured.set(measured !== null);
+    const camera = measured ?? {
       altDeg: telescope.altDeg + PREVIEW_CAMERA_ERROR.altDeg,
       azDeg: telescope.azDeg + PREVIEW_CAMERA_ERROR.azDeg,
     };

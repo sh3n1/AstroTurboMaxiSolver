@@ -43,6 +43,7 @@ Built while waiting for a clear night. Aiming is by dragging until real sensors 
 - [x] Red night mode
 - [x] Polish: night-sky theme, pinch zoom, cleaner labels, alt-az grid and movement directions
 - [ ] Try it on the Magic5 Pro and refine the layout
+- [ ] Improve speed on older phones. With the CPU slowed 4× in a desktop browser, dragging ran at 6 to 9 fps and the Targets tab took 5 to 9 s to open. Measure on real phones first
 - [ ] Check the star data's licence before release
 
 ## 3. Feasibility spikes
@@ -51,11 +52,12 @@ Do these before building features, because they could change the design. Items m
 
 - [x] **Simulation:** model star detection and solving on the Honor Magic5 Pro from central Valencia. See `spikes/sky-sim/RESULTS.md`. The model suggests solving is feasible, but its key assumptions are unmeasured
 
-- [ ] **Camera (daylight):** build a small test page and run it on the Magic5 Pro over USB
-  - Read the maximum exposure, ISO and focus controls for each camera from `getCapabilities()`
-  - Check that manual exposure actually takes effect and doesn't turn the image black
-  - Check that focus can be locked at infinity, using a distant building
-  - Check which video resolutions and frame rates are available
+- [ ] **Camera (daylight):** run the device test in Settings on the Magic5 Pro
+  - [x] Read the maximum exposure, ISO and focus controls for each camera: 1/3 s and ISO 96,000 on the rear camera. See `spikes/sky-sim/RESULTS.md`
+  - [x] Check that manual exposure actually takes effect and doesn't turn the image black
+  - [ ] Check that focus can be locked at infinity, using a distant building. The setting applies, but sharpness has not been checked
+  - [x] Check which video resolutions and frame rates are available
+  - [ ] Find out whether zoom switches to the telephoto lens or is digital
 - [ ] **Camera (clear night):** test whether `getUserMedia` can capture enough stars on target phones
   - Compare real star counts with the simulation, starting with the main camera at 1/8 s or longer
   - Measure how much image processing reduces signal to noise, the largest unknown in the simulation
@@ -68,9 +70,10 @@ Do these before building features, because they could change the design. Items m
   - Compare speed on a phone and index size across the fields of view each mount gives
   - Confirm that mirrored images from a mirror mount can be solved
   - Test the confidence check that rejects wrong matches on weak frames
-- [ ] **Sensors (daylight):** log orientation data on target phones
+- [ ] **Sensors (daylight):** log orientation data on target phones, using the device test in Settings
   - Compare Android with iOS, which needs a permission request from a user gesture
-  - Measure gyroscope drift over time
+  - [x] Measure gyroscope drift at rest: about 12° per hour on the worst axis. See `spikes/sky-sim/RESULTS.md`
+  - [ ] Measure drift while the phone is moving
   - Measure compass error when the phone is mounted near the telescope
 
 **Decision point:** if the browser can't reach about 1/8 s per frame or stack about 2 s of frames on a target platform, or real star counts fall well below the simulation, review the scope or the PWA-only choice for that platform.
@@ -108,9 +111,9 @@ Keep this as plain TypeScript with no Angular dependency, so it is easy to test.
 
 ## 7. Sensor fusion
 
-- [ ] Build a sensor service that handles permissions and differences between browsers
-- [ ] Get a location from GPS, with manual entry as a fallback
-- [ ] Track orientation between solves using the gyroscope
+- [x] Build a sensor service that handles permissions and differences between browsers. The iOS path is untested on a real iPhone
+- [x] Get a location from GPS, with manual entry as a fallback
+- [ ] Track orientation between solves using the gyroscope, which reports 60 times per second. Absolute orientation only reports about 13 times per second, so the map may lag
 - [ ] Detect when the phone is still, and start a plate solve automatically
 - [ ] Correct drift with each plate solve, starting with a complementary filter
 - [ ] Move to a Kalman filter only if testing shows it is needed
@@ -131,16 +134,19 @@ Keep this as plain TypeScript with no Angular dependency, so it is easy to test.
 
 ## 9. Catalogues and search
 
-- [ ] Choose catalogues, such as Messier, NGC, IC, Caldwell and named stars, and check each licence
-- [ ] Decide whether to include planets and the Moon
-- [ ] Store catalogues for offline use
-- [ ] Add search across all catalogues by name and designation
-- [ ] Show each target's details and whether it is above the horizon
+- [x] Add Messier objects, named stars, planets and the Moon
+- [x] Add NGC and IC objects from OpenNGC, approved as a CC-BY-SA exception and credited in Settings
+- [ ] Add Caldwell designations. OpenNGC doesn't include them
+- [ ] Check the terms of the Messier and star name data, and whether OpenNGC's share-alike terms are fully met, before release
+- [x] Decide whether to include planets and the Moon: yes
+- [x] Store catalogues for offline use
+- [x] Add search across all catalogues by name and designation
+- [x] Show each target's details and whether it is above the horizon
 
 ## 10. Real-time sky map and guidance (first usable version)
 
 - [ ] Evaluate sky map libraries, starting with `d3-celestial` (BSD-3-Clause), for phone performance and offline use
-- [ ] Show a sky map that follows the phone's sensors in real time while moving
+- [x] Show a sky map that follows the phone's sensors in real time while moving. Tilting the view with the phone is still to do
 - [ ] Recalibrate the map with a plate solve when the phone is still
 - [ ] Show an aiming circle for where the telescope is pointing
 - [ ] Add an arrow on the aiming circle that guides the user to the target, with the remaining angle

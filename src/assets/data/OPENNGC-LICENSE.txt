@@ -1,0 +1,8 @@
+openngc.json is derived from OpenNGC by Mattia Verga
+https://github.com/mattiaverga/OpenNGC
+
+It is licensed under the Creative Commons Attribution-ShareAlike 4.0 International
+licence: https://creativecommons.org/licenses/by-sa/4.0/
+
+Changes: converted to JSON, with duplicates, non-existent objects, single stars and
+Messier objects removed, and fields reduced to position, brightness, type and names.

@@ -11,13 +11,14 @@ import {
   IonToolbar,
 } from '@ionic/angular';
 
+import { apparentMagnitude } from '../core/alignment';
 import { AppState } from '../core/app-state.service';
 import { TargetListComponent } from '../core/target-list.component';
-import { TARGETS } from '../core/targets';
 
 // Below this altitude, targets are dimmed by the atmosphere and hidden by buildings.
 const GOOD_ALTITUDE_DEG = 30;
 const SUGGESTION_COUNT = 5;
+const SUGGESTION_MAG_LIMIT = 10; // Fainter objects are very hard to find from a city
 
 /** Tonight's conditions, the user's session plan, and suggested targets. */
 @Component({
@@ -97,18 +98,22 @@ export class PlanPage {
 
   protected readonly planned = computed(() => {
     const ids = this.state.planIds();
-    return TARGETS.filter((t) => ids.includes(t.id));
+    return this.state.targets().filter((t) => ids.includes(t.id));
   });
 
   /** Suggestions are for when it gets dark, or for now if it is already dark. */
   protected readonly suggestionTime = computed(() => this.conditions().darkFrom ?? this.state.now());
 
-  // Deep-sky objects only, since stars are mainly useful for alignment.
+  // Stars are mainly useful for alignment, so they are left out. The brightest come
+  // first, because faint objects are hard to see from a city.
   protected readonly suggested = computed(() => {
     const time = this.suggestionTime();
-    return TARGETS.map((target) => ({ target, altDeg: this.state.positionAt(target, time).altDeg }))
-      .filter(({ target, altDeg }) => target.kind !== 'Star' && altDeg >= GOOD_ALTITUDE_DEG)
-      .sort((a, b) => b.altDeg - a.altDeg)
+    return this.state
+      .targets()
+      .filter((target) => target.kind !== 'Star' && target.mag <= SUGGESTION_MAG_LIMIT)
+      .map((target) => ({ target, altDeg: this.state.positionAt(target, time).altDeg }))
+      .filter(({ altDeg }) => altDeg >= GOOD_ALTITUDE_DEG)
+      .sort((a, b) => apparentMagnitude(a.target.mag, a.altDeg) - apparentMagnitude(b.target.mag, b.altDeg))
       .slice(0, SUGGESTION_COUNT)
       .map(({ target }) => target);
   });

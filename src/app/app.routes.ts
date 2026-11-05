@@ -12,6 +12,7 @@ export const routes: Routes = [
       { path: '', redirectTo: 'sky', pathMatch: 'full' },
     ],
   },
+  { path: 'device-test', loadComponent: () => import('./pages/device-test.page').then((m) => m.DeviceTestPage) },
   { path: 'align', loadComponent: () => import('./pages/align.page').then((m) => m.AlignPage) },
   { path: '', redirectTo: 'tabs/sky', pathMatch: 'full' },
 ];

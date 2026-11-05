@@ -161,6 +161,20 @@ export const magnification = (telescopeFocalMm: number, eyepieceFocalMm: number)
 export const trueFieldDeg = (telescopeFocalMm: number, eyepieceFocalMm: number, apparentFieldDeg: number): number =>
   apparentFieldDeg / magnification(telescopeFocalMm, eyepieceFocalMm);
 
+/** Where a planet or the Moon is, as a J2000 position, seen from a place at a time. */
+export function solarSystemPosition(
+  bodyName: string,
+  date: Date,
+  latitudeDeg: number,
+  longitudeDeg: number,
+): { raDeg: number; decDeg: number; mag: number } {
+  const body = bodyName as Body;
+  // Using the observer's location matters most for the Moon, which is close enough
+  // to appear in a different place from different parts of the Earth.
+  const { ra, dec } = Equator(body, date, new Observer(latitudeDeg, longitudeDeg, 0), false, true);
+  return { raDeg: ra * 15, decDeg: dec, mag: Illumination(body, date).mag };
+}
+
 /** Altitude of the Sun or Moon for a time and place. */
 function bodyAltitudeDeg(body: Body, date: Date, observer: Observer): number {
   const { ra, dec } = Equator(body, date, observer, true, true);

@@ -31,7 +31,8 @@ import {
   trueFieldDeg,
   viewBasis,
 } from '../core/astronomy';
-import { TARGETS } from '../core/targets';
+import { SensorService } from '../core/sensor.service';
+import type { Target } from '../core/targets';
 
 type ViewMode = 'sky' | 'eyepiece';
 type Project = (v: Vector3) => { x: number; y: number } | null;
@@ -68,6 +69,16 @@ function magnitudeLimit(fieldDeg: number): number {
   if (fieldDeg >= 90) return 5.5;
   if (fieldDeg >= 40) return 6;
   return 6.5;
+}
+
+/** Hides fainter labelled objects in wide views, where they would crowd the map. */
+function isShownAtField(target: Target, fieldDeg: number): boolean {
+  if (target.body) return true;
+  if (target.kind === 'Star') return target.mag <= (fieldDeg >= 60 ? 1.5 : fieldDeg >= 25 ? 3 : 5);
+  // Messier objects are the familiar showpieces, so they appear sooner. The thousands
+  // of NGC and IC objects only appear once zoomed in on them.
+  if (/^M\d/.test(target.id)) return target.mag <= (fieldDeg >= 60 ? 7 : 99);
+  return target.mag <= (fieldDeg >= 60 ? 4.5 : fieldDeg >= 25 ? 7 : fieldDeg >= 10 ? 10 : 99);
 }
 
 /**
@@ -127,6 +138,24 @@ function magnitudeLimit(fieldDeg: number): number {
     .alignment.aligned {
       color: #6fcf9f;
     }
+    .sensor-toggle {
+      position: absolute;
+      top: 56px;
+      right: 12px;
+      padding: 8px 12px;
+      border: 0;
+      border-radius: 10px;
+      background: rgb(10 14 28 / 85%);
+      color: #a8b0c6;
+      font-size: 12px;
+    }
+    .sensor-toggle.on {
+      color: #6fcf9f;
+    }
+    .sensor-error {
+      top: 45%;
+      color: #ffb454;
+    }
     .guidance {
       bottom: 12px;
       display: flex;
@@ -145,7 +174,7 @@ function magnitudeLimit(fieldDeg: number): number {
     .zoom {
       position: absolute;
       right: 12px;
-      top: 68px;
+      top: 104px;
       display: flex;
       flex-direction: column;
       gap: 4px;
@@ -179,7 +208,11 @@ function magnitudeLimit(fieldDeg: number): number {
         ></canvas>
 
         <div class="panel status" data-testid="pointing">
-          Preview: drag to aim<br />
+          @if (state.sensorsActive()) {
+            Sensors on{{ sensors.hasCompass() ? '' : ', no compass' }}<br />
+          } @else {
+            Preview: drag to aim<br />
+          }
           Alt {{ state.pointing().altDeg | number: '1.0-0' }}°, az {{ state.pointing().azDeg | number: '1.0-0' }}°
           @if (mode() === 'eyepiece') {
             <br />{{ power() | number: '1.0-0' }}× · {{ eyepieceField() | number: '1.1-2' }}° field
@@ -199,6 +232,20 @@ function magnitudeLimit(fieldDeg: number): number {
             Not aligned
           }
         </button>
+
+        <button
+          type="button"
+          class="sensor-toggle"
+          data-testid="sensor-toggle"
+          [class.on]="state.sensorsActive()"
+          (click)="toggleSensors()"
+        >
+          {{ state.sensorsActive() ? 'Sensors on' : 'Use sensors' }}
+        </button>
+
+        @if (sensors.error(); as message) {
+          <div class="panel sensor-error" data-testid="sensor-error">{{ message }}</div>
+        }
 
         @if (mode() === 'sky') {
           <div class="zoom">
@@ -238,7 +285,11 @@ function magnitudeLimit(fieldDeg: number): number {
               </div>
             </div>
             <div>
-              <ion-button fill="clear" size="small" data-testid="aim-at-target" (click)="aimAtTarget()">Aim</ion-button>
+              @if (!state.sensorsActive()) {
+                <ion-button fill="clear" size="small" data-testid="aim-at-target" (click)="aimAtTarget()"
+                  >Aim</ion-button
+                >
+              }
               <ion-button
                 fill="clear"
                 size="small"
@@ -258,6 +309,7 @@ function magnitudeLimit(fieldDeg: number): number {
 })
 export class SkyPage implements AfterViewInit, OnDestroy {
   protected readonly state = inject(AppState);
+  protected readonly sensors = inject(SensorService);
   private readonly router = inject(Router);
 
   protected readonly mode = signal<ViewMode>('sky');
@@ -317,6 +369,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       this.state.pointing();
       this.state.settings();
       this.state.selectedTarget();
+      this.state.targets();
       this.state.now();
       this.mode();
       this.fieldDeg();
@@ -333,6 +386,11 @@ export class SkyPage implements AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.resizeObserver?.disconnect();
+  }
+
+  protected toggleSensors(): void {
+    if (this.state.sensorsActive()) this.sensors.stop();
+    else void this.sensors.start();
   }
 
   protected openAlignment(): void {
@@ -396,7 +454,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
 
   /** Dragging moves the sky with the finger, so aiming moves the opposite way. */
   private drag(event: PointerEvent): void {
-    if (!this.dragStart) return;
+    if (!this.dragStart || this.state.sensorsActive()) return; // The sensors are steering
     const { x: flipX, y: flipY } = this.imageFlip();
     const degPerPixel = this.viewFieldDeg() / Math.max(this.canvasRef().nativeElement.clientWidth, 1);
     const altDeg = this.dragStart.altDeg + flipY * (event.clientY - this.dragStart.y) * degPerPixel;
@@ -452,11 +510,16 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     const width = canvas.clientWidth;
     const height = canvas.clientHeight;
     if (width === 0 || height === 0) return; // This tab is hidden
-    canvas.width = Math.round(width * pixelRatio);
-    canvas.height = Math.round(height * pixelRatio);
+    const pixelWidth = Math.round(width * pixelRatio);
+    const pixelHeight = Math.round(height * pixelRatio);
+    // Setting a canvas's size reallocates it, so only do that when the size changes.
+    if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+      canvas.width = pixelWidth;
+      canvas.height = pixelHeight;
+    }
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    ctx.scale(pixelRatio, pixelRatio);
+    ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
     ctx.fillStyle = '#05070f';
     ctx.fillRect(0, 0, width, height);
 
@@ -528,19 +591,29 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     let inEyepiece = 0;
 
     ctx.fillStyle = '#ffffff';
+    // Filling every star of a similar brightness as one shape is far faster than
+    // filling each on its own. The file is sorted brightest first, so they are adjacent.
+    let group = Number.NEGATIVE_INFINITY;
+    ctx.beginPath();
     for (const star of this.stars()) {
-      if (star.mag > limit) break; // The file is sorted brightest first
+      if (star.mag > limit) break;
+      if (Math.floor(star.mag) !== group) {
+        ctx.fill();
+        ctx.beginPath();
+        group = Math.floor(star.mag);
+        // Faint stars fade as well as shrink.
+        ctx.globalAlpha = Math.min(1, Math.max(0.35, 1.1 - group * 0.11));
+      }
       const local = applyMatrix(toLocal, star.vector);
       if (local[2] < 0) continue; // Below the horizon
       const point = project(local);
       if (!point || point.x < 0 || point.x > width || point.y < 0 || point.y > height) continue;
       if (Math.hypot(point.x - width / 2, point.y - height / 2) <= eyepieceRadius) inEyepiece++;
-      // Brighter stars are larger, and faint ones also fade.
-      ctx.globalAlpha = Math.min(1, Math.max(0.35, 1.1 - star.mag * 0.11));
-      ctx.beginPath();
-      ctx.arc(point.x, point.y, Math.max(0.6, 2.8 - star.mag * 0.38), 0, 2 * Math.PI);
-      ctx.fill();
+      const radius = Math.max(0.6, 2.8 - star.mag * 0.38);
+      ctx.moveTo(point.x + radius, point.y);
+      ctx.arc(point.x, point.y, radius, 0, 2 * Math.PI);
     }
+    ctx.fill();
     ctx.globalAlpha = 1;
     this.starsInEyepiece.set(inEyepiece);
   }
@@ -569,7 +642,10 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     ctx.textAlign = 'left';
 
     // The selected target goes first, so its label always wins a clash.
-    const ordered = [...TARGETS].sort((a, b) => Number(b.id === selectedId) - Number(a.id === selectedId));
+    const fieldDeg = this.viewFieldDeg();
+    const selected = this.state.selectedTarget();
+    const others = this.state.targets().filter((t) => t.id !== selectedId && isShownAtField(t, fieldDeg));
+    const ordered = selected ? [selected, ...others] : others;
     for (const target of ordered) {
       const local = applyMatrix(toLocal, equatorialVector(target.raDeg, target.decDeg));
       const isSelected = target.id === selectedId;
@@ -578,7 +654,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       if (!point) continue;
 
       // Stars are already drawn as dots, so only deep-sky objects need a marker.
-      const color = isSelected ? '#ffb454' : target.kind === 'Star' ? '#a8b0c6' : '#8fb7ff';
+      const color = isSelected ? '#ffb454' : target.body ? '#ffd479' : target.kind === 'Star' ? '#a8b0c6' : '#8fb7ff';
       ctx.strokeStyle = color;
       ctx.fillStyle = color;
       ctx.lineWidth = isSelected ? 2 : 1;

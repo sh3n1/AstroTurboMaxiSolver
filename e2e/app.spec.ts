@@ -74,7 +74,8 @@ test('asks for alignment again after the mount changes', async ({ page }) => {
 test('filters targets by type', async ({ page }) => {
   await page.goto('/tabs/targets');
   await page.locator('app-targets ion-chip', { hasText: 'Galaxy' }).click();
-  await expect(page.locator('app-targets ion-item')).toHaveCount(5);
+  await expect(page.locator('app-targets ion-item')).toHaveCount(40);
+  await expect(page.locator('[data-testid=more-results]')).toContainText('Showing 40 of');
   await expect(page.locator('app-targets ion-item', { hasText: 'Vega' })).toHaveCount(0);
 });
 
@@ -82,4 +83,33 @@ test('shows tonight in the session plan', async ({ page }) => {
   await page.goto('/tabs/plan');
   await expect(page.locator('[data-testid=conditions]')).toContainText('Darkness');
   await expect(page.locator('[data-testid=conditions]')).toContainText('% lit');
+});
+
+test('finds catalogue objects by name and other designation', async ({ page }) => {
+  await page.goto('/tabs/targets');
+  const search = page.locator('app-targets ion-searchbar input');
+  const rows = page.locator('app-targets ion-item');
+
+  // All 110 Messier objects load, and search looks at other designations too.
+  await search.fill('Crab');
+  await expect(rows.first()).toContainText('M1');
+  await search.fill('NGC 224');
+  await expect(rows.first()).toContainText('M31');
+  // M31 is only listed once, under its Messier name.
+  await expect(page.locator('app-targets ion-item h2', { hasText: /^NGC 224$/ })).toHaveCount(0);
+
+  // NGC and IC objects from OpenNGC.
+  await search.fill('NGC 7000');
+  await expect(rows.first()).toContainText('NGC 7000');
+  await search.fill('IC 434');
+  await expect(rows.first()).toContainText('IC 434');
+});
+
+test('lists the planets and the Moon', async ({ page }) => {
+  await page.goto('/tabs/targets');
+  await page.locator('app-targets ion-chip', { hasText: 'Solar system' }).click();
+  const rows = page.locator('app-targets ion-item');
+  await expect(rows).toHaveCount(8);
+  await expect(page.locator('app-targets ion-item', { hasText: 'Jupiter' })).toHaveCount(1);
+  await expect(page.locator('app-targets ion-item', { hasText: 'Moon' })).toHaveCount(1);
 });

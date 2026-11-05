@@ -5,8 +5,11 @@ import { IonBadge, IonButton, IonIcon, IonItem, IonLabel, IonList, IonNote } fro
 import { addIcons } from 'ionicons';
 import {
   bookmark,
+  apertureOutline,
   bookmarkOutline,
   cloudOutline,
+  ellipsisHorizontalOutline,
+  moonOutline,
   ellipseOutline,
   planetOutline,
   sparklesOutline,
@@ -17,7 +20,10 @@ import { AppState } from './app-state.service';
 import type { Target, TargetKind } from './targets';
 
 const KIND_ICONS: Record<TargetKind, string> = {
-  Galaxy: 'planet-outline',
+  Galaxy: 'aperture-outline',
+  Planet: 'planet-outline',
+  Moon: 'moon-outline',
+  Other: 'ellipsis-horizontal-outline',
   Nebula: 'cloud-outline',
   'Open cluster': 'sparkles-outline',
   'Globular cluster': 'ellipse-outline',
@@ -39,7 +45,7 @@ const GOOD_ALTITUDE_DEG = 30;
           <ion-icon slot="start" color="medium" aria-hidden="true" [name]="iconFor(target)"></ion-icon>
           <ion-label>
             <h2>{{ target.id }}</h2>
-            <p>{{ target.name }} · mag {{ target.mag | number: '1.1-1' }}</p>
+            <p>{{ target.name }} · mag {{ target.mag < 90 ? (target.mag | number: '1.1-1') : '?' }}</p>
           </ion-label>
           @if (altDeg > 0) {
             <ion-badge slot="end" [color]="altDeg >= goodAltitude ? 'success' : 'warning'"
@@ -71,7 +77,18 @@ export class TargetListComponent {
   private readonly router = inject(Router);
 
   constructor() {
-    addIcons({ bookmark, bookmarkOutline, cloudOutline, ellipseOutline, planetOutline, sparklesOutline, starOutline });
+    addIcons({
+      apertureOutline,
+      bookmark,
+      bookmarkOutline,
+      cloudOutline,
+      ellipseOutline,
+      ellipsisHorizontalOutline,
+      moonOutline,
+      planetOutline,
+      sparklesOutline,
+      starOutline,
+    });
   }
 
   protected altitudeOf(target: Target): number {
