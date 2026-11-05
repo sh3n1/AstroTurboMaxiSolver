@@ -1,0 +1,16 @@
+{
+  "name": "AstroFinder",
+  "short_name": "AstroFinder",
+  "description": "Smartphone telescope finder using plate solving and sensor fusion",
+  "display": "standalone",
+  "scope": "./",
+  "start_url": "./",
+  "theme_color": "#0b1026",
+  "background_color": "#0b1026",
+  "icons": [
+    { "src": "icons/icon-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/maskable-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
