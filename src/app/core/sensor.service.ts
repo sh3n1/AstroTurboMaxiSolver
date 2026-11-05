@@ -8,6 +8,8 @@ import {
   StillnessDetector,
   attitudeFromOrientation,
   blendAttitude,
+  combineAttitudes,
+  inverseAttitude,
   integrateGyroscope,
   phoneUpDirection,
   rearCameraDirection,
@@ -50,6 +52,10 @@ export class SensorService {
   private stillness = new StillnessDetector();
   private noDataTimer?: ReturnType<typeof setTimeout>;
   private compassOffsetDeg: number | null = null;
+  /** The latest raw orientation reading, before any correction. */
+  private lastReading: Quaternion | null = null;
+  /** What turns a raw orientation reading into the truth, learnt from plate solves. */
+  private compassCorrection: Quaternion | null = null;
 
   // Handlers are kept as fields so the same functions can be removed again.
   private readonly onAbsolute = (event: Event): void => {
@@ -116,6 +122,8 @@ export class SensorService {
     this.stillness = new StillnessDetector();
     this.isStill.set(false);
     this.compassOffsetDeg = null;
+    this.lastReading = null;
+    this.compassCorrection = null;
     this.state.sensorsActive.set(true);
     window.addEventListener('deviceorientationabsolute', this.onAbsolute);
     window.addEventListener('deviceorientation', this.onRelative);
@@ -139,10 +147,26 @@ export class SensorService {
 
   private applyOrientation(event: DeviceOrientationEvent, alphaOffsetDeg = 0): void {
     clearTimeout(this.noDataTimer);
-    const reading = attitudeFromOrientation((event.alpha ?? 0) + alphaOffsetDeg, event.beta ?? 0, event.gamma ?? 0);
+    this.lastReading = attitudeFromOrientation((event.alpha ?? 0) + alphaOffsetDeg, event.beta ?? 0, event.gamma ?? 0);
+    // After a plate solve, the compass's known error is removed from every reading.
+    const reading = this.compassCorrection
+      ? combineAttitudes(this.compassCorrection, this.lastReading)
+      : this.lastReading;
     // Follow the gyroscope if it is running, and otherwise steady the jittery reading.
     const weight = this.lastGyroscopeTime === null ? ORIENTATION_ONLY_WEIGHT : WITH_GYROSCOPE_WEIGHT;
     this.attitude = this.attitude ? blendAttitude(this.attitude, reading, weight) : reading;
+    this.publish();
+  }
+
+  /**
+   * Takes a plate-solved attitude as the truth. The difference from the compass at that
+   * moment is the compass's error, which then corrects every later reading, so the
+   * position stays true between solves instead of drifting back to the compass.
+   */
+  applyPlateSolve(solved: Quaternion): void {
+    if (!this.state.sensorsActive()) return;
+    this.attitude = solved;
+    if (this.lastReading) this.compassCorrection = combineAttitudes(solved, inverseAttitude(this.lastReading));
     this.publish();
   }
 

@@ -1,0 +1,51 @@
+/// <reference lib="webworker" />
+
+// Finds stars and plate solves in the background, so the sky map stays smooth while a
+// frame is being solved. The page sends the star catalogue once, then one frame at a time.
+
+import type { Vector3 } from './astronomy';
+import type { SolverIndex } from './plate-solver';
+import { buildSolverIndex, catalogFromRows, solveFrame } from './plate-solver';
+import type { SolveRequest, SolveResponse } from './solver-messages';
+import { detectStars } from './star-detector';
+
+let stars: ReturnType<typeof catalogFromRows> = [];
+// Building an index takes a moment, so keep one per frame size and field of view.
+const indexes = new Map<string, SolverIndex>();
+
+addEventListener('message', ({ data }: MessageEvent<SolveRequest>) => {
+  if (data.type === 'init') {
+    stars = catalogFromRows(data.starRows);
+    indexes.clear();
+    return;
+  }
+
+  const { id, pixels, width, height, focalPx, flipped, hint, timeLimitMs } = data;
+  const geometry = { width, height, focalPx, flipped };
+  const key = `${width}x${height}x${focalPx}x${flipped}`;
+  let index = indexes.get(key);
+  if (!index) {
+    index = buildSolverIndex(stars, geometry);
+    indexes.set(key, index);
+  }
+
+  const detection = detectStars(pixels, width, height);
+  const solution = solveFrame(detection.stars, geometry, index, hint ?? undefined, timeLimitMs);
+  const axis = (v: Vector3): Vector3 => (solution ? solution.toSky(v) : v);
+  const response: SolveResponse = {
+    id,
+    starCount: detection.stars.length,
+    solution: solution
+      ? {
+          raDeg: solution.raDeg,
+          decDeg: solution.decDeg,
+          matched: solution.matched,
+          checked: solution.checked,
+          focalPx: solution.focalPx,
+          // The image's own axes in the sky, which give the camera's full orientation.
+          axes: [axis([1, 0, 0]), axis([0, 1, 0]), axis([0, 0, 1])],
+        }
+      : null,
+  };
+  postMessage(response);
+});

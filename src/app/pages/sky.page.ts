@@ -33,6 +33,8 @@ import {
   trueFieldDeg,
   viewBasis,
 } from '../core/astronomy';
+import { LiveSolverService } from '../core/live-solver.service';
+import { chevronSpacingPx, pulseOpacity } from '../core/reticle';
 import { SensorService } from '../core/sensor.service';
 import type { Target } from '../core/targets';
 
@@ -82,13 +84,16 @@ const CARDINALS = [
 ];
 /** Below this size on screen, an object's real outline is too small to be useful. */
 const MIN_SIZE_CIRCLE_PX = 6;
+/** Fainter than this, an object's size circle only shows when it is the selected target. */
+const MAX_SIZE_CIRCLE_MAG = 6;
 /** The guidance chevrons, from the one nearest the reticle outwards. */
 const CHEVRON_FADE = [0.35, 0.65, 1];
-const CHEVRON_SPACING_PX = 8;
 const CHEVRON_HEIGHT_PX = 6;
 const CHEVRON_HALF_WIDTH_PX = 8;
-/** Rings larger than this share of the screen's width would only get in the way. */
-const MAX_RING_SCREEN_SHARE = 1.2;
+/** Reticle ring diameters, the same as a Telrad finder's, so star hops carry over. */
+const RETICLE_RINGS_DEG = [0.5, 2, 4];
+/** Rings smaller than this have no room for a size label. */
+const MIN_LABELLED_RING_PX = 30;
 
 // The app's own colours for its sky map and guidance.
 const COLOR = {
@@ -277,6 +282,10 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
         <div class="readout" data-testid="pointing">
           @if (state.sensorsActive()) {
             Sensors on{{ sensors.hasCompass() ? '' : ', no compass' }}{{ sensors.isStill() ? ', still' : '' }}<br />
+            @if (liveSolver.statusText(); as solveText) {
+              <span data-testid="solve-status">{{ solveText }}</span
+              ><br />
+            }
           } @else {
             Preview: drag to aim<br />
           }
@@ -404,6 +413,7 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
 export class SkyPage implements AfterViewInit, OnDestroy {
   protected readonly state = inject(AppState);
   protected readonly sensors = inject(SensorService);
+  protected readonly liveSolver = inject(LiveSolverService);
   private readonly router = inject(Router);
 
   protected readonly mode = signal<ViewMode>('sky');
@@ -480,6 +490,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     effect(() => {
       this.state.pointing();
       this.state.viewRollDeg();
+      this.state.plateSolving();
       this.state.settings();
       this.state.selectedTarget();
       this.state.targets();
@@ -853,7 +864,9 @@ export class SkyPage implements AfterViewInit, OnDestroy {
             : COLOR.deepSky;
 
       // The object's real size, when it is large enough to see at this zoom.
-      const sizeRadius = target.sizeArcmin ? stereographicRadius(target.sizeArcmin / 60 / 2) * scale : 0;
+      // Only for the selected target and bright objects, since faint large ones crowd the view.
+      const showsSize = isSelected || !!target.body || /^M\d/.test(target.id) || target.mag <= MAX_SIZE_CIRCLE_MAG;
+      const sizeRadius = showsSize && target.sizeArcmin ? stereographicRadius(target.sizeArcmin / 60 / 2) * scale : 0;
       if (sizeRadius >= MIN_SIZE_CIRCLE_PX) {
         ctx.strokeStyle = isSelected ? color : COLOR.sizeCircle;
         ctx.lineWidth = 1;
@@ -908,8 +921,8 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   }
 
   /**
-   * AstroFinder's reticle: the ring and four ticks of the app icon. The rings are the
-   * real sizes of the user's finder and eyepiece views, at the current zoom.
+   * AstroFinder's reticle: rings at the sizes observers know from a Telrad finder, with
+   * the app icon's four ticks. The ticks and letters show the sky's own directions.
    */
   private drawReticle(
     ctx: CanvasRenderingContext2D,
@@ -920,38 +933,31 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   ): void {
     const cx = width / 2;
     const cy = height / 2;
-    const { finderFieldDeg } = this.state.settings();
-    const finderRadius = stereographicRadius(finderFieldDeg / 2) * scale;
-    const eyepieceRadius = stereographicRadius(this.eyepieceField() / 2) * scale;
     const color = this.isOnTarget() ? COLOR.onTarget : COLOR.reticle;
+    // While plate solving, the reticle fades in and out, and keeps redrawing itself to do so.
+    const opacity = this.state.plateSolving() ? pulseOpacity(performance.now()) : 1;
+    this.canvasRef().nativeElement.dataset['reticleOpacity'] = opacity.toFixed(2);
+    if (this.state.plateSolving()) this.queueDraw();
+    ctx.globalAlpha = opacity;
     ctx.strokeStyle = color;
     ctx.fillStyle = color;
+    ctx.lineWidth = 1.5;
     ctx.font = '10px sans-serif';
     ctx.textAlign = 'left';
 
-    // A very wide ring is off the screen anyway, so the ticks then sit at a usable size.
-    const showFinder = finderRadius * 2 <= width * MAX_RING_SCREEN_SHARE;
-    const outerRadius = showFinder ? finderRadius : Math.max(eyepieceRadius, 40);
-    if (showFinder) {
-      ctx.lineWidth = 1.5;
+    for (const diameterDeg of RETICLE_RINGS_DEG) {
+      const radius = stereographicRadius(diameterDeg / 2) * scale;
       ctx.beginPath();
-      ctx.arc(cx, cy, finderRadius, 0, 2 * Math.PI);
+      ctx.arc(cx, cy, radius, 0, 2 * Math.PI);
       ctx.stroke();
-      ctx.fillText(`${finderFieldDeg.toFixed(0)}°`, cx + finderRadius * 0.72 + 3, cy - finderRadius * 0.72 - 3);
-    }
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(cx, cy, Math.max(eyepieceRadius, 3), 0, 2 * Math.PI);
-    ctx.stroke();
-    if (eyepieceRadius >= 14) {
-      ctx.fillText(
-        `${this.eyepieceField().toFixed(1)}°`,
-        cx + eyepieceRadius * 0.72 + 3,
-        cy - eyepieceRadius * 0.72 - 3,
-      );
+      // Small rings have no room for a label until zoomed in.
+      if (radius >= MIN_LABELLED_RING_PX) {
+        ctx.fillText(`${diameterDeg}°`, cx + radius * 0.72 + 3, cy - radius * 0.72 - 3);
+      }
     }
 
-    // The icon's four ticks, crossing the outer ring.
+    // The app icon's four ticks, crossing the outer ring.
+    const outerRadius = stereographicRadius(RETICLE_RINGS_DEG.at(-1)! / 2) * scale;
     ctx.lineWidth = 2;
     ctx.beginPath();
     for (const [dx, dy] of [
@@ -960,12 +966,14 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       [0, 1],
       [-1, 0],
     ]) {
-      ctx.moveTo(cx + dx * (outerRadius - 5), cy + dy * (outerRadius - 5));
-      ctx.lineTo(cx + dx * (outerRadius + 9), cy + dy * (outerRadius + 9));
+      ctx.moveTo(cx + dx * (outerRadius - 4), cy + dy * (outerRadius - 4));
+      ctx.lineTo(cx + dx * (outerRadius + 7), cy + dy * (outerRadius + 7));
     }
     ctx.stroke();
 
-    this.drawPointer(ctx, project, cx, cy, outerRadius + 9, width, height);
+    ctx.globalAlpha = 1;
+
+    this.drawPointer(ctx, project, cx, cy, outerRadius + 24, width, height);
   }
 
   /** Points from the reticle to the selected target, with a guide line if it is visible. */
@@ -1010,8 +1018,10 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     ctx.lineWidth = 2.5;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
+    // Wide gaps mean the target is far away, so move quickly. Tight gaps mean slow down.
+    const spacing = chevronSpacingPx(this.targetDistance());
     for (const [index, alpha] of CHEVRON_FADE.entries()) {
-      const tip = -index * CHEVRON_SPACING_PX - CHEVRON_HEIGHT_PX;
+      const tip = -index * spacing - CHEVRON_HEIGHT_PX;
       ctx.globalAlpha = alpha;
       ctx.beginPath();
       ctx.moveTo(-CHEVRON_HALF_WIDTH_PX, tip + CHEVRON_HEIGHT_PX);

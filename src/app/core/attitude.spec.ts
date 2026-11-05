@@ -2,7 +2,11 @@ import {
   StillnessDetector,
   attitudeFromOrientation,
   blendAttitude,
+  attitudeFromAxes,
+  attitudeFromImageAxes,
+  combineAttitudes,
   integrateGyroscope,
+  inverseAttitude,
   phoneUpDirection,
   rearCameraDirection,
 } from './attitude';
@@ -45,6 +49,58 @@ describe('attitude', () => {
     const up = phoneUpDirection(spin([0, 0, 90], 1));
     expect(up[0]).toBeCloseTo(-1, 6);
     expect(up[2]).toBeCloseTo(0, 6);
+  });
+
+  describe('attitude from a plate solve', () => {
+    /** The phone's own axes in local coordinates, read from an attitude. */
+    function axesOf(q: ReturnType<typeof attitudeFromOrientation>) {
+      const [w, x, y, z] = q;
+      return {
+        x: [1 - 2 * (y * y + z * z), 2 * (x * y + w * z), 2 * (x * z - w * y)] as const,
+        y: phoneUpDirection(q),
+        z: [2 * (x * z + w * y), 2 * (y * z - w * x), 1 - 2 * (x * x + y * y)] as const,
+      };
+    }
+
+    it('rebuilds any attitude from its axes', () => {
+      for (const [a, b, g] of [
+        [0, 0, 0],
+        [0, 90, 0],
+        [200, 60, -30],
+        [10, 170, 80],
+        [300, -45, 179],
+      ]) {
+        const q = attitudeFromOrientation(a, b, g);
+        const { x, y, z } = axesOf(q);
+        const rebuilt = attitudeFromAxes(x, y, z);
+        // A quaternion and its negative are the same attitude.
+        const sign = Math.sign(rebuilt[0] * q[0] + rebuilt[1] * q[1] + rebuilt[2] * q[2] + rebuilt[3] * q[3]);
+        rebuilt.forEach((value, i) => expect(sign * value).toBeCloseTo(q[i], 9));
+      }
+    });
+
+    it('turns image axes into the phone attitude, so the camera looks where the image does', () => {
+      const q = attitudeFromOrientation(40, 110, 15);
+      const { x, y, z } = axesOf(q);
+      // The image's axes, as a plate solve reports them for this phone attitude.
+      const imageY = [-y[0], -y[1], -y[2]] as const;
+      const imageZ = [-z[0], -z[1], -z[2]] as const;
+      const fromSolve = attitudeFromImageAxes(x, imageY, imageZ);
+      rearCameraDirection(fromSolve).forEach((value, i) => expect(value).toBeCloseTo(imageZ[i], 9));
+    });
+
+    it('learns a fixed compass error, so later readings come out right', () => {
+      const truth = attitudeFromOrientation(100, 95, 0);
+      const compassSaid = attitudeFromOrientation(112, 95, 0); // 12° out
+      const correction = combineAttitudes(truth, inverseAttitude(compassSaid));
+      // Later, the phone turns, and the compass is still 12° out.
+      const laterTruth = attitudeFromOrientation(150, 95, 0);
+      const laterCompass = attitudeFromOrientation(162, 95, 0);
+      const corrected = combineAttitudes(correction, laterCompass);
+      rearCameraDirection(corrected).forEach((value, i) =>
+        expect(value).toBeCloseTo(rearCameraDirection(laterTruth)[i], 6),
+      );
+    });
   });
 
   describe('gyroscope', () => {

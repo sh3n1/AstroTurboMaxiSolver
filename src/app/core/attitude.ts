@@ -92,3 +92,43 @@ export class StillnessDetector {
     return this.stillFor >= STILL_SECONDS;
   }
 }
+
+/** The reverse rotation. For a unit quaternion this is its conjugate. */
+export function inverseAttitude([w, x, y, z]: Quaternion): Quaternion {
+  return [w, -x, -y, -z];
+}
+
+/** Applies b, then a. */
+export function combineAttitudes(a: Quaternion, b: Quaternion): Quaternion {
+  return normalize(multiply(a, b));
+}
+
+/** The attitude whose phone x, y and z axes point along three local unit vectors. */
+export function attitudeFromAxes(x: Vector3, y: Vector3, z: Vector3): Quaternion {
+  // Standard conversion from a rotation matrix, whose columns are these axes.
+  const trace = x[0] + y[1] + z[2];
+  if (trace > 0) {
+    const s = 0.5 / Math.sqrt(trace + 1);
+    return normalize([0.25 / s, (y[2] - z[1]) * s, (z[0] - x[2]) * s, (x[1] - y[0]) * s]);
+  }
+  if (x[0] > y[1] && x[0] > z[2]) {
+    const s = 2 * Math.sqrt(1 + x[0] - y[1] - z[2]);
+    return normalize([(y[2] - z[1]) / s, 0.25 * s, (y[0] + x[1]) / s, (z[0] + x[2]) / s]);
+  }
+  if (y[1] > z[2]) {
+    const s = 2 * Math.sqrt(1 + y[1] - x[0] - z[2]);
+    return normalize([(z[0] - x[2]) / s, (y[0] + x[1]) / s, 0.25 * s, (z[1] + y[2]) / s]);
+  }
+  const s = 2 * Math.sqrt(1 + z[2] - x[0] - y[1]);
+  return normalize([(x[1] - y[0]) / s, (z[0] + x[2]) / s, (z[1] + y[2]) / s, 0.25 * s]);
+}
+
+/**
+ * The phone's attitude from a plate solve. Image axes are x right, y down and z out
+ * through the lens. The rear camera looks out of the back of the phone, so the image's
+ * y and z are the reverse of the phone's.
+ */
+export function attitudeFromImageAxes(imageX: Vector3, imageY: Vector3, imageZ: Vector3): Quaternion {
+  const negate = (v: Vector3): Vector3 => [-v[0], -v[1], -v[2]];
+  return attitudeFromAxes(imageX, negate(imageY), negate(imageZ));
+}

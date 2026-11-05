@@ -52,7 +52,7 @@ test('finds a target, guides to it and shows it in the eyepiece', async ({ page 
 
 test('remembers night mode after a reload', async ({ page }) => {
   await page.goto('/tabs/settings');
-  await page.locator('app-settings ion-toggle').click();
+  await page.locator('[data-testid=night-mode]').click();
   await expect(page.locator('html')).toHaveClass(/night/);
   await page.reload();
   await expect(page.locator('html')).toHaveClass(/night/);
@@ -136,4 +136,34 @@ test('lists the planets and the Moon', async ({ page }) => {
   await expect(rows).toHaveCount(8);
   await expect(page.locator('app-targets ion-item', { hasText: 'Jupiter' })).toHaveCount(1);
   await expect(page.locator('app-targets ion-item', { hasText: 'Moon' })).toHaveCount(1);
+});
+
+test('fades the reticle in and out only while plate solving', async ({ page }) => {
+  await page.goto('/');
+  const canvas = page.locator('app-sky canvas');
+  await expect(canvas).toHaveAttribute('data-reticle-opacity', '1.00');
+
+  // Angular's development tools reach the app's state, since nothing on this page starts a solve yet.
+  const setSolving = (value: boolean): Promise<void> =>
+    page.evaluate((solving) => {
+      const { ng } = window as unknown as {
+        ng: { getComponent: (el: Element) => { state: { plateSolving: { set: (v: boolean) => void } } } };
+      };
+      ng.getComponent(document.querySelector('app-sky')!).state.plateSolving.set(solving);
+    }, value);
+
+  await setSolving(true);
+  const seen = new Set<string>();
+  await expect
+    .poll(async () => {
+      seen.add((await canvas.getAttribute('data-reticle-opacity')) ?? '');
+      return seen.size;
+    })
+    .toBeGreaterThan(2);
+  const values = [...seen].map(Number);
+  expect(Math.min(...values)).toBeLessThan(1);
+  expect(Math.min(...values)).toBeGreaterThanOrEqual(0.25);
+
+  await setSolving(false);
+  await expect(canvas).toHaveAttribute('data-reticle-opacity', '1.00');
 });

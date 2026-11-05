@@ -41,7 +41,8 @@ Built while waiting for a clear night. Aiming is by dragging until real sensors 
 - [x] Sky map, aiming circle, guidance arrow and eyepiece view
 - [x] Target search, session plan list and saved equipment settings
 - [x] Red night mode
-- [x] Own guidance design: reticle rings from the real finder and eyepiece fields, target marker, chevrons and target bar
+- [x] Own guidance design: reticle with 0.5°, 2° and 4° rings, target marker, chevrons spaced by distance and target bar
+- [x] Reticle fades in and out while plate solving. The sky map starts this once it plate solves live
 - [x] Constellation lines and names, star colours, object size circles, RA and Dec readout, and a 20° default view
 - [x] Sky map turns with the phone
 - [x] Polish: night-sky theme, pinch zoom, cleaner labels, alt-az grid and movement directions
@@ -107,7 +108,7 @@ Keep this as plain TypeScript with no Angular dependency, so it is easy to test.
 - [ ] Build the star index and keep the build script in the repository
 - [ ] Download the index and store it for offline use, with progress and storage-limit handling
 - [ ] Request persistent storage and handle data being evicted, especially on iOS
-- [ ] Run the solver in a Web Worker
+- [x] Run the solver in a Web Worker
 - [ ] Tune the solver and its false-answer limits on real sky images from the clear-sky test
 - [ ] Reject low-confidence solves, and show the user when a frame could not be solved
 - [ ] Use the sensor estimate to narrow the search, with a fallback to a full-sky solve
@@ -120,8 +121,9 @@ Keep this as plain TypeScript with no Angular dependency, so it is easy to test.
 - [x] Get a location from GPS, with manual entry as a fallback
 - [x] Track orientation between solves using the gyroscope, with compass-based orientation slowly correcting drift
 - [x] Detect when the phone is still
-- [ ] Start a plate solve automatically when the phone is still
-- [ ] Correct drift with each plate solve. The complementary filter is ready for this
+- [x] Start a plate solve automatically when the phone is still. Only for a camera pointing straight at the sky so far
+- [ ] Support live plate solving with mirror and clip-on mounts
+- [x] Correct drift with each plate solve, and learn the compass error from it
 - [ ] Move to a Kalman filter only if testing shows it is needed
 - [ ] Limit how much the compass is trusted, because the telescope can disturb it
 - [ ] Show the estimate's quality and prompt for a new solve when it degrades
@@ -153,7 +155,7 @@ Keep this as plain TypeScript with no Angular dependency, so it is easy to test.
 
 - [ ] Evaluate sky map libraries, starting with `d3-celestial` (BSD-3-Clause), for phone performance and offline use
 - [x] Show a sky map that follows the phone's sensors in real time while moving. Tilting the view with the phone is still to do
-- [ ] Recalibrate the map with a plate solve when the phone is still
+- [x] Recalibrate the map with a plate solve when the phone is still. Not yet proven on a real sky
 - [ ] Show an aiming circle for where the telescope is pointing
 - [ ] Add an arrow on the aiming circle that guides the user to the target, with the remaining angle
 - [ ] Confirm arrival with a plate solve

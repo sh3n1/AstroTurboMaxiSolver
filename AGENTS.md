@@ -80,13 +80,14 @@ Before finishing a change, run: `npm run lint`, `npm run test:unit` and `npm run
   - Default to the main camera. The telephoto and ultrawide needed much longer exposures in simulation, and Chrome on the Magic5 Pro only offers one rear camera anyway.
   - Aim for at least 1/8 s per frame, with stacked frames as the fallback. The Honor Magic5 Pro allows up to 1/3 s in Chrome, measured.
   - Design for a bright city sky. The reference case is central Valencia, about 17.5 mag/arcsec², on an Honor Magic5 Pro.
+- **Live plate solving:** `live-solver.service.ts` solves in a Web Worker whenever sensors are on and the phone is still, then corrects the sensors and learns the compass error. It only runs with the camera pointing straight at the sky for now.
 - **Sensor fusion approach:** A complementary filter in `src/app/core/attitude.ts`. The gyroscope follows movement, and compass-based orientation slowly corrects drift. Plate solves will correct it when the phone is still. Treat the compass as a coarse hint only.
 - **Coordinate systems and units:** Catalogue positions are J2000. `astronomy-engine` converts them to the local sky, including precession. Angles are in degrees, and azimuth runs from north through east. Refraction is not applied yet.
 - **Accuracy and performance targets:** Target within 0.5° of centre, so it lands in a low-power eyepiece field. About 2 s to solve on a still phone using the sensor hint. Live sensor updates while moving. Revisit after the feasibility spikes.
 
 ## Visual design
 
-The app has its own look, not a copy of other astronomy apps. Other apps may inform what is useful, but not how it looks. The reticle is the app icon's ring and four ticks. The selected target is an amber diamond of four strokes. Guidance is a trail of fading chevrons with a dashed guide line.
+The app has its own look, not a copy of other astronomy apps. Other apps may inform what is useful, but not how it looks. The reticle has rings at 0.5°, 2° and 4°, the same sizes as a Telrad finder, with the app icon's four ticks. Its rings fade in and out while plate solving. The selected target is an amber diamond of four strokes. Guidance is a trail of fading chevrons with a dashed guide line. The chevrons spread further apart the farther away the target is.
 
 ## Conventions
 

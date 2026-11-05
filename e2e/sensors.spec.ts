@@ -8,6 +8,13 @@ test.use({
   launchOptions: { args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] },
 });
 
+// Automatic plate solving opens the camera and a solver whenever the phone is still. Tests
+// about other things turn it off, so they stay quick and don't compete for the fake camera.
+test.beforeEach(async ({ page }, testInfo) => {
+  if (testInfo.title.includes('plate solves automatically')) return;
+  await page.addInitScript(() => localStorage.setItem('astrofinder.settings', JSON.stringify({ autoSolve: false })));
+});
+
 /** Turns sensors on, waiting until they are listening, since asking permission takes a moment. */
 async function startSensors(page: Page): Promise<void> {
   await page.locator('[data-testid=sensor-toggle]').click();
@@ -114,10 +121,10 @@ test('notices when the phone has stopped moving', async ({ page }) => {
   await startSensors(page);
   await sendOrientation(page, 0, 90, 0);
   await sendGyroscope(page, 0, 0, 0, 80);
-  await expect(pointing).toContainText('still');
+  await expect(pointing).toContainText(', still');
 
   await sendGyroscope(page, 0, 20, 0, 3);
-  await expect(pointing).not.toContainText('still');
+  await expect(pointing).not.toContainText(', still');
 });
 
 test('runs the clear-sky test without crashing, and reports not solved', async ({ page }) => {
@@ -137,4 +144,31 @@ test('runs the clear-sky test without crashing, and reports not solved', async (
   await expect(page.locator('[data-testid=sky-test-error]')).toHaveCount(0);
   await expect(page.locator('[data-testid=sky-test-solved]')).toHaveCount(0);
   await expect(page.locator('[data-testid=save-sky-report]')).toBeVisible();
+});
+
+test('plate solves automatically when the phone is still', async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.goto('/');
+  await startSensors(page);
+  await sendOrientation(page, 0, 120, 0);
+  await expect(page.locator('[data-testid=solve-status]')).toContainText('Hold still');
+
+  // Keep the phone still long enough to count, then for the capture.
+  const status = page.locator('[data-testid=solve-status]');
+  for (let i = 0; i < 12 && !/No stars|No match/.test((await status.innerText()) ?? ''); i++) {
+    await sendGyroscope(page, 0, 0, 0, 60);
+  }
+  // The fake camera has no stars, so the honest answer is no solve.
+  await expect(status).toContainText(/No stars|No match/);
+});
+
+test('does not use the camera when automatic solving is off', async ({ page }) => {
+  // Automatic solving is switched off for this test, before the page loads.
+  await page.goto('/tabs/settings');
+  await expect(page.locator('[data-testid=auto-solve]')).toHaveAttribute('aria-checked', 'false');
+  await page.getByRole('tab', { name: 'Sky' }).click();
+  await startSensors(page);
+  await sendOrientation(page, 0, 120, 0);
+  await expect(page.locator('[data-testid=pointing]')).toContainText('Sensors on');
+  await expect(page.locator('[data-testid=solve-status]')).toHaveCount(0);
 });

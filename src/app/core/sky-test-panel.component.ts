@@ -181,6 +181,7 @@ export class SkyTestPanelComponent {
 
   protected async run(): Promise<void> {
     this.busy.set(true);
+    this.state.plateSolving.set(true);
     this.error.set('');
     this.sendState.set('');
     this.reports.set(null);
@@ -215,6 +216,7 @@ export class SkyTestPanelComponent {
       this.countdown.set(0);
       this.progress.set('');
       this.busy.set(false);
+      this.state.plateSolving.set(false);
       void wakeLock?.release();
     }
   }

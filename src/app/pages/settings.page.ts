@@ -22,8 +22,7 @@ import { AppState } from '../core/app-state.service';
 import type { Settings } from '../core/app-state.service';
 import { magnification, trueFieldDeg } from '../core/astronomy';
 
-type NumericSetting =
-  'latitudeDeg' | 'longitudeDeg' | 'telescopeFocalMm' | 'eyepieceFocalMm' | 'eyepieceFieldDeg' | 'finderFieldDeg';
+type NumericSetting = 'latitudeDeg' | 'longitudeDeg' | 'telescopeFocalMm' | 'eyepieceFocalMm' | 'eyepieceFieldDeg';
 
 /** Display, location and equipment settings. */
 @Component({
@@ -57,6 +56,7 @@ type NumericSetting =
         <ion-list-header>Display</ion-list-header>
         <ion-item>
           <ion-toggle
+            data-testid="night-mode"
             [checked]="settings().nightMode"
             (ionChange)="state.updateSettings({ nightMode: $any($event).detail.checked })"
           >
@@ -130,22 +130,26 @@ type NumericSetting =
           ></ion-input>
         </ion-item>
         <ion-item>
-          <ion-input
-            label="Finder field of view (°)"
-            labelPlacement="stacked"
-            type="number"
-            data-testid="finder-field"
-            [value]="settings().finderFieldDeg"
-            (ionChange)="setNumber('finderFieldDeg', $event, 0.5, 60)"
-          ></ion-input>
-        </ion-item>
-        <ion-item>
           <ion-note
             >{{ power() | number: '1.0-0' }}× magnification · {{ field() | number: '1.1-2' }}° field of view</ion-note
           >
         </ion-item>
 
         <ion-list-header>Phone mount and alignment</ion-list-header>
+        <ion-item>
+          <ion-toggle
+            data-testid="auto-solve"
+            [checked]="settings().autoSolve"
+            (ionChange)="state.updateSettings({ autoSolve: $any($event).detail.checked })"
+          >
+            Plate solve when the phone is still
+          </ion-toggle>
+        </ion-item>
+        <ion-item>
+          <ion-note class="ion-text-wrap">
+            Uses the camera while sensors are on. It currently works with the camera pointing straight at the sky.
+          </ion-note>
+        </ion-item>
         <ion-item>
           <ion-select
             label="Mount type"

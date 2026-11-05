@@ -23,9 +23,10 @@ export interface Settings {
   telescopeFocalMm: number;
   eyepieceFocalMm: number;
   eyepieceFieldDeg: number; // The eyepiece's apparent field of view
-  finderFieldDeg: number; // The true field of view of the finder, or of the widest eyepiece
   mount: MountType;
   nightMode: boolean;
+  /** Plate solve automatically whenever sensors are on and the phone is still. */
+  autoSolve: boolean;
 }
 
 /** A completed alignment. It stays valid while the phone stays fixed in its mount. */
@@ -44,9 +45,9 @@ const DEFAULT_SETTINGS: Settings = {
   telescopeFocalMm: 650,
   eyepieceFocalMm: 25,
   eyepieceFieldDeg: 52,
-  finderFieldDeg: 8,
   mount: 'direct',
   nightMode: false,
+  autoSolve: true,
 };
 
 const SETTINGS_KEY = 'astrofinder.settings';
@@ -87,6 +88,9 @@ export class AppState {
 
   /** How far the map is turned to match the phone. Zero when sensors are off. */
   readonly viewRollDeg = signal(0);
+
+  /** True while a plate solve is running, which makes the reticle pulse. */
+  readonly plateSolving = signal(false);
 
   readonly selectedTargetId = signal<string | null>(null);
 

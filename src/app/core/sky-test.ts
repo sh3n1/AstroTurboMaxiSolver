@@ -3,6 +3,14 @@
 // simulation in spikes/sky-sim could only assume.
 
 import type { Vector3 } from './astronomy';
+import type { CameraTrackSettings } from './camera';
+import {
+  EXPOSURE_UNITS_PER_SECOND,
+  FOCAL_SHARE_OF_LONG_SIDE,
+  applyCameraSettings,
+  averageLevel,
+  captureStack,
+} from './camera';
 import type { DepthBin } from './plate-solver';
 import { buildSolverIndex, catalogFromRows, measureDepth, solveFrame } from './plate-solver';
 import { detectStars } from './star-detector';
@@ -21,8 +29,6 @@ export const SKY_TEST_STEPS: readonly CaptureStep[] = [
   { exposureSeconds: 1 / 3, iso: 6400, frames: 6 },
 ];
 
-/** A browser unit: the specification measures exposure in 100 microsecond steps. */
-const EXPOSURE_UNITS_PER_SECOND = 10_000;
 const SETTLE_MS = 1000; // Lets the camera apply new settings before capturing
 const FRAME_TIMEOUT_MS = 3000;
 const FULL_WELL_LEVEL = 250; // Pixels above this on the 0 to 255 scale have clipped
@@ -33,11 +39,6 @@ const MIN_ISO = 100;
 const MAX_ISO_REDUCTIONS = 7; // Enough to come down from the highest ISO this test asks for
 /** A frame with more than this share of clipped pixels has nothing reliable to solve. */
 const MAX_CLIPPED_PERCENT = 5;
-/**
- * Main camera focal length in pixels, as a share of the frame's long side. It comes from
- * the published 23 mm equivalent lens. The solver searches around it and reports the fit.
- */
-const FOCAL_SHARE_OF_LONG_SIDE = 0.667;
 
 export interface SolveReport {
   raDeg: number;
@@ -85,75 +86,6 @@ export interface SkyTestOptions {
 const wait = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 const round = (value: number, digits = 2): number => Number(value.toFixed(digits));
 
-type CameraTrackSettings = MediaTrackSettings & { exposureTime?: number; iso?: number };
-interface RangeCapability {
-  min?: number;
-  max?: number;
-}
-type CameraTrackCapabilities = MediaTrackCapabilities & {
-  exposureMode?: string[];
-  exposureTime?: RangeCapability;
-  iso?: RangeCapability;
-  focusMode?: string[];
-  focusDistance?: RangeCapability;
-};
-
-/** Sets manual exposure and far focus. Returns false if the camera refuses. */
-async function applySettings(track: MediaStreamTrack, step: CaptureStep): Promise<boolean> {
-  const capabilities = track.getCapabilities() as CameraTrackCapabilities;
-  if (!capabilities.exposureMode?.includes('manual') || !capabilities.exposureTime?.max) return false;
-  const clamp = (value: number, range?: RangeCapability): number =>
-    Math.min(range?.max ?? value, Math.max(range?.min ?? value, value));
-
-  const advanced: Record<string, unknown> = {
-    exposureMode: 'manual',
-    exposureTime: clamp(step.exposureSeconds * EXPOSURE_UNITS_PER_SECOND, capabilities.exposureTime),
-  };
-  if (capabilities.iso) advanced['iso'] = clamp(step.iso, capabilities.iso);
-  if (capabilities.focusMode?.includes('manual') && capabilities.focusDistance?.max) {
-    advanced['focusMode'] = 'manual';
-    advanced['focusDistance'] = capabilities.focusDistance.max;
-  }
-  try {
-    await track.applyConstraints({ advanced: [advanced] } as MediaTrackConstraints);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/** Waits for the next new video frame, where the browser can report one. */
-function nextFrame(video: HTMLVideoElement, fallbackMs: number): Promise<void> {
-  const timeout = wait(Math.max(fallbackMs, 50) + FRAME_TIMEOUT_MS);
-  if (typeof video.requestVideoFrameCallback !== 'function') return wait(fallbackMs);
-  return Promise.race([new Promise<void>((resolve) => video.requestVideoFrameCallback(() => resolve())), timeout]);
-}
-
-/** Captures and averages frames. Averaging raises faint stars above the noise. */
-async function captureStack(
-  video: HTMLVideoElement,
-  step: CaptureStep,
-): Promise<{ pixels: Float32Array; width: number; height: number }> {
-  const [width, height] = [video.videoWidth, video.videoHeight];
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  if (!ctx || !width || !height) throw new Error('The camera gave no picture.');
-
-  const pixels = new Float32Array(width * height);
-  for (let frame = 0; frame < step.frames; frame++) {
-    await nextFrame(video, step.exposureSeconds * 1000);
-    ctx.drawImage(video, 0, 0, width, height);
-    const { data } = ctx.getImageData(0, 0, width, height);
-    for (let i = 0; i < pixels.length; i++) {
-      pixels[i] += (data[i * 4] + data[i * 4 + 1] + data[i * 4 + 2]) / 3;
-    }
-  }
-  for (let i = 0; i < pixels.length; i++) pixels[i] /= step.frames;
-  return { pixels, width, height };
-}
-
 /** Makes a preview that shows faint stars by stretching just above the sky brightness. */
 function previewImage(
   pixels: Float32Array,
@@ -178,12 +110,6 @@ function previewImage(
   }
   ctx.putImageData(image, 0, 0);
   return canvas.toDataURL('image/jpeg', 0.85);
-}
-
-function averageLevel(pixels: Float32Array): number {
-  let total = 0;
-  for (const value of pixels) total += value;
-  return total / pixels.length;
 }
 
 /** Runs every step, keeping whatever it gets if one of them fails. */
@@ -236,7 +162,7 @@ async function runStep(
   };
 
   try {
-    report.manualControl = await applySettings(track, step);
+    report.manualControl = await applyCameraSettings(track, step);
     await wait(SETTLE_MS + step.exposureSeconds * 2000);
 
     // City skies vary a lot, so lower the ISO until the sky is no longer close to clipping.
@@ -247,7 +173,7 @@ async function runStep(
       if (averageLevel(test.pixels) <= MAX_SKY_LEVEL) break;
       iso = Math.max(MIN_ISO, Math.round(iso / 2));
       options.onProgress(`Sky is bright, so trying ISO ${iso}…`);
-      await applySettings(track, { ...step, iso });
+      await applyCameraSettings(track, { ...step, iso });
       await wait(SETTLE_MS + step.exposureSeconds * 2000);
     }
     const settings = track.getSettings() as CameraTrackSettings;
