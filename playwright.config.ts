@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const baseURL = 'http://localhost:4210';
+const devServerURL = 'http://localhost:4210';
+const productionURL = 'http://localhost:4211';
 
 export default defineConfig({
   testDir: './e2e',
@@ -9,19 +10,34 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
   use: {
-    baseURL,
     trace: 'on-first-retry',
   },
   projects: [
     {
       name: 'Mobile Chrome',
-      use: { ...devices['Pixel 7'] },
+      testIgnore: 'pwa.spec.ts',
+      use: { ...devices['Pixel 7'], baseURL: devServerURL },
+    },
+    {
+      // The service worker only runs in production builds.
+      name: 'Mobile Chrome (production build)',
+      testMatch: 'pwa.spec.ts',
+      use: { ...devices['Pixel 7'], baseURL: productionURL },
     },
   ],
-  webServer: {
-    command: 'npm start -- --port 4210',
-    url: baseURL,
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-  },
+  webServer: [
+    {
+      command: 'npm start -- --port 4210',
+      url: devServerURL,
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+    },
+    {
+      command: 'npm run build && node e2e/serve-www.mjs 4211',
+      url: productionURL,
+      // Always rebuild, so these tests can't pass against a stale build.
+      reuseExistingServer: false,
+      timeout: 180_000,
+    },
+  ],
 });
