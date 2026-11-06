@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 test('visits the app root url', async ({ page }) => {
   await page.goto('/');
-  await expect(page.locator('app-sky ion-segment')).toBeVisible();
+  await expect(page.locator('[data-testid=view-mode]')).toBeVisible();
   await expect(page.getByRole('tab', { name: 'Targets' })).toBeVisible();
 });
 
@@ -44,10 +44,9 @@ test('finds a target, guides to it and shows it in the eyepiece', async ({ page 
   await page.locator('[data-testid=aim-at-target]').click();
   await expect(page.locator('[data-testid=guidance]')).toContainText('0.0° away');
 
-  // Vega itself is in the eyepiece, so the empty field message must not appear.
-  await page.locator('app-sky ion-segment-button[value=eyepiece]').click();
+  // The eyepiece view opens with its stars.
+  await page.locator('[data-testid=view-mode]').click();
   await expect(page.locator('app-sky canvas:not([data-star-count="0"])')).toBeAttached();
-  await expect(page.locator('.empty-field')).toHaveCount(0);
 });
 
 test('remembers night mode after a reload', async ({ page }) => {
@@ -77,7 +76,8 @@ test('aligns the telescope on a suggested star', async ({ page }) => {
   await expect(page.locator('[data-testid=alignment-result]')).toContainText('simulated');
   await page.locator('[data-testid=alignment-done]').click();
 
-  // The result shows on the sky map, and survives a reload.
+  // A toast on the sky map confirms it, and the result survives a reload.
+  await expect(page.locator('[data-testid=alignment-toast] .toast-message')).toHaveText(`Aligned: ${starName}, rough`);
   await expect(page.locator('[data-testid=alignment-status]')).toContainText(starName);
   await page.reload();
   await expect(page.locator('[data-testid=alignment-status]')).toContainText(starName);
@@ -95,7 +95,7 @@ test('asks for alignment again after the mount changes', async ({ page }) => {
   await page.evaluate(() => {
     // Selecting through the native picker is slow to drive, so set the value directly.
     document
-      .querySelectorAll('app-settings ion-select')[1]
+      .querySelector('[data-testid=mount]')!
       .dispatchEvent(new CustomEvent('ionChange', { detail: { value: 'mirror' }, bubbles: true }));
   });
   await expect(page.locator('[data-testid=open-alignment]')).toContainText('Not aligned');
@@ -172,4 +172,117 @@ test('fades the reticle in and out only while plate solving', async ({ page }) =
 
   await setSolving(false);
   await expect(canvas).toHaveAttribute('data-reticle-opacity', '1.00');
+});
+
+test('sets star visibility and equipment in the eyepiece view', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('[data-testid=view-mode]').click();
+  const label = page.locator('[data-testid=star-limit-label]');
+
+  // A city sky, class 8, with the default 130 mm telescope.
+  await expect(label).toContainText('10.6');
+  await expect(label).toContainText('your sky');
+  // The faint stars load once the eyepiece view opens.
+  await expect(page.locator('app-sky canvas')).toHaveAttribute('data-star-count', '118216');
+
+  // Moving the slider overrides the sky's value, and the reset brings it back.
+  await page.evaluate(() => {
+    const range = document.querySelector('[data-testid=star-limit]')!;
+    range.dispatchEvent(new CustomEvent('ionInput', { detail: { value: 7 }, bubbles: true }));
+  });
+  await expect(label).toContainText('7.0');
+  await expect(label).not.toContainText('your sky');
+  await page.locator('[data-testid=reset-star-limit]').click();
+  await expect(label).toContainText('10.6');
+
+  // A bigger aperture shows fainter stars, and both combinations are remembered.
+  await page.locator('[data-testid=equipment-toggle]').click();
+  const aperture = page.locator('[data-testid=aperture] input:not([disabled])');
+  await aperture.fill('200');
+  await aperture.blur();
+  await expect(label).toContainText('11.6');
+  await expect(page.locator('[data-testid=recent-equipment]')).toHaveCount(2);
+
+  // One tap returns to the earlier combination.
+  await page.locator('[data-testid=recent-equipment]', { hasText: '130/650' }).click();
+  await expect(label).toContainText('10.6');
+});
+
+test('sets sky darkness in Settings, which changes the eyepiece view', async ({ page }) => {
+  await page.goto('/tabs/settings');
+  await expect(page.locator('[data-testid=equipment-moved]')).toBeVisible();
+  await page.evaluate(() => {
+    const select = document.querySelector('[data-testid=bortle]')!;
+    select.dispatchEvent(new CustomEvent('ionChange', { detail: { value: 3 }, bubbles: true }));
+  });
+  await page.getByRole('tab', { name: 'Sky' }).click();
+  await page.locator('[data-testid=view-mode]').click();
+  // A rural sky, class 3, with 130 mm: 6.8 plus 6.3 for the aperture.
+  await expect(page.locator('[data-testid=star-limit-label]')).toContainText('13.1');
+});
+
+test('shows larger text by default, and follows the text size setting', async ({ page }) => {
+  await page.goto('/');
+  const readoutSize = async (): Promise<number> =>
+    page.locator('[data-testid=pointing]').evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+  // Large is the default: 14 px scaled by 1.2.
+  expect(await readoutSize()).toBeCloseTo(16.8, 0);
+
+  await page.goto('/tabs/settings');
+  await expect(page.locator('[data-testid=text-size]')).toBeAttached();
+  await page.evaluate(() => {
+    const select = document.querySelector('[data-testid=text-size]')!;
+    select.dispatchEvent(new CustomEvent('ionChange', { detail: { value: 'extra-large' }, bubbles: true }));
+  });
+  await page.getByRole('tab', { name: 'Sky' }).click();
+  expect(await readoutSize()).toBeCloseTo(20.3, 0);
+});
+
+test('shows secondary text as brightly as main text at night', async ({ page }) => {
+  await page.goto('/tabs/settings');
+  await page.locator('[data-testid=night-mode]').click();
+  await page.getByRole('tab', { name: 'Sky' }).click();
+  const colours = await page.locator('[data-testid=pointing]').evaluate((el) => ({
+    readout: getComputedStyle(el).color,
+    main: getComputedStyle(document.body).getPropertyValue('--af-text').trim(),
+  }));
+  expect(colours.readout).toBe('rgb(232, 235, 245)');
+  expect(colours.main).toBe('#e8ebf5');
+});
+
+test('guides the tube the same way in the eyepiece view as on the sky map', async ({ page }) => {
+  await page.goto('/tabs/targets');
+  await page.locator('app-targets ion-searchbar input').fill('Vega');
+  await expect(page.locator('app-targets ion-item').first()).toContainText('Vega');
+  await page.locator('app-targets ion-item').first().click();
+  const canvas = page.locator('app-sky canvas');
+
+  // Point the view 3° below the target, using Angular's development tools.
+  await page.evaluate(() => {
+    const { ng } = window as unknown as {
+      ng: {
+        getComponent: (el: Element) => {
+          state: {
+            selectedTarget: () => { raDeg: number; decDeg: number };
+            positionOf: (t: unknown) => { altDeg: number; azDeg: number };
+            pointing: { set: (p: unknown) => void };
+          };
+        };
+      };
+    };
+    const { state } = ng.getComponent(document.querySelector('app-sky')!);
+    const position = state.positionOf(state.selectedTarget());
+    state.pointing.set({ altDeg: Math.min(80, position.altDeg - 3), azDeg: position.azDeg });
+  });
+
+  // On the sky map, the target is above, so the guide points up.
+  await expect(canvas).toHaveAttribute('data-guide-angle', /^(0|1|2|358|359|360)$/);
+
+  // The default Newtonian turns the image upside down, but the guide still says raise the tube.
+  await page.locator('[data-testid=view-mode]').click();
+  await expect(canvas).toHaveAttribute('data-guide-angle', /^(0|1|2|358|359|360)$/);
+
+  // Once the target is in the eyepiece, the guide goes away.
+  await page.locator('[data-testid=aim-at-target]').click();
+  await expect(canvas).not.toHaveAttribute('data-guide-angle', /.*/);
 });

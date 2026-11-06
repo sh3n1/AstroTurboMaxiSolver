@@ -90,6 +90,10 @@ Before finishing a change, run: `npm run lint`, `npm run test:unit` and `npm run
 
 The app has its own look, not a copy of other astronomy apps. Other apps may inform what is useful, but not how it looks. The reticle is three plain rings at 0.5°, 2° and 4°, the same sizes as a Telrad finder. Its rings fade in and out while plate solving. The selected target is a light blue diamond of four strokes. Guidance is a trail of fading chevrons with a dashed guide line, in the same light blue as the selected target. Avoid orange guidance, which other apps use. The chevrons spread further apart the farther away the target is.
 
+## Readability
+
+Many users are past forty and read the screen at arm's length in the dark. Use the --af-scale text sizes, never text below 13 px at standard size, outlined labels on the map, and no grey text in night mode, where everything becomes red and greys turn hard to read. Night mode uses full-strength red: dimming is left to the phone's screen brightness.
+
 ## Conventions
 
 - Code style: Clean code, kiss, dont reinvent the wheel, human readable, very commented

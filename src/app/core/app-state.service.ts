@@ -9,11 +9,18 @@ import {
   skyRotation,
   solarSystemPosition,
 } from './astronomy';
+import type { Equipment, TelescopeType } from './equipment';
+import { EQUIPMENT_KEYS, rememberEquipment } from './equipment';
+import { telescopeLimit } from './sky-quality';
 import type { Target } from './targets';
 import { SOLAR_SYSTEM_BODIES } from './targets';
 
-export type TelescopeType = 'newtonian' | 'refractor' | 'cassegrain';
+export type { TelescopeType } from './equipment';
 export type MountType = 'direct' | 'clip-on' | 'mirror';
+export type TextSize = 'standard' | 'large' | 'extra-large';
+
+/** How much larger than standard each text size is. */
+export const TEXT_SCALE: Record<TextSize, number> = { standard: 1, large: 1.2, 'extra-large': 1.45 };
 
 /** Everything the user configures. Saved on this device. */
 export interface Settings {
@@ -21,12 +28,21 @@ export interface Settings {
   longitudeDeg: number; // Positive to the east
   telescopeType: TelescopeType;
   telescopeFocalMm: number;
+  telescopeApertureMm: number;
   eyepieceFocalMm: number;
   eyepieceFieldDeg: number; // The eyepiece's apparent field of view
   mount: MountType;
   nightMode: boolean;
+  /** How large text is shown. */
+  textSize: TextSize;
   /** Plate solve automatically whenever sensors are on and the phone is still. */
   autoSolve: boolean;
+  /** How dark the observer's sky is, on the Bortle scale from 1 (darkest) to 9. */
+  bortle: number;
+  /** The faintest stars the eyepiece view shows, or null to work it out from the sky. */
+  eyepieceStarLimit: number | null;
+  /** The latest telescope and eyepiece combinations, newest first. */
+  recentEquipment: Equipment[];
   /**
    * How the camera's real field of view compares with the estimate from its published
    * specs. Learnt from the first successful plate solve, so later solves start from it.
@@ -53,11 +69,18 @@ const DEFAULT_SETTINGS: Settings = {
   longitudeDeg: -0.38,
   telescopeType: 'newtonian',
   telescopeFocalMm: 650,
+  telescopeApertureMm: 130,
   eyepieceFocalMm: 25,
   eyepieceFieldDeg: 52,
   mount: 'direct',
   nightMode: false,
+  // Larger than usual by default, because many observers are past forty.
+  textSize: 'large',
   autoSolve: true,
+  // Central Valencia measures about 17.5 magnitudes per square arcsecond, a city sky.
+  bortle: 8,
+  eyepieceStarLimit: null,
+  recentEquipment: [],
   cameraFocalFactor: 1,
 };
 
@@ -143,6 +166,14 @@ export class AppState {
     localToEquatorial(this.skyRotation(), horizontalVector(this.pointing())),
   );
 
+  readonly textScale = computed(() => TEXT_SCALE[this.settings().textSize] ?? TEXT_SCALE.large);
+
+  /** The faintest stars the user's sky and telescope should show, as a starting point. */
+  readonly skyStarLimit = computed(() => telescopeLimit(this.settings().bortle, this.settings().telescopeApertureMm));
+
+  /** The faintest stars the eyepiece view shows. */
+  readonly starLimit = computed(() => this.settings().eyepieceStarLimit ?? this.skyStarLimit());
+
   /** The darkness window and Moon, right now. */
   readonly conditions = computed(() => {
     const { latitudeDeg, longitudeDeg } = this.settings();
@@ -158,13 +189,26 @@ export class AppState {
     effect(() => save(ALIGNMENT_KEY, { value: this.alignment() }));
     // CSS in global.scss turns the whole app red when this class is present.
     effect(() => document.documentElement.classList.toggle('night', this.settings().nightMode));
+    // Page styles read the text size through this variable. The sky map reads textScale.
+    effect(() => document.documentElement.style.setProperty('--af-scale', String(this.textScale())));
   }
 
   updateSettings(changes: Partial<Settings>): void {
     // A different mount puts the camera at a different angle to the telescope.
     const alignment = this.alignment();
     if (changes.mount && alignment && changes.mount !== alignment.mount) this.alignment.set(null);
-    this.settings.update((current) => ({ ...current, ...changes }));
+    this.settings.update((current) => {
+      const next = { ...current, ...changes };
+      // Remember both the old and new combinations, so switching back is one tap.
+      if (EQUIPMENT_KEYS.some((key) => key in changes && changes[key] !== current[key])) {
+        next.recentEquipment = rememberEquipment(rememberEquipment(current.recentEquipment, current), next);
+      }
+      return next;
+    });
+  }
+
+  applyEquipment(equipment: Equipment): void {
+    this.updateSettings({ ...equipment });
   }
 
   togglePlan(id: string): void {

@@ -22,7 +22,7 @@ const COUNTDOWN_SECONDS = 5;
   styles: `
     .countdown {
       margin: 16px 0;
-      font-size: 56px;
+      font-size: calc(56px * var(--af-scale, 1));
       font-weight: bold;
       text-align: center;
     }
@@ -31,7 +31,7 @@ const COUNTDOWN_SECONDS = 5;
       padding: 10px 12px;
       border: 1px solid #232a3d;
       border-radius: 10px;
-      font-size: 13px;
+      font-size: calc(15px * var(--af-scale, 1));
     }
     .solved {
       color: #6fcf9f;
@@ -47,8 +47,8 @@ const COUNTDOWN_SECONDS = 5;
       border-radius: 6px;
     }
     .muted {
-      color: #a8b0c6;
-      font-size: 12px;
+      color: var(--af-muted);
+      font-size: calc(14px * var(--af-scale, 1));
     }
   `,
   template: `

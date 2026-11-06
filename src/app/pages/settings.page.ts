@@ -1,5 +1,4 @@
-import { DecimalPipe } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import {
   IonButton,
@@ -20,15 +19,14 @@ import {
 
 import { AppState } from '../core/app-state.service';
 import type { Settings } from '../core/app-state.service';
-import { magnification, trueFieldDeg } from '../core/astronomy';
+import { BORTLE_CLASSES } from '../core/sky-quality';
 
-type NumericSetting = 'latitudeDeg' | 'longitudeDeg' | 'telescopeFocalMm' | 'eyepieceFocalMm' | 'eyepieceFieldDeg';
+type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
 
 /** Display, location and equipment settings. */
 @Component({
   selector: 'app-settings',
   imports: [
-    DecimalPipe,
     IonButton,
     IonContent,
     IonHeader,
@@ -54,6 +52,19 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg' | 'telescopeFocalMm' | 'eye
     <ion-content>
       <ion-list inset="true">
         <ion-list-header>Display</ion-list-header>
+        <ion-item>
+          <ion-select
+            label="Text size"
+            interface="popover"
+            data-testid="text-size"
+            [value]="settings().textSize"
+            (ionChange)="state.updateSettings({ textSize: $any($event).detail.value })"
+          >
+            <ion-select-option value="standard">Standard</ion-select-option>
+            <ion-select-option value="large">Large</ion-select-option>
+            <ion-select-option value="extra-large">Extra large</ion-select-option>
+          </ion-select>
+        </ion-item>
         <ion-item>
           <ion-toggle
             data-testid="night-mode"
@@ -89,50 +100,30 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg' | 'telescopeFocalMm' | 'eye
             <ion-note slot="end">{{ message }}</ion-note>
           }
         </ion-item>
-
-        <ion-list-header>Telescope and eyepiece</ion-list-header>
         <ion-item>
           <ion-select
-            label="Telescope type"
-            [value]="settings().telescopeType"
-            (ionChange)="state.updateSettings({ telescopeType: $any($event).detail.value })"
+            label="Sky darkness (Bortle)"
+            labelPlacement="stacked"
+            interface="popover"
+            data-testid="bortle"
+            [value]="settings().bortle"
+            (ionChange)="state.updateSettings({ bortle: $any($event).detail.value })"
           >
-            <ion-select-option value="newtonian">Newtonian</ion-select-option>
-            <ion-select-option value="refractor">Refractor with diagonal</ion-select-option>
-            <ion-select-option value="cassegrain">Cassegrain with diagonal</ion-select-option>
+            @for (option of bortleClasses; track option.value) {
+              <ion-select-option [value]="option.value">{{ option.label }}</ion-select-option>
+            }
           </ion-select>
         </ion-item>
         <ion-item>
-          <ion-input
-            label="Telescope focal length (mm)"
-            labelPlacement="stacked"
-            type="number"
-            [value]="settings().telescopeFocalMm"
-            (ionChange)="setNumber('telescopeFocalMm', $event, 50, 10000)"
-          ></ion-input>
+          <ion-note class="ion-text-wrap">
+            Sets how faint the eyepiece view shows stars. Central Valencia measures about class 8 to 9.
+          </ion-note>
         </ion-item>
+
         <ion-item>
-          <ion-input
-            label="Eyepiece focal length (mm)"
-            labelPlacement="stacked"
-            type="number"
-            [value]="settings().eyepieceFocalMm"
-            (ionChange)="setNumber('eyepieceFocalMm', $event, 2, 60)"
-          ></ion-input>
-        </ion-item>
-        <ion-item>
-          <ion-input
-            label="Eyepiece apparent field (°)"
-            labelPlacement="stacked"
-            type="number"
-            [value]="settings().eyepieceFieldDeg"
-            (ionChange)="setNumber('eyepieceFieldDeg', $event, 20, 120)"
-          ></ion-input>
-        </ion-item>
-        <ion-item>
-          <ion-note
-            >{{ power() | number: '1.0-0' }}× magnification · {{ field() | number: '1.1-2' }}° field of view</ion-note
-          >
+          <ion-note class="ion-text-wrap" data-testid="equipment-moved">
+            Telescope and eyepiece are set in the Eyepiece view on the Sky tab.
+          </ion-note>
         </ion-item>
 
         <ion-list-header>Phone mount and alignment</ion-list-header>
@@ -153,6 +144,7 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg' | 'telescopeFocalMm' | 'eye
         <ion-item>
           <ion-select
             label="Mount type"
+            data-testid="mount"
             [value]="settings().mount"
             (ionChange)="state.updateSettings({ mount: $any($event).detail.value })"
           >
@@ -206,13 +198,7 @@ export class SettingsPage {
   private readonly router = inject(Router);
   protected readonly settings = this.state.settings;
   protected readonly gpsMessage = signal('');
-
-  protected readonly power = computed(() =>
-    magnification(this.settings().telescopeFocalMm, this.settings().eyepieceFocalMm),
-  );
-  protected readonly field = computed(() =>
-    trueFieldDeg(this.settings().telescopeFocalMm, this.settings().eyepieceFocalMm, this.settings().eyepieceFieldDeg),
-  );
+  protected readonly bortleClasses = BORTLE_CLASSES;
 
   /** Saves a number, ignoring values that are empty or outside the sensible range. */
   protected setNumber(key: NumericSetting, event: Event, min: number, max: number): void {

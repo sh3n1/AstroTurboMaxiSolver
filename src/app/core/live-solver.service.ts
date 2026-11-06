@@ -57,13 +57,14 @@ export class LiveSolverService {
   readonly lastSolvedAt = signal<Date | null>(null);
   readonly lastMatched = signal(0);
 
-  /** One short line for the sky map's readout. */
+  /** One short line about the last solve, which the sky map shows as a toast when it fails. */
   readonly statusText = computed(() => {
     switch (this.status()) {
       case 'off':
         return '';
       case 'waiting':
-        return this.lastSolvedAt() ? `Solved, ${this.lastMatched()} stars` : 'Hold still to plate solve';
+        // Nothing to say until the first solve: the user needn't be told to hold still.
+        return this.lastSolvedAt() ? `Solved, ${this.lastMatched()} stars` : '';
       case 'solving':
         return 'Plate solving…';
       case 'solved':
@@ -127,12 +128,12 @@ export class LiveSolverService {
       if (averageLevel(frame.pixels) > MAX_SKY_LEVEL && this.iso > MIN_ISO) {
         this.iso = Math.max(MIN_ISO, Math.round(this.iso / 2));
         await applyCameraSettings(camera.track, { exposureSeconds: EXPOSURE_SECONDS, iso: this.iso, frames: 1 });
-        this.finish(false, 0, FAILED_PAUSE_MS / 5);
+        this.retrySoon(FAILED_PAUSE_MS / 5);
         return;
       }
       // If the phone moved during the exposure, the stars are smeared.
       if (!this.sensors.isStill()) {
-        this.finish(false, 0, 0);
+        this.retrySoon(0);
         return;
       }
 
@@ -149,6 +150,16 @@ export class LiveSolverService {
     } catch {
       this.finish(false, 0, FAILED_PAUSE_MS);
     }
+  }
+
+  /**
+   * Gives up on this frame without calling it a failure, because the camera only needed a
+   * new setting or the phone moved. That is no reason to tell the user the solve failed.
+   */
+  private retrySoon(pauseMs: number): void {
+    this.state.plateSolving.set(false);
+    this.nextAttemptAt = Date.now() + pauseMs;
+    if (this.status() === 'solving') this.status.set('waiting');
   }
 
   private finish(solved: boolean, starCount: number, pauseMs: number): void {

@@ -22,3 +22,17 @@ export function chevronSpacingPx(distanceDeg: number): number {
     Math.max(MIN_CHEVRON_SPACING_PX, MIN_CHEVRON_SPACING_PX + distanceDeg * CHEVRON_SPACING_PX_PER_DEG),
   );
 }
+
+/**
+ * The screen direction to a target, in degrees clockwise from straight up. It takes the
+ * target's position along the view's right and up axes, the image flip (an eyepiece turns
+ * or mirrors the image), and the map's roll with the phone.
+ */
+export function guideAngleDeg(viewX: number, viewY: number, flipX: 1 | -1, flipY: 1 | -1, rollDeg: number): number {
+  const roll = (rollDeg * Math.PI) / 180;
+  const [x, y] = [viewX * flipX, viewY * flipY];
+  const turnedX = x * Math.cos(roll) - y * Math.sin(roll);
+  const turnedY = x * Math.sin(roll) + y * Math.cos(roll);
+  const degrees = (Math.atan2(turnedX, turnedY) * 180) / Math.PI;
+  return (degrees + 360) % 360;
+}

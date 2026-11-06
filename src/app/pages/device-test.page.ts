@@ -37,7 +37,7 @@ const SENSOR_TEST_SECONDS = 30;
     pre {
       white-space: pre-wrap;
       word-break: break-word;
-      font-size: 11px;
+      font-size: calc(14px * var(--af-scale, 1));
       user-select: text;
     }
   `,

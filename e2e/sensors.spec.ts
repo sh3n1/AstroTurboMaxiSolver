@@ -51,14 +51,19 @@ test('moves the map with the phone sensors', async ({ page }) => {
 
   // Turning sensors off returns control to dragging.
   await page.locator('[data-testid=sensor-toggle]').click();
-  await expect(pointing).toContainText('drag to aim');
+  await expect(page.locator('[data-testid=sensor-toggle]')).toContainText('Use sensors');
+  await page.mouse.move(box!.x + 100, box!.y + 200);
+  await page.mouse.down();
+  await page.mouse.move(box!.x + 200, box!.y + 300, { steps: 3 });
+  await page.mouse.up();
+  await expect(pointing).not.toContainText('Alt 0°, az 0°');
 });
 
 test('explains when no sensor data arrives', async ({ page }) => {
   await page.goto('/');
   await page.locator('[data-testid=sensor-toggle]').click();
   await expect(page.locator('[data-testid=sensor-error]')).toContainText('No sensor data', { timeout: 6000 });
-  await expect(page.locator('[data-testid=pointing]')).toContainText('drag to aim');
+  await expect(page.locator('[data-testid=sensor-toggle]')).toContainText('Use sensors');
 });
 
 test('aligns using the real sensor reading', async ({ page }) => {
@@ -127,10 +132,10 @@ test('notices when the phone has stopped moving', async ({ page }) => {
   await startSensors(page);
   await sendOrientation(page, 0, 90, 0);
   await sendGyroscope(page, 0, 0, 0, 80);
-  await expect(pointing).toContainText(', still');
+  await expect(pointing).toHaveAttribute('data-still', 'true');
 
   await sendGyroscope(page, 0, 20, 0, 3);
-  await expect(pointing).not.toContainText(', still');
+  await expect(pointing).toHaveAttribute('data-still', 'false');
 });
 
 test('runs the clear-sky test without crashing, and reports not solved', async ({ page }) => {
@@ -157,15 +162,13 @@ test('plate solves automatically when the phone is still', async ({ page }) => {
   await page.goto('/');
   await startSensors(page);
   await sendOrientation(page, 0, 120, 0);
-  await expect(page.locator('[data-testid=solve-status]')).toContainText('Hold still');
-
   // Keep the phone still long enough to count, then for the capture.
-  const status = page.locator('[data-testid=solve-status]');
-  for (let i = 0; i < 12 && !/No stars|No match/.test((await status.innerText()) ?? ''); i++) {
+  const toast = page.locator('[data-testid=solve-toast]');
+  for (let i = 0; i < 12 && (await toast.count()) === 0; i++) {
     await sendGyroscope(page, 0, 0, 0, 60);
   }
-  // The fake camera has no stars, so the honest answer is no solve.
-  await expect(status).toContainText(/No stars|No match/);
+  // The fake camera has no stars, so the honest answer is no solve, told in a toast.
+  await expect(toast.locator('.toast-message')).toHaveText(/No stars|No match/);
 });
 
 test('does not use the camera when automatic solving is off', async ({ page }) => {
@@ -175,6 +178,9 @@ test('does not use the camera when automatic solving is off', async ({ page }) =
   await page.getByRole('tab', { name: 'Sky' }).click();
   await startSensors(page);
   await sendOrientation(page, 0, 120, 0);
-  await expect(page.locator('[data-testid=pointing]')).toContainText('Sensors on');
-  await expect(page.locator('[data-testid=solve-status]')).toHaveCount(0);
+  await expect(page.locator('[data-testid=sensor-toggle]')).toContainText('Sensors on');
+  // Hold still long enough that a solve would have run and failed, if it were going to.
+  await sendGyroscope(page, 0, 0, 0, 90);
+  await page.waitForTimeout(3000);
+  await expect(page.locator('[data-testid=solve-toast]')).toHaveCount(0);
 });

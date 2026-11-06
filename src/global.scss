@@ -49,3 +49,91 @@ html.night,
 html.night body {
   background: #000;
 }
+
+/*
+ * Readability. Many observers are past forty, and read the screen at arm's length in
+ * the dark. Text scales with the Text size setting, through --af-scale.
+ */
+:root {
+  --af-scale: 1.2;
+  --af-text: #e8ebf5;
+  --af-muted: #a8b0c6;
+}
+
+ion-label h2 {
+  font-size: calc(17px * var(--af-scale)) !important;
+  font-weight: 600;
+}
+ion-label p,
+ion-note {
+  font-size: calc(15px * var(--af-scale)) !important;
+}
+ion-item,
+ion-list-header,
+ion-card-content,
+ion-input,
+ion-select,
+ion-toggle,
+ion-searchbar,
+ion-button,
+ion-segment-button,
+ion-content p,
+ion-content li {
+  font-size: calc(16px * var(--af-scale));
+}
+ion-content p,
+ion-content li {
+  line-height: 1.45;
+}
+ion-title {
+  font-size: calc(20px * var(--af-scale));
+}
+ion-tab-button ion-label {
+  font-size: calc(13px * var(--af-scale));
+  font-weight: 600;
+}
+ion-chip {
+  min-height: 40px;
+  font-size: calc(14px * var(--af-scale));
+}
+
+/*
+ * At night everything is the same red, so grey text turns into a dark red that is hard
+ * to read. Secondary text is as bright as main text, and size and weight show
+ * importance instead. Ionic's own greys get the same treatment.
+ */
+html.night {
+  --af-muted: var(--af-text);
+  --ion-color-medium: #e8ebf5;
+  --ion-color-medium-rgb: 232, 235, 245;
+  --ion-text-color-step-200: #e8ebf5;
+  --ion-text-color-step-300: #e8ebf5;
+  --ion-text-color-step-400: #e8ebf5;
+  --ion-text-color-step-500: #e8ebf5;
+  --ion-text-color-step-600: #e8ebf5;
+}
+html.night ion-app {
+  font-weight: 500;
+}
+
+/* Controls that use Ionic's own lighter colours stay bright at night too. */
+html.night ion-chip,
+html.night ion-tab-button {
+  --color: var(--af-text);
+  color: var(--af-text);
+}
+html.night ion-tab-button.tab-selected {
+  --color-selected: #ffffff;
+}
+html.night ion-label p,
+html.night ion-note {
+  color: var(--af-text) !important;
+}
+
+/* Toasts on the sky map: large, plain text, readable at arm's length and in red night mode. */
+ion-toast.af-toast {
+  --background: #1b2338;
+  --color: var(--af-text);
+  --border-radius: 12px;
+  font-size: calc(16px * var(--af-scale, 1));
+}
