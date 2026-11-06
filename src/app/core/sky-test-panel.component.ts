@@ -208,8 +208,12 @@ export class SkyTestPanelComponent {
         flipped: this.state.settings().mount === 'mirror',
         sensorDirection: () => this.sensorDirection(),
         onProgress: (text) => this.progress.set(text),
+        focalFactor: this.state.settings().cameraFocalFactor,
       });
       this.reports.set(results);
+      // A successful solve measures the camera's real field of view, which later solves use.
+      const solved = results.find((result) => result.solve);
+      if (solved?.solve) this.state.updateSettings({ cameraFocalFactor: solved.solve.focalFactor });
     } catch (error) {
       this.error.set(error instanceof Error ? `${error.name}: ${error.message}` : String(error));
     } finally {

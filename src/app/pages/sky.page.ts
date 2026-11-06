@@ -105,7 +105,10 @@ const COLOR = {
   cardinal: '#6fcf9f',
   reticle: '#e5484d',
   onTarget: '#6fcf9f',
-  target: '#ffb454',
+  /** The selected target, a lighter blue than other objects so it stands out. */
+  target: '#a9cbff',
+  /** The guidance chevrons and line, matching the selected target. */
+  guide: '#a9cbff',
   deepSky: '#8fb7ff',
   solarSystem: '#ffd479',
   starLabel: '#a8b0c6',
@@ -243,7 +246,7 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
       font-size: 12px;
     }
     .directions {
-      color: #ffb454;
+      color: #a9cbff;
       font-size: 13px;
     }
     .details {
@@ -986,7 +989,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     const point = project(horizontalVector(position));
     const isInView = !!point && point.x >= 0 && point.x <= width && point.y >= 0 && point.y <= height;
     if (point && isInView && Math.hypot(point.x - cx, point.y - cy) > radius + 40) {
-      ctx.strokeStyle = COLOR.target;
+      ctx.strokeStyle = COLOR.guide;
       ctx.lineWidth = 1;
       ctx.setLineDash([2, 5]);
       ctx.beginPath();
@@ -1000,7 +1003,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     ctx.save();
     ctx.translate(cx + dirX * (radius + 4), cy + dirY * (radius + 4));
     ctx.rotate(angle);
-    ctx.strokeStyle = COLOR.target;
+    ctx.strokeStyle = COLOR.guide;
     ctx.lineWidth = 2.5;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';

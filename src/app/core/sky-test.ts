@@ -81,6 +81,8 @@ export interface SkyTestOptions {
   /** The sensors' camera direction in J2000, if they are on. */
   sensorDirection: () => Vector3 | null;
   onProgress: (text: string) => void;
+  /** The learnt field of view, relative to the estimate from published specs. */
+  focalFactor: number;
 }
 
 const wait = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
@@ -212,7 +214,7 @@ async function runStep(
     const geometry = {
       width,
       height,
-      focalPx: FOCAL_SHARE_OF_LONG_SIDE * Math.max(width, height),
+      focalPx: FOCAL_SHARE_OF_LONG_SIDE * Math.max(width, height) * options.focalFactor,
       flipped: options.flipped,
     };
     const index = buildSolverIndex(stars, geometry);
@@ -240,7 +242,7 @@ async function runStep(
         decDeg: round(solution.decDeg, 3),
         matched: solution.matched,
         checked: solution.checked,
-        focalFactor: round(solution.focalPx / geometry.focalPx, 3),
+        focalFactor: round(solution.focalPx / (FOCAL_SHARE_OF_LONG_SIDE * Math.max(width, height)), 3),
         milliseconds,
         hintedMilliseconds,
         sensorErrorDeg,

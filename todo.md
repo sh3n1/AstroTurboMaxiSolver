@@ -110,6 +110,7 @@ Keep this as plain TypeScript with no Angular dependency, so it is easy to test.
 - [ ] Request persistent storage and handle data being evicted, especially on iOS
 - [x] Run the solver in a Web Worker
 - [ ] Tune the solver and its false-answer limits on real sky images from the clear-sky test
+- [x] Remember the camera's real field of view after the first successful solve, since searching for it is slow
 - [ ] Reject low-confidence solves, and show the user when a frame could not be solved
 - [ ] Use the sensor estimate to narrow the search, with a fallback to a full-sky solve
 - [ ] Add regression tests using real sky images with known solutions

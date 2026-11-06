@@ -27,6 +27,11 @@ export interface Settings {
   nightMode: boolean;
   /** Plate solve automatically whenever sensors are on and the phone is still. */
   autoSolve: boolean;
+  /**
+   * How the camera's real field of view compares with the estimate from its published
+   * specs. Learnt from the first successful plate solve, so later solves start from it.
+   */
+  cameraFocalFactor: number;
 }
 
 /** How an alignment measured the camera's direction. Plate solving is the accurate one. */
@@ -53,6 +58,7 @@ const DEFAULT_SETTINGS: Settings = {
   mount: 'direct',
   nightMode: false,
   autoSolve: true,
+  cameraFocalFactor: 1,
 };
 
 const SETTINGS_KEY = 'astrofinder.settings';

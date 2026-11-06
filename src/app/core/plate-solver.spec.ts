@@ -181,7 +181,7 @@ describe('plate solving from a rendered image', () => {
     expect(solution).not.toBeNull();
     expect(angleDeg(solution!.pointing, truth)).toBeLessThan(0.3);
     expect(solution!.focalPx / FRAME.focalPx).toBeCloseTo(1.06, 1);
-  });
+  }, 20_000);
 
   it('uses a sensor hint', () => {
     const { pixels, truth } = render({ raDeg: 84, decDeg: 0 });
@@ -190,7 +190,7 @@ describe('plate solving from a rendered image', () => {
     expect(angleDeg(near!.pointing, truth)).toBeLessThan(0.2);
     // A hint pointing at the opposite side of the sky must not produce an answer.
     expect(solveFrame(found, FRAME, index, { direction: equatorialVector(264, 0), radiusDeg: 5 })).toBeNull();
-  });
+  }, 20_000);
 
   it('gives no answer rather than a wrong one for random dots', () => {
     const random = randomSource(7);

@@ -38,6 +38,9 @@ const SETTLE_MS = 800;
 /** The user is waiting on purpose during alignment, so allow the solver longer. */
 const SOLVE_NOW_TIME_LIMIT_MS = 8000;
 const MAX_ISO_REDUCTIONS = 6;
+/** A learnt field of view outside this range would mean a bad solve, so it is ignored. */
+const MIN_FOCAL_FACTOR = 0.7;
+const MAX_FOCAL_FACTOR = 1.3;
 
 /**
  * Plate solves automatically whenever the sensors are on and the phone is still, then
@@ -140,6 +143,7 @@ export class LiveSolverService {
         this.sensors.applyPlateSolve(attitudeFromImageAxes(x, y, z));
         this.lastSolvedAt.set(new Date());
         this.lastMatched.set(response.solution.matched);
+        this.learnFieldOfView(response.solution.focalPx, frame.width, frame.height);
       }
       this.finish(!!response.solution, response.starCount, response.solution ? SOLVED_PAUSE_MS : FAILED_PAUSE_MS);
     } catch {
@@ -203,6 +207,7 @@ export class LiveSolverService {
       this.sensors.applyPlateSolve(attitude);
       this.lastSolvedAt.set(new Date());
       this.lastMatched.set(response.solution.matched);
+      this.learnFieldOfView(response.solution.focalPx, frame.width, frame.height);
       return { ok: true, attitude, matched: response.solution.matched };
     } catch (error) {
       return {
@@ -220,6 +225,17 @@ export class LiveSolverService {
         this.camera = null;
         this.status.set('off');
       }
+    }
+  }
+
+  /**
+   * Remembers the camera's real field of view from a successful solve. Searching for it
+   * is slow, so starting from the right value keeps later solves within their time limit.
+   */
+  private learnFieldOfView(focalPx: number, width: number, height: number): void {
+    const factor = focalPx / (FOCAL_SHARE_OF_LONG_SIDE * Math.max(width, height));
+    if (Number.isFinite(factor) && factor > MIN_FOCAL_FACTOR && factor < MAX_FOCAL_FACTOR) {
+      this.state.updateSettings({ cameraFocalFactor: Number(factor.toFixed(4)) });
     }
   }
 
@@ -258,7 +274,7 @@ export class LiveSolverService {
       pixels,
       width,
       height,
-      focalPx: FOCAL_SHARE_OF_LONG_SIDE * Math.max(width, height),
+      focalPx: FOCAL_SHARE_OF_LONG_SIDE * Math.max(width, height) * this.state.settings().cameraFocalFactor,
       flipped: false,
       hint: this.hint(),
       timeLimitMs,
