@@ -57,6 +57,24 @@ test('remembers night mode after a reload', async ({ page }) => {
   await expect(page.locator('html')).toHaveClass(/night/);
 });
 
+test('switches night mode from the sky map', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('[data-testid=night-toggle]').click();
+  await expect(page.locator('html')).toHaveClass(/night/);
+  await page.locator('[data-testid=night-toggle]').click();
+  await expect(page.locator('html')).not.toHaveClass(/night/);
+});
+
+test('keeps the zoom buttons above the target bar', async ({ page }) => {
+  await page.goto('/tabs/targets');
+  await page.locator('app-targets ion-searchbar input').fill('Vega');
+  await expect(page.locator('app-targets ion-item').first()).toContainText('Vega');
+  await page.locator('app-targets ion-item').first().click();
+  const zoom = await page.locator('[data-testid=zoom-out]').boundingBox();
+  const bar = await page.locator('[data-testid=target-bar]').boundingBox();
+  expect(zoom!.y + zoom!.height).toBeLessThanOrEqual(bar!.y);
+});
+
 test('aligns the telescope on a suggested star', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('[data-testid=alignment-status]')).toContainText('Not aligned');

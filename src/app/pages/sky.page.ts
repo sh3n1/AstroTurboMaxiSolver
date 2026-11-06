@@ -23,6 +23,7 @@ import {
   informationCircleOutline,
   locateOutline,
   mapOutline,
+  moonOutline,
   remove,
 } from 'ionicons/icons';
 
@@ -238,7 +239,8 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
       display: flex;
       flex-direction: column;
     }
-    .controls ion-fab-button {
+    .controls ion-fab-button,
+    .zoom ion-fab-button {
       --background: rgb(10 14 28 / 85%);
       --background-activated: #232a3d;
       --color: var(--af-text);
@@ -322,6 +324,19 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
       left: 10px;
       right: 10px;
       bottom: calc(10px + var(--af-tab-bar-height, 0px));
+      display: flex;
+      flex-direction: column;
+      /* The empty space beside the zoom buttons still lets the map be dragged. */
+      pointer-events: none;
+    }
+    .dock > * {
+      pointer-events: auto;
+    }
+    .zoom {
+      align-self: flex-end;
+      display: flex;
+      flex-direction: column;
+      margin-right: -6px;
     }
     .bar {
       padding: 6px 4px 6px 12px;
@@ -422,26 +437,16 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
               }
             </span>
           </ion-fab-button>
-          @if (mode() === 'sky') {
-            <ion-fab-button
-              size="small"
-              aria-label="Zoom in"
-              data-testid="zoom-in"
-              [disabled]="fieldDeg() <= minField"
-              (click)="zoomBy(1 / zoomStep)"
-            >
-              <ion-icon name="add" aria-hidden="true"></ion-icon>
-            </ion-fab-button>
-            <ion-fab-button
-              size="small"
-              aria-label="Zoom out"
-              data-testid="zoom-out"
-              [disabled]="fieldDeg() >= maxField"
-              (click)="zoomBy(zoomStep)"
-            >
-              <ion-icon name="remove" aria-hidden="true"></ion-icon>
-            </ion-fab-button>
-          }
+          <!-- Red night mode, at hand while observing. Red when on, like everything else then. -->
+          <ion-fab-button
+            size="small"
+            data-testid="night-toggle"
+            [attr.aria-pressed]="state.settings().nightMode"
+            (click)="state.updateSettings({ nightMode: !state.settings().nightMode })"
+          >
+            <ion-icon name="moon-outline" aria-hidden="true"></ion-icon>
+            <span class="visually-hidden">Red night mode</span>
+          </ion-fab-button>
         </div>
 
         @if (sensors.error(); as message) {
@@ -449,6 +454,29 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
         }
 
         <div class="dock">
+          <!-- Zoom sits bottom right, just above whatever boxes are open below it. -->
+          @if (mode() === 'sky') {
+            <div class="zoom">
+              <ion-fab-button
+                size="small"
+                aria-label="Zoom in"
+                data-testid="zoom-in"
+                [disabled]="fieldDeg() <= minField"
+                (click)="zoomBy(1 / zoomStep)"
+              >
+                <ion-icon name="add" aria-hidden="true"></ion-icon>
+              </ion-fab-button>
+              <ion-fab-button
+                size="small"
+                aria-label="Zoom out"
+                data-testid="zoom-out"
+                [disabled]="fieldDeg() >= maxField"
+                (click)="zoomBy(zoomStep)"
+              >
+                <ion-icon name="remove" aria-hidden="true"></ion-icon>
+              </ion-fab-button>
+            </div>
+          }
           @if (mode() === 'eyepiece') {
             <div class="eyepiece-panel" data-testid="eyepiece-panel">
               <div class="bar-row">
@@ -713,6 +741,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       informationCircleOutline,
       locateOutline,
       mapOutline,
+      moonOutline,
       remove,
     });
     this.baseStarsLoaded = this.loadStars();
