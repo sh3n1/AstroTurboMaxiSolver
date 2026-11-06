@@ -67,9 +67,15 @@ test('aligns using the real sensor reading', async ({ page }) => {
   await sendOrientation(page, 0, 90, 0);
   await page.locator('[data-testid=alignment-status]').click();
   await page.locator('[data-testid=alignment-star]').first().click();
-  await expect(page.locator('[data-testid=alignment-source]')).toContainText("Using your phone's sensors");
+  await expect(page.locator('[data-testid=alignment-source]')).toContainText('plate solves');
   await page.locator('[data-testid=confirm-centred]').click();
+
+  // The fake camera shows no stars, so plate solving honestly fails and offers the sensors.
+  await expect(page.locator('[data-testid=alignment-failed]')).toContainText(/no stars|couldn't match/);
+  await page.locator('[data-testid=align-with-sensors]').click();
   await expect(page.locator('[data-testid=alignment-result]')).toContainText('according to the sensors');
+  await page.locator('[data-testid=alignment-done]').click();
+  await expect(page.locator('[data-testid=alignment-status]')).toContainText('rough');
 });
 
 test('runs the camera test and produces a report', async ({ page }) => {

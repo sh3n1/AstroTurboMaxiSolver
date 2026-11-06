@@ -309,7 +309,7 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
             (click)="openAlignment()"
           >
             @if (state.alignment(); as alignment) {
-              Aligned: {{ alignment.starId }}
+              Aligned: {{ alignment.starId }}{{ alignment.method === 'plate-solve' ? '' : ', rough' }}
             } @else {
               Not aligned
             }
@@ -921,8 +921,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   }
 
   /**
-   * AstroFinder's reticle: rings at the sizes observers know from a Telrad finder, with
-   * the app icon's four ticks. The ticks and letters show the sky's own directions.
+   * AstroFinder's reticle: three rings at the sizes observers know from a Telrad finder.
    */
   private drawReticle(
     ctx: CanvasRenderingContext2D,
@@ -956,20 +955,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       }
     }
 
-    // The app icon's four ticks, crossing the outer ring.
     const outerRadius = stereographicRadius(RETICLE_RINGS_DEG.at(-1)! / 2) * scale;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    for (const [dx, dy] of [
-      [0, -1],
-      [1, 0],
-      [0, 1],
-      [-1, 0],
-    ]) {
-      ctx.moveTo(cx + dx * (outerRadius - 4), cy + dy * (outerRadius - 4));
-      ctx.lineTo(cx + dx * (outerRadius + 7), cy + dy * (outerRadius + 7));
-    }
-    ctx.stroke();
 
     ctx.globalAlpha = 1;
 

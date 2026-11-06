@@ -29,12 +29,17 @@ export interface Settings {
   autoSolve: boolean;
 }
 
+/** How an alignment measured the camera's direction. Plate solving is the accurate one. */
+export type AlignmentMethod = 'plate-solve' | 'sensors' | 'simulated';
+
 /** A completed alignment. It stays valid while the phone stays fixed in its mount. */
 export interface Alignment {
   starId: string;
   alignedAt: string; // ISO date
   mount: MountType;
   offset: Vector3; // The telescope's direction in the camera's axes
+  /** Missing on alignments saved before plate solving existed, which used the sensors. */
+  method?: AlignmentMethod;
 }
 
 // Starts at Valencia, with a common beginner telescope and eyepiece.

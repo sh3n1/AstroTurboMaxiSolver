@@ -70,6 +70,11 @@ test('aligns the telescope on a suggested star', async ({ page }) => {
 
   await stars.first().click();
   await page.locator('[data-testid=confirm-centred]').click();
+
+  // This browser has no camera, so plate solving fails and says why.
+  await expect(page.locator('[data-testid=alignment-failed]')).toContainText('camera');
+  await page.locator('[data-testid=align-simulated]').click();
+  await expect(page.locator('[data-testid=alignment-result]')).toContainText('simulated');
   await page.locator('[data-testid=alignment-done]').click();
 
   // The result shows on the sky map, and survives a reload.
@@ -82,6 +87,7 @@ test('asks for alignment again after the mount changes', async ({ page }) => {
   await page.goto('/align');
   await page.locator('[data-testid=alignment-star]').first().click();
   await page.locator('[data-testid=confirm-centred]').click();
+  await page.locator('[data-testid=align-simulated]').click();
   await page.locator('[data-testid=alignment-done]').click();
 
   await page.getByRole('tab', { name: 'Settings' }).click();

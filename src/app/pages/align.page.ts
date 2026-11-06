@@ -1,5 +1,5 @@
 import { DatePipe, DecimalPipe } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, isDevMode, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import {
   IonBackButton,
@@ -20,23 +20,31 @@ import {
 } from '@ionic/angular';
 
 import { cameraOffset, offsetAngleDeg, suggestAlignmentStars } from '../core/alignment';
+import type { AlignmentMethod } from '../core/app-state.service';
 import { AppState } from '../core/app-state.service';
 import type { Horizontal } from '../core/astronomy';
 import { compassPoint } from '../core/astronomy';
+import { rearCameraDirection } from '../core/attitude';
+import { cameraPointing } from '../core/device-orientation';
+import { LiveSolverService } from '../core/live-solver.service';
 import type { Target } from '../core/targets';
 
-type Step = 'choose' | 'centre' | 'done';
+type Step = 'choose' | 'centre' | 'solving' | 'failed' | 'done';
 
 /** Above this Sun altitude, stars are hard to find, so the page warns the user. */
 const BRIGHT_SKY_SUN_ALT_DEG = -6;
 
 /**
- * Stands in for the plate solve that will report the camera's pointing. It places
- * the camera slightly off the telescope, as a real mount would.
+ * A stand-in camera position for previews in development, where there are no stars to
+ * solve. It places the camera slightly off the telescope, as a real mount would.
  */
 const PREVIEW_CAMERA_ERROR: Horizontal = { altDeg: 2, azDeg: 3 };
 
-/** Guides the user through aligning the phone's camera with the telescope. */
+/**
+ * Guides the user through aligning the phone's camera with the telescope. The user
+ * centres a star in the eyepiece, and a plate solve then says exactly where the camera
+ * points. The difference is the alignment.
+ */
 @Component({
   selector: 'app-align',
   imports: [
@@ -74,8 +82,8 @@ const PREVIEW_CAMERA_ERROR: Horizontal = { altDeg: 2, azDeg: 3 };
           @if (state.alignment(); as current) {
             <ion-card data-testid="current-alignment">
               <ion-card-content>
-                Aligned on <strong>{{ current.starId }}</strong> on {{ current.alignedAt | date: 'd MMM, HH:mm' }}. You
-                only need to align again if the phone has moved in its mount.
+                Aligned on <strong>{{ current.starId }}</strong> on {{ current.alignedAt | date: 'd MMM, HH:mm' }}
+                {{ methodNote(current.method) }}. You only need to align again if the phone has moved in its mount.
               </ion-card-content>
             </ion-card>
           }
@@ -117,33 +125,55 @@ const PREVIEW_CAMERA_ERROR: Horizontal = { altDeg: 2, azDeg: 3 };
               <li>Move the telescope until {{ star.id }} is in the centre of the view.</li>
               <li>Keep the telescope still, then confirm.</li>
             </ol>
-            <ion-button expand="block" data-testid="confirm-centred" (click)="confirm()"
-              >The star is centred</ion-button
-            >
+            <ion-button expand="block" data-testid="confirm-centred" (click)="confirm()">
+              The star is centred
+            </ion-button>
             <ion-button expand="block" fill="clear" (click)="step.set('choose')">Choose another star</ion-button>
             <ion-text color="medium">
-              @if (usesSensors()) {
-                <p data-testid="alignment-source">
-                  Using your phone's sensors for the camera's direction. The finished app will plate solve here, which
-                  is far more accurate.
-                </p>
-              } @else {
-                <p data-testid="alignment-source">
-                  Preview: this uses a simulated camera position. Turn on sensors on the sky map to use your phone's.
-                </p>
-              }
+              <p data-testid="alignment-source">
+                When you confirm, the phone's camera takes a picture of the sky and plate solves it to find exactly
+                where it points. Keep the telescope still for a few seconds.
+              </p>
             </ion-text>
           }
+        }
+
+        @case ('solving') {
+          <h2 data-testid="alignment-solving">Plate solving…</h2>
+          <p>Keep the telescope still.</p>
+        }
+
+        @case ('failed') {
+          <h2>Couldn't plate solve</h2>
+          <ion-text color="warning">
+            <p data-testid="alignment-failed">{{ failure() }}</p>
+          </ion-text>
+          <ion-button expand="block" data-testid="retry-solve" (click)="confirm()">Try again</ion-button>
+          @if (state.cameraPointing()) {
+            <ion-button expand="block" fill="outline" data-testid="align-with-sensors" (click)="useSensors()">
+              Use the sensors instead, less accurate
+            </ion-button>
+          }
+          @if (isPreview) {
+            <ion-button expand="block" fill="clear" data-testid="align-simulated" (click)="useSimulated()">
+              Development preview: simulate the camera
+            </ion-button>
+          }
+          <ion-button expand="block" fill="clear" (click)="step.set('choose')">Choose another star</ion-button>
         }
 
         @case ('done') {
           @if (state.alignment(); as current) {
             <h2>Aligned on {{ current.starId }}</h2>
             <p data-testid="alignment-result">
-              Your camera points {{ offsetAngle() | number: '1.1-1' }}° away from your telescope{{
-                wasMeasured() ? ', according to the sensors' : ' (simulated in this preview)'
-              }}. The app will now allow for this difference.
+              Your camera points {{ offsetAngle() | number: '1.1-1' }}° away from your telescope,
+              {{ resultNote(current.method) }}. The app will now allow for this difference.
             </p>
+            @if (current.method !== 'plate-solve') {
+              <ion-text color="warning">
+                <p>Align again with plate solving when the sky is clear, for an accurate result.</p>
+              </ion-text>
+            }
             <p>No further alignment is needed unless the phone moves in its mount.</p>
             <ion-button expand="block" data-testid="alignment-done" (click)="finish()">Done</ion-button>
             <ion-button expand="block" fill="clear" (click)="step.set('choose')">Align again</ion-button>
@@ -155,13 +185,15 @@ const PREVIEW_CAMERA_ERROR: Horizontal = { altDeg: 2, azDeg: 3 };
 })
 export class AlignPage {
   protected readonly state = inject(AppState);
+  private readonly liveSolver = inject(LiveSolverService);
   private readonly router = inject(Router);
 
+  /** Simulating the camera is only offered in development, where there are no stars. */
+  protected readonly isPreview = isDevMode();
   protected readonly step = signal<Step>('choose');
   protected readonly chosen = signal<Target | null>(null);
-  protected readonly usesSensors = computed(() => this.state.cameraPointing() !== null);
-  /** Whether the last confirmed alignment came from the sensors. */
-  protected readonly wasMeasured = signal(false);
+  protected readonly failure = signal('');
+  private readonly solvedStars = signal(0);
 
   protected readonly skyIsBright = computed(() => this.state.conditions().sunAltDeg > BRIGHT_SKY_SUN_ALT_DEG);
 
@@ -188,28 +220,62 @@ export class AlignPage {
     return `in the ${compassPoint(position.azDeg)}, ${Math.round(position.altDeg)}° up`;
   }
 
+  protected methodNote(method: AlignmentMethod | undefined): string {
+    if (method === 'plate-solve') return 'by plate solving';
+    if (method === 'simulated') return 'with a simulated camera';
+    return 'using the sensors, which is less accurate';
+  }
+
+  protected resultNote(method: AlignmentMethod | undefined): string {
+    if (method === 'plate-solve') return `measured by plate solving ${this.solvedStars()} stars`;
+    if (method === 'simulated') return 'simulated in this preview';
+    return 'according to the sensors, which can be several degrees off';
+  }
+
   protected choose(star: Target): void {
     this.chosen.set(star);
     this.step.set('centre');
   }
 
-  /** The telescope is on the star, so comparing it with the camera gives the offset. */
-  protected confirm(): void {
+  /** The telescope is on the star, so a plate solve now shows how the camera sits. */
+  protected async confirm(): Promise<void> {
+    if (!this.chosen()) return;
+    this.step.set('solving');
+    const result = await this.liveSolver.solveNow();
+    if (!result.ok) {
+      this.failure.set(result.reason);
+      this.step.set('failed');
+      return;
+    }
+    this.solvedStars.set(result.matched);
+    this.save(cameraPointing(rearCameraDirection(result.attitude)), 'plate-solve');
+  }
+
+  protected useSensors(): void {
+    const camera = this.state.cameraPointing();
+    if (camera) this.save(camera, 'sensors');
+  }
+
+  protected useSimulated(): void {
     const star = this.chosen();
     if (!star) return;
     const telescope = this.state.positionOf(star);
-    // The sensors say where the camera really points. Without them, simulate it.
-    const measured = this.state.cameraPointing();
-    this.wasMeasured.set(measured !== null);
-    const camera = measured ?? {
-      altDeg: telescope.altDeg + PREVIEW_CAMERA_ERROR.altDeg,
-      azDeg: telescope.azDeg + PREVIEW_CAMERA_ERROR.azDeg,
-    };
+    this.save(
+      { altDeg: telescope.altDeg + PREVIEW_CAMERA_ERROR.altDeg, azDeg: telescope.azDeg + PREVIEW_CAMERA_ERROR.azDeg },
+      'simulated',
+    );
+  }
+
+  /** Stores how the camera sits relative to the telescope, which is on the chosen star. */
+  private save(camera: Horizontal, method: AlignmentMethod): void {
+    const star = this.chosen();
+    if (!star) return;
     this.state.alignment.set({
       starId: star.id,
       alignedAt: new Date().toISOString(),
       mount: this.state.settings().mount,
-      offset: cameraOffset(camera, telescope),
+      offset: cameraOffset(camera, this.state.positionOf(star)),
+      method,
     });
     this.step.set('done');
   }

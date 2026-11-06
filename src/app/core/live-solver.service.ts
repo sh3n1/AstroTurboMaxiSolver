@@ -3,6 +3,7 @@ import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { AppState } from './app-state.service';
 import type { Vector3 } from './astronomy';
 import { applyMatrix, horizontalVector, localToEquatorial, equatorialVector } from './astronomy';
+import type { Quaternion } from './attitude';
 import { attitudeFromImageAxes } from './attitude';
 import type { OpenCamera } from './camera';
 import {
@@ -18,6 +19,9 @@ import type { SolveRequest, SolveResponse } from './solver-messages';
 
 type Status = 'off' | 'waiting' | 'solving' | 'solved' | 'failed';
 
+/** The result of a plate solve the user asked for, such as during alignment. */
+export type SolveNowResult = { ok: true; attitude: Quaternion; matched: number } | { ok: false; reason: string };
+
 const EXPOSURE_SECONDS = 1 / 3; // The longest the measured phone allows in the browser
 const START_ISO = 3200;
 const MIN_ISO = 100;
@@ -31,6 +35,9 @@ const SOLVE_TIME_LIMIT_MS = 4000;
 /** The sensors are rarely this far out, so the solver only searches this close to them. */
 const HINT_RADIUS_DEG = 25;
 const SETTLE_MS = 800;
+/** The user is waiting on purpose during alignment, so allow the solver longer. */
+const SOLVE_NOW_TIME_LIMIT_MS = 8000;
+const MAX_ISO_REDUCTIONS = 6;
 
 /**
  * Plate solves automatically whenever the sensors are on and the phone is still, then
@@ -147,6 +154,75 @@ export class LiveSolverService {
     if (this.status() === 'solving') this.status.set(solved ? 'solved' : 'failed');
   }
 
+  /**
+   * Plate solves straight away, without waiting for the phone to be still, because the
+   * user has just said the telescope is still. Used by alignment. It works whether or not
+   * the sensors are on, and corrects them if they are.
+   */
+  async solveNow(): Promise<SolveNowResult> {
+    if (this.state.settings().mount !== 'direct') {
+      return { ok: false, reason: 'Plate solving only works with the camera pointing straight at the sky so far.' };
+    }
+    // Let an automatic solve that is already running finish first.
+    for (let waited = 0; this.status() === 'solving' && waited < 10_000; waited += 100) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
+    const wasRunning = !!this.timer;
+    this.status.set('solving');
+    this.state.plateSolving.set(true);
+    try {
+      const camera = await this.ensureCamera();
+      let frame = await captureStack(camera.video, { exposureSeconds: EXPOSURE_SECONDS, iso: this.iso, frames: 1 });
+      // Come down in ISO until the sky is no longer close to clipping.
+      for (let i = 0; i < MAX_ISO_REDUCTIONS && averageLevel(frame.pixels) > MAX_SKY_LEVEL && this.iso > MIN_ISO; i++) {
+        this.iso = Math.max(MIN_ISO, Math.round(this.iso / 2));
+        await applyCameraSettings(camera.track, { exposureSeconds: EXPOSURE_SECONDS, iso: this.iso, frames: 1 });
+        await new Promise((resolve) => setTimeout(resolve, SETTLE_MS));
+        frame = await captureStack(camera.video, { exposureSeconds: EXPOSURE_SECONDS, iso: this.iso, frames: 1 });
+      }
+      if (averageLevel(frame.pixels) > MAX_SKY_LEVEL) {
+        return { ok: false, reason: 'The sky is too bright for the camera to see stars. Keep lights out of view.' };
+      }
+
+      const response = await this.solve(frame.pixels, frame.width, frame.height, SOLVE_NOW_TIME_LIMIT_MS);
+      this.lastStarCount.set(response.starCount);
+      if (!response.solution) {
+        return {
+          ok: false,
+          reason:
+            response.starCount > 0
+              ? `The camera found ${response.starCount} stars but couldn't match them to the sky. Check that the sky is clear.`
+              : 'The camera found no stars. Check that the sky is clear and that the camera has a clear view.',
+        };
+      }
+
+      const rotation = this.state.skyRotation();
+      const [x, y, z] = response.solution.axes.map((axis) => applyMatrix(rotation, axis));
+      const attitude = attitudeFromImageAxes(x, y, z);
+      this.sensors.applyPlateSolve(attitude);
+      this.lastSolvedAt.set(new Date());
+      this.lastMatched.set(response.solution.matched);
+      return { ok: true, attitude, matched: response.solution.matched };
+    } catch (error) {
+      return {
+        ok: false,
+        reason: `The camera could not be used. ${error instanceof Error ? error.message : ''}`.trim(),
+      };
+    } finally {
+      this.state.plateSolving.set(false);
+      this.nextAttemptAt = Date.now() + SOLVED_PAUSE_MS;
+      if (wasRunning) {
+        this.status.set('waiting');
+      } else {
+        // Nothing else needs the camera, so release it.
+        closeCamera(this.camera);
+        this.camera = null;
+        this.status.set('off');
+      }
+    }
+  }
+
   private async ensureCamera(): Promise<OpenCamera> {
     if (this.camera) return this.camera;
     this.opening = true;
@@ -168,7 +244,12 @@ export class LiveSolverService {
     return { direction: equatorialVector(raDeg, decDeg), radiusDeg: HINT_RADIUS_DEG };
   }
 
-  private async solve(pixels: Float32Array, width: number, height: number): Promise<SolveResponse> {
+  private async solve(
+    pixels: Float32Array,
+    width: number,
+    height: number,
+    timeLimitMs = SOLVE_TIME_LIMIT_MS,
+  ): Promise<SolveResponse> {
     const worker = await this.ensureWorker();
     const id = ++this.requestId;
     const request: SolveRequest = {
@@ -180,7 +261,7 @@ export class LiveSolverService {
       focalPx: FOCAL_SHARE_OF_LONG_SIDE * Math.max(width, height),
       flipped: false,
       hint: this.hint(),
-      timeLimitMs: SOLVE_TIME_LIMIT_MS,
+      timeLimitMs,
     };
     return new Promise((resolve) => {
       this.pending.set(id, resolve);

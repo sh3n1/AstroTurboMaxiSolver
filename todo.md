@@ -41,7 +41,7 @@ Built while waiting for a clear night. Aiming is by dragging until real sensors 
 - [x] Sky map, aiming circle, guidance arrow and eyepiece view
 - [x] Target search, session plan list and saved equipment settings
 - [x] Red night mode
-- [x] Own guidance design: reticle with 0.5°, 2° and 4° rings, target marker, chevrons spaced by distance and target bar
+- [x] Own guidance design: reticle with plain 0.5°, 2° and 4° rings, target marker, chevrons spaced by distance and target bar
 - [x] Reticle fades in and out while plate solving. The sky map starts this once it plate solves live
 - [x] Constellation lines and names, star colours, object size circles, RA and Dec readout, and a 20° default view
 - [x] Sky map turns with the phone
@@ -133,7 +133,7 @@ Keep this as plain TypeScript with no Angular dependency, so it is easy to test.
 
 - [x] Propose the most visible alignment stars for the current time and place
 - [x] Guide the user to centre a proposed star in the eyepiece and confirm it
-- [ ] Replace the simulated camera position in the alignment flow with a real plate solve
+- [x] Align with a real plate solve, falling back to the sensors only if solving fails. Not yet proven on a real sky
 - [x] Calculate the offset between the phone's camera and the telescope's optical axis, including the large angle of a mirror mount
 - [ ] Use the saved offset to draw the aiming circle at the telescope's position once a real camera is connected
 - [x] Save the alignment, so no further alignment is needed while the phone stays in its mount, and clear it when the mount type changes
