@@ -4,19 +4,31 @@ import { Component, computed, effect, inject, signal, viewChild } from '@angular
 import { Router } from '@angular/router';
 import {
   IonButton,
+  IonChip,
   IonContent,
-  IonHeader,
+  IonFabButton,
   IonIcon,
-  IonLabel,
-  IonSegment,
-  IonSegmentButton,
-  IonToolbar,
+  IonInput,
+  IonRange,
+  IonSelect,
+  IonSelectOption,
+  ToastController,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { add, closeCircle, informationCircleOutline, remove } from 'ionicons/icons';
+import {
+  add,
+  closeCircle,
+  compassOutline,
+  eyeOutline,
+  informationCircleOutline,
+  locateOutline,
+  mapOutline,
+  remove,
+} from 'ionicons/icons';
 
 import { AppState } from '../core/app-state.service';
-import type { Vector3 } from '../core/astronomy';
+import type { Settings } from '../core/app-state.service';
+import type { Horizontal, Vector3 } from '../core/astronomy';
 import {
   applyMatrix,
   azimuthChangeDeg,
@@ -33,16 +45,21 @@ import {
   trueFieldDeg,
   viewBasis,
 } from '../core/astronomy';
+import type { Equipment } from '../core/equipment';
+import { equipmentLabel, sameEquipment } from '../core/equipment';
 import { LiveSolverService } from '../core/live-solver.service';
-import { chevronSpacingPx, pulseOpacity } from '../core/reticle';
+import { chevronSpacingPx, guideAngleDeg, pulseOpacity } from '../core/reticle';
 import { SensorService } from '../core/sensor.service';
 import type { Target } from '../core/targets';
+import { EYEPIECE_SMOOTHING_MS, SKY_MAP_SMOOTHING_MS, smoothPointing, smoothingFactor } from '../core/view-smoothing';
 
 type ViewMode = 'sky' | 'eyepiece';
 type Point = { x: number; y: number };
 type Project = (v: Vector3) => Point | null;
 
 interface Star {
+  raDeg: number;
+  decDeg: number;
   vector: Vector3;
   mag: number;
   colorIndex: number;
@@ -68,6 +85,18 @@ interface Box {
   bottom: number;
 }
 
+/** The slider's range for the faintest stars shown. */
+const MIN_STAR_LIMIT = 2;
+const MAX_STAR_LIMIT = 13;
+/** The eyepiece view shows this much more sky than its circle, and sits this high up. */
+const EYEPIECE_VIEW_SCALE = 1.6;
+const EYEPIECE_CENTRE_SHARE = 0.34;
+/** Size of the grid cells that let the eyepiece view find nearby stars quickly. */
+const STAR_CELL_DEG = 4;
+/** Objects this far beyond the screen edge are skipped, though their size circle could reach in. */
+const OFF_SCREEN_MARGIN_PX = 200;
+/** How long a toast message stays, long enough to read at arm's length. */
+const TOAST_MS = 3500;
 const DEFAULT_FIELD_DEG = 20; // Close enough to read the stars and match a finder's view
 const MIN_FIELD_DEG = 5;
 const MAX_FIELD_DEG = 120;
@@ -88,15 +117,16 @@ const MIN_SIZE_CIRCLE_PX = 6;
 const MAX_SIZE_CIRCLE_MAG = 6;
 /** The guidance chevrons, from the one nearest the reticle outwards. */
 const CHEVRON_FADE = [0.35, 0.65, 1];
-const CHEVRON_HEIGHT_PX = 6;
-const CHEVRON_HALF_WIDTH_PX = 8;
+const CHEVRON_HEIGHT_PX = 8;
+const CHEVRON_HALF_WIDTH_PX = 11;
 /** Reticle ring diameters, the same as a Telrad finder's, so star hops carry over. */
 const RETICLE_RINGS_DEG = [0.5, 2, 4];
 /** Rings smaller than this have no room for a size label. */
 const MIN_LABELLED_RING_PX = 30;
 
-// The app's own colours for its sky map and guidance.
-const COLOR = {
+// The app's own colours for its sky map and guidance. Night mode turns everything red by
+// brightness, so its faint lines and greys are brightened there to stay visible.
+const DAY_COLOR = {
   sky: '#05070f',
   grid: '#141c2e',
   constellationLine: '#2a4170',
@@ -114,6 +144,18 @@ const COLOR = {
   starLabel: '#a8b0c6',
   sizeCircle: '#4c6aa6',
 };
+const NIGHT_COLOR: typeof DAY_COLOR = {
+  ...DAY_COLOR,
+  grid: '#2a3550',
+  constellationLine: '#4f6fae',
+  constellationName: '#b4c6e8',
+  horizon: '#6fcf9f',
+  starLabel: '#e8ebf5',
+  sizeCircle: '#7f9bd2',
+  reticle: '#ffb3b3',
+};
+/** The colours in use, switched between day and night at the start of each drawing. */
+const COLOR = { ...DAY_COLOR };
 
 /** Star tints from hot blue to cool red, chosen by the star's B-V colour index. */
 const STAR_TINTS = ['#b9d0ff', '#f4f6ff', '#fff3d6', '#ffd2a1', '#ffb08a'];
@@ -140,7 +182,7 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
   // Messier objects are the familiar showpieces, so they appear sooner. The thousands
   // of NGC and IC objects only appear once zoomed in on them.
   if (/^M\d/.test(target.id)) return target.mag <= (fieldDeg >= 60 ? 7 : 99);
-  return target.mag <= (fieldDeg >= 60 ? 4.5 : fieldDeg >= 25 ? 7 : fieldDeg >= 10 ? 10 : 99);
+  return target.mag <= (fieldDeg >= 60 ? 4.5 : fieldDeg >= 15 ? 7 : fieldDeg >= 8 ? 10 : 99);
 }
 
 /**
@@ -149,7 +191,18 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
  */
 @Component({
   selector: 'app-sky',
-  imports: [DecimalPipe, IonButton, IonContent, IonHeader, IonIcon, IonLabel, IonSegment, IonSegmentButton, IonToolbar],
+  imports: [
+    DecimalPipe,
+    IonButton,
+    IonChip,
+    IonContent,
+    IonFabButton,
+    IonIcon,
+    IonInput,
+    IonRange,
+    IonSelect,
+    IonSelectOption,
+  ],
   styles: `
     .stage {
       position: relative;
@@ -167,47 +220,48 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
     }
     .readout {
       position: absolute;
-      top: 10px;
+      top: calc(10px + var(--ion-safe-area-top, 0px));
       left: 10px;
-      font-size: 11px;
+      font-size: calc(14px * var(--af-scale, 1));
       line-height: 1.45;
-      color: #a8b0c6;
+      color: var(--af-muted);
       padding: 4px 8px;
       border-radius: 8px;
-      background: rgb(5 7 15 / 75%);
+      background: rgb(5 7 15 / 92%);
       pointer-events: none;
     }
+    /* A column of round buttons in the top right corner. */
     .controls {
       position: absolute;
-      top: 10px;
-      right: 10px;
+      top: calc(4px + var(--ion-safe-area-top, 0px));
+      right: 4px;
       display: flex;
       flex-direction: column;
-      align-items: flex-end;
-      gap: 6px;
     }
-    .chip {
-      padding: 6px 10px;
-      border: 1px solid #232a3d;
-      border-radius: 14px;
-      background: rgb(10 14 28 / 80%);
-      color: #a8b0c6;
-      font-size: 11px;
+    .controls ion-fab-button {
+      --background: rgb(10 14 28 / 85%);
+      --background-activated: #232a3d;
+      --color: var(--af-text);
+      --border-color: #232a3d;
+      --border-width: 1px;
+      --border-style: solid;
+      --box-shadow: none;
     }
-    .chip.warn {
-      color: #ffb454;
+    /* A status button's colour says the state at a glance. */
+    .controls ion-fab-button.warn {
+      --color: #ffb454;
     }
-    .chip.good {
-      color: #6fcf9f;
+    .controls ion-fab-button.good {
+      --color: #6fcf9f;
     }
-    .zoom {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-    .zoom ion-button {
-      --background: rgb(10 14 28 / 80%);
-      --color: #e8ebf5;
+    /* Words for screen readers, since the buttons only show icons. */
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
     }
     .message {
       position: absolute;
@@ -218,23 +272,64 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
       border-radius: 10px;
       background: rgb(10 14 28 / 85%);
       color: #ffb454;
-      font-size: 13px;
+      font-size: calc(15px * var(--af-scale, 1));
       text-align: center;
       pointer-events: none;
     }
+    .eyepiece-panel {
+      margin-bottom: 6px;
+      padding: 4px 4px 4px 12px;
+      border: 1px solid #232a3d;
+      border-radius: 12px;
+      background: rgb(10 14 28 / 92%);
+      color: var(--af-text);
+      font-size: calc(15px * var(--af-scale, 1));
+    }
+    .eyepiece-panel ion-range {
+      padding: 0 8px 0 0;
+      --bar-background: #232a3d;
+    }
+    .equipment-toggle {
+      margin: 2px 0 4px;
+      padding: 6px 10px;
+      border: 1px solid #232a3d;
+      border-radius: 14px;
+      background: transparent;
+      color: var(--af-muted);
+      font-size: calc(14px * var(--af-scale, 1));
+    }
+    .fields {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0 12px;
+      padding-right: 8px;
+    }
+    .fields .wide {
+      grid-column: 1 / -1;
+    }
+    .recent {
+      display: flex;
+      gap: 2px;
+      overflow-x: auto;
+    }
+    .recent ion-chip {
+      flex-shrink: 0;
+      font-size: calc(14px * var(--af-scale, 1));
+    }
+    /* Above the tab bar, which lies over the map on this tab. */
     .dock {
       position: absolute;
       left: 10px;
       right: 10px;
-      bottom: 10px;
+      bottom: calc(10px + var(--af-tab-bar-height, 0px));
     }
     .bar {
       padding: 6px 4px 6px 12px;
       border: 1px solid #232a3d;
       border-radius: 12px;
       background: rgb(10 14 28 / 88%);
-      color: #e8ebf5;
-      font-size: 14px;
+      color: var(--af-text);
+      font-size: calc(16px * var(--af-scale, 1));
     }
     .bar-row {
       display: flex;
@@ -242,32 +337,24 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
       justify-content: space-between;
     }
     .muted {
-      color: #a8b0c6;
-      font-size: 12px;
+      color: var(--af-muted);
+      font-size: calc(14px * var(--af-scale, 1));
     }
     .directions {
       color: #a9cbff;
-      font-size: 13px;
+      font-size: calc(15px * var(--af-scale, 1));
     }
     .details {
       padding: 6px 8px 4px 0;
       border-top: 1px solid #232a3d;
-      color: #a8b0c6;
-      font-size: 12px;
+      color: var(--af-muted);
+      font-size: calc(14px * var(--af-scale, 1));
       line-height: 1.5;
     }
   `,
   template: `
-    <ion-header>
-      <ion-toolbar>
-        <ion-segment [value]="mode()" (ionChange)="mode.set($any($event).detail.value)">
-          <ion-segment-button value="sky"><ion-label>Sky map</ion-label></ion-segment-button>
-          <ion-segment-button value="eyepiece"><ion-label>Eyepiece</ion-label></ion-segment-button>
-        </ion-segment>
-      </ion-toolbar>
-    </ion-header>
-
-    <ion-content [scrollY]="false">
+    <!-- No header, so the map fills the whole screen. -->
+    <ion-content [scrollY]="false" [fullscreen]="true">
       <div class="stage">
         <canvas
           #canvas
@@ -282,15 +369,10 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
           (wheel)="wheel($event)"
         ></canvas>
 
-        <div class="readout" data-testid="pointing">
-          @if (state.sensorsActive()) {
-            Sensors on{{ sensors.hasCompass() ? '' : ', no compass' }}{{ sensors.isStill() ? ', still' : '' }}<br />
-            @if (liveSolver.statusText(); as solveText) {
-              <span data-testid="solve-status">{{ solveText }}</span
-              ><br />
-            }
-          } @else {
-            Preview: drag to aim<br />
+        <div class="readout" data-testid="pointing" [attr.data-still]="sensors.isStill()">
+          <!-- The sensor button shows whether sensors are on, so only a missing compass is worth a line. -->
+          @if (state.sensorsActive() && !sensors.hasCompass()) {
+            No compass<br />
           }
           Alt {{ state.pointing().altDeg | number: '1.0-0' }}°, az {{ state.pointing().azDeg | number: '1.0-0' }}°<br />
           <span data-testid="equatorial">RA {{ pointingRa() }}, Dec {{ pointingDec() }}</span>
@@ -303,60 +385,171 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
         </div>
 
         <div class="controls">
-          <button
-            type="button"
-            class="chip"
-            data-testid="alignment-status"
-            [class.good]="state.alignment()"
-            [class.warn]="!state.alignment()"
-            (click)="openAlignment()"
-          >
-            @if (state.alignment(); as alignment) {
-              Aligned: {{ alignment.starId }}{{ alignment.method === 'plate-solve' ? '' : ', rough' }}
-            } @else {
-              Not aligned
-            }
-          </button>
-          <button
-            type="button"
-            class="chip"
+          <!-- Green while the motion sensors steer the view. First, since it is used most. -->
+          <ion-fab-button
+            size="small"
             data-testid="sensor-toggle"
             [class.good]="state.sensorsActive()"
             (click)="toggleSensors()"
           >
-            {{ state.sensorsActive() ? 'Sensors on' : 'Use sensors' }}
-          </button>
+            <ion-icon name="compass-outline" aria-hidden="true"></ion-icon>
+            <span class="visually-hidden">{{ state.sensorsActive() ? 'Sensors on' : 'Use sensors' }}</span>
+          </ion-fab-button>
+          <!-- Switches between the sky map and the eyepiece view, showing the view it switches to. -->
+          <ion-fab-button
+            size="small"
+            data-testid="view-mode"
+            [attr.data-mode]="mode()"
+            (click)="mode.set(mode() === 'sky' ? 'eyepiece' : 'sky')"
+          >
+            <ion-icon [name]="mode() === 'sky' ? 'eye-outline' : 'map-outline'" aria-hidden="true"></ion-icon>
+            <span class="visually-hidden">{{ mode() === 'sky' ? 'Eyepiece view' : 'Sky map' }}</span>
+          </ion-fab-button>
+          <!-- Green once aligned by plate solving, amber when not aligned or only roughly. -->
+          <ion-fab-button
+            size="small"
+            data-testid="alignment-status"
+            [class.good]="state.alignment()?.method === 'plate-solve'"
+            [class.warn]="state.alignment()?.method !== 'plate-solve'"
+            (click)="openAlignment()"
+          >
+            <ion-icon name="locate-outline" aria-hidden="true"></ion-icon>
+            <span class="visually-hidden">
+              @if (state.alignment(); as alignment) {
+                Aligned: {{ alignment.starId }}{{ alignment.method === 'plate-solve' ? '' : ', rough' }}
+              } @else {
+                Not aligned
+              }
+            </span>
+          </ion-fab-button>
           @if (mode() === 'sky') {
-            <div class="zoom">
-              <ion-button
-                size="small"
-                aria-label="Zoom in"
-                data-testid="zoom-in"
-                [disabled]="fieldDeg() <= minField"
-                (click)="zoomBy(1 / zoomStep)"
-              >
-                <ion-icon slot="icon-only" name="add"></ion-icon>
-              </ion-button>
-              <ion-button
-                size="small"
-                aria-label="Zoom out"
-                data-testid="zoom-out"
-                [disabled]="fieldDeg() >= maxField"
-                (click)="zoomBy(zoomStep)"
-              >
-                <ion-icon slot="icon-only" name="remove"></ion-icon>
-              </ion-button>
-            </div>
+            <ion-fab-button
+              size="small"
+              aria-label="Zoom in"
+              data-testid="zoom-in"
+              [disabled]="fieldDeg() <= minField"
+              (click)="zoomBy(1 / zoomStep)"
+            >
+              <ion-icon name="add" aria-hidden="true"></ion-icon>
+            </ion-fab-button>
+            <ion-fab-button
+              size="small"
+              aria-label="Zoom out"
+              data-testid="zoom-out"
+              [disabled]="fieldDeg() >= maxField"
+              (click)="zoomBy(zoomStep)"
+            >
+              <ion-icon name="remove" aria-hidden="true"></ion-icon>
+            </ion-fab-button>
           }
         </div>
 
         @if (sensors.error(); as message) {
           <div class="message" data-testid="sensor-error">{{ message }}</div>
-        } @else if (mode() === 'eyepiece' && starsInEyepiece() === 0) {
-          <div class="message">No stars brighter than magnitude 6.5 in this field.</div>
         }
 
         <div class="dock">
+          @if (mode() === 'eyepiece') {
+            <div class="eyepiece-panel" data-testid="eyepiece-panel">
+              <div class="bar-row">
+                <span data-testid="star-limit-label">
+                  Stars to magnitude {{ state.starLimit() | number: '1.1-1'
+                  }}{{ isAutoStarLimit() ? ', your sky' : '' }}
+                </span>
+                <ion-button
+                  fill="clear"
+                  size="small"
+                  data-testid="reset-star-limit"
+                  [disabled]="isAutoStarLimit()"
+                  (click)="resetStarLimit()"
+                >
+                  Reset to my sky
+                </ion-button>
+              </div>
+              <ion-range
+                data-testid="star-limit"
+                aria-label="Faintest stars shown"
+                [min]="minStarLimit"
+                [max]="maxStarLimit"
+                [step]="0.1"
+                [value]="state.starLimit()"
+                (ionInput)="setStarLimit($event)"
+              ></ion-range>
+
+              <button
+                type="button"
+                class="equipment-toggle"
+                data-testid="equipment-toggle"
+                (click)="showEquipment.set(!showEquipment())"
+              >
+                {{ equipmentLabel(state.settings()) }} · {{ power() | number: '1.0-0' }}× ·
+                {{ eyepieceField() | number: '1.1-2' }}° {{ showEquipment() ? '▴' : '▾' }}
+              </button>
+              @if (showEquipment()) {
+                <div class="fields" data-testid="equipment-form">
+                  <ion-select
+                    class="wide"
+                    label="Telescope type"
+                    labelPlacement="stacked"
+                    interface="popover"
+                    [value]="state.settings().telescopeType"
+                    (ionChange)="state.updateSettings({ telescopeType: $any($event).detail.value })"
+                  >
+                    <ion-select-option value="newtonian">Newtonian</ion-select-option>
+                    <ion-select-option value="refractor">Refractor with diagonal</ion-select-option>
+                    <ion-select-option value="cassegrain">Cassegrain with diagonal</ion-select-option>
+                  </ion-select>
+                  <ion-input
+                    label="Aperture (mm)"
+                    labelPlacement="stacked"
+                    type="number"
+                    data-testid="aperture"
+                    [value]="state.settings().telescopeApertureMm"
+                    (ionChange)="setEquipmentNumber('telescopeApertureMm', $event, 20, 2000)"
+                  ></ion-input>
+                  <ion-input
+                    label="Focal length (mm)"
+                    labelPlacement="stacked"
+                    type="number"
+                    data-testid="telescope-focal"
+                    [value]="state.settings().telescopeFocalMm"
+                    (ionChange)="setEquipmentNumber('telescopeFocalMm', $event, 50, 10000)"
+                  ></ion-input>
+                  <ion-input
+                    label="Eyepiece (mm)"
+                    labelPlacement="stacked"
+                    type="number"
+                    data-testid="eyepiece-focal"
+                    [value]="state.settings().eyepieceFocalMm"
+                    (ionChange)="setEquipmentNumber('eyepieceFocalMm', $event, 2, 60)"
+                  ></ion-input>
+                  <ion-input
+                    label="Eyepiece field (°)"
+                    labelPlacement="stacked"
+                    type="number"
+                    data-testid="eyepiece-field"
+                    [value]="state.settings().eyepieceFieldDeg"
+                    (ionChange)="setEquipmentNumber('eyepieceFieldDeg', $event, 20, 120)"
+                  ></ion-input>
+                </div>
+              }
+              @if (state.settings().recentEquipment.length > 0) {
+                <div class="recent">
+                  @for (item of state.settings().recentEquipment; track $index) {
+                    <ion-chip
+                      data-testid="recent-equipment"
+                      [outline]="!isCurrentEquipment(item)"
+                      [color]="isCurrentEquipment(item) ? 'primary' : 'medium'"
+                      (click)="state.applyEquipment(item)"
+                    >
+                      {{ equipmentLabel(item) }}
+                    </ion-chip>
+                  }
+                </div>
+              }
+            </div>
+          }
+
           @if (state.selectedTarget(); as target) {
             <div class="bar" data-testid="target-bar">
               <div class="bar-row">
@@ -418,6 +611,11 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   protected readonly sensors = inject(SensorService);
   protected readonly liveSolver = inject(LiveSolverService);
   private readonly router = inject(Router);
+  private readonly toasts = inject(ToastController);
+  /** Whether the last finished plate solve failed, so a run of failures gives one toast. */
+  private lastSolveFailed = false;
+  /** When the alignment shown last was made, or undefined before the first check. */
+  private shownAlignedAt?: string | null;
 
   protected readonly mode = signal<ViewMode>('sky');
   protected readonly fieldDeg = signal(DEFAULT_FIELD_DEG);
@@ -429,8 +627,23 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   protected readonly stars = signal<Star[]>([]);
   protected readonly constellations = signal<Constellation[]>([]);
   protected readonly showDetails = signal(false);
-  /** How many stars the eyepiece circle holds, so an empty field can be explained. */
-  protected readonly starsInEyepiece = signal(0);
+  protected readonly showEquipment = signal(false);
+
+  /** Stars grouped into cells of right ascension and declination. */
+  private readonly starGrid = computed(() => {
+    const grid = new Map<number, Star[]>();
+    for (const star of this.stars()) {
+      const key = this.cellKey(star.raDeg, star.decDeg);
+      const cell = grid.get(key);
+      if (cell) cell.push(star);
+      else grid.set(key, [star]);
+    }
+    return grid;
+  });
+  protected readonly equipmentLabel = equipmentLabel;
+  protected readonly minStarLimit = MIN_STAR_LIMIT;
+  protected readonly maxStarLimit = MAX_STAR_LIMIT;
+  protected readonly isAutoStarLimit = computed(() => this.state.settings().eyepieceStarLimit === null);
 
   protected readonly power = computed(() =>
     magnification(this.state.settings().telescopeFocalMm, this.state.settings().eyepieceFocalMm),
@@ -442,7 +655,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
 
   /** Width of sky shown, in degrees. The eyepiece shows a little around its circle. */
   protected readonly viewField = computed(() =>
-    this.mode() === 'eyepiece' ? this.eyepieceField() * 1.25 : this.fieldDeg(),
+    this.mode() === 'eyepiece' ? this.eyepieceField() * EYEPIECE_VIEW_SCALE : this.fieldDeg(),
   );
 
   protected readonly pointingRa = computed(() => formatRa(this.state.pointingEquatorial().raDeg));
@@ -479,6 +692,12 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   private readonly canvasRef = viewChild.required<ElementRef<HTMLCanvasElement>>('canvas');
   private resizeObserver?: ResizeObserver;
   private drawQueued = false;
+  /** The pointing the view shows, which follows the sensors smoothly. */
+  private shownPointing: Horizontal | null = null;
+  private lastFrameTime = 0;
+  private viewCentreY = 0;
+  private baseStarsLoaded: Promise<void> = Promise.resolve();
+  private deepStarsRequested = false;
 
   // Fingers currently on the screen. One drags and two pinch.
   private readonly pointers = new Map<number, Point>();
@@ -486,14 +705,49 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   private pinchStart?: { distance: number; fieldDeg: number };
 
   constructor() {
-    addIcons({ add, closeCircle, informationCircleOutline, remove });
-    void this.loadStars();
+    addIcons({
+      add,
+      closeCircle,
+      compassOutline,
+      eyeOutline,
+      informationCircleOutline,
+      locateOutline,
+      mapOutline,
+      remove,
+    });
+    this.baseStarsLoaded = this.loadStars();
+    // The faint stars are a large file, so they only load once the eyepiece view opens.
+    effect(() => {
+      if (this.mode() === 'eyepiece') void this.loadDeepStars();
+    });
     void this.loadConstellations();
+
+    // A failed plate solve is told once, as a toast, not again on every retry while it keeps failing.
+    effect(() => {
+      const status = this.liveSolver.status();
+      if (status === 'failed' && !this.lastSolveFailed) void this.toast(this.liveSolver.statusText(), 'solve-toast');
+      if (status === 'failed' || status === 'solved') this.lastSolveFailed = status === 'failed';
+    });
+    // A new alignment is confirmed with a toast. The one already saved at start-up is not.
+    effect(() => {
+      const alignment = this.state.alignment();
+      const alignedAt = alignment?.alignedAt;
+      if (this.shownAlignedAt !== undefined && alignment && alignedAt !== this.shownAlignedAt) {
+        void this.toast(
+          `Aligned: ${alignment.starId}${alignment.method === 'plate-solve' ? '' : ', rough'}`,
+          'alignment-toast',
+        );
+      }
+      this.shownAlignedAt = alignedAt ?? null;
+    });
+
     // Redraw whenever anything shown on the map changes.
     effect(() => {
       this.state.pointing();
       this.state.viewRollDeg();
       this.state.plateSolving();
+      this.state.starLimit();
+      this.state.textScale();
       this.state.settings();
       this.state.selectedTarget();
       this.state.targets();
@@ -506,6 +760,18 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     });
   }
 
+  /** A short message that appears near the top and goes away by itself. */
+  private async toast(message: string, testId: string): Promise<void> {
+    const toast = await this.toasts.create({
+      message,
+      duration: TOAST_MS,
+      position: 'top',
+      cssClass: 'af-toast',
+      htmlAttributes: { 'data-testid': testId },
+    });
+    await toast.present();
+  }
+
   ngAfterViewInit(): void {
     // The canvas has no size until layout finishes, and changes when the phone rotates.
     this.resizeObserver = new ResizeObserver(() => this.queueDraw());
@@ -514,6 +780,37 @@ export class SkyPage implements AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.resizeObserver?.disconnect();
+  }
+
+  protected setStarLimit(event: Event): void {
+    const value = Number((event as CustomEvent<{ value: number }>).detail.value);
+    // The slider also reports a change when the app moves it, such as after a reset. Only
+    // a real change by the user should replace the value worked out from their sky.
+    if (!Number.isFinite(value) || Math.abs(value - this.state.starLimit()) < 0.05) return;
+    this.state.updateSettings({ eyepieceStarLimit: value });
+  }
+
+  /** Goes back to the limit worked out from the user's sky and telescope. */
+  protected resetStarLimit(): void {
+    this.state.updateSettings({ eyepieceStarLimit: null });
+  }
+
+  protected isCurrentEquipment(item: Equipment): boolean {
+    return sameEquipment(item, this.state.settings());
+  }
+
+  /** Saves a number, ignoring values that are empty or outside the sensible range. */
+  protected setEquipmentNumber(
+    key: keyof Pick<Settings, 'telescopeApertureMm' | 'telescopeFocalMm' | 'eyepieceFocalMm' | 'eyepieceFieldDeg'>,
+    event: Event,
+    min: number,
+    max: number,
+  ): void {
+    const raw = (event as CustomEvent<{ value?: string | null }>).detail.value;
+    const value = Number(raw);
+    if (raw !== '' && raw != null && Number.isFinite(value) && value >= min && value <= max) {
+      this.state.updateSettings({ [key]: value });
+    }
   }
 
   protected toggleSensors(): void {
@@ -617,6 +914,8 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       const rows = (await response.json()) as [number, number, number, number][];
       this.stars.set(
         rows.map(([ra, dec, mag, colorIndex]) => ({
+          raDeg: ra,
+          decDeg: dec,
           vector: equatorialVector(ra, dec),
           mag,
           colorIndex: starTintIndex(colorIndex),
@@ -625,6 +924,57 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     } catch {
       // The map still shows targets and the horizon without its background stars.
       this.stars.set([]);
+    }
+  }
+
+  private cellKey(raDeg: number, decDeg: number): number {
+    const row = Math.floor((decDeg + 90) / STAR_CELL_DEG);
+    const column = Math.floor((((raDeg % 360) + 360) % 360) / STAR_CELL_DEG);
+    return row * 1000 + column;
+  }
+
+  /** Stars within a field of where the view points, from the grid cells that can hold them. */
+  private starsNear(fieldDeg: number): Star[] {
+    const { raDeg, decDeg } = this.state.pointingEquatorial();
+    const radius = fieldDeg * 0.75 + STAR_CELL_DEG; // Half the diagonal, plus a cell's width
+    const grid = this.starGrid();
+    const found: Star[] = [];
+    const lowDec = Math.max(-90, decDeg - radius);
+    const highDec = Math.min(90, decDeg + radius);
+    // Lines of right ascension crowd together towards the poles, so cover more of them there.
+    const widestDec = Math.min(89.9, Math.max(Math.abs(lowDec), Math.abs(highDec)));
+    const raRadius =
+      highDec >= 89.9 || lowDec <= -89.9 ? 180 : Math.min(180, radius / Math.cos((widestDec * Math.PI) / 180));
+    const columns = Math.min(360 / STAR_CELL_DEG, Math.ceil((2 * raRadius) / STAR_CELL_DEG) + 1);
+    const firstColumn = Math.floor((raDeg - raRadius) / STAR_CELL_DEG);
+    for (let dec = lowDec; dec <= highDec + STAR_CELL_DEG; dec += STAR_CELL_DEG) {
+      const clampedDec = Math.min(89.99, dec);
+      for (let c = 0; c < columns; c++) {
+        found.push(...(grid.get(this.cellKey((firstColumn + c) * STAR_CELL_DEG, clampedDec)) ?? []));
+      }
+    }
+    return found;
+  }
+
+  /** Adds the faint stars after the bright ones, keeping the brightest-first order. */
+  private async loadDeepStars(): Promise<void> {
+    if (this.deepStarsRequested) return;
+    this.deepStarsRequested = true;
+    try {
+      await this.baseStarsLoaded;
+      const response = await fetch('assets/data/stars-deep.json');
+      const rows = (await response.json()) as [number, number, number, number][];
+      const deep = rows.map(([ra, dec, mag, colorIndex]) => ({
+        raDeg: ra,
+        decDeg: dec,
+        vector: equatorialVector(ra, dec),
+        mag,
+        colorIndex: starTintIndex(colorIndex),
+      }));
+      this.stars.update((current) => [...current, ...deep]);
+    } catch {
+      // The eyepiece view still works with the brighter stars only.
+      this.deepStarsRequested = false;
     }
   }
 
@@ -671,11 +1021,14 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    Object.assign(COLOR, this.state.settings().nightMode ? NIGHT_COLOR : DAY_COLOR);
     ctx.fillStyle = COLOR.sky;
     ctx.fillRect(0, 0, width, height);
 
-    const basis = viewBasis(this.state.pointing());
     const isEyepiece = this.mode() === 'eyepiece';
+    const basis = viewBasis(this.steadyPointing(isEyepiece));
+    const centreY = isEyepiece ? height * EYEPIECE_CENTRE_SHARE : height / 2;
+    this.viewCentreY = centreY;
     const flip = this.imageFlip();
     // Only the sky map turns with the phone. The eyepiece follows the telescope instead.
     const rollDeg = isEyepiece ? 0 : this.state.viewRollDeg();
@@ -687,22 +1040,64 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       if (view[2] < -0.2) return null; // Too far behind the viewer to draw
       const flat = stereographic(view);
       const { x, y } = rotateInView(flat.x, flat.y, rollDeg);
-      return { x: width / 2 + flip.x * x * scale, y: height / 2 - flip.y * y * scale };
+      return { x: width / 2 + flip.x * x * scale, y: centreY - flip.y * y * scale };
     };
 
     if (!isEyepiece) {
       this.drawGrid(ctx, project);
       this.drawConstellationLines(ctx, project);
     }
-    this.drawStars(ctx, project, width, height, scale);
+    this.drawStars(ctx, project, width, height);
     this.drawHorizon(ctx, project);
     const labels = this.drawTargets(ctx, project, scale);
     if (isEyepiece) {
-      this.drawEyepieceMask(ctx, width, height, scale);
+      this.drawEyepieceMask(ctx, width, height, scale, centreY);
+      this.drawEyepieceGuide(ctx, width, centreY, scale);
     } else {
       this.drawConstellationNames(ctx, project, labels);
       this.drawReticle(ctx, project, width, height, scale);
     }
+  }
+
+  /**
+   * Smooths the pointing shown, so sensor jitter doesn't shake the view. The eyepiece's
+   * high magnification needs much more smoothing than the sky map. Dragging needs none,
+   * because a finger doesn't jitter, and should feel immediate.
+   */
+  private steadyPointing(isEyepiece: boolean): Horizontal {
+    const now = performance.now();
+    const frameMs = this.lastFrameTime ? Math.min(now - this.lastFrameTime, 100) : 0;
+    this.lastFrameTime = now;
+    const latest = this.state.pointing();
+    if (!this.state.sensorsActive()) {
+      this.shownPointing = latest;
+      return latest;
+    }
+    const timeConstant = isEyepiece ? EYEPIECE_SMOOTHING_MS : SKY_MAP_SMOOTHING_MS;
+    this.shownPointing = smoothPointing(this.shownPointing, latest, smoothingFactor(frameMs, timeConstant));
+    // Keep drawing until the view has caught up with the latest reading.
+    if (separationDeg(this.shownPointing, latest) > 0.0005) this.queueDraw();
+    return this.shownPointing;
+  }
+
+  /** A canvas font at a size that follows the text size setting. Labels are semi-bold. */
+  private font(sizePx: number, style = ''): string {
+    return `${style} 600 ${Math.round(sizePx * this.textScale())}px sans-serif`.trim();
+  }
+
+  private textScale(): number {
+    return this.state.textScale();
+  }
+
+  /** Draws text with a dark outline, so it stays readable over lines and stars. */
+  private drawLabel(ctx: CanvasRenderingContext2D, text: string, x: number, y: number): void {
+    ctx.save();
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = COLOR.sky;
+    ctx.strokeText(text, x, y);
+    ctx.restore();
+    ctx.fillText(text, x, y);
   }
 
   /** Draws a line through points, lifting the pen wherever a point can't be shown. */
@@ -741,7 +1136,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   private drawConstellationLines(ctx: CanvasRenderingContext2D, project: Project): void {
     const toLocal = this.state.skyRotation();
     ctx.strokeStyle = COLOR.constellationLine;
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 1.5;
     for (const { lines } of this.constellations()) {
       for (const line of lines) {
         this.drawCurve(
@@ -759,7 +1154,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   private drawConstellationNames(ctx: CanvasRenderingContext2D, project: Project, labels: Box[]): void {
     const toLocal = this.state.skyRotation();
     ctx.fillStyle = COLOR.constellationName;
-    ctx.font = 'italic 12px sans-serif';
+    ctx.font = this.font(14, 'italic');
     ctx.textAlign = 'center';
     for (const { name, label } of this.constellations()) {
       const local = applyMatrix(toLocal, label);
@@ -767,10 +1162,15 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       const point = project(local);
       if (!point) continue;
       const halfWidth = ctx.measureText(name).width / 2;
-      const box: Box = { left: point.x - halfWidth, right: point.x + halfWidth, top: point.y - 8, bottom: point.y + 6 };
+      const box: Box = {
+        left: point.x - halfWidth,
+        right: point.x + halfWidth,
+        top: point.y - 10 * this.textScale(),
+        bottom: point.y + 7 * this.textScale(),
+      };
       if (labels.some((other) => this.overlaps(box, other))) continue;
       labels.push(box);
-      ctx.fillText(name, point.x, point.y + 4);
+      this.drawLabel(ctx, name, point.x, point.y + 5 * this.textScale());
     }
   }
 
@@ -778,29 +1178,28 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
   }
 
-  private drawStars(
-    ctx: CanvasRenderingContext2D,
-    project: Project,
-    width: number,
-    height: number,
-    scale: number,
-  ): void {
+  private drawStars(ctx: CanvasRenderingContext2D, project: Project, width: number, height: number): void {
     const toLocal = this.state.skyRotation();
     const isEyepiece = this.mode() === 'eyepiece';
-    const limit = isEyepiece ? Infinity : magnitudeLimit(this.fieldDeg());
-    const eyepieceRadius = stereographicRadius(this.eyepieceField() / 2) * scale;
-    let inEyepiece = 0;
+    const limit = isEyepiece ? this.state.starLimit() : magnitudeLimit(this.fieldDeg());
 
     // Filling stars of a similar brightness and colour as one shape is far faster than
     // filling each on its own, which matters most on older phones.
     const shapes = new Map<number, { path: Path2D; magGroup: number; tint: number }>();
-    for (const star of this.stars()) {
-      if (star.mag > limit) break; // The file is sorted brightest first
+    // The eyepiece only needs stars near where it points, which the grid finds quickly.
+    // The full list is sorted brightest first, so the sky map can stop at its limit.
+    const candidates = isEyepiece ? this.starsNear(this.viewField()) : this.stars();
+    for (const star of candidates) {
+      if (star.mag > limit) {
+        if (isEyepiece) continue;
+        break;
+      }
       const local = applyMatrix(toLocal, star.vector);
-      if (local[2] < 0) continue; // Below the horizon
+      // The sky map hides what is below the horizon. The eyepiece view also serves for
+      // planning ahead, so it shows those stars too.
+      if (local[2] < 0 && !isEyepiece) continue;
       const point = project(local);
       if (!point || point.x < 0 || point.x > width || point.y < 0 || point.y > height) continue;
-      if (Math.hypot(point.x - width / 2, point.y - height / 2) <= eyepieceRadius) inEyepiece++;
 
       const magGroup = Math.floor(star.mag);
       const key = magGroup * 10 + star.colorIndex;
@@ -821,22 +1220,21 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       ctx.fill(path);
     }
     ctx.globalAlpha = 1;
-    this.starsInEyepiece.set(inEyepiece);
   }
 
   private drawHorizon(ctx: CanvasRenderingContext2D, project: Project): void {
     ctx.strokeStyle = COLOR.horizon;
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = 2;
     const points = [];
     for (let azDeg = 0; azDeg <= 360; azDeg += 2) points.push(project(horizontalVector({ altDeg: 0, azDeg })));
     this.drawCurve(ctx, points);
 
     ctx.fillStyle = COLOR.cardinal;
-    ctx.font = 'bold 14px sans-serif';
+    ctx.font = this.font(17, 'bold');
     ctx.textAlign = 'center';
     for (const { label, azDeg } of CARDINALS) {
       const point = project(horizontalVector({ altDeg: 0, azDeg }));
-      if (point) ctx.fillText(label, point.x, point.y + 18);
+      if (point) this.drawLabel(ctx, label, point.x, point.y + 22 * this.textScale());
     }
   }
 
@@ -846,7 +1244,8 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     const selected = this.state.selectedTarget();
     const fieldDeg = this.viewField();
     const labels: Box[] = [];
-    ctx.font = '12px sans-serif';
+    const { clientWidth: screenWidth, clientHeight: screenHeight } = this.canvasRef().nativeElement;
+    ctx.font = this.font(15);
     ctx.textAlign = 'left';
 
     // The selected target goes first, so its label always wins a clash.
@@ -854,9 +1253,11 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     for (const target of selected ? [selected, ...others] : others) {
       const local = applyMatrix(toLocal, equatorialVector(target.raDeg, target.decDeg));
       const isSelected = target === selected;
-      if (local[2] < 0 && !isSelected) continue;
+      if (local[2] < 0 && !isSelected && this.mode() !== 'eyepiece') continue;
       const point = project(local);
-      if (!point) continue;
+      // Drawing markers and labels that are off screen wastes most of the frame's time.
+      if (!point || point.x < -OFF_SCREEN_MARGIN_PX || point.x > screenWidth + OFF_SCREEN_MARGIN_PX) continue;
+      if (point.y < -OFF_SCREEN_MARGIN_PX || point.y > screenHeight + OFF_SCREEN_MARGIN_PX) continue;
 
       const color = isSelected
         ? COLOR.target
@@ -894,12 +1295,12 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       const box: Box = {
         left: point.x + offset,
         right: point.x + offset + ctx.measureText(target.id).width,
-        top: point.y - 8,
-        bottom: point.y + 6,
+        top: point.y - 10 * this.textScale(),
+        bottom: point.y + 7 * this.textScale(),
       };
       if (labels.some((other) => this.overlaps(box, other))) continue;
       labels.push(box);
-      ctx.fillText(target.id, box.left, point.y + 4);
+      this.drawLabel(ctx, target.id, box.left, point.y + 5 * this.textScale());
     }
     return labels;
   }
@@ -908,7 +1309,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   private drawTargetMarker(ctx: CanvasRenderingContext2D, { x, y }: Point, radius: number): void {
     const stroke = radius * 0.45;
     ctx.strokeStyle = COLOR.target;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 3;
     ctx.beginPath();
     for (const [dx, dy] of [
       [0, -1],
@@ -943,8 +1344,8 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     ctx.globalAlpha = opacity;
     ctx.strokeStyle = color;
     ctx.fillStyle = color;
-    ctx.lineWidth = 1.5;
-    ctx.font = '10px sans-serif';
+    ctx.lineWidth = 2.5;
+    ctx.font = this.font(13);
     ctx.textAlign = 'left';
 
     for (const diameterDeg of RETICLE_RINGS_DEG) {
@@ -954,7 +1355,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       ctx.stroke();
       // Small rings have no room for a label until zoomed in.
       if (radius >= MIN_LABELLED_RING_PX) {
-        ctx.fillText(`${diameterDeg}°`, cx + radius * 0.72 + 3, cy - radius * 0.72 - 3);
+        this.drawLabel(ctx, `${diameterDeg}°`, cx + radius * 0.72 + 4, cy - radius * 0.72 - 4);
       }
     }
 
@@ -980,9 +1381,12 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     const position = this.state.positionOf(target);
 
     // Work in the view's own axes, which stay valid for a target behind the viewer.
-    const [x, y] = toViewCoordinates(viewBasis(this.state.pointing()), horizontalVector(position));
-    const onScreen = rotateInView(x, y, this.state.viewRollDeg());
-    const angle = Math.atan2(onScreen.x, onScreen.y);
+    const [x, y] = toViewCoordinates(
+      viewBasis(this.shownPointing ?? this.state.pointing()),
+      horizontalVector(position),
+    );
+    const angle = (guideAngleDeg(x, y, 1, 1, this.state.viewRollDeg()) * Math.PI) / 180;
+    this.canvasRef().nativeElement.dataset['guideAngle'] = String(Math.round((angle * 180) / Math.PI));
     const [dirX, dirY] = [Math.sin(angle), -Math.cos(angle)];
 
     // A dashed line joins the rings to the target once it is in view.
@@ -990,7 +1394,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     const isInView = !!point && point.x >= 0 && point.x <= width && point.y >= 0 && point.y <= height;
     if (point && isInView && Math.hypot(point.x - cx, point.y - cy) > radius + 40) {
       ctx.strokeStyle = COLOR.guide;
-      ctx.lineWidth = 1;
+      ctx.lineWidth = 1.5;
       ctx.setLineDash([2, 5]);
       ctx.beginPath();
       ctx.moveTo(cx + dirX * (radius + 34), cy + dirY * (radius + 34));
@@ -999,12 +1403,39 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       ctx.setLineDash([]);
     }
 
-    // A trail of chevrons that brightens towards the target, so the eye follows it outwards.
+    this.drawChevrons(ctx, cx + dirX * (radius + 4), cy + dirY * (radius + 4), angle);
+  }
+
+  /**
+   * In the eyepiece view, chevrons just outside the eyepiece circle show which way to move
+   * the tube, until the target comes into the field. They ignore the image turn or mirror
+   * of the telescope on purpose: up always means raise the tube, like the bottom bar says.
+   */
+  private drawEyepieceGuide(ctx: CanvasRenderingContext2D, width: number, centreY: number, scale: number): void {
+    const target = this.state.selectedTarget();
+    const canvas = this.canvasRef().nativeElement;
+    if (!target) return;
+    const position = this.state.positionOf(target);
+    const pointing = this.shownPointing ?? this.state.pointing();
+    if (separationDeg(pointing, position) < this.eyepieceField() / 2) {
+      delete canvas.dataset['guideAngle'];
+      return;
+    }
+    const [x, y] = toViewCoordinates(viewBasis(pointing), horizontalVector(position));
+    const angle = (guideAngleDeg(x, y, 1, 1, 0) * Math.PI) / 180;
+    canvas.dataset['guideAngle'] = String(Math.round((angle * 180) / Math.PI));
+
+    const radius = stereographicRadius(this.eyepieceField() / 2) * scale + 8;
+    this.drawChevrons(ctx, width / 2 + Math.sin(angle) * radius, centreY - Math.cos(angle) * radius, angle);
+  }
+
+  /** A trail of chevrons that brightens towards the target, so the eye follows it outwards. */
+  private drawChevrons(ctx: CanvasRenderingContext2D, x: number, y: number, angle: number): void {
     ctx.save();
-    ctx.translate(cx + dirX * (radius + 4), cy + dirY * (radius + 4));
+    ctx.translate(x, y);
     ctx.rotate(angle);
     ctx.strokeStyle = COLOR.guide;
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 3.5;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     // Wide gaps mean the target is far away, so move quickly. Tight gaps mean slow down.
@@ -1022,17 +1453,23 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   }
 
   /** Blacks out everything outside the eyepiece's circular field. */
-  private drawEyepieceMask(ctx: CanvasRenderingContext2D, width: number, height: number, scale: number): void {
+  private drawEyepieceMask(
+    ctx: CanvasRenderingContext2D,
+    width: number,
+    height: number,
+    scale: number,
+    centreY: number,
+  ): void {
     const radius = stereographicRadius(this.eyepieceField() / 2) * scale;
     ctx.fillStyle = '#000000';
     ctx.beginPath();
     ctx.rect(0, 0, width, height);
-    ctx.arc(width / 2, height / 2, radius, 0, 2 * Math.PI, true);
+    ctx.arc(width / 2, centreY, radius, 0, 2 * Math.PI, true);
     ctx.fill();
     ctx.strokeStyle = '#3a4158';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.arc(width / 2, height / 2, radius, 0, 2 * Math.PI);
+    ctx.arc(width / 2, centreY, radius, 0, 2 * Math.PI);
     ctx.stroke();
   }
 }

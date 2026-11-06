@@ -41,6 +41,7 @@ Built while waiting for a clear night. Aiming is by dragging until real sensors 
 - [x] Sky map, aiming circle, guidance arrow and eyepiece view
 - [x] Target search, session plan list and saved equipment settings
 - [x] Red night mode
+- [x] Readability for older eyes: larger text with a Text size setting, outlined map labels, thicker lines, and full-strength red night mode without grey text
 - [x] Own guidance design: reticle with plain 0.5°, 2° and 4° rings, target marker, chevrons spaced by distance and target bar
 - [x] Reticle fades in and out while plate solving. The sky map starts this once it plate solves live
 - [x] Constellation lines and names, star colours, object size circles, RA and Dec readout, and a 20° default view
@@ -168,7 +169,14 @@ Keep this as plain TypeScript with no Angular dependency, so it is easy to test.
 
 ## 11. Telescope eyepiece view
 
-- [ ] Calculate true field of view and magnification from the equipment profile
+- [x] Calculate true field of view and magnification from the equipment profile
+- [x] Set telescope and eyepiece in the eyepiece view, with the five most recent combinations
+- [x] Star visibility slider, defaulting to the user's sky darkness and aperture, with a reset
+- [x] Show stars to the full Hipparcos catalogue in the eyepiece view, complete to about magnitude 8.5
+- [x] Steady the view against sensor jitter, much more strongly in the eyepiece view
+- [x] Guide chevrons in the eyepiece view, showing which way to move the tube
+- [ ] Consider deeper star data, beyond magnitude 8.5, for the eyepiece view
+- [ ] Work out sky darkness from the location automatically, which needs a light-pollution map with suitable terms
 - [ ] Show the simulated eyepiece field around the current target or pointing position
 - [ ] Match the image orientation of the telescope type, such as inverted or mirrored views
 

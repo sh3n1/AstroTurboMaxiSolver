@@ -1,4 +1,4 @@
-import { chevronSpacingPx, pulseOpacity } from './reticle';
+import { chevronSpacingPx, guideAngleDeg, pulseOpacity } from './reticle';
 
 describe('reticle pulse', () => {
   it('starts fully visible, and fades to its lowest halfway through', () => {
@@ -28,5 +28,32 @@ describe('chevron spacing', () => {
   it('stays within readable limits', () => {
     expect(chevronSpacingPx(0)).toBe(3);
     expect(chevronSpacingPx(180)).toBe(18);
+  });
+});
+
+describe('guide direction', () => {
+  // A target higher in the sky than where the view points.
+  const above = { x: 0, y: 1 };
+  // A target to the right of where the view points.
+  const right = { x: 1, y: 0 };
+
+  it('points up and right on the sky map', () => {
+    expect(guideAngleDeg(above.x, above.y, 1, 1, 0)).toBeCloseTo(0, 9);
+    expect(guideAngleDeg(right.x, right.y, 1, 1, 0)).toBeCloseTo(90, 9);
+  });
+
+  it('points the other way in a Newtonian, which turns the image upside down', () => {
+    expect(guideAngleDeg(above.x, above.y, -1, -1, 0)).toBeCloseTo(180, 9);
+    expect(guideAngleDeg(right.x, right.y, -1, -1, 0)).toBeCloseTo(270, 9);
+  });
+
+  it('swaps left and right with a diagonal, which mirrors the image', () => {
+    expect(guideAngleDeg(above.x, above.y, -1, 1, 0)).toBeCloseTo(0, 9);
+    expect(guideAngleDeg(right.x, right.y, -1, 1, 0)).toBeCloseTo(270, 9);
+  });
+
+  it('turns with the phone on the sky map', () => {
+    // Turning the phone anticlockwise puts "up the sky" to the phone's right.
+    expect(guideAngleDeg(above.x, above.y, 1, 1, -90)).toBeCloseTo(90, 9);
   });
 });

@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { IonIcon, IonLabel, IonTabBar, IonTabButton, IonTabs } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { calendarOutline, planetOutline, searchOutline, settingsOutline } from 'ionicons/icons';
@@ -7,8 +7,25 @@ import { calendarOutline, planetOutline, searchOutline, settingsOutline } from '
 @Component({
   selector: 'app-tabs',
   imports: [IonIcon, IonLabel, IonTabBar, IonTabButton, IonTabs],
+  styles: `
+    /*
+     * On the Sky tab the tab bar floats over the map, see-through, instead of taking
+     * space from it. The sky page reads the height to keep its target bar above it.
+     */
+    ion-tabs.over-map {
+      --af-tab-bar-height: calc(56px + var(--ion-safe-area-bottom, 0px));
+    }
+    ion-tabs.over-map ion-tab-bar {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      --background: rgb(13 18 32 / 35%);
+      --border: none;
+    }
+  `,
   template: `
-    <ion-tabs>
+    <ion-tabs [class.over-map]="tab() === 'sky'" (ionTabsDidChange)="tab.set($event.tab)">
       <ion-tab-bar slot="bottom">
         <ion-tab-button tab="sky">
           <ion-icon name="planet-outline" aria-hidden="true"></ion-icon>
@@ -31,6 +48,9 @@ import { calendarOutline, planetOutline, searchOutline, settingsOutline } from '
   `,
 })
 export class TabsPage {
+  /** The tab on show, so the Sky tab can lay the tab bar over its map. */
+  protected readonly tab = signal('sky');
+
   constructor() {
     addIcons({ calendarOutline, planetOutline, searchOutline, settingsOutline });
   }
