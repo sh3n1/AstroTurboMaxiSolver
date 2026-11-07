@@ -19,6 +19,8 @@ import {
   add,
   closeCircle,
   compassOutline,
+  contractOutline,
+  expandOutline,
   eyeOutline,
   informationCircleOutline,
   locateOutline,
@@ -47,9 +49,11 @@ import {
   trueFieldDeg,
   viewBasis,
 } from '../core/astronomy';
+import type { ConstellationRow } from '../core/constellations';
 import { designationText, designations } from '../core/designations';
 import type { Equipment } from '../core/equipment';
 import { equipmentLabel, sameEquipment } from '../core/equipment';
+import { FullscreenService } from '../core/fullscreen.service';
 import { LiveSolverService } from '../core/live-solver.service';
 import { chevronSpacingPx, guideAngleDeg, pulseOpacity } from '../core/reticle';
 import { SensorService } from '../core/sensor.service';
@@ -74,13 +78,6 @@ interface Constellation {
   name: string;
   label: Vector3;
   lines: Vector3[][];
-}
-
-/** How the data file stores a constellation, as [right ascension, declination] pairs. */
-interface ConstellationRow {
-  name: string;
-  label: [number, number];
-  lines: [number, number][][];
 }
 
 interface Box {
@@ -200,6 +197,8 @@ function magnitudeLimit(fieldDeg: number): number {
 /** Hides fainter labelled objects in wide views, where they would crowd the map. */
 function isShownAtField(target: Target, fieldDeg: number): boolean {
   if (target.body) return true;
+  // The map already writes each constellation's name among its lines.
+  if (target.kind === 'Constellation') return false;
   if (target.kind === 'Star') return target.mag <= (fieldDeg >= 60 ? 1.5 : fieldDeg >= 25 ? 3 : 5);
   // Messier objects are the familiar showpieces, so they appear sooner. The thousands
   // of NGC and IC objects only appear once zoomed in on them.
@@ -277,6 +276,17 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
     .controls ion-fab-button.good {
       --color: #6fcf9f;
     }
+    /*
+     * At night every colour becomes red by its brightness, so the green of a button that
+     * is on would turn a weaker red than the white of one that is off. Buttons that are
+     * on get a full-strength icon and a lit ring and fill instead, so they stand out.
+     */
+    :host-context(html.night) .controls ion-fab-button.on {
+      --color: #ffffff;
+      --background: #6b6b6b;
+      --border-color: #ffffff;
+      --border-width: 2px;
+    }
     /* Words for screen readers, since the buttons only show icons. */
     .visually-hidden {
       position: absolute;
@@ -286,12 +296,10 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
       clip-path: inset(50%);
       white-space: nowrap;
     }
+    /* A sensor problem, in a small box at the bottom, just above the tab bar. */
     .message {
-      position: absolute;
-      top: 45%;
-      left: 16px;
-      right: 16px;
-      padding: 8px 12px;
+      margin-top: 6px;
+      padding: 6px 10px;
       border-radius: 10px;
       background: rgb(10 14 28 / 85%);
       color: #ffb454;
@@ -433,16 +441,16 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
           @if (state.sensorsActive() && !sensors.hasCompass()) {
             No compass<br />
           }
-          Alt {{ state.pointing().altDeg | number: '1.0-0' }}°, az {{ state.pointing().azDeg | number: '1.0-0' }}°<br />
+          Alt {{ state.pointing().altDeg | number: '1.0-0' }}° Az {{ state.pointing().azDeg | number: '1.0-0' }}°<br />
           <!-- Hidden unless chosen in Settings, since most observers steer by the map, not coordinates. -->
           @if (state.settings().showEquatorial) {
             <span data-testid="equatorial">RA {{ pointingRa() }}, Dec {{ pointingDec() }}</span>
             <br />
           }
           @if (mode() === 'eyepiece') {
-            {{ power() | number: '1.0-0' }}× · {{ eyepieceField() | number: '1.1-2' }}° field
+            {{ power() | number: '1.0-0' }}× · FOV {{ eyepieceField() | number: '1.1-2' }}°
           } @else {
-            {{ fieldDeg() | number: '1.0-0' }}° wide
+            FOV {{ fieldDeg() | number: '1.0-0' }}°
           }
         </div>
 
@@ -452,6 +460,7 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
             size="small"
             data-testid="sensor-toggle"
             [class.good]="state.sensorsActive()"
+            [class.on]="state.sensorsActive()"
             (click)="toggleSensors()"
           >
             <ion-icon name="compass-outline" aria-hidden="true"></ion-icon>
@@ -467,12 +476,13 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
             <ion-icon [name]="mode() === 'sky' ? 'eye-outline' : 'map-outline'" aria-hidden="true"></ion-icon>
             <span class="visually-hidden">{{ mode() === 'sky' ? 'Eyepiece view' : 'Sky map' }}</span>
           </ion-fab-button>
-          <!-- Green once aligned by plate solving, amber when not aligned or only roughly. -->
+          <!-- Green once aligned, amber until then. The Align page says if it was only rough. -->
           <ion-fab-button
             size="small"
             data-testid="alignment-status"
-            [class.good]="state.alignment()?.method === 'plate-solve'"
-            [class.warn]="state.alignment()?.method !== 'plate-solve'"
+            [class.good]="state.alignment()"
+            [class.warn]="!state.alignment()"
+            [class.on]="state.alignment()"
             (click)="openAlignment()"
           >
             <ion-icon name="locate-outline" aria-hidden="true"></ion-icon>
@@ -484,21 +494,34 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
               }
             </span>
           </ion-fab-button>
+          <!-- Full screen hides the browser bars. Not offered where the browser can't, as on iPhones. -->
+          @if (fullscreen.supported) {
+            <ion-fab-button
+              size="small"
+              data-testid="fullscreen-toggle"
+              [attr.aria-pressed]="fullscreen.active()"
+              [class.on]="fullscreen.active()"
+              (click)="fullscreen.toggle()"
+            >
+              <ion-icon
+                [name]="fullscreen.active() ? 'contract-outline' : 'expand-outline'"
+                aria-hidden="true"
+              ></ion-icon>
+              <span class="visually-hidden">Full screen</span>
+            </ion-fab-button>
+          }
           <!-- Red night mode, at hand while observing. Red when on, like everything else then. -->
           <ion-fab-button
             size="small"
             data-testid="night-toggle"
             [attr.aria-pressed]="state.settings().nightMode"
+            [class.on]="state.settings().nightMode"
             (click)="state.updateSettings({ nightMode: !state.settings().nightMode })"
           >
             <ion-icon name="moon-outline" aria-hidden="true"></ion-icon>
             <span class="visually-hidden">Red night mode</span>
           </ion-fab-button>
         </div>
-
-        @if (sensors.error(); as message) {
-          <div class="message" data-testid="sensor-error">{{ message }}</div>
-        }
 
         <div class="dock">
           <!-- Location sits bottom left and zoom bottom right, just above whatever boxes are open below. -->
@@ -689,6 +712,10 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
               }
             </div>
           }
+          <!-- Last, just above the tab bar, so it is seen without covering the sky. -->
+          @if (sensors.error(); as message) {
+            <div class="message" data-testid="sensor-error">{{ message }}</div>
+          }
         </div>
       </div>
     </ion-content>
@@ -697,6 +724,7 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
 export class SkyPage implements AfterViewInit, OnDestroy {
   protected readonly state = inject(AppState);
   protected readonly sensors = inject(SensorService);
+  protected readonly fullscreen = inject(FullscreenService);
   protected readonly liveSolver = inject(LiveSolverService);
   private readonly router = inject(Router);
   private readonly toasts = inject(ToastController);
@@ -812,6 +840,8 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       add,
       closeCircle,
       compassOutline,
+      contractOutline,
+      expandOutline,
       eyeOutline,
       informationCircleOutline,
       locateOutline,
@@ -1407,6 +1437,8 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       }
       if (isSelected) this.drawTargetMarker(ctx, point, Math.max(6, markerRadius + 3));
 
+      // A constellation's name is already written there, with its lines.
+      if (target.kind === 'Constellation') continue;
       // The map labels each object with its best-known designation, such as C20 for NGC 7000.
       const label = designations(target)[0];
       // Skip a label that would overlap one already drawn.

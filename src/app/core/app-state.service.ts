@@ -13,6 +13,8 @@ import {
 } from './astronomy';
 import type { CaldwellData } from './caldwell';
 import { joinCaldwell } from './caldwell';
+import { constellationTargets } from './constellations';
+import type { ConstellationRow } from './constellations';
 import type { Equipment, TelescopeType } from './equipment';
 import { EQUIPMENT_KEYS, rememberEquipment } from './equipment';
 import { telescopeLimit } from './sky-quality';
@@ -226,6 +228,7 @@ export class AppState {
     void this.loadCatalog('assets/data/targets.json');
     void this.loadCatalog('assets/data/openngc.json');
     void this.loadCaldwell();
+    void this.loadConstellations();
     effect(() => save(SETTINGS_KEY, this.settings()));
     effect(() => save(ALIGNMENT_KEY, { value: this.alignment() }));
     // CSS in global.scss turns the whole app red when this class is present.
@@ -296,6 +299,17 @@ export class AppState {
       this.catalog.update((current) => [...current, ...targets]);
     } catch {
       // Planets and the Moon still work without the catalogue files.
+    }
+  }
+
+  /** Adds the constellations as targets. Without them, every object still works. */
+  private async loadConstellations(): Promise<void> {
+    try {
+      const response = await fetch('assets/data/constellations.json');
+      const targets = constellationTargets((await response.json()) as ConstellationRow[]);
+      this.catalog.update((current) => [...current, ...targets]);
+    } catch {
+      // Searching for objects works the same without them.
     }
   }
 

@@ -2,7 +2,7 @@
   "name": "AstroFinder",
   "short_name": "AstroFinder",
   "description": "Smartphone telescope finder using plate solving and sensor fusion",
-  "display": "standalone",
+  "display": "fullscreen",
   "scope": "./",
   "start_url": "./",
   "theme_color": "#0b1026",

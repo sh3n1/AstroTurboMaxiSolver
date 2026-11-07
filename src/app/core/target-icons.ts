@@ -82,6 +82,22 @@ const NEBULA: IconPath[] = [
   { d: 'M17.6 15.4L18.24 16.76L19.6 17.4L18.24 18.04L17.6 19.4L16.96 18.04L15.6 17.4L16.96 16.76Z', fill: true },
 ];
 
+/** A constellation: a few stars joined by lines, like a figure on a star chart. */
+function constellation(): IconPath[] {
+  const stars: [number, number][] = [
+    [3.5, 17],
+    [8, 13.5],
+    [12.5, 15],
+    [15.5, 9.5],
+    [20.5, 7],
+    [19.5, 17.5],
+  ];
+  // The figure's lines join the stars in order, with a branch from the middle star.
+  const figure = [stars.slice(0, 5), [stars[3], stars[5]]].map((points) => ({ d: polyline(points) }));
+  return [...figure, ...stars.map(([x, y]) => ({ d: circle(x, y, 1.3), fill: true }))];
+}
+const CONSTELLATION = constellation();
+
 /**
  * Saturn: a smaller disc inside tilted rings. The far half of the rings is hidden
  * behind the disc, and the near half crosses in front of it.
@@ -176,6 +192,7 @@ export function targetIcon(target: Target): IconPath[] | null {
   if (target.body) return PLANETS[target.body] ?? null;
   if (target.kind === 'Galaxy') return GALAXY;
   if (target.kind === 'Nebula') return NEBULA;
+  if (target.kind === 'Constellation') return CONSTELLATION;
   return null;
 }
 
