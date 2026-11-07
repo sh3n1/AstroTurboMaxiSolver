@@ -6,6 +6,7 @@ import {
   bearingInViewDeg,
   compassPoint,
   equatorialVector,
+  compassShort,
   formatDec,
   formatLocation,
   formatRa,
@@ -152,6 +153,13 @@ describe('astronomy', () => {
       expect(formatDec(38.78)).toBe('+38° 47′');
       expect(formatDec(-5.5)).toBe('−5° 30′');
       expect(formatDec(-0.001)).toBe('+0° 00′');
+    });
+
+    it('names compass directions with letters', () => {
+      expect(compassShort(0)).toBe('N');
+      expect(compassShort(140)).toBe('SE');
+      expect(compassShort(-30)).toBe('NW');
+      expect(compassShort(359)).toBe('N');
     });
 
     it('formats a location with compass letters', () => {

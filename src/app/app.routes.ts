@@ -7,7 +7,10 @@ export const routes: Routes = [
     children: [
       { path: 'sky', loadComponent: () => import('./pages/sky.page').then((m) => m.SkyPage) },
       { path: 'targets', loadComponent: () => import('./pages/targets.page').then((m) => m.TargetsPage) },
-      { path: 'plan', loadComponent: () => import('./pages/plan.page').then((m) => m.PlanPage) },
+      { path: 'lists', loadComponent: () => import('./pages/lists.page').then((m) => m.ListsPage) },
+      { path: 'lists/:id', loadComponent: () => import('./pages/list.page').then((m) => m.ListPage) },
+      // The Bookmarks tab replaced the session plan.
+      { path: 'plan', redirectTo: 'lists', pathMatch: 'full' },
       { path: 'settings', loadComponent: () => import('./pages/settings.page').then((m) => m.SettingsPage) },
       { path: '', redirectTo: 'sky', pathMatch: 'full' },
     ],

@@ -158,12 +158,6 @@ test('filters targets by type', async ({ page }) => {
   await expect(page.locator('app-targets ion-item', { hasText: 'Vega' })).toHaveCount(0);
 });
 
-test('shows tonight in the session plan', async ({ page }) => {
-  await page.goto('/tabs/plan');
-  await expect(page.locator('[data-testid=conditions]')).toContainText('Darkness');
-  await expect(page.locator('[data-testid=conditions]')).toContainText('% lit');
-});
-
 test('finds catalogue objects by name and other designation', async ({ page }) => {
   await page.goto('/tabs/targets');
   const search = page.locator('app-targets ion-searchbar input');
@@ -195,6 +189,39 @@ test('finds catalogue objects by name and other designation', async ({ page }) =
   await expect(rows.first()).toContainText('NGC 7000');
   await search.fill('IC 434');
   await expect(rows.first()).toContainText('IC 434');
+});
+
+test('shows how high a target is and which way to face', async ({ page }) => {
+  // Polaris stays above the north pole of the sky: due north, as high as the latitude.
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      'astrofinder.settings',
+      JSON.stringify({ latitudeDeg: 40, longitudeDeg: 0, locationSet: true }),
+    ),
+  );
+  await page.goto('/tabs/targets');
+  await page.locator('app-targets ion-searchbar input').fill('Polaris');
+  const badge = page
+    .locator('app-targets ion-item', { hasText: 'Polaris' })
+    .first()
+    .locator('[data-testid=sky-position]');
+  await expect(badge).toHaveText(/^(39|40|41)° N$/);
+  await expect(badge).toHaveAttribute('aria-label', /° up, to the north$/);
+});
+
+test('marks a target below the horizon with a crossed-out eye', async ({ page }) => {
+  // Near the North Pole, Canopus far in the southern sky never rises, at any time.
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      'astrofinder.settings',
+      JSON.stringify({ latitudeDeg: 85, longitudeDeg: 0, locationSet: true }),
+    ),
+  );
+  await page.goto('/tabs/targets');
+  await page.locator('app-targets ion-searchbar input').fill('Canopus');
+  const row = page.locator('app-targets ion-item', { hasText: 'Canopus' }).first();
+  await expect(row.locator('[data-testid=below-horizon]')).toHaveAttribute('aria-label', 'Below the horizon');
+  await expect(row.locator('ion-badge')).toHaveCount(0);
 });
 
 test('lists the planets and the Moon', async ({ page }) => {

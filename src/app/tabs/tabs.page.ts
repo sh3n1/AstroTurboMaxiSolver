@@ -1,7 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { IonIcon, IonLabel, IonTabBar, IonTabButton, IonTabs } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { calendarOutline, planetOutline, searchOutline, settingsOutline } from 'ionicons/icons';
+import { bookmarksOutline, planetOutline, searchOutline, settingsOutline } from 'ionicons/icons';
 
 /** The app's main navigation. */
 @Component({
@@ -35,9 +35,9 @@ import { calendarOutline, planetOutline, searchOutline, settingsOutline } from '
           <ion-icon name="search-outline" aria-hidden="true"></ion-icon>
           <ion-label>Targets</ion-label>
         </ion-tab-button>
-        <ion-tab-button tab="plan">
-          <ion-icon name="calendar-outline" aria-hidden="true"></ion-icon>
-          <ion-label>Plan</ion-label>
+        <ion-tab-button tab="lists">
+          <ion-icon name="bookmarks-outline" aria-hidden="true"></ion-icon>
+          <ion-label>Bookmarks</ion-label>
         </ion-tab-button>
         <ion-tab-button tab="settings">
           <ion-icon name="settings-outline" aria-hidden="true"></ion-icon>
@@ -52,6 +52,6 @@ export class TabsPage {
   protected readonly tab = signal('sky');
 
   constructor() {
-    addIcons({ calendarOutline, planetOutline, searchOutline, settingsOutline });
+    addIcons({ bookmarksOutline, planetOutline, searchOutline, settingsOutline });
   }
 }
