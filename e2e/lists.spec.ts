@@ -92,7 +92,7 @@ test('imports a list file, and refuses one that is not a list', async ({ page })
   );
 });
 
-test('renames and deletes a list, but never deletes Uncategorized', async ({ page }) => {
+test('renames and deletes a list, but never renames or deletes Uncategorized', async ({ page }) => {
   await page.goto('/tabs/lists');
   await page.locator('[data-testid=new-list]').click();
   await page.locator('ion-alert input').fill('Doubles');
@@ -113,9 +113,10 @@ test('renames and deletes a list, but never deletes Uncategorized', async ({ pag
   await page.locator('ion-alert button', { hasText: 'Delete' }).click();
   await expect(listLink(page, 'Double stars')).toHaveCount(0);
 
-  // Uncategorized can be renamed but offers no delete.
+  // Uncategorized offers neither rename nor delete.
   await listLink(page, 'Uncategorized').click();
   await page.locator('[data-testid=list-actions]').click();
-  await expect(page.locator('ion-action-sheet button', { hasText: 'Rename' })).toBeVisible();
+  await expect(page.locator('ion-action-sheet button', { hasText: 'Save as a file' })).toBeVisible();
+  await expect(page.locator('ion-action-sheet button', { hasText: 'Rename' })).toHaveCount(0);
   await expect(page.locator('ion-action-sheet button', { hasText: 'Delete list' })).toHaveCount(0);
 });

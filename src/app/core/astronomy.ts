@@ -112,6 +112,11 @@ export function compassPoint(azDeg: number): string {
   return names[Math.round(normalizeDeg(azDeg) / 45) % 8];
 }
 
+/** The same compass direction as letters, such as "SE", short enough for a badge. */
+export function compassShort(azDeg: number): string {
+  return ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(normalizeDeg(azDeg) / 45) % 8];
+}
+
 /** Orientation of a view looking at a pointing, with the horizon level. */
 export function viewBasis(pointing: Horizontal): ViewBasis {
   const forward = horizontalVector(pointing);

@@ -107,10 +107,6 @@ import { exportFileName, exportLists } from '../core/target-lists';
                 <strong>Moon: </strong>{{ conditions().moonIlluminatedPercent | number: '1.0-0' }}% lit,
                 {{ conditions().moonAltDeg > 0 ? 'up now' : 'below the horizon' }}
               </p>
-              <p>
-                Heights below are for
-                {{ conditions().darkFrom ? 'when it gets dark, at ' + (tonightTime() | date: 'HH:mm') : 'now' }}.
-              </p>
             </ion-card-content>
           </ion-card>
         }
@@ -179,7 +175,10 @@ export class ListPage {
     if (result === 'saved') void this.toast('Saved as a file in your downloads');
   }
 
-  /** What can be done with this list. The app's own lists can only be shared or copied. */
+  /**
+   * What can be done with this list. The app's own lists can only be shared or copied.
+   * Uncategorized keeps its name and can't be deleted: only what's in it changes.
+   */
   protected async actions(): Promise<void> {
     const list = this.list();
     if (!list) return;
@@ -188,10 +187,9 @@ export class ListPage {
     ];
     if (list.kind === 'fixed') {
       buttons.push({ text: 'Make an editable copy', icon: 'copy-outline', handler: () => this.copy() });
-    } else {
-      buttons.push({ text: 'Rename', icon: 'create-outline', handler: () => void this.rename() });
     }
     if (list.kind === 'custom') {
+      buttons.push({ text: 'Rename', icon: 'create-outline', handler: () => void this.rename() });
       buttons.push({
         text: 'Delete list',
         icon: 'trash-outline',

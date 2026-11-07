@@ -29,7 +29,7 @@ const TONIGHT_MAG_LIMIT = 10; // Fainter objects are very hard to find from a ci
 export interface ListView {
   id: string;
   name: string;
-  /** Fixed lists are made by the app. Uncategorized can be renamed but not deleted. */
+  /** Fixed lists are made by the app. Uncategorized can't be renamed or deleted, only filled. */
   kind: 'fixed' | 'uncategorized' | 'custom';
   targets: Target[];
 }
@@ -138,7 +138,9 @@ export class ListsService {
     return id;
   }
 
+  /** Renames one of the user's lists. Uncategorized always keeps its name. */
   rename(listId: string, name: string): void {
+    if (listId === UNCATEGORIZED_ID) return;
     const others = this.editableLists().filter((l) => l.id !== listId);
     const unique = uniqueName(
       name,
