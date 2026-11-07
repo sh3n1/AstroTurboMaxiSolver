@@ -4,7 +4,9 @@ import type { Horizontal, Vector3 } from './astronomy';
 import {
   equatorialToHorizontal,
   horizontalVector,
+  hoursUntilRise,
   litOnRight,
+  nextBodyRise,
   localToEquatorial,
   skyConditions,
   skyRotation,
@@ -17,8 +19,9 @@ import { constellationTargets } from './constellations';
 import type { ConstellationRow } from './constellations';
 import type { Equipment, TelescopeType } from './equipment';
 import { EQUIPMENT_KEYS, rememberEquipment } from './equipment';
+import { MINOR_PLANETS, minorPlanet } from './minor-planets';
 import { telescopeLimit } from './sky-quality';
-import type { Target } from './targets';
+import type { Target, TargetKind } from './targets';
 import { PHASED_BODIES, SOLAR_SYSTEM_BODIES } from './targets';
 
 export type { TelescopeType } from './equipment';
@@ -126,6 +129,13 @@ function save(key: string, value: unknown): void {
   }
 }
 
+/** What kind of body each moving target is, as shown in lists and details. */
+function bodyKind(body: string): TargetKind {
+  if (body === 'Moon') return 'Moon';
+  if (body === 'Pluto') return 'Dwarf planet';
+  return minorPlanet(body)?.kind ?? 'Planet';
+}
+
 /** Shared app state, kept in signals so every page updates automatically. */
 @Injectable({ providedIn: 'root' })
 export class AppState {
@@ -178,12 +188,14 @@ export class AppState {
   readonly targets = computed<Target[]>(() => {
     const { latitudeDeg, longitudeDeg } = this.settings();
     const sun = this.sunEquatorial();
-    const solarSystem = SOLAR_SYSTEM_BODIES.map((body): Target => {
+    const bodies = [...SOLAR_SYSTEM_BODIES, ...MINOR_PLANETS.map((planet) => planet.name)];
+    const solarSystem = bodies.map((body): Target => {
       const { raDeg, decDeg, mag, litFraction } = solarSystemPosition(body, this.now(), latitudeDeg, longitudeDeg);
+      const kind = bodyKind(body);
       return {
         id: body,
-        name: body === 'Moon' ? "Earth's Moon" : 'Planet',
-        kind: body === 'Moon' ? 'Moon' : 'Planet',
+        name: body === 'Moon' ? "Earth's Moon" : kind,
+        kind,
         ...(body === 'Moon' ? { sizeArcmin: 31 } : {}),
         body,
         raDeg,
@@ -293,6 +305,17 @@ export class AppState {
   /** Where a target is right now from the user's location, to the second. */
   positionOf(target: Pick<Target, 'raDeg' | 'decDeg'>): Horizontal {
     return equatorialToHorizontal(this.skyRotation(), target.raDeg, target.decDeg);
+  }
+
+  /**
+   * When a target below the horizon next rises, from a given time, or null if it won't
+   * within a day. Fixed objects either rise within a day or never do from here.
+   */
+  nextRise(target: Pick<Target, 'raDeg' | 'decDeg' | 'body'>, from: Date): Date | null {
+    const { latitudeDeg, longitudeDeg } = this.settings();
+    if (target.body) return nextBodyRise(target.body, from, latitudeDeg, longitudeDeg);
+    const hours = hoursUntilRise(this.positionAt(target, from), latitudeDeg);
+    return hours === null ? null : new Date(from.getTime() + hours * 3_600_000);
   }
 
   /** Where a target will be at a given time from the user's location. */

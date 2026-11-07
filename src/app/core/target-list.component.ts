@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { IonBadge, IonButton, IonIcon, IonItem, IonLabel, IonList, ModalController } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
+  arrowUpOutline,
   bookmark,
   bookmarkOutline,
   ellipsisHorizontalOutline,
@@ -19,16 +20,24 @@ import { compassPoint, compassShort } from './astronomy';
 import { BookmarkSheetComponent } from './bookmark-sheet.component';
 import { designationText } from './designations';
 import { ListsService } from './lists.service';
+import { LocalTimePipe } from './local-time.pipe';
+import { SensorService } from './sensor.service';
 import { iconDataUrl, targetIcon } from './target-icons';
 import type { Target, TargetKind } from './targets';
 
 /** Standard icons for the kinds without one of AstroFinder's own, in target-icons.ts. */
-const KIND_ICONS: Record<Exclude<TargetKind, 'Galaxy' | 'Nebula' | 'Constellation' | 'Planet' | 'Moon'>, string> = {
+const KIND_ICONS: Record<
+  Exclude<TargetKind, 'Galaxy' | 'Nebula' | 'Constellation' | 'Planet' | 'Dwarf planet' | 'Asteroid' | 'Moon'>,
+  string
+> = {
   Other: 'ellipsis-horizontal-outline',
   'Open cluster': 'sparkles-outline',
   'Globular cluster': 'ellipse-outline',
   Star: 'star-outline',
 };
+
+/** Rise times kept at once. Lists show at most a few hundred targets. */
+const MAX_CACHED_RISES = 2000;
 
 // Below this altitude, targets are dimmed by the atmosphere and hidden by buildings.
 const GOOD_ALTITUDE_DEG = 30;
@@ -36,12 +45,22 @@ const GOOD_ALTITUDE_DEG = 30;
 /** A list of targets, used by both the Targets and Plan tabs. */
 @Component({
   selector: 'app-target-list',
-  imports: [DecimalPipe, IonBadge, IonButton, IonIcon, IonItem, IonLabel, IonList],
+  imports: [DecimalPipe, LocalTimePipe, IonBadge, IonButton, IonIcon, IonItem, IonLabel, IonList],
   styles: `
     /* Sits where the height badge would be, in the quieter text colour. */
     .below-horizon {
       color: var(--af-muted);
       font-size: 26px;
+    }
+    /* A rise time, in the same quieter colour, with a small up arrow before it. */
+    .rises {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      color: var(--af-muted);
+      font-size: calc(15px * var(--af-scale, 1));
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
     }
   `,
   template: `
@@ -81,8 +100,18 @@ const GOOD_ALTITUDE_DEG = 30;
               [attr.aria-label]="(altDeg | number: '1.0-0') + '° up, to the ' + compassPoint(position.azDeg)"
               >{{ altDeg | number: '1.0-0' }}° {{ compassShort(position.azDeg) }}</ion-badge
             >
+          } @else if (riseOf(target); as rise) {
+            <!-- Below the horizon now, but up within a day: when it rises. -->
+            <span
+              slot="end"
+              class="rises"
+              role="img"
+              data-testid="rises-at"
+              [attr.aria-label]="'Below the horizon, rises at ' + (rise | localTime)"
+              ><ion-icon name="arrow-up-outline" aria-hidden="true"></ion-icon>{{ rise | localTime }}</span
+            >
           } @else {
-            <!-- Below the horizon, so it can't be seen: a crossed-out eye instead of a height. -->
+            <!-- Not up within a day: a crossed-out eye instead of a height. -->
             <ion-icon
               slot="end"
               class="below-horizon"
@@ -117,6 +146,7 @@ export class TargetListComponent {
   protected readonly state = inject(AppState);
   protected readonly goodAltitude = GOOD_ALTITUDE_DEG;
   private readonly router = inject(Router);
+  private readonly sensors = inject(SensorService);
   private readonly modals = inject(ModalController);
   protected readonly lists = inject(ListsService);
 
@@ -126,11 +156,28 @@ export class TargetListComponent {
       bookmarkOutline,
       ellipseOutline,
       eyeOffOutline,
+      arrowUpOutline,
       ellipsisHorizontalOutline,
       sparklesOutline,
       starOutline,
     });
   }
+
+  /**
+   * When a target below the horizon rises, within a day of the list's time. Kept per
+   * time, since the list asks again on every update and the search for planets is slow.
+   */
+  protected riseOf(target: Target): Date | null {
+    const from = this.at() ?? this.state.now();
+    const { latitudeDeg, longitudeDeg } = this.state.settings();
+    const key = `${target.id}|${from.getTime()}|${latitudeDeg}|${longitudeDeg}`;
+    if (!this.riseTimes.has(key)) {
+      if (this.riseTimes.size > MAX_CACHED_RISES) this.riseTimes.clear();
+      this.riseTimes.set(key, this.state.nextRise(target, from));
+    }
+    return this.riseTimes.get(key) ?? null;
+  }
+  private readonly riseTimes = new Map<string, Date | null>();
 
   /** Where the target is in the sky, now or at the list's chosen time. */
   protected positionOf(target: Target): Horizontal {
@@ -164,9 +211,14 @@ export class TargetListComponent {
     await sheet.present();
   }
 
-  /** Selects a target and opens the sky map, where the arrow guides the user to it. */
+  /**
+   * Selects a target and opens the sky map, where the arrow guides the user to it. The
+   * sensors start too, since following the arrow needs them. This tap is what lets the
+   * browser ask for sensor permission, so it happens here rather than on the map.
+   */
   protected aimAt(target: Target): void {
     this.state.selectedTargetId.set(target.id);
+    if (!this.state.sensorsActive()) void this.sensors.start({ automatic: true });
     void this.router.navigateByUrl('/tabs/sky');
   }
 }

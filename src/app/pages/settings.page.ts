@@ -426,9 +426,14 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
             by Natural Atlas, Apache License 2.0.</ion-label
           >
         </ion-item>
-        <ion-item lines="none">
+        <ion-item>
           <ion-label class="ion-text-wrap credit"
-            >Planets, Moon and sky positions by Astronomy Engine, Don Cross.</ion-label
+            >Planets, Pluto, Moon and sky positions by Astronomy Engine, Don Cross.</ion-label
+          >
+        </ion-item>
+        <ion-item lines="none" data-testid="credit-jpl">
+          <ion-label class="ion-text-wrap credit"
+            >Orbits of Ceres, Vesta, Pallas and Juno from the NASA/JPL Small-Body Database.</ion-label
           >
         </ion-item>
       </ion-list>

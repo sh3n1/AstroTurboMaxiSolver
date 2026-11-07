@@ -3,7 +3,17 @@
 // calculated instead. Catalogue positions are J2000.
 
 export type TargetKind =
-  'Galaxy' | 'Nebula' | 'Open cluster' | 'Globular cluster' | 'Star' | 'Constellation' | 'Planet' | 'Moon' | 'Other';
+  | 'Galaxy'
+  | 'Nebula'
+  | 'Open cluster'
+  | 'Globular cluster'
+  | 'Star'
+  | 'Constellation'
+  | 'Planet'
+  | 'Dwarf planet'
+  | 'Asteroid'
+  | 'Moon'
+  | 'Other';
 
 export interface Target {
   id: string;
@@ -16,7 +26,7 @@ export interface Target {
   mag: number;
   /** Apparent size along the longest side, where known. */
   sizeArcmin?: number;
-  /** Set for planets and the Moon, whose positions must be recalculated over time. */
+  /** Set for the Moon, planets, dwarf planets and asteroids, which move among the stars. */
   body?: string;
   /** Set for the Moon and Venus, which show phases that matter at the eyepiece. */
   phase?: TargetPhase;
@@ -33,4 +43,14 @@ export interface TargetPhase {
 export const PHASED_BODIES = ['Moon', 'Venus'];
 
 /** Planets and the Moon, in the names astronomy-engine uses. The Sun is left out for safety. */
-export const SOLAR_SYSTEM_BODIES = ['Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune'];
+export const SOLAR_SYSTEM_BODIES = [
+  'Moon',
+  'Mercury',
+  'Venus',
+  'Mars',
+  'Jupiter',
+  'Saturn',
+  'Uranus',
+  'Neptune',
+  'Pluto',
+];
