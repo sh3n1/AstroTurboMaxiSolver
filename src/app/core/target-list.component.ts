@@ -13,6 +13,7 @@ import {
 } from 'ionicons/icons';
 
 import { AppState } from './app-state.service';
+import { designationText } from './designations';
 import { iconDataUrl, targetIcon } from './target-icons';
 import type { Target, TargetKind } from './targets';
 
@@ -48,7 +49,8 @@ const GOOD_ALTITUDE_DEG = 30;
             [src]="icon ?? undefined"
           ></ion-icon>
           <ion-label>
-            <h2>{{ target.id }}</h2>
+            <!-- Every catalogue number: Messier, then Caldwell, then NGC and IC. -->
+            <h2 data-testid="designations">{{ designationText(target) }}</h2>
             <p>{{ target.name }} · mag {{ target.mag < 90 ? (target.mag | number: '1.1-1') : '?' }}</p>
           </ion-label>
           @if (altDeg > 0) {
@@ -96,6 +98,7 @@ export class TargetListComponent {
     return (at ? this.state.positionAt(target, at) : this.state.positionOf(target)).altDeg;
   }
 
+  protected readonly designationText = designationText;
   protected readonly kindIcons: Partial<Record<TargetKind, string>> = KIND_ICONS;
 
   /** AstroFinder's own icon as an image, or null to use a standard one. */

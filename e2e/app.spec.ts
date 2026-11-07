@@ -11,11 +11,42 @@ test('opens on a close zoom with the sky data loaded', async ({ page }) => {
   const canvas = page.locator('app-sky canvas');
   await expect(canvas).toHaveAttribute('data-field', '20');
   await expect(page.locator('app-sky canvas:not([data-constellation-count="0"])')).toBeAttached();
-  await expect(page.locator('[data-testid=pointing]')).toContainText('RA');
+  await expect(page.locator('[data-testid=pointing]')).toContainText('Alt');
 
   // Zoom changes what the canvas shows.
   await page.locator('[data-testid=zoom-out]').click();
   await expect(canvas).toHaveAttribute('data-field', '30');
+});
+
+test('shows RA and Dec on the sky map only when chosen in Settings', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('[data-testid=pointing]')).toContainText('Alt');
+  await expect(page.locator('[data-testid=equatorial]')).toHaveCount(0);
+
+  await page.getByRole('tab', { name: 'Settings' }).click();
+  await expect(page.locator('[data-testid=show-equatorial]')).toHaveAttribute('aria-checked', 'false');
+  await page.locator('[data-testid=show-equatorial]').click();
+  await page.getByRole('tab', { name: 'Sky' }).click();
+  await expect(page.locator('[data-testid=equatorial]')).toContainText(/RA \d+h \d+m, Dec [+-]\d+°/);
+});
+
+test('shows the location bottom left, only while no target is selected', async ({ page, context }) => {
+  // The test's phone is in Madrid. The app has no location of its own until asked.
+  await context.grantPermissions(['geolocation']);
+  await context.setGeolocation({ latitude: 40.4168, longitude: -3.7038 });
+  await page.goto('/');
+  const location = page.locator('[data-testid=location]');
+  await expect(location).toContainText('Location not set');
+
+  // One tap uses the GPS, rounded to two decimals.
+  await location.click();
+  await expect(location).toHaveText('40.42° N, 3.70° W');
+
+  await page.goto('/tabs/targets');
+  await page.locator('app-targets ion-searchbar input').fill('Vega');
+  await page.locator('app-targets ion-item', { hasText: 'Vega' }).first().click();
+  await expect(page.locator('[data-testid=target-bar]')).toBeVisible();
+  await expect(page.locator('[data-testid=location]')).toHaveCount(0);
 });
 
 test('shows target details from the target bar', async ({ page }) => {
@@ -143,6 +174,19 @@ test('finds catalogue objects by name and other designation', async ({ page }) =
   await expect(rows.first()).toContainText('M1');
   await search.fill('NGC 224');
   await expect(rows.first()).toContainText('M31');
+  // The space between a catalogue and its number is optional.
+  await search.fill('ngc224');
+  await expect(rows.first()).toContainText('M31');
+  await search.fill('m 31');
+  await expect(rows.first()).toContainText('M31');
+  // Every catalogue number shows, Messier first.
+  await expect(rows.first().locator('[data-testid=designations]')).toHaveText('M31 · NGC 224');
+
+  // Caldwell numbers are searchable, and come before the NGC number.
+  await search.fill('C20');
+  await expect(rows.first().locator('[data-testid=designations]')).toHaveText('C20 · NGC 7000');
+  await search.fill('c 41');
+  await expect(rows.first()).toContainText('Hyades');
   // M31 is only listed once, under its Messier name.
   await expect(page.locator('app-targets ion-item h2', { hasText: /^NGC 224$/ })).toHaveCount(0);
 
@@ -213,8 +257,8 @@ test('sets star visibility and equipment in the eyepiece view', async ({ page })
   await page.locator('[data-testid=view-mode]').click();
   const label = page.locator('[data-testid=star-limit-label]');
 
-  // A city sky, class 8, with the default 130 mm telescope.
-  await expect(label).toContainText('10.6');
+  // A suburban sky, class 5 by default, with the default 130 mm telescope.
+  await expect(label).toContainText('12.1');
   await expect(label).toContainText('your sky');
   // The faint stars load once the eyepiece view opens.
   await expect(page.locator('app-sky canvas')).toHaveAttribute('data-star-count', '118216');
@@ -227,19 +271,19 @@ test('sets star visibility and equipment in the eyepiece view', async ({ page })
   await expect(label).toContainText('7.0');
   await expect(label).not.toContainText('your sky');
   await page.locator('[data-testid=reset-star-limit]').click();
-  await expect(label).toContainText('10.6');
+  await expect(label).toContainText('12.1');
 
   // A bigger aperture shows fainter stars, and both combinations are remembered.
   await page.locator('[data-testid=equipment-toggle]').click();
   const aperture = page.locator('[data-testid=aperture] input:not([disabled])');
   await aperture.fill('200');
   await aperture.blur();
-  await expect(label).toContainText('11.6');
+  await expect(label).toContainText('13.1');
   await expect(page.locator('[data-testid=recent-equipment]')).toHaveCount(2);
 
   // One tap returns to the earlier combination.
   await page.locator('[data-testid=recent-equipment]', { hasText: '130/650' }).click();
-  await expect(label).toContainText('10.6');
+  await expect(label).toContainText('12.1');
 });
 
 test('sets sky darkness in Settings, which changes the eyepiece view', async ({ page }) => {

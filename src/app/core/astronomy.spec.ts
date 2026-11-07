@@ -7,6 +7,7 @@ import {
   compassPoint,
   equatorialVector,
   formatDec,
+  formatLocation,
   formatRa,
   localToEquatorial,
   rotateInView,
@@ -151,6 +152,11 @@ describe('astronomy', () => {
       expect(formatDec(38.78)).toBe('+38° 47′');
       expect(formatDec(-5.5)).toBe('−5° 30′');
       expect(formatDec(-0.001)).toBe('+0° 00′');
+    });
+
+    it('formats a location with compass letters', () => {
+      expect(formatLocation(39.47, -0.38)).toBe('39.47° N, 0.38° W');
+      expect(formatLocation(-33.87, 151.21)).toBe('33.87° S, 151.21° E');
     });
   });
 

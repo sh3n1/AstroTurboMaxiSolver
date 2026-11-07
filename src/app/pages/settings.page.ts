@@ -71,6 +71,15 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
         </ion-item>
         <ion-item>
           <ion-toggle
+            data-testid="show-equatorial"
+            [checked]="settings().showEquatorial"
+            (ionChange)="state.updateSettings({ showEquatorial: $any($event).detail.checked })"
+          >
+            Show RA and Dec on the sky map
+          </ion-toggle>
+        </ion-item>
+        <ion-item>
+          <ion-toggle
             data-testid="night-mode"
             [checked]="settings().nightMode"
             (ionChange)="state.updateSettings({ nightMode: $any($event).detail.checked })"
@@ -120,7 +129,8 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
         </ion-item>
         <ion-item>
           <ion-note class="ion-text-wrap">
-            Sets how faint the eyepiece view shows stars. Central Valencia measures about class 8 to 9.
+            Sets how faint the eyepiece view shows stars. Class 1 is a remote dark site, 4 to 5 is countryside near a
+            town or the suburbs, and 8 to 9 is a city centre.
           </ion-note>
         </ion-item>
 
@@ -230,6 +240,9 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
           <ion-label class="ion-text-wrap">Messier data by H. Frommert, seds.org, via d3-celestial.</ion-label>
         </ion-item>
         <ion-item>
+          <ion-label class="ion-text-wrap">Caldwell catalogue compiled by Sir Patrick Moore.</ion-label>
+        </ion-item>
+        <ion-item>
           <ion-label class="ion-text-wrap">Planets, Moon and sky positions by Astronomy Engine, Don Cross.</ion-label>
         </ion-item>
       </ion-list>
@@ -250,7 +263,8 @@ export class SettingsPage {
     const raw = (event as CustomEvent<{ value?: string | null }>).detail.value;
     const value = Number(raw);
     if (raw !== '' && raw != null && Number.isFinite(value) && value >= min && value <= max) {
-      this.state.updateSettings({ [key]: value } as Partial<Settings>);
+      // A typed location counts as set, just like one from GPS.
+      this.state.updateSettings({ [key]: value, locationSet: true } as Partial<Settings>);
     }
   }
 
@@ -262,22 +276,8 @@ export class SettingsPage {
     void this.router.navigateByUrl('/align');
   }
 
-  protected useGps(): void {
-    if (!('geolocation' in navigator)) {
-      this.gpsMessage.set('Not available on this device');
-      return;
-    }
+  protected async useGps(): Promise<void> {
     this.gpsMessage.set('Finding location…');
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => {
-        this.state.updateSettings({
-          latitudeDeg: Number(coords.latitude.toFixed(2)),
-          longitudeDeg: Number(coords.longitude.toFixed(2)),
-        });
-        this.gpsMessage.set('Location updated');
-      },
-      () => this.gpsMessage.set('Location unavailable'),
-      { timeout: 15_000 },
-    );
+    this.gpsMessage.set(await this.state.locateWithGps());
   }
 }

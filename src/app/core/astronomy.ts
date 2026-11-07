@@ -234,6 +234,13 @@ export function formatRa(raDeg: number): string {
   return `${Math.floor(totalMinutes / 60)}h ${String(totalMinutes % 60).padStart(2, '0')}m`;
 }
 
+/** A place on Earth as compass-labelled degrees, such as "39.47° N, 0.38° W". */
+export function formatLocation(latitudeDeg: number, longitudeDeg: number): string {
+  const part = (value: number, positive: string, negative: string): string =>
+    `${Math.abs(value).toFixed(2)}° ${value >= 0 ? positive : negative}`;
+  return `${part(latitudeDeg, 'N', 'S')}, ${part(longitudeDeg, 'E', 'W')}`;
+}
+
 /** Declination as degrees and minutes, such as "+38° 47′". */
 export function formatDec(decDeg: number): string {
   const totalMinutes = Math.round(Math.abs(decDeg) * 60);

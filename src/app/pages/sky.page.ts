@@ -35,6 +35,7 @@ import {
   azimuthChangeDeg,
   equatorialVector,
   formatDec,
+  formatLocation,
   formatRa,
   horizontalVector,
   magnification,
@@ -46,6 +47,7 @@ import {
   trueFieldDeg,
   viewBasis,
 } from '../core/astronomy';
+import { designationText, designations } from '../core/designations';
 import type { Equipment } from '../core/equipment';
 import { equipmentLabel, sameEquipment } from '../core/equipment';
 import { LiveSolverService } from '../core/live-solver.service';
@@ -351,8 +353,31 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
     .dock > * {
       pointer-events: auto;
     }
+    /* A row along the bottom: location on the left, zoom on the right. */
+    .corner {
+      display: flex;
+      align-items: flex-end;
+      pointer-events: none;
+    }
+    .corner > * {
+      pointer-events: auto;
+    }
+    /* Shares the pointing readout's look, but sits in the row instead of the top corner. */
+    .readout.location {
+      position: static;
+      margin-bottom: 6px;
+    }
+    /* A button, so it takes taps, with a border to show it can be tapped. */
+    .readout.location.unset {
+      pointer-events: auto;
+      color: var(--af-text);
+      font: inherit;
+      font-size: calc(14px * var(--af-scale, 1));
+      text-align: left;
+      border: 1px solid #ffb454;
+    }
     .zoom {
-      align-self: flex-end;
+      margin-left: auto;
       display: flex;
       flex-direction: column;
       margin-right: -6px;
@@ -409,8 +434,11 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
             No compass<br />
           }
           Alt {{ state.pointing().altDeg | number: '1.0-0' }}°, az {{ state.pointing().azDeg | number: '1.0-0' }}°<br />
-          <span data-testid="equatorial">RA {{ pointingRa() }}, Dec {{ pointingDec() }}</span>
-          <br />
+          <!-- Hidden unless chosen in Settings, since most observers steer by the map, not coordinates. -->
+          @if (state.settings().showEquatorial) {
+            <span data-testid="equatorial">RA {{ pointingRa() }}, Dec {{ pointingDec() }}</span>
+            <br />
+          }
           @if (mode() === 'eyepiece') {
             {{ power() | number: '1.0-0' }}× · {{ eyepieceField() | number: '1.1-2' }}° field
           } @else {
@@ -473,29 +501,42 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
         }
 
         <div class="dock">
-          <!-- Zoom sits bottom right, just above whatever boxes are open below it. -->
-          @if (mode() === 'sky') {
-            <div class="zoom">
-              <ion-fab-button
-                size="small"
-                aria-label="Zoom in"
-                data-testid="zoom-in"
-                [disabled]="fieldDeg() <= minField"
-                (click)="zoomBy(1 / zoomStep)"
-              >
-                <ion-icon name="add" aria-hidden="true"></ion-icon>
-              </ion-fab-button>
-              <ion-fab-button
-                size="small"
-                aria-label="Zoom out"
-                data-testid="zoom-out"
-                [disabled]="fieldDeg() >= maxField"
-                (click)="zoomBy(zoomStep)"
-              >
-                <ion-icon name="remove" aria-hidden="true"></ion-icon>
-              </ion-fab-button>
-            </div>
-          }
+          <!-- Location sits bottom left and zoom bottom right, just above whatever boxes are open below. -->
+          <div class="corner">
+            @if (!state.selectedTarget()) {
+              <!-- Where the sky is calculated for, like the pointing readout at the top. -->
+              @if (state.settings().locationSet) {
+                <div class="readout location" data-testid="location">{{ location() }}</div>
+              } @else {
+                <!-- Until a location is set, the sky shown is for a neutral place, so ask for one. -->
+                <button type="button" class="readout location unset" data-testid="location" (click)="locate()">
+                  {{ locating() || 'Location not set · tap to use GPS' }}
+                </button>
+              }
+            }
+            @if (mode() === 'sky') {
+              <div class="zoom">
+                <ion-fab-button
+                  size="small"
+                  aria-label="Zoom in"
+                  data-testid="zoom-in"
+                  [disabled]="fieldDeg() <= minField"
+                  (click)="zoomBy(1 / zoomStep)"
+                >
+                  <ion-icon name="add" aria-hidden="true"></ion-icon>
+                </ion-fab-button>
+                <ion-fab-button
+                  size="small"
+                  aria-label="Zoom out"
+                  data-testid="zoom-out"
+                  [disabled]="fieldDeg() >= maxField"
+                  (click)="zoomBy(zoomStep)"
+                >
+                  <ion-icon name="remove" aria-hidden="true"></ion-icon>
+                </ion-fab-button>
+              </div>
+            }
+          </div>
           @if (mode() === 'eyepiece') {
             <div class="eyepiece-panel" data-testid="eyepiece-panel">
               <div class="bar-row">
@@ -601,7 +642,7 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
             <div class="bar" data-testid="target-bar">
               <div class="bar-row">
                 <div>
-                  <strong>{{ target.id }}</strong> {{ target.name }}
+                  <strong data-testid="target-designations">{{ designationText(target) }}</strong> {{ target.name }}
                   <div class="directions" data-testid="directions">{{ directions() }}</div>
                   <div class="muted" data-testid="guidance">
                     {{ targetDistance() | number: '1.1-1' }}° away
@@ -670,6 +711,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   protected readonly maxField = MAX_FIELD_DEG;
   protected readonly zoomStep = ZOOM_STEP;
   protected readonly formatRa = formatRa;
+  protected readonly designationText = designationText;
   protected readonly formatDec = formatDec;
   protected readonly stars = signal<Star[]>([]);
   protected readonly constellations = signal<Constellation[]>([]);
@@ -705,6 +747,20 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     this.mode() === 'eyepiece' ? this.eyepieceField() * EYEPIECE_VIEW_SCALE : this.fieldDeg(),
   );
 
+  /** What the location button says while GPS is working, or after it fails. Empty otherwise. */
+  protected readonly locating = signal('');
+
+  protected async locate(): Promise<void> {
+    this.locating.set('Finding location…');
+    const message = await this.state.locateWithGps();
+    // On success the box shows the location instead, so only a problem needs saying.
+    this.locating.set(this.state.settings().locationSet ? '' : `${message} · tap to try again`);
+  }
+
+  /** The observer's location, as set in Settings or from GPS, such as "39.47° N, 0.38° W". */
+  protected readonly location = computed(() =>
+    formatLocation(this.state.settings().latitudeDeg, this.state.settings().longitudeDeg),
+  );
   protected readonly pointingRa = computed(() => formatRa(this.state.pointingEquatorial().raDeg));
   protected readonly pointingDec = computed(() => formatDec(this.state.pointingEquatorial().decDeg));
 
@@ -1351,18 +1407,20 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       }
       if (isSelected) this.drawTargetMarker(ctx, point, Math.max(6, markerRadius + 3));
 
+      // The map labels each object with its best-known designation, such as C20 for NGC 7000.
+      const label = designations(target)[0];
       // Skip a label that would overlap one already drawn.
       const offset = Math.max(9, markerRadius + (isSelected ? 15 : 3));
       ctx.fillStyle = color;
       const box: Box = {
         left: point.x + offset,
-        right: point.x + offset + ctx.measureText(target.id).width,
+        right: point.x + offset + ctx.measureText(label).width,
         top: point.y - 10 * this.textScale(),
         bottom: point.y + 7 * this.textScale(),
       };
       if (labels.some((other) => this.overlaps(box, other))) continue;
       labels.push(box);
-      this.drawLabel(ctx, target.id, box.left, point.y + 5 * this.textScale());
+      this.drawLabel(ctx, label, box.left, point.y + 5 * this.textScale());
     }
     return labels;
   }
