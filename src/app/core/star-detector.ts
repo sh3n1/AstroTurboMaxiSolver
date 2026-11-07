@@ -3,6 +3,15 @@
 // A city sky is bright and uneven, so the steps are: estimate the sky's brightness
 // across the frame, subtract it, measure the noise that remains, and keep groups of
 // pixels that stand well above that noise.
+//
+// Real frames also hold things that stand above the noise but are not stars. The lens
+// darkens the corners, the sky glow is brighter in the middle, and some phones leave a
+// darker band along one side. The sky estimate can't follow such sharp changes exactly,
+// so they leave long smears and broad faint patches. Stars are small, round and peaked,
+// so groups that are long and thin, or broad and flat, are left out. So are the lines of
+// a roof, a terrace beam or a building's edge against the sky. Bright lights, such as lit
+// windows, are too large for stars, and the glare around them is left out too. These
+// checks only look at shape, so they work the same under any sky, from a city to a dark site.
 
 export interface DetectedStar {
   x: number;
@@ -18,16 +27,57 @@ export interface DetectionResult {
   stars: DetectedStar[];
   /** Median sky brightness, on the image's 0 to 255 scale. */
   background: number;
-  /** Noise left after removing the sky. */
+  /** Typical noise left after removing the sky. */
   noise: number;
 }
 
-const BLOCK_SIZE = 32; // Sky brightness is estimated in blocks this many pixels wide
-const THRESHOLD_SIGMA = 5;
+const BLOCK_SIZE = 32; // Sky brightness and noise are estimated in blocks this many pixels wide
+const THRESHOLD_SIGMA = 4; // Against the local noise, so faint stars in the darker corners count too
 const MIN_STAR_PIXELS = 2; // A single bright pixel is a hot pixel, not a star
 const MAX_STAR_PIXELS = 900; // Anything larger is a light, the Moon or a building
 const MAX_STARS = 200;
 const MIN_NOISE = 0.25; // Video processing can flatten noise to nothing, so keep a floor
+
+/**
+ * How much longer than wide a group may be. Stars are round, or a little stretched if the
+ * phone moved slightly. Smears along a dark edge are many times longer than wide.
+ */
+const MAX_ELONGATION = 3;
+/**
+ * A bright light, such as a lit window or a streetlight, has a glare around it that can
+ * break into small spots. Spots this close to a light's edge, in pixels, or within half
+ * the light's own size if that is larger, are left out.
+ */
+const GLARE_MARGIN_PX = 15;
+/** Groups this small are too few pixels to judge their shape reliably. */
+const MIN_PIXELS_FOR_SHAPE = 6;
+/**
+ * A group this large must have a clear peak, at least this many times the detection
+ * threshold, to count as a star. Broad patches of sky glow are large but flat.
+ */
+const BROAD_PIXELS = 20;
+const BROAD_MIN_PEAK = 2;
+/**
+ * A star is brightest in the middle and fades out, so only a small share of its pixels
+ * are near its peak, even for a bright star whose middle is clipped. A lit window, a
+ * screen or a sign is evenly lit with hard edges, so nearly all of its pixels are. Groups
+ * with more than this share of pixels above half their peak are left out, with their glare.
+ */
+const MAX_FLAT_SHARE = 0.7;
+/**
+ * Only larger groups are judged this way. Small lights are blurred into the same shape as a
+ * star, and the middle of a small bright star can be clipped flat, so they can't be told apart.
+ */
+const MIN_PIXELS_FOR_FLATNESS = 30;
+
+/**
+ * The sky right around each group is measured in a ring this many pixels out from it,
+ * this many pixels wide. Near a sharp change in the sky, such as a band's edge or a
+ * beam's silhouette, the block estimate is off. A star still stands out from the ring
+ * around it, but a step in the sky does not.
+ */
+const RING_GAP_PX = 3;
+const RING_WIDTH_PX = 3;
 
 function median(values: number[]): number {
   if (values.length === 0) return 0;
@@ -35,35 +85,50 @@ function median(values: number[]): number {
   return values[values.length >> 1];
 }
 
-/** Estimates sky brightness per block, using the median so stars don't affect it. */
-function blockBackground(
+/** The blocks the frame is divided into, and which block a pixel falls in. */
+interface Blocks {
+  cols: number;
+  rows: number;
+}
+
+function blockOf(x: number, y: number, { cols, rows }: Blocks): number {
+  return Math.min(rows - 1, Math.floor(y / BLOCK_SIZE)) * cols + Math.min(cols - 1, Math.floor(x / BLOCK_SIZE));
+}
+
+/**
+ * Applies a measure to a sample of each block's pixels, every other pixel each way,
+ * which is accurate enough and much faster.
+ */
+function perBlock(
+  values: Float32Array,
+  width: number,
+  height: number,
+  blocks: Blocks,
+  measure: (sample: number[]) => number,
+): Float32Array {
+  const grid = new Float32Array(blocks.cols * blocks.rows);
+  for (let row = 0; row < blocks.rows; row++) {
+    for (let col = 0; col < blocks.cols; col++) {
+      const sample: number[] = [];
+      for (let y = row * BLOCK_SIZE; y < (row + 1) * BLOCK_SIZE && y < height; y += 2) {
+        for (let x = col * BLOCK_SIZE; x < (col + 1) * BLOCK_SIZE && x < width; x += 2) {
+          sample.push(values[y * width + x]);
+        }
+      }
+      grid[row * blocks.cols + col] = measure(sample);
+    }
+  }
+  return grid;
+}
+
+/** Subtracts the sky, blending between blocks so their edges don't look like stars. */
+function subtractSky(
   pixels: Float32Array,
   width: number,
   height: number,
-): { grid: Float32Array; cols: number; rows: number } {
-  const cols = Math.max(1, Math.floor(width / BLOCK_SIZE));
-  const rows = Math.max(1, Math.floor(height / BLOCK_SIZE));
-  const grid = new Float32Array(cols * rows);
-  for (let row = 0; row < rows; row++) {
-    for (let col = 0; col < cols; col++) {
-      const sample: number[] = [];
-      // Sampling every other pixel is accurate enough, and much faster.
-      for (let y = row * BLOCK_SIZE; y < (row + 1) * BLOCK_SIZE && y < height; y += 2) {
-        for (let x = col * BLOCK_SIZE; x < (col + 1) * BLOCK_SIZE && x < width; x += 2) {
-          sample.push(pixels[y * width + x]);
-        }
-      }
-      grid[row * cols + col] = median(sample);
-    }
-  }
-  return { grid, cols, rows };
-}
-
-/** Finds stars in a greyscale image, stored row by row. Brightest come first. */
-export function detectStars(pixels: Float32Array, width: number, height: number): DetectionResult {
-  const { grid, cols, rows } = blockBackground(pixels, width, height);
-
-  // Subtract the sky, blending between blocks so their edges don't look like stars.
+  sky: Float32Array,
+  { cols, rows }: Blocks,
+): Float32Array {
   const residual = new Float32Array(pixels.length);
   for (let y = 0; y < height; y++) {
     const gridY = Math.max(0, Math.min(rows - 1.001, y / BLOCK_SIZE - 0.5));
@@ -75,36 +140,96 @@ export function detectStars(pixels: Float32Array, width: number, height: number)
       const col = Math.floor(gridX);
       const blendX = gridX - col;
       const nextCol = Math.min(col + 1, cols - 1);
-      const top = grid[row * cols + col] * (1 - blendX) + grid[row * cols + nextCol] * blendX;
-      const bottom = grid[nextRow * cols + col] * (1 - blendX) + grid[nextRow * cols + nextCol] * blendX;
+      const top = sky[row * cols + col] * (1 - blendX) + sky[row * cols + nextCol] * blendX;
+      const bottom = sky[nextRow * cols + col] * (1 - blendX) + sky[nextRow * cols + nextCol] * blendX;
       residual[y * width + x] = pixels[y * width + x] - (top * (1 - blendY) + bottom * blendY);
     }
   }
+  return residual;
+}
 
-  // Noise from the median absolute deviation, which stars barely affect.
-  const deviations: number[] = [];
-  for (let i = 0; i < residual.length; i += 7) deviations.push(Math.abs(residual[i]));
-  const noise = Math.max(median(deviations) * 1.4826, MIN_NOISE);
-  const threshold = THRESHOLD_SIGMA * noise;
+/** The median of the residual in a square ring around a box, which is the sky right there. */
+function ringSky(residual: Float32Array, width: number, height: number, box: [number, number, number, number]): number {
+  const [left, top, right, bottom] = box;
+  const sample: number[] = [];
+  const [inner, outer] = [RING_GAP_PX, RING_GAP_PX + RING_WIDTH_PX];
+  for (let y = Math.max(0, top - outer); y <= Math.min(height - 1, bottom + outer); y++) {
+    for (let x = Math.max(0, left - outer); x <= Math.min(width - 1, right + outer); x++) {
+      // Only pixels at least the gap away from the box on some side, so the star itself is left out.
+      const away = Math.max(left - x, x - right, top - y, y - bottom);
+      if (away >= inner) sample.push(residual[y * width + x]);
+    }
+  }
+  return median(sample);
+}
 
-  // Group touching pixels above the threshold, measuring each group's centre.
+/**
+ * How many times longer than wide a group of pixels is, from how its brightness spreads
+ * around its centre. A round star gives 1.
+ */
+function elongation(sumXX: number, sumYY: number, sumXY: number, flux: number, cx: number, cy: number): number {
+  const xx = sumXX / flux - cx * cx;
+  const yy = sumYY / flux - cy * cy;
+  const xy = sumXY / flux - cx * cy;
+  // The spread along the group's longest and shortest directions.
+  const mean = (xx + yy) / 2;
+  const spread = Math.hypot((xx - yy) / 2, xy);
+  const longest = mean + spread;
+  const shortest = Math.max(mean - spread, 1e-6);
+  return Math.sqrt(Math.max(longest, 0) / shortest);
+}
+
+/** Finds stars in a greyscale image, stored row by row. Brightest come first. */
+export function detectStars(pixels: Float32Array, width: number, height: number): DetectionResult {
+  const blocks: Blocks = {
+    cols: Math.max(1, Math.floor(width / BLOCK_SIZE)),
+    rows: Math.max(1, Math.floor(height / BLOCK_SIZE)),
+  };
+
+  // The sky's brightness in each block, from the median, which stars barely affect.
+  const sky = perBlock(pixels, width, height, blocks, median);
+  const residual = subtractSky(pixels, width, height, sky, blocks);
+
+  // The noise in each block, from the median absolute deviation. The brighter middle of
+  // the frame is noisier than the darker corners, so each part gets its own threshold.
+  const noiseGrid = perBlock(residual, width, height, blocks, (sample) =>
+    Math.max(median(sample.map(Math.abs)) * 1.4826, MIN_NOISE),
+  );
+  const thresholdAt = (x: number, y: number): number => THRESHOLD_SIGMA * noiseGrid[blockOf(x, y, blocks)];
+
+  // Group touching pixels above the threshold, measuring each group's centre and shape.
   const visited = new Uint8Array(residual.length);
   const stack: number[] = [];
+  const members: number[] = [];
   const stars: DetectedStar[] = [];
+  // Areas around bright lights, as [left, top, right, bottom], whose spots are glare.
+  const glare: [number, number, number, number][] = [];
   for (let start = 0; start < residual.length; start++) {
-    if (visited[start] || residual[start] < threshold) continue;
+    // A quick check against the lowest possible threshold first, since most pixels are sky.
+    if (visited[start] || residual[start] < THRESHOLD_SIGMA * MIN_NOISE) continue;
+    const startX = start % width;
+    const threshold = thresholdAt(startX, (start - startX) / width);
+    if (residual[start] < threshold) continue;
     visited[start] = 1;
     stack.push(start);
-    let [count, flux, sumX, sumY] = [0, 0, 0, 0];
+    let [count, flux, peak, sumX, sumY, sumXX, sumYY, sumXY] = [0, 0, 0, 0, 0, 0, 0, 0];
+    let [left, top, right, bottom] = [width, height, 0, 0];
+    members.length = 0;
     while (stack.length > 0) {
       const index = stack.pop()!;
       const x = index % width;
       const y = (index - x) / width;
       const value = residual[index];
+      members.push(index);
       count++;
       flux += value;
+      peak = Math.max(peak, value);
       sumX += value * x;
       sumY += value * y;
+      sumXX += value * x * x;
+      sumYY += value * y * y;
+      sumXY += value * x * y;
+      [left, top, right, bottom] = [Math.min(left, x), Math.min(top, y), Math.max(right, x), Math.max(bottom, y)];
       const neighbours = [
         x > 0 ? index - 1 : -1,
         x < width - 1 ? index + 1 : -1,
@@ -118,11 +243,50 @@ export function detectStars(pixels: Float32Array, width: number, height: number)
         }
       }
     }
-    if (count >= MIN_STAR_PIXELS && count <= MAX_STAR_PIXELS) {
-      stars.push({ x: sumX / flux, y: sumY / flux, flux, snr: flux / (noise * Math.sqrt(count)), pixels: count });
+    // A light's glare is masked once the light itself is left out.
+    const maskGlare = (): void => {
+      const margin = Math.max(GLARE_MARGIN_PX, (right - left) / 2, (bottom - top) / 2);
+      glare.push([left - margin, top - margin, right + margin, bottom + margin]);
+    };
+    if (count > MAX_STAR_PIXELS) {
+      // Too large for a star. If it is bright, it is a light, such as a streetlight.
+      // A large faint patch is only uneven sky, with no glare.
+      if (peak >= BROAD_MIN_PEAK * threshold) maskGlare();
+      continue;
     }
+    if (count < MIN_STAR_PIXELS) continue;
+    // Evenly lit with hard edges: a lit window, a screen or a sign.
+    if (count >= MIN_PIXELS_FOR_FLATNESS) {
+      const nearPeak = members.filter((index) => residual[index] >= peak / 2).length;
+      if (nearPeak > MAX_FLAT_SHARE * count) {
+        maskGlare();
+        continue;
+      }
+    }
+
+    // Only the part above the sky right around it counts. A step in the sky has none.
+    const localSky = ringSky(residual, width, height, [left, top, right, bottom]);
+    if (peak - localSky < threshold) continue;
+
+    const [cx, cy] = [sumX / flux, sumY / flux];
+    // Long and thin: a smear along an edge, not a star.
+    if (count >= MIN_PIXELS_FOR_SHAPE && elongation(sumXX, sumYY, sumXY, flux, cx, cy) > MAX_ELONGATION) continue;
+    // Broad and flat: a patch of uneven sky, not a star.
+    if (count >= BROAD_PIXELS && peak < BROAD_MIN_PEAK * threshold) continue;
+
+    const noise = threshold / THRESHOLD_SIGMA;
+    stars.push({ x: cx, y: cy, flux, snr: flux / (noise * Math.sqrt(count)), pixels: count });
   }
 
-  stars.sort((a, b) => b.flux - a.flux);
-  return { stars: stars.slice(0, MAX_STARS), background: median(Array.from(grid)), noise };
+  // Lights are only known once found, so glare is removed at the end.
+  const isGlare = ({ x, y }: DetectedStar): boolean =>
+    glare.some(([l, t, r, b]) => x >= l && x <= r && y >= t && y <= b);
+  const real = glare.length > 0 ? stars.filter((star) => !isGlare(star)) : stars;
+
+  real.sort((a, b) => b.flux - a.flux);
+  return {
+    stars: real.slice(0, MAX_STARS),
+    background: median(Array.from(sky)),
+    noise: median(Array.from(noiseGrid)),
+  };
 }

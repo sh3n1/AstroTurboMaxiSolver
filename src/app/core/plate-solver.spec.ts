@@ -298,3 +298,95 @@ describe('plate solving at the real camera field of view', () => {
     expect(angleDeg(solution!.pointing, forward)).toBeLessThan(0.1);
   });
 });
+
+// Real frames hold more than stars: the lens darkens the corners, some phones leave a
+// darker band along one side, and the sky may be crossed by a terrace beam or edged by
+// buildings with lit windows. None of these may crowd real stars out, or be taken for one.
+describe('star detection among real-world clutter', () => {
+  const { width, height } = FRAME;
+  const index = buildSolverIndex(stars, FRAME);
+  const at = (x: number, y: number): number => y * width + x;
+
+  // The same sky with no clutter, to tell real stars from false ones.
+  const clean = detectStars(render({ raDeg: 84, decDeg: 0 }).pixels, width, height).stars;
+
+  /** Detections inside an area that are not real stars, found in the same sky with no clutter. */
+  const falseIn = (found: { x: number; y: number }[], inside: (x: number, y: number) => boolean): number =>
+    found.filter(
+      ({ x, y }) =>
+        inside(Math.round(x), Math.round(y)) && !clean.some((star) => Math.hypot(star.x - x, star.y - y) < 2),
+    ).length;
+
+  it('ignores the darkened corners and a dark band along one side', () => {
+    const { pixels, truth } = render({ raDeg: 84, decDeg: 0 });
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        // The lens lets less light reach the corners.
+        const r2 = ((x - width / 2) / (width / 2)) ** 2 + ((y - height / 2) / (height / 2)) ** 2;
+        pixels[at(x, y)] *= 1 - 0.3 * r2;
+        // A darker band down the left edge, with a sharp border.
+        if (x < 40) pixels[at(x, y)] *= 0.5;
+      }
+    }
+    const { stars: found } = detectStars(pixels, width, height);
+    // Nothing along the band's border, where the sky changes sharply.
+    expect(falseIn(found, (x) => Math.abs(x - 40) <= 4)).toBe(0);
+    const solution = solveFrame(found, FRAME, index);
+    expect(angleDeg(solution!.pointing, truth)).toBeLessThan(0.2);
+  });
+
+  it('ignores the edges of a terrace beam across the sky', () => {
+    const { pixels, truth } = render({ raDeg: 84, decDeg: 0 });
+    // A dark beam, 24 pixels wide, running diagonally across the frame.
+    const distance = (x: number, y: number): number => Math.abs(0.6 * x - y + 300) / Math.hypot(0.6, 1);
+    for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) if (distance(x, y) < 12) pixels[at(x, y)] = 8;
+    const { stars: found } = detectStars(pixels, width, height);
+    expect(falseIn(found, (x, y) => distance(x, y) < 16)).toBe(0);
+    const solution = solveFrame(found, FRAME, index);
+    expect(angleDeg(solution!.pointing, truth)).toBeLessThan(0.2);
+  });
+
+  it('ignores lit windows and a streetlight, and their glare', () => {
+    const { pixels, truth } = render({ raDeg: 84, decDeg: 0 });
+    const building = (x: number, y: number): boolean => y >= 800;
+    const windows: [number, number][] = [];
+    for (let y = 800; y < height; y++) for (let x = 0; x < width; x++) pixels[at(x, y)] = 12;
+    // Rows of lit windows, 8 by 6 pixels, evenly lit with hard edges, brighter than any star.
+    for (let row = 0; row < 3; row++) {
+      for (let col = 0; col < 6; col++) {
+        const [left, top] = [30 + col * 85, 820 + row * 45];
+        windows.push([left, top]);
+        for (let y = top; y < top + 6; y++) for (let x = left; x < left + 8; x++) pixels[at(x, y)] = 250;
+      }
+    }
+    // A streetlight: a bright disc with glare fading around it, which noise breaks into spots.
+    const [lampX, lampY] = [420, 700];
+    const random = randomSource(5);
+    for (let y = lampY - 60; y < lampY + 60; y++) {
+      for (let x = lampX - 60; x < lampX + 60; x++) {
+        const r = Math.hypot(x - lampX, y - lampY);
+        pixels[at(x, y)] += r < 18 ? 200 : (2000 / r ** 1.5) * (0.5 + random());
+      }
+    }
+    const { stars: found } = detectStars(pixels, width, height);
+    expect(falseIn(found, (x, y) => building(x, y))).toBe(0);
+    expect(falseIn(found, (x, y) => Math.hypot(x - lampX, y - lampY) < 40)).toBe(0);
+    const solution = solveFrame(found, FRAME, index);
+    expect(angleDeg(solution!.pointing, truth)).toBeLessThan(0.2);
+  });
+
+  it('still finds a bright star whose middle is clipped by the camera', () => {
+    const pixels = new Float32Array(width * height).fill(30);
+    const [starX, starY] = [270.4, 480.6];
+    for (let dy = -8; dy <= 8; dy++) {
+      for (let dx = -8; dx <= 8; dx++) {
+        const [ix, iy] = [Math.round(starX) + dx, Math.round(starY) + dy];
+        const value = 30 + 2000 * Math.exp(-((ix - starX) ** 2 + (iy - starY) ** 2) / (2 * 1.6 ** 2));
+        pixels[at(ix, iy)] = Math.min(255, value);
+      }
+    }
+    const { stars: found } = detectStars(pixels, width, height);
+    expect(found).toHaveLength(1);
+    expect(Math.hypot(found[0].x - starX, found[0].y - starY)).toBeLessThan(0.3);
+  });
+});
