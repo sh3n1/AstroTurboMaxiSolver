@@ -1,4 +1,4 @@
-import { DatePipe, DecimalPipe } from '@angular/common';
+import { DecimalPipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -32,6 +32,7 @@ import { map } from 'rxjs';
 
 import { AppState } from '../core/app-state.service';
 import { ListsService } from '../core/lists.service';
+import { LocalTimePipe } from '../core/local-time.pipe';
 import { normalizeSearch, targetSearchText } from '../core/search';
 import { TargetListComponent } from '../core/target-list.component';
 import { exportFileName, exportLists } from '../core/target-lists';
@@ -40,7 +41,7 @@ import { exportFileName, exportLists } from '../core/target-lists';
 @Component({
   selector: 'app-list',
   imports: [
-    DatePipe,
+    LocalTimePipe,
     DecimalPipe,
     IonBackButton,
     IonButton,
@@ -93,14 +94,14 @@ import { exportFileName, exportLists } from '../core/target-lists';
               <p>
                 <strong>Darkness: </strong>
                 @if (conditions().darkFrom; as from) {
-                  from {{ from | date: 'HH:mm' }}
+                  from {{ from | localTime }}
                 } @else if (conditions().darkUntil) {
                   now
                 } @else {
                   no full darkness in the next day
                 }
                 @if (conditions().darkUntil; as until) {
-                  until {{ until | date: 'HH:mm' }}
+                  until {{ until | localTime }}
                 }
               </p>
               <p>

@@ -28,6 +28,23 @@ export function nakedEyeLimit(bortle: number): number {
 }
 
 /**
+ * The faintest objects worth recommending. Galaxies and nebulae spread their light over
+ * an area, so they need to be about a magnitude brighter than the faintest visible star.
+ */
+export function recommendationLimit(bortle: number, apertureMm: number): number {
+  return telescopeLimit(bortle, apertureMm) - 1;
+}
+
+/**
+ * The faintest stars worth offering for alignment: ones easy to spot and recognise by
+ * eye. About two magnitudes brighter than the naked-eye limit, but never fainter than
+ * 3.5, since faint stars are hard to tell apart even under a dark sky.
+ */
+export function alignmentStarLimit(bortle: number): number {
+  return Math.min(3.5, Math.max(2, nakedEyeLimit(bortle) - 1.8));
+}
+
+/**
  * The faintest star a telescope shows, by a common rule of thumb: the naked-eye limit,
  * improved by how much more light the aperture gathers than the eye. Real results also
  * depend on magnification, seeing and the observer's experience, so this is a guide.

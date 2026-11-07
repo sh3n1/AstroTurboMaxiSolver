@@ -1,4 +1,4 @@
-import { Injectable, effect, inject, signal, untracked } from '@angular/core';
+import { computed, Injectable, effect, inject, signal, untracked } from '@angular/core';
 
 import { telescopePointing } from './alignment';
 import { AppState } from './app-state.service';
@@ -15,6 +15,7 @@ import {
   rearCameraDirection,
 } from './attitude';
 import { cameraPointing, requestSensorPermission } from './device-orientation';
+import { magneticDeclinationDeg } from './magnetic';
 
 /** Share of each orientation reading blended in when it is the only source of movement. */
 const ORIENTATION_ONLY_WEIGHT = 0.2;
@@ -58,6 +59,16 @@ export class SensorService {
   private compassCorrection: Quaternion | null = null;
 
   // Handlers are kept as fields so the same functions can be removed again.
+  /**
+   * How far magnetic north is from true north where the user is. Phones report headings
+   * from magnetic north, so readings are turned by this to face true north. Without a
+   * location there is nothing to correct for, so it stays zero.
+   */
+  private readonly declinationDeg = computed(() => {
+    const { latitudeDeg, longitudeDeg, locationSet } = this.state.settings();
+    return locationSet ? magneticDeclinationDeg(latitudeDeg, longitudeDeg, new Date()) : 0;
+  });
+
   private readonly onAbsolute = (event: Event): void => {
     // A reading with no values means this event isn't really supported here.
     if ((event as DeviceOrientationEvent).alpha === null) return;
@@ -147,7 +158,10 @@ export class SensorService {
 
   private applyOrientation(event: DeviceOrientationEvent, alphaOffsetDeg = 0): void {
     clearTimeout(this.noDataTimer);
-    this.lastReading = attitudeFromOrientation((event.alpha ?? 0) + alphaOffsetDeg, event.beta ?? 0, event.gamma ?? 0);
+    // Alpha grows turning left, against compass headings, so an eastward declination is
+    // taken off it to turn the magnetic reading to true north.
+    const alphaDeg = (event.alpha ?? 0) + alphaOffsetDeg - this.declinationDeg();
+    this.lastReading = attitudeFromOrientation(alphaDeg, event.beta ?? 0, event.gamma ?? 0);
     // After a plate solve, the compass's known error is removed from every reading.
     const reading = this.compassCorrection
       ? combineAttitudes(this.compassCorrection, this.lastReading)

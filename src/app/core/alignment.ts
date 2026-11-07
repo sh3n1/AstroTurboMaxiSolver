@@ -16,7 +16,8 @@ import { fromViewCoordinates, horizontalVector, toViewCoordinates, vectorToHoriz
 
 const MIN_ALTITUDE_DEG = 25; // Lower stars are dimmed by the atmosphere and hidden by buildings
 const MAX_ALTITUDE_DEG = 80; // Many mounts are awkward to aim almost straight up
-const MAX_MAGNITUDE = 2.5; // Stars that are easy to recognise, even from a bright city
+/** Bright enough to recognise even from a city. Callers pass a limit for the user's sky. */
+const DEFAULT_MAX_MAGNITUDE = 2.5;
 const EXTINCTION_MAG_PER_AIRMASS = 0.3;
 
 /** Anything with a name, a brightness and a current position can be a candidate. */
@@ -32,11 +33,15 @@ export function apparentMagnitude(mag: number, altDeg: number): number {
 }
 
 /** Picks the stars easiest to see right now and to aim a telescope at, best first. */
-export function suggestAlignmentStars<T>(candidates: AlignmentCandidate<T>[], count = 4): AlignmentCandidate<T>[] {
+export function suggestAlignmentStars<T>(
+  candidates: AlignmentCandidate<T>[],
+  count = 4,
+  maxMagnitude = DEFAULT_MAX_MAGNITUDE,
+): AlignmentCandidate<T>[] {
   return candidates
     .filter(
       ({ position, mag }) =>
-        position.altDeg >= MIN_ALTITUDE_DEG && position.altDeg <= MAX_ALTITUDE_DEG && mag <= MAX_MAGNITUDE,
+        position.altDeg >= MIN_ALTITUDE_DEG && position.altDeg <= MAX_ALTITUDE_DEG && mag <= maxMagnitude,
     )
     .sort((a, b) => apparentMagnitude(a.mag, a.position.altDeg) - apparentMagnitude(b.mag, b.position.altDeg))
     .slice(0, count);

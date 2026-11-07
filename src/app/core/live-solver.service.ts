@@ -8,6 +8,7 @@ import { attitudeFromImageAxes } from './attitude';
 import type { OpenCamera } from './camera';
 import {
   FOCAL_SHARE_OF_LONG_SIDE,
+  longestExposureSeconds,
   applyCameraSettings,
   averageLevel,
   captureStack,
@@ -41,7 +42,11 @@ export interface SolveLogEntry {
 /** The result of a plate solve the user asked for, such as during alignment. */
 export type SolveNowResult = { ok: true; attitude: Quaternion; matched: number } | { ok: false; reason: string };
 
-const EXPOSURE_SECONDS = 1 / 3; // The longest the measured phone allows in the browser
+/**
+ * The longest exposure to use, if the phone allows it. Longer shows fainter stars, but
+ * makes each solve slower and a hand-held phone more likely to blur.
+ */
+const MAX_EXPOSURE_SECONDS = 1;
 const START_ISO = 3200;
 const MIN_ISO = 100;
 const MAX_SKY_LEVEL = 170; // Above this average the sky is close to clipping
@@ -91,6 +96,8 @@ export class LiveSolverService {
   private camera: OpenCamera | null = null;
   private opening = false;
   private iso = START_ISO;
+  /** Set from the camera's own limit when it opens. */
+  private exposureSeconds = MAX_EXPOSURE_SECONDS;
   private timer?: ReturnType<typeof setInterval>;
   private nextAttemptAt = 0;
   private worker: Worker | null = null;
@@ -145,12 +152,16 @@ export class LiveSolverService {
     const entry = { trigger: 'auto' as const, startedAt: Date.now(), iso: this.iso };
     try {
       const camera = await this.ensureCamera();
-      const frame = await captureStack(camera.video, { exposureSeconds: EXPOSURE_SECONDS, iso: this.iso, frames: 1 });
+      const frame = await captureStack(camera.video, {
+        exposureSeconds: this.exposureSeconds,
+        iso: this.iso,
+        frames: 1,
+      });
 
       // A sky near clipping hides stars, so come down in ISO for next time.
       if (averageLevel(frame.pixels) > MAX_SKY_LEVEL && this.iso > MIN_ISO) {
         this.iso = Math.max(MIN_ISO, Math.round(this.iso / 2));
-        await applyCameraSettings(camera.track, { exposureSeconds: EXPOSURE_SECONDS, iso: this.iso, frames: 1 });
+        await applyCameraSettings(camera.track, { exposureSeconds: this.exposureSeconds, iso: this.iso, frames: 1 });
         this.record({ ...entry, outcome: 'retry', message: `Too bright, ISO lowered to ${this.iso}` });
         this.retrySoon(FAILED_PAUSE_MS / 5);
         return;
@@ -260,13 +271,13 @@ export class LiveSolverService {
     const before = this.state.cameraPointing();
     try {
       const camera = await this.ensureCamera();
-      let frame = await captureStack(camera.video, { exposureSeconds: EXPOSURE_SECONDS, iso: this.iso, frames: 1 });
+      let frame = await captureStack(camera.video, { exposureSeconds: this.exposureSeconds, iso: this.iso, frames: 1 });
       // Come down in ISO until the sky is no longer close to clipping.
       for (let i = 0; i < MAX_ISO_REDUCTIONS && averageLevel(frame.pixels) > MAX_SKY_LEVEL && this.iso > MIN_ISO; i++) {
         this.iso = Math.max(MIN_ISO, Math.round(this.iso / 2));
-        await applyCameraSettings(camera.track, { exposureSeconds: EXPOSURE_SECONDS, iso: this.iso, frames: 1 });
+        await applyCameraSettings(camera.track, { exposureSeconds: this.exposureSeconds, iso: this.iso, frames: 1 });
         await new Promise((resolve) => setTimeout(resolve, SETTLE_MS));
-        frame = await captureStack(camera.video, { exposureSeconds: EXPOSURE_SECONDS, iso: this.iso, frames: 1 });
+        frame = await captureStack(camera.video, { exposureSeconds: this.exposureSeconds, iso: this.iso, frames: 1 });
       }
       const entry = { trigger: 'alignment' as const, startedAt, iso: this.iso };
       if (averageLevel(frame.pixels) > MAX_SKY_LEVEL) {
@@ -350,7 +361,8 @@ export class LiveSolverService {
     this.opening = true;
     try {
       this.camera = await openRearCamera();
-      await applyCameraSettings(this.camera.track, { exposureSeconds: EXPOSURE_SECONDS, iso: this.iso, frames: 1 });
+      this.exposureSeconds = longestExposureSeconds(this.camera.track, MAX_EXPOSURE_SECONDS);
+      await applyCameraSettings(this.camera.track, { exposureSeconds: this.exposureSeconds, iso: this.iso, frames: 1 });
       await new Promise((resolve) => setTimeout(resolve, SETTLE_MS));
       return this.camera;
     } finally {
@@ -381,7 +393,8 @@ export class LiveSolverService {
       width,
       height,
       focalPx: FOCAL_SHARE_OF_LONG_SIDE * Math.max(width, height) * this.state.settings().cameraFocalFactor,
-      flipped: false,
+      // A mirror mount, like StarSense, flips the image.
+      flipped: this.state.settings().mount === 'mirror',
       hint: this.hint(),
       timeLimitMs,
     };

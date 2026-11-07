@@ -4,8 +4,10 @@
 export const EXPOSURE_UNITS_PER_SECOND = 10_000;
 
 /**
- * Main camera focal length in pixels, as a share of the frame's long side. It comes from
- * the published 23 mm equivalent lens. The solver searches around it and reports the fit.
+ * Main camera focal length in pixels, as a share of the frame's long side: a typical
+ * phone main camera, about 24 mm full-frame equivalent. Most are between 23 and 28 mm.
+ * Browsers don't report the lens, so this is only a starting guess. The solver searches
+ * around it, and the app learns the real value from the first good solve.
  */
 export const FOCAL_SHARE_OF_LONG_SIDE = 0.667;
 
@@ -50,6 +52,15 @@ export async function openRearCamera(): Promise<OpenCamera> {
   video.srcObject = stream;
   await Promise.race([video.play(), wait(FRAME_TIMEOUT_MS)]);
   return { stream, track: stream.getVideoTracks()[0], video };
+}
+
+/**
+ * The longest exposure the camera allows, in seconds, up to a limit. Phones differ a lot,
+ * and longer exposures show fainter stars, so each phone uses as much as it offers.
+ */
+export function longestExposureSeconds(track: MediaStreamTrack, limitSeconds: number): number {
+  const max = (track.getCapabilities?.() as CameraTrackCapabilities | undefined)?.exposureTime?.max;
+  return max ? Math.min(limitSeconds, max / EXPOSURE_UNITS_PER_SECOND) : limitSeconds;
 }
 
 /** Releases the camera, so its light goes off and other apps can use it. */
