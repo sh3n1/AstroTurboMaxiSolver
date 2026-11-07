@@ -104,6 +104,8 @@ const DEFAULT_SETTINGS: Settings = {
 };
 
 const SETTINGS_KEY = 'astrofinder.settings';
+/** How often the live sky's time moves on. The sky turns about 0.004° in a second. */
+const SKY_TIME_STEP_MS = 1000;
 const ALIGNMENT_KEY = 'astrofinder.alignment';
 
 // Browser storage can be blocked or cleared, so the app must work without it.
@@ -201,8 +203,17 @@ export class AppState {
     return sunPosition(this.now(), latitudeDeg, longitudeDeg);
   });
 
+  /**
+   * The time the live sky is shown for, updated every second. The sky turns a quarter of
+   * a degree a minute, so the once-a-minute clock above would make it jump by that much,
+   * half the app's accuracy target. Lists and tonight's conditions don't need this, and
+   * use the minute clock to save work. The sky map goes further and uses the exact time
+   * of each frame it draws, so even a zoomed-in eyepiece view moves smoothly.
+   */
+  readonly skyTime = signal(new Date());
+
   /** Rotation from catalogue positions to the local sky, right now. */
-  readonly skyRotation = computed(() => this.rotationAt(this.now()));
+  readonly skyRotation = computed(() => this.rotationAt(this.skyTime()));
 
   /** Where the telescope points, in catalogue coordinates. */
   readonly pointingEquatorial = computed(() =>
@@ -225,6 +236,7 @@ export class AppState {
 
   constructor() {
     setInterval(() => this.now.set(new Date()), 60_000);
+    setInterval(() => this.skyTime.set(new Date()), SKY_TIME_STEP_MS);
     void this.loadCatalog('assets/data/targets.json');
     void this.loadCatalog('assets/data/openngc.json');
     void this.loadCaldwell();
@@ -278,7 +290,7 @@ export class AppState {
     this.updateSettings({ ...equipment });
   }
 
-  /** Where a target is right now from the user's location. */
+  /** Where a target is right now from the user's location, to the second. */
   positionOf(target: Pick<Target, 'raDeg' | 'decDeg'>): Horizontal {
     return equatorialToHorizontal(this.skyRotation(), target.raDeg, target.decDeg);
   }
@@ -327,7 +339,7 @@ export class AppState {
    * Remembers the last result, because working out positions for thousands of
    * targets at one time would otherwise repeat this slow calculation for each one.
    */
-  private rotationAt(date: Date): ReturnType<typeof skyRotation> {
+  rotationAt(date: Date): ReturnType<typeof skyRotation> {
     const { latitudeDeg, longitudeDeg } = this.settings();
     const key = `${date.getTime()}/${latitudeDeg}/${longitudeDeg}`;
     if (this.lastRotation?.key !== key) {

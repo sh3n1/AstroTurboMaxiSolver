@@ -35,6 +35,7 @@ import type { Horizontal, Vector3 } from '../core/astronomy';
 import {
   applyMatrix,
   azimuthChangeDeg,
+  equatorialToHorizontal,
   equatorialVector,
   formatDec,
   formatLocation,
@@ -136,6 +137,11 @@ function iconPath(d: string): Path2D {
 }
 /** Fainter than this, an object's size circle only shows when it is the selected target. */
 const MAX_SIZE_CIRCLE_MAG = 6;
+/** How fast the sky turns, in degrees a second: a full turn in a sidereal day. */
+const SKY_TURN_DEG_PER_S = 360 / 86_164;
+// Limits on how often the map redraws just to follow the sky's turning.
+const MIN_SKY_TURN_WAIT_MS = 100;
+const MAX_SKY_TURN_WAIT_MS = 10_000;
 /** The guidance chevrons, from the one nearest the reticle outwards. */
 const CHEVRON_FADE = [0.35, 0.65, 1];
 const CHEVRON_HEIGHT_PX = 8;
@@ -822,6 +828,9 @@ export class SkyPage implements AfterViewInit, OnDestroy {
 
   private readonly canvasRef = viewChild.required<ElementRef<HTMLCanvasElement>>('canvas');
   private resizeObserver?: ResizeObserver;
+  /** The sky's rotation at the frame being drawn. */
+  private frameRotation = this.state.rotationAt(new Date());
+  private skyTurnTimer?: ReturnType<typeof setTimeout>;
   private drawQueued = false;
   /** The pointing the view shows, which follows the sensors smoothly. */
   private shownPointing: Horizontal | null = null;
@@ -920,6 +929,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.resizeObserver?.disconnect();
+    clearTimeout(this.skyTurnTimer);
   }
 
   protected setStarLimit(event: Event): void {
@@ -1135,6 +1145,26 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     }
   }
 
+  /** Where a target is at the frame being drawn, the same moment as the stars around it. */
+  private framePositionOf(target: Target): Horizontal {
+    return equatorialToHorizontal(this.frameRotation, target.raDeg, target.decDeg);
+  }
+
+  /**
+   * Redraws once the sky has turned about half a pixel, so it moves smoothly even when
+   * nothing else changes, such as when the phone lies still. Zoomed out, that takes a few
+   * seconds. Zoomed in on an eyepiece view, it is several times a second.
+   */
+  private queueSkyTurn(widthPx: number): void {
+    clearTimeout(this.skyTurnTimer);
+    const pixelsPerDegree = widthPx / this.viewField();
+    const waitMs = (0.5 / (pixelsPerDegree * SKY_TURN_DEG_PER_S)) * 1000;
+    this.skyTurnTimer = setTimeout(
+      () => this.queueDraw(),
+      Math.min(MAX_SKY_TURN_WAIT_MS, Math.max(MIN_SKY_TURN_WAIT_MS, waitMs)),
+    );
+  }
+
   /** Draws at most once per screen refresh, however many changes arrive. */
   private queueDraw(): void {
     if (this.drawQueued) return;
@@ -1166,6 +1196,9 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     ctx.fillRect(0, 0, width, height);
 
     const isEyepiece = this.mode() === 'eyepiece';
+    // The sky as it is at this very frame, so it turns smoothly rather than in steps.
+    this.frameRotation = this.state.rotationAt(new Date());
+    this.queueSkyTurn(width);
     const basis = viewBasis(this.steadyPointing(isEyepiece));
     const centreY = isEyepiece ? height * EYEPIECE_CENTRE_SHARE : height / 2;
     this.viewCentreY = centreY;
@@ -1274,7 +1307,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   }
 
   private drawConstellationLines(ctx: CanvasRenderingContext2D, project: Project): void {
-    const toLocal = this.state.skyRotation();
+    const toLocal = this.frameRotation;
     ctx.strokeStyle = COLOR.constellationLine;
     ctx.lineWidth = 1.5;
     for (const { lines } of this.constellations()) {
@@ -1292,7 +1325,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
 
   /** Constellation names go last and give way to anything already labelled. */
   private drawConstellationNames(ctx: CanvasRenderingContext2D, project: Project, labels: Box[]): void {
-    const toLocal = this.state.skyRotation();
+    const toLocal = this.frameRotation;
     ctx.fillStyle = COLOR.constellationName;
     ctx.font = this.font(14, 'italic');
     ctx.textAlign = 'center';
@@ -1319,7 +1352,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   }
 
   private drawStars(ctx: CanvasRenderingContext2D, project: Project, width: number, height: number): void {
-    const toLocal = this.state.skyRotation();
+    const toLocal = this.frameRotation;
     const isEyepiece = this.mode() === 'eyepiece';
     const limit = isEyepiece ? this.state.starLimit() : magnitudeLimit(this.fieldDeg());
 
@@ -1380,7 +1413,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
 
   /** Draws target markers and labels, and returns the space the labels took. */
   private drawTargets(ctx: CanvasRenderingContext2D, project: Project, scale: number): Box[] {
-    const toLocal = this.state.skyRotation();
+    const toLocal = this.frameRotation;
     const selected = this.state.selectedTarget();
     const fieldDeg = this.viewField();
     const labels: Box[] = [];
@@ -1595,7 +1628,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   ): void {
     const target = this.state.selectedTarget();
     if (!target || this.isOnTarget()) return;
-    const position = this.state.positionOf(target);
+    const position = this.framePositionOf(target);
 
     // Work in the view's own axes, which stay valid for a target behind the viewer.
     const [x, y] = toViewCoordinates(
@@ -1632,7 +1665,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     const target = this.state.selectedTarget();
     const canvas = this.canvasRef().nativeElement;
     if (!target) return;
-    const position = this.state.positionOf(target);
+    const position = this.framePositionOf(target);
     const pointing = this.shownPointing ?? this.state.pointing();
     if (separationDeg(pointing, position) < this.eyepieceField() / 2) {
       delete canvas.dataset['guideAngle'];

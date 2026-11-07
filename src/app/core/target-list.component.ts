@@ -135,7 +135,8 @@ export class TargetListComponent {
   /** Where the target is in the sky, now or at the list's chosen time. */
   protected positionOf(target: Target): Horizontal {
     const at = this.at();
-    return at ? this.state.positionAt(target, at) : this.state.positionOf(target);
+    // Heights in a list only need the minute clock, which saves re-drawing it every second.
+    return this.state.positionAt(target, at ?? this.state.now());
   }
 
   protected readonly compassPoint = compassPoint;

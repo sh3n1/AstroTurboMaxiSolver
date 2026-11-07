@@ -61,6 +61,21 @@ test('shows target details from the target bar', async ({ page }) => {
   await expect(page.locator('[data-testid=target-details]')).toContainText('NGC 224');
 });
 
+test('follows the sky turning by the second, not by the minute', async ({ page }) => {
+  // A controlled clock, so the test can let time pass without waiting.
+  await page.clock.install({ time: new Date('2026-08-15T21:00:00Z') });
+  await page.goto('/');
+  await page.getByRole('tab', { name: 'Targets' }).click();
+  // Altair is near the celestial equator, where the sky moves fastest.
+  await page.locator('app-targets ion-searchbar input').fill('Altair');
+  await page.locator('app-targets ion-item').first().click();
+  await page.locator('[data-testid=aim-at-target]').click();
+  await expect(page.locator('[data-testid=guidance]')).toContainText('0.0° away');
+  // In 50 seconds the sky turns about 0.2°. A once-a-minute clock would still show 0.0°.
+  await page.clock.runFor(50_000);
+  await expect(page.locator('[data-testid=guidance]')).toContainText(/0\.[12]° away/);
+});
+
 test('finds a target, guides to it and shows it in the eyepiece', async ({ page }) => {
   await page.goto('/');
 
