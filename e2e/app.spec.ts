@@ -158,12 +158,6 @@ test('filters targets by type', async ({ page }) => {
   await expect(page.locator('app-targets ion-item', { hasText: 'Vega' })).toHaveCount(0);
 });
 
-test('shows tonight in the session plan', async ({ page }) => {
-  await page.goto('/tabs/plan');
-  await expect(page.locator('[data-testid=conditions]')).toContainText('Darkness');
-  await expect(page.locator('[data-testid=conditions]')).toContainText('% lit');
-});
-
 test('finds catalogue objects by name and other designation', async ({ page }) => {
   await page.goto('/tabs/targets');
   const search = page.locator('app-targets ion-searchbar input');

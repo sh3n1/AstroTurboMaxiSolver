@@ -1,7 +1,7 @@
 import { DecimalPipe } from '@angular/common';
 import { Component, inject, input } from '@angular/core';
 import { Router } from '@angular/router';
-import { IonBadge, IonButton, IonIcon, IonItem, IonLabel, IonList, IonNote } from '@ionic/angular';
+import { IonBadge, IonButton, IonIcon, IonItem, IonLabel, IonList, IonNote, ModalController } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
   bookmark,
@@ -13,7 +13,9 @@ import {
 } from 'ionicons/icons';
 
 import { AppState } from './app-state.service';
+import { BookmarkSheetComponent } from './bookmark-sheet.component';
 import { designationText } from './designations';
+import { ListsService } from './lists.service';
 import { iconDataUrl, targetIcon } from './target-icons';
 import type { Target, TargetKind } from './targets';
 
@@ -63,10 +65,14 @@ const GOOD_ALTITUDE_DEG = 30;
           <ion-button
             slot="end"
             fill="clear"
-            [attr.aria-label]="(isPlanned(target) ? 'Remove from plan: ' : 'Add to plan: ') + target.id"
-            (click)="togglePlan($event, target)"
+            data-testid="bookmark"
+            [attr.aria-label]="'Save to a list: ' + target.id"
+            (click)="chooseLists($event, target)"
           >
-            <ion-icon slot="icon-only" [name]="isPlanned(target) ? 'bookmark' : 'bookmark-outline'"></ion-icon>
+            <ion-icon
+              slot="icon-only"
+              [name]="lists.isBookmarked(target.id) ? 'bookmark' : 'bookmark-outline'"
+            ></ion-icon>
           </ion-button>
         </ion-item>
       }
@@ -81,6 +87,8 @@ export class TargetListComponent {
   protected readonly state = inject(AppState);
   protected readonly goodAltitude = GOOD_ALTITUDE_DEG;
   private readonly router = inject(Router);
+  private readonly modals = inject(ModalController);
+  protected readonly lists = inject(ListsService);
 
   constructor() {
     addIcons({
@@ -107,14 +115,17 @@ export class TargetListComponent {
     return paths ? iconDataUrl(paths) : null;
   }
 
-  protected isPlanned(target: Target): boolean {
-    return this.state.planIds().includes(target.id);
-  }
-
-  protected togglePlan(event: Event, target: Target): void {
+  /** Opens a sheet to choose which of the user's lists the target is in. */
+  protected async chooseLists(event: Event, target: Target): Promise<void> {
     // The button sits inside the row, so stop the tap from also selecting the row.
     event.stopPropagation();
-    this.state.togglePlan(target.id);
+    const sheet = await this.modals.create({
+      component: BookmarkSheetComponent,
+      componentProps: { target },
+      breakpoints: [0, 0.6, 1],
+      initialBreakpoint: 0.6,
+    });
+    await sheet.present();
   }
 
   /** Selects a target and opens the sky map, where the arrow guides the user to it. */

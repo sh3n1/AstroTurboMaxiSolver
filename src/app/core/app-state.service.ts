@@ -102,7 +102,6 @@ const DEFAULT_SETTINGS: Settings = {
 };
 
 const SETTINGS_KEY = 'astrofinder.settings';
-const PLAN_KEY = 'astrofinder.plan';
 const ALIGNMENT_KEY = 'astrofinder.alignment';
 
 // Browser storage can be blocked or cleared, so the app must work without it.
@@ -161,9 +160,6 @@ export class AppState {
     return caldwell ? [...joinCaldwell(this.catalog(), caldwell), ...caldwell.extraTargets] : this.catalog();
   });
   readonly selectedTarget = computed(() => this.targets().find((t) => t.id === this.selectedTargetId()) ?? null);
-
-  /** Target ids the user has added to their session plan. */
-  readonly planIds = signal<string[]>(load<{ ids: string[] }>(PLAN_KEY, { ids: [] }).ids);
 
   readonly alignment = signal<Alignment | null>(
     load<{ value: Alignment | null }>(ALIGNMENT_KEY, { value: null }).value,
@@ -231,7 +227,6 @@ export class AppState {
     void this.loadCatalog('assets/data/openngc.json');
     void this.loadCaldwell();
     effect(() => save(SETTINGS_KEY, this.settings()));
-    effect(() => save(PLAN_KEY, { ids: this.planIds() }));
     effect(() => save(ALIGNMENT_KEY, { value: this.alignment() }));
     // CSS in global.scss turns the whole app red when this class is present.
     effect(() => document.documentElement.classList.toggle('night', this.settings().nightMode));
@@ -278,10 +273,6 @@ export class AppState {
 
   applyEquipment(equipment: Equipment): void {
     this.updateSettings({ ...equipment });
-  }
-
-  togglePlan(id: string): void {
-    this.planIds.update((ids) => (ids.includes(id) ? ids.filter((i) => i !== id) : [...ids, id]));
   }
 
   /** Where a target is right now from the user's location. */
