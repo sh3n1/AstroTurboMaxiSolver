@@ -81,6 +81,26 @@ test('explains when no sensor data arrives', async ({ page }) => {
   await expect(page.locator('[data-testid=sensor-toggle]')).toContainText('Use sensors');
 });
 
+test('turns the sensors on when a target is chosen', async ({ page }) => {
+  await page.goto('/tabs/targets');
+  await page.locator('app-targets ion-searchbar input').fill('Vega');
+  await page.locator('app-targets ion-item').first().click();
+  await expect(page.locator('[data-testid=sensor-toggle]')).toContainText('Sensors on');
+  // A phone's readings steer the map from then on.
+  await sendOrientation(page, 0, 90, 0);
+  await expect(page.locator('[data-testid=pointing]')).toContainText('Alt 0° Az 0°');
+});
+
+test('turns automatic sensors off quietly on a device without them', async ({ page }) => {
+  await page.goto('/tabs/targets');
+  await page.locator('app-targets ion-searchbar input').fill('Vega');
+  await page.locator('app-targets ion-item').first().click();
+  await expect(page.locator('[data-testid=sensor-toggle]')).toContainText('Sensors on');
+  // No readings arrive, so they switch off, without a message about it.
+  await expect(page.locator('[data-testid=sensor-toggle]')).toContainText('Use sensors', { timeout: 6000 });
+  await expect(page.locator('[data-testid=sensor-error]')).toHaveCount(0);
+});
+
 test('aligns using the real sensor reading', async ({ page }) => {
   await page.goto('/');
   await startSensors(page);

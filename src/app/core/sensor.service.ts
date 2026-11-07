@@ -115,8 +115,13 @@ export class SensorService {
     });
   }
 
-  /** Must be called from a tap, because browsers only ask for permission after one. */
-  async start(): Promise<void> {
+  /**
+   * Must be called from a tap, because browsers only ask for permission after one.
+   * Automatic starts, such as when a target is chosen, stay quiet if the device simply
+   * has no sensors, like a computer. A refused permission is still told, since the user
+   * chose that and may want to change it.
+   */
+  async start({ automatic = false }: { automatic?: boolean } = {}): Promise<void> {
     this.error.set('');
     try {
       if (!(await requestSensorPermission())) {
@@ -124,7 +129,7 @@ export class SensorService {
         return;
       }
     } catch {
-      this.error.set('Sensor access could not be requested.');
+      if (!automatic) this.error.set('Sensor access could not be requested.');
       return;
     }
 
@@ -141,7 +146,9 @@ export class SensorService {
     window.addEventListener('devicemotion', this.onMotion);
     this.noDataTimer = setTimeout(() => {
       this.stop();
-      this.error.set('No sensor data. This device may not have the sensors, or the page may not be on HTTPS.');
+      if (!automatic) {
+        this.error.set('No sensor data. This device may not have the sensors, or the page may not be on HTTPS.');
+      }
     }, NO_DATA_TIMEOUT_MS);
   }
 

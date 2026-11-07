@@ -262,15 +262,36 @@ test('marks a target below the horizon with a crossed-out eye', async ({ page })
   await expect(row.locator('ion-badge')).toHaveCount(0);
 });
 
-test('lists the planets and the Moon', async ({ page }) => {
+test('shows when a target below the horizon will rise', async ({ page }) => {
+  // From Valencia at midday in November, Sirius is down, and rises late in the evening.
+  await page.clock.install({ time: new Date('2026-11-07T12:00:00Z') });
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      'astrofinder.settings',
+      JSON.stringify({ latitudeDeg: 39.47, longitudeDeg: -0.38, locationSet: true }),
+    ),
+  );
+  await page.goto('/tabs/targets');
+  await page.locator('app-targets ion-searchbar input').fill('Sirius');
+  const row = page.locator('app-targets ion-item', { hasText: 'Sirius' }).first();
+  await expect(row.locator('[data-testid=rises-at]')).toHaveAttribute('aria-label', /rises at .*\d:\d\d/);
+  await expect(row.locator('[data-testid=rises-at]')).toContainText(/\d:\d\d/);
+  await expect(row.locator('[data-testid=below-horizon]')).toHaveCount(0);
+});
+
+test('lists the Moon, planets, dwarf planets and bright asteroids', async ({ page }) => {
   await page.goto('/tabs/targets');
   await page.locator('app-targets ion-chip', { hasText: 'Solar system' }).click();
   const rows = page.locator('app-targets ion-item');
-  await expect(rows).toHaveCount(8);
+  // The Moon, seven planets, Pluto, Ceres, Vesta, Pallas and Juno.
+  await expect(rows).toHaveCount(13);
   await expect(page.locator('app-targets ion-item', { hasText: 'Jupiter' })).toHaveCount(1);
   await expect(page.locator('app-targets ion-item', { hasText: 'Moon' })).toHaveCount(1);
+  await expect(rows.filter({ hasText: 'Pluto' })).toContainText('Dwarf planet');
+  await expect(rows.filter({ hasText: 'Ceres' })).toContainText('Dwarf planet');
+  await expect(rows.filter({ hasText: 'Vesta' })).toContainText('Asteroid');
   // Each has AstroFinder's own icon, drawn as lines, and the Moon's shows its phase.
-  await expect(rows.locator('[data-testid=target-icon][data-icon=custom]')).toHaveCount(8);
+  await expect(rows.locator('[data-testid=target-icon][data-icon=custom]')).toHaveCount(13);
   await expect(rows.filter({ hasText: 'Moon' }).locator('[data-testid=target-icon] svg path')).not.toHaveCount(0);
 });
 

@@ -133,6 +133,16 @@ function saturn(): IconPath[] {
 }
 
 // Each planet is a disc with the feature an observer knows it by.
+/** An asteroid: a lumpy rock with a couple of craters. */
+const ASTEROID: IconPath[] = [
+  // Long and lumpy, so it can't be mistaken for Mercury's round, cratered disc.
+  {
+    d: 'M3.4 15.6C2.4 12.6 4.6 10.2 7.2 9.6C8 7 10.6 5.2 13.6 5.4C15.4 4.4 18.6 4.8 19.8 7.2C21.2 9.6 20.2 12 18.4 13.2C17.6 16.2 14.6 17.6 12 17.4C10.2 18.8 7 19.4 5 18C4.2 17.4 3.6 16.6 3.4 15.6Z',
+  },
+  { d: circle(14.4, 9.4, 1.5) },
+  { d: circle(8.8, 14.2, 1.2) },
+];
+
 const PLANETS: Record<string, IconPath[]> = {
   // Small, grey and cratered.
   Mercury: [{ d: DISC }, { d: circle(9.6, 10, 1.4) }, { d: circle(14.4, 14.2, 1.8) }, { d: circle(14.2, 8.6, 0.8) }],
@@ -153,6 +163,16 @@ const PLANETS: Record<string, IconPath[]> = {
   // A dark storm and a band of high, bright clouds.
   // Set off centre, so the disc doesn't read as a face.
   Neptune: [{ d: DISC }, { d: 'M8.4 13.6a2.2 1.3 0 1 0 4.4 0a2.2 1.3 0 1 0 -4.4 0Z' }, { d: 'M6.2 9.8Q12 8 17.8 9.8' }],
+  // Small and far away: a little disc inside its long, tilted orbit, drawn dashed.
+  Pluto: [
+    { d: circle(C, C, 4.2) },
+    { d: 'M1.6 15.4C1 12.2 10.4 6.4 17.2 6.4C23.6 6.4 23.4 9.4 19.2 12', dashed: true },
+  ],
+  // A small round world with one bright spot, like the salt deposits in Occator crater.
+  Ceres: [{ d: circle(C, C, 5.6) }, { d: circle(13.6, 10.8, 1.2), fill: true }],
+  Vesta: ASTEROID,
+  Pallas: ASTEROID,
+  Juno: ASTEROID,
 };
 
 /**

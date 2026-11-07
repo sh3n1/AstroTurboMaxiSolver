@@ -5,18 +5,19 @@ import {
   azimuthChangeDeg,
   bearingInViewDeg,
   compassPoint,
-  equatorialVector,
   compassShort,
+  equatorialToHorizontal,
+  equatorialVector,
   formatDec,
   formatLocation,
   formatRa,
-  localToEquatorial,
-  rotateInView,
-  viewRollDeg,
-  equatorialToHorizontal,
   fromViewCoordinates,
   horizontalVector,
+  hoursUntilRise,
+  localToEquatorial,
   magnification,
+  nextBodyRise,
+  rotateInView,
   separationDeg,
   skyConditions,
   skyRotation,
@@ -27,6 +28,7 @@ import {
   trueFieldDeg,
   vectorToHorizontal,
   viewBasis,
+  viewRollDeg,
 } from './astronomy';
 
 const RAD = Math.PI / 180;
@@ -244,5 +246,39 @@ describe('astronomy', () => {
       expect(magnification(650, 25)).toBe(26);
       expect(trueFieldDeg(650, 25, 52)).toBe(2);
     });
+  });
+});
+
+describe('rise times', () => {
+  const [lat, lon] = [39.47, -0.38]; // Valencia
+  const start = new Date('2026-11-07T12:00:00Z');
+  const altitudeAt = (raDeg: number, decDeg: number, date: Date): number =>
+    equatorialToHorizontal(skyRotation(date, lat, lon), raDeg, decDeg).altDeg;
+
+  it('finds when a star below the horizon rises, matching the heights the app shows', () => {
+    const [ra, dec] = [101.287, -16.716]; // Sirius, which is down at midday in November
+    const position = equatorialToHorizontal(skyRotation(start, lat, lon), ra, dec);
+    expect(position.altDeg).toBeLessThan(0);
+    const hours = hoursUntilRise(position, lat)!;
+    expect(hours).toBeGreaterThan(0);
+    expect(hours).toBeLessThan(24);
+    const rise = new Date(start.getTime() + hours * 3_600_000);
+    expect(Math.abs(altitudeAt(ra, dec, rise))).toBeLessThan(0.05);
+    // Still down a few minutes before, up a few minutes after.
+    expect(altitudeAt(ra, dec, new Date(rise.getTime() - 300_000))).toBeLessThan(0);
+    expect(altitudeAt(ra, dec, new Date(rise.getTime() + 300_000))).toBeGreaterThan(0);
+  });
+
+  it('gives no time for a star that never rises from this latitude', () => {
+    const position = equatorialToHorizontal(skyRotation(start, lat, lon), 95.988, -52.696); // Canopus
+    expect(hoursUntilRise(position, lat)).toBeNull();
+  });
+
+  it('finds when the Moon next rises, within a day', () => {
+    const rise = nextBodyRise('Moon', start, lat, lon)!;
+    expect(rise.getTime()).toBeGreaterThan(start.getTime());
+    expect(rise.getTime() - start.getTime()).toBeLessThan(25 * 3_600_000);
+    const { raDeg, decDeg } = solarSystemPosition('Moon', rise, lat, lon);
+    expect(Math.abs(altitudeAt(raDeg, decDeg, rise))).toBeLessThan(0.3);
   });
 });

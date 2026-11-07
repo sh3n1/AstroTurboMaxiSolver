@@ -202,7 +202,9 @@ function magnitudeLimit(fieldDeg: number): number {
 
 /** Hides fainter labelled objects in wide views, where they would crowd the map. */
 function isShownAtField(target: Target, fieldDeg: number): boolean {
-  if (target.body) return true;
+  // The Moon and planets always show. Pluto and the asteroids are faint, so they follow
+  // the same rules as other faint objects below.
+  if (target.kind === 'Moon' || target.kind === 'Planet') return true;
   // The map already writes each constellation's name among its lines.
   if (target.kind === 'Constellation') return false;
   if (target.kind === 'Star') return target.mag <= (fieldDeg >= 60 ? 1.5 : fieldDeg >= 25 ? 3 : 5);

@@ -9,6 +9,8 @@
 
 import { Body, Equator, Horizon, Illumination, Observer, Rotation_EQJ_HOR, SearchAltitude } from 'astronomy-engine';
 
+import { minorPlanet, minorPlanetPosition } from './minor-planets';
+
 export type Vector3 = readonly [number, number, number];
 export type Matrix3 = readonly [Vector3, Vector3, Vector3];
 
@@ -173,12 +175,58 @@ export function solarSystemPosition(
   latitudeDeg: number,
   longitudeDeg: number,
 ): { raDeg: number; decDeg: number; mag: number; litFraction: number } {
+  // Ceres and the asteroids aren't in astronomy-engine, so they come from their orbits.
+  // They show no phase that matters, so they count as fully lit.
+  const minor = minorPlanet(bodyName);
+  if (minor) return { ...minorPlanetPosition(minor, date), litFraction: 1 };
   const body = bodyName as Body;
   // Using the observer's location matters most for the Moon, which is close enough
   // to appear in a different place from different parts of the Earth.
   const { ra, dec } = Equator(body, date, new Observer(latitudeDeg, longitudeDeg, 0), false, true);
   const { mag, phase_fraction } = Illumination(body, date);
   return { raDeg: ra * 15, decDeg: dec, mag, litFraction: phase_fraction };
+}
+
+/** How fast the sky turns, in degrees per hour of clock time: a turn in a sidereal day. */
+const SKY_TURN_DEG_PER_HOUR = 360 / 23.9345;
+
+/**
+ * Hours until an object fixed among the stars rises above the horizon, from where it is
+ * now, or null if it never rises from this latitude. Worked out from its current height
+ * and direction, so it agrees exactly with the heights shown elsewhere in the app.
+ */
+export function hoursUntilRise({ altDeg, azDeg }: Horizontal, latitudeDeg: number): number | null {
+  const [east, north, up] = horizontalVector({ altDeg, azDeg });
+  const lat = latitudeDeg * RAD;
+  // Declination is the angle from the celestial equator, towards the celestial pole.
+  const sinDec = north * Math.cos(lat) + up * Math.sin(lat);
+  const dec = Math.asin(Math.max(-1, Math.min(1, sinDec)));
+  // Hour angle: how far west of the meridian the object is, in degrees.
+  const hourAngle = Math.atan2(-east, -north * Math.sin(lat) + up * Math.cos(lat)) / RAD;
+  // The hour angle at which it crosses the horizon. Beyond ±1, it never rises here.
+  const cosRise = -Math.tan(lat) * Math.tan(dec);
+  if (cosRise >= 1) return null;
+  if (cosRise <= -1) return 0; // Never sets, so it is up already
+  const riseHourAngle = -Math.acos(cosRise) / RAD;
+  const degreesToGo = (((riseHourAngle - hourAngle) % 360) + 360) % 360;
+  return degreesToGo / SKY_TURN_DEG_PER_HOUR;
+}
+
+/**
+ * When a planet or the Moon next rises above the horizon, within a day, or null if it
+ * stays down that long. Measured to the body's centre, with no allowance for the air
+ * bending its light, the same way the app works out every height.
+ */
+export function nextBodyRise(bodyName: string, date: Date, latitudeDeg: number, longitudeDeg: number): Date | null {
+  // Ceres and the asteroids move so slowly that their rise is worked out like a star's.
+  if (minorPlanet(bodyName)) {
+    const { raDeg, decDeg } = solarSystemPosition(bodyName, date, latitudeDeg, longitudeDeg);
+    const position = equatorialToHorizontal(skyRotation(date, latitudeDeg, longitudeDeg), raDeg, decDeg);
+    const hours = hoursUntilRise(position, latitudeDeg);
+    return hours === null || hours > 24 ? null : new Date(date.getTime() + hours * 3_600_000);
+  }
+  const observer = new Observer(latitudeDeg, longitudeDeg, 0);
+  return SearchAltitude(bodyName as Body, observer, +1, date, 1, 0)?.date ?? null;
 }
 
 /** Where the Sun is, as a J2000 position, for working out which side of a phase is lit. */
