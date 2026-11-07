@@ -160,6 +160,22 @@ test('lists the planets and the Moon', async ({ page }) => {
   await expect(rows).toHaveCount(8);
   await expect(page.locator('app-targets ion-item', { hasText: 'Jupiter' })).toHaveCount(1);
   await expect(page.locator('app-targets ion-item', { hasText: 'Moon' })).toHaveCount(1);
+  // Each has AstroFinder's own icon, drawn as lines, and the Moon's shows its phase.
+  await expect(rows.locator('[data-testid=target-icon][data-icon=custom]')).toHaveCount(8);
+  await expect(rows.filter({ hasText: 'Moon' }).locator('[data-testid=target-icon] svg path')).not.toHaveCount(0);
+});
+
+test('shows its own icons for galaxies and nebulae', async ({ page }) => {
+  await page.goto('/tabs/targets');
+  await page.locator('app-targets ion-chip', { hasText: 'Nebula' }).click();
+  await expect(page.locator('app-targets [data-testid=target-icon]').first()).toHaveAttribute('data-icon', 'custom');
+  await page.locator('app-targets ion-chip', { hasText: 'Galaxy' }).click();
+  await expect(page.locator('app-targets [data-testid=target-icon]').first()).toHaveAttribute('data-icon', 'custom');
+  await page.locator('app-targets ion-chip', { hasText: 'Star' }).click();
+  await expect(page.locator('app-targets [data-testid=target-icon]').first()).toHaveAttribute(
+    'data-icon',
+    'star-outline',
+  );
 });
 
 test('fades the reticle in and out only while plate solving', async ({ page }) => {

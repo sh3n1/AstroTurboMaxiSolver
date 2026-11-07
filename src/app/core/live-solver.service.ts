@@ -1,8 +1,8 @@
-import { Injectable, computed, effect, inject, signal } from '@angular/core';
+import { Injectable, effect, inject, signal } from '@angular/core';
 
 import { AppState } from './app-state.service';
-import type { Vector3 } from './astronomy';
-import { applyMatrix, horizontalVector, localToEquatorial, equatorialVector } from './astronomy';
+import type { Horizontal, Vector3 } from './astronomy';
+import { applyMatrix, horizontalVector, localToEquatorial, equatorialVector, separationDeg } from './astronomy';
 import type { Quaternion } from './attitude';
 import { attitudeFromImageAxes } from './attitude';
 import type { OpenCamera } from './camera';
@@ -18,6 +18,25 @@ import { SensorService } from './sensor.service';
 import type { SolveRequest, SolveResponse } from './solver-messages';
 
 type Status = 'off' | 'waiting' | 'solving' | 'solved' | 'failed';
+
+/** One plate solve attempt, as the log in Settings shows it. */
+export interface SolveLogEntry {
+  /** Counts up, so a new entry can be told apart from one already seen. */
+  id: number;
+  at: Date;
+  /** Automatic while the phone is still, or asked for by alignment. */
+  trigger: 'auto' | 'alignment';
+  /** A retry means the frame was unusable, such as too bright, so it tries again soon. */
+  outcome: 'solved' | 'failed' | 'retry';
+  /** One short line for a toast or the log, such as "No match in 14 stars". */
+  message: string;
+  starCount: number;
+  matched: number;
+  iso: number;
+  durationMs: number;
+  /** After a solve, how far the sensors were from the true position. */
+  sensorErrorDeg: number | null;
+}
 
 /** The result of a plate solve the user asked for, such as during alignment. */
 export type SolveNowResult = { ok: true; attitude: Quaternion; matched: number } | { ok: false; reason: string };
@@ -41,6 +60,10 @@ const MAX_ISO_REDUCTIONS = 6;
 /** A learnt field of view outside this range would mean a bad solve, so it is ignored. */
 const MIN_FOCAL_FACTOR = 0.7;
 const MAX_FOCAL_FACTOR = 1.3;
+/** How many attempts the log keeps. */
+const LOG_LENGTH = 20;
+/** The camera must move at least this far before another automatic attempt. */
+const SAME_POSITION_DEG = 1;
 
 /**
  * Plate solves automatically whenever the sensors are on and the phone is still, then
@@ -53,26 +76,17 @@ export class LiveSolverService {
   private readonly sensors = inject(SensorService);
 
   readonly status = signal<Status>('off');
-  readonly lastStarCount = signal(0);
-  readonly lastSolvedAt = signal<Date | null>(null);
-  readonly lastMatched = signal(0);
+  /**
+   * The latest attempts, newest first, kept in memory for this session. The sky map
+   * shows a toast for each new one, and Settings lists them for debugging.
+   */
+  readonly log = signal<SolveLogEntry[]>([]);
 
-  /** One short line about the last solve, which the sky map shows as a toast when it fails. */
-  readonly statusText = computed(() => {
-    switch (this.status()) {
-      case 'off':
-        return '';
-      case 'waiting':
-        // Nothing to say until the first solve: the user needn't be told to hold still.
-        return this.lastSolvedAt() ? `Solved, ${this.lastMatched()} stars` : '';
-      case 'solving':
-        return 'Plate solving…';
-      case 'solved':
-        return `Solved, ${this.lastMatched()} stars`;
-      case 'failed':
-        return this.lastStarCount() > 0 ? `No match in ${this.lastStarCount()} stars` : 'No stars found';
-    }
-  });
+  /**
+   * Where the camera pointed at the last finished attempt. Trying again from the same
+   * place would give the same answer, so the next automatic attempt waits for a move.
+   */
+  private lastAttemptPointing: Horizontal | null = null;
 
   private camera: OpenCamera | null = null;
   private opening = false;
@@ -82,6 +96,7 @@ export class LiveSolverService {
   private worker: Worker | null = null;
   private workerReady: Promise<void> | null = null;
   private requestId = 0;
+  private logCount = 0;
   private readonly pending = new Map<number, (response: SolveResponse) => void>();
 
   constructor() {
@@ -109,17 +124,25 @@ export class LiveSolverService {
     this.camera = null;
     this.status.set('off');
     this.state.plateSolving.set(false);
+    // A fresh start always gets a first attempt, wherever the phone points.
+    this.lastAttemptPointing = null;
   }
 
   private async tick(): Promise<void> {
     if (this.status() === 'solving' || this.opening || Date.now() < this.nextAttemptAt) return;
     if (!this.sensors.isStill()) return;
+    // Solved or failed, a second try from the same place would only repeat the answer.
+    const here = this.state.cameraPointing();
+    if (here && this.lastAttemptPointing && separationDeg(here, this.lastAttemptPointing) < SAME_POSITION_DEG) return;
     await this.attempt();
   }
 
   private async attempt(): Promise<void> {
     this.status.set('solving');
     this.state.plateSolving.set(true);
+    // Where the sensors say the camera points, before any correction.
+    const before = this.state.cameraPointing();
+    const entry = { trigger: 'auto' as const, startedAt: Date.now(), iso: this.iso };
     try {
       const camera = await this.ensureCamera();
       const frame = await captureStack(camera.video, { exposureSeconds: EXPOSURE_SECONDS, iso: this.iso, frames: 1 });
@@ -128,11 +151,13 @@ export class LiveSolverService {
       if (averageLevel(frame.pixels) > MAX_SKY_LEVEL && this.iso > MIN_ISO) {
         this.iso = Math.max(MIN_ISO, Math.round(this.iso / 2));
         await applyCameraSettings(camera.track, { exposureSeconds: EXPOSURE_SECONDS, iso: this.iso, frames: 1 });
+        this.record({ ...entry, outcome: 'retry', message: `Too bright, ISO lowered to ${this.iso}` });
         this.retrySoon(FAILED_PAUSE_MS / 5);
         return;
       }
       // If the phone moved during the exposure, the stars are smeared.
       if (!this.sensors.isStill()) {
+        this.record({ ...entry, outcome: 'retry', message: 'The phone moved during the exposure' });
         this.retrySoon(0);
         return;
       }
@@ -142,13 +167,33 @@ export class LiveSolverService {
         const rotation = this.state.skyRotation();
         const [x, y, z] = response.solution.axes.map((axis) => applyMatrix(rotation, axis));
         this.sensors.applyPlateSolve(attitudeFromImageAxes(x, y, z));
-        this.lastSolvedAt.set(new Date());
-        this.lastMatched.set(response.solution.matched);
         this.learnFieldOfView(response.solution.focalPx, frame.width, frame.height);
+        // The sensors now show the solved position, so that is where this attempt was.
+        const after = this.state.cameraPointing();
+        this.lastAttemptPointing = after ?? before;
+        this.record({
+          ...entry,
+          outcome: 'solved',
+          message: `Plate solved, ${response.solution.matched} stars matched`,
+          starCount: response.starCount,
+          matched: response.solution.matched,
+          sensorErrorDeg: before && after ? separationDeg(before, after) : null,
+        });
+        this.finish(true, SOLVED_PAUSE_MS);
+        return;
       }
-      this.finish(!!response.solution, response.starCount, response.solution ? SOLVED_PAUSE_MS : FAILED_PAUSE_MS);
-    } catch {
-      this.finish(false, 0, FAILED_PAUSE_MS);
+      this.lastAttemptPointing = before;
+      this.record({
+        ...entry,
+        outcome: 'failed',
+        message: failureMessage(response.starCount),
+        starCount: response.starCount,
+      });
+      this.finish(false, FAILED_PAUSE_MS);
+    } catch (error) {
+      this.lastAttemptPointing = before;
+      this.record({ ...entry, outcome: 'failed', message: cameraErrorMessage(error) });
+      this.finish(false, FAILED_PAUSE_MS);
     }
   }
 
@@ -162,11 +207,36 @@ export class LiveSolverService {
     if (this.status() === 'solving') this.status.set('waiting');
   }
 
-  private finish(solved: boolean, starCount: number, pauseMs: number): void {
+  private finish(solved: boolean, pauseMs: number): void {
     this.state.plateSolving.set(false);
-    this.lastStarCount.set(starCount);
     this.nextAttemptAt = Date.now() + pauseMs;
     if (this.status() === 'solving') this.status.set(solved ? 'solved' : 'failed');
+  }
+
+  /** Adds an attempt to the top of the log, dropping the oldest once it is full. */
+  private record(entry: {
+    trigger: SolveLogEntry['trigger'];
+    startedAt: number;
+    iso: number;
+    outcome: SolveLogEntry['outcome'];
+    message: string;
+    starCount?: number;
+    matched?: number;
+    sensorErrorDeg?: number | null;
+  }): void {
+    const newest: SolveLogEntry = {
+      id: ++this.logCount,
+      at: new Date(),
+      trigger: entry.trigger,
+      outcome: entry.outcome,
+      message: entry.message,
+      starCount: entry.starCount ?? 0,
+      matched: entry.matched ?? 0,
+      iso: entry.iso,
+      durationMs: Date.now() - entry.startedAt,
+      sensorErrorDeg: entry.sensorErrorDeg ?? null,
+    };
+    this.log.update((log) => [newest, ...log].slice(0, LOG_LENGTH));
   }
 
   /**
@@ -186,6 +256,8 @@ export class LiveSolverService {
     const wasRunning = !!this.timer;
     this.status.set('solving');
     this.state.plateSolving.set(true);
+    const startedAt = Date.now();
+    const before = this.state.cameraPointing();
     try {
       const camera = await this.ensureCamera();
       let frame = await captureStack(camera.video, { exposureSeconds: EXPOSURE_SECONDS, iso: this.iso, frames: 1 });
@@ -196,13 +268,20 @@ export class LiveSolverService {
         await new Promise((resolve) => setTimeout(resolve, SETTLE_MS));
         frame = await captureStack(camera.video, { exposureSeconds: EXPOSURE_SECONDS, iso: this.iso, frames: 1 });
       }
+      const entry = { trigger: 'alignment' as const, startedAt, iso: this.iso };
       if (averageLevel(frame.pixels) > MAX_SKY_LEVEL) {
+        this.record({ ...entry, outcome: 'failed', message: 'Too bright to see stars' });
         return { ok: false, reason: 'The sky is too bright for the camera to see stars. Keep lights out of view.' };
       }
 
       const response = await this.solve(frame.pixels, frame.width, frame.height, SOLVE_NOW_TIME_LIMIT_MS);
-      this.lastStarCount.set(response.starCount);
       if (!response.solution) {
+        this.record({
+          ...entry,
+          outcome: 'failed',
+          message: failureMessage(response.starCount),
+          starCount: response.starCount,
+        });
         return {
           ok: false,
           reason:
@@ -216,11 +295,27 @@ export class LiveSolverService {
       const [x, y, z] = response.solution.axes.map((axis) => applyMatrix(rotation, axis));
       const attitude = attitudeFromImageAxes(x, y, z);
       this.sensors.applyPlateSolve(attitude);
-      this.lastSolvedAt.set(new Date());
-      this.lastMatched.set(response.solution.matched);
       this.learnFieldOfView(response.solution.focalPx, frame.width, frame.height);
+      const after = this.state.cameraPointing();
+      // Automatic solving needn't repeat this one from the same place.
+      this.lastAttemptPointing = after ?? before;
+      this.record({
+        ...entry,
+        outcome: 'solved',
+        message: `Plate solved, ${response.solution.matched} stars matched`,
+        starCount: response.starCount,
+        matched: response.solution.matched,
+        sensorErrorDeg: before && after ? separationDeg(before, after) : null,
+      });
       return { ok: true, attitude, matched: response.solution.matched };
     } catch (error) {
+      this.record({
+        trigger: 'alignment',
+        startedAt,
+        iso: this.iso,
+        outcome: 'failed',
+        message: cameraErrorMessage(error),
+      });
       return {
         ok: false,
         reason: `The camera could not be used. ${error instanceof Error ? error.message : ''}`.trim(),
@@ -311,4 +406,14 @@ export class LiveSolverService {
     const worker = this.worker;
     return this.workerReady!.then(() => worker);
   }
+}
+
+/** What to tell the user when the solver ran but found no answer. */
+function failureMessage(starCount: number): string {
+  return starCount > 0 ? `No match in ${starCount} stars` : 'No stars found';
+}
+
+/** What to tell the user when the camera could not take a picture. */
+function cameraErrorMessage(error: unknown): string {
+  return error instanceof Error && error.message ? `Camera unavailable: ${error.message}` : 'Camera unavailable';
 }

@@ -88,7 +88,7 @@ Before finishing a change, run: `npm run lint`, `npm run test:unit` and `npm run
 
 ## Visual design
 
-The app has its own look, not a copy of other astronomy apps. Other apps may inform what is useful, but not how it looks. The reticle is three plain rings at 0.5°, 2° and 4°, the same sizes as a Telrad finder. Its rings fade in and out while plate solving. The selected target is a light blue diamond of four strokes. Guidance is a trail of fading chevrons with a dashed guide line, in the same light blue as the selected target. Avoid orange guidance, which other apps use. The chevrons spread further apart the farther away the target is.
+The app has its own look, not a copy of other astronomy apps. Other apps may inform what is useful, but not how it looks. The reticle is three plain rings at 0.5°, 2° and 4°, the same sizes as a Telrad finder. Its rings fade in and out while plate solving. The selected target is marked by a crosshair of four short rounded strokes with a gap in the middle, in the same green the rings turn when on target. The selected object keeps its own colour, such as yellow for planets. Guidance is a trail of fading chevrons with a dashed guide line, in light blue. Galaxies, nebulae, the planets and the Moon have the app's own line icons, in `src/app/core/target-icons.ts`. The Moon and Venus show their current phase, turned towards the Sun on the map. Avoid orange guidance, which other apps use. The chevrons spread further apart the farther away the target is.
 
 ## Readability
 

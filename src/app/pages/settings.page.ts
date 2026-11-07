@@ -1,3 +1,4 @@
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import {
@@ -19,6 +20,7 @@ import {
 
 import { AppState } from '../core/app-state.service';
 import type { Settings } from '../core/app-state.service';
+import { LiveSolverService } from '../core/live-solver.service';
 import { BORTLE_CLASSES } from '../core/sky-quality';
 
 type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
@@ -27,6 +29,8 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
 @Component({
   selector: 'app-settings',
   imports: [
+    DatePipe,
+    DecimalPipe,
     IonButton,
     IonContent,
     IonHeader,
@@ -166,6 +170,45 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
         <ion-item button detail="true" data-testid="open-device-test" (click)="openDeviceTest()">
           <ion-label>Device test: camera, sensors and plate solving</ion-label>
         </ion-item>
+        <ion-item>
+          <ion-toggle
+            data-testid="success-toast"
+            [checked]="settings().solveSuccessToast"
+            (ionChange)="state.updateSettings({ solveSuccessToast: $any($event).detail.checked })"
+          >
+            Show a toast when plate solving succeeds
+          </ion-toggle>
+        </ion-item>
+        <ion-item button data-testid="open-solve-log" (click)="showSolveLog.set(!showSolveLog())">
+          <ion-label>Plate solving log {{ showSolveLog() ? '▴' : '▾' }}</ion-label>
+          <ion-note slot="end">{{ liveSolver.log().length }}</ion-note>
+        </ion-item>
+        @if (showSolveLog()) {
+          <!-- The latest attempts in this session, newest first, for checking on a real sky. -->
+          @for (entry of liveSolver.log(); track entry.id) {
+            <ion-item data-testid="solve-log-entry">
+              <ion-label class="ion-text-wrap">
+                <h3>{{ entry.message }}</h3>
+                <p>
+                  {{ entry.at | date: 'HH:mm:ss' }} · {{ entry.trigger === 'auto' ? 'Automatic' : 'Alignment' }} ·
+                  {{ entry.durationMs / 1000 | number: '1.1-1' }} s · ISO {{ entry.iso }}
+                  @if (entry.starCount > 0) {
+                    · {{ entry.starCount }} stars found
+                  }
+                  @if (entry.sensorErrorDeg !== null) {
+                    · sensors were {{ entry.sensorErrorDeg | number: '1.1-1' }}° off
+                  }
+                </p>
+              </ion-label>
+            </ion-item>
+          } @empty {
+            <ion-item data-testid="solve-log-empty">
+              <ion-label class="ion-text-wrap"
+                >No plate solves yet. Turn sensors on and hold the phone still.</ion-label
+              >
+            </ion-item>
+          }
+        }
 
         <ion-list-header>Data credits</ion-list-header>
         <ion-item
@@ -197,6 +240,8 @@ export class SettingsPage {
   protected readonly state = inject(AppState);
   private readonly router = inject(Router);
   protected readonly settings = this.state.settings;
+  protected readonly liveSolver = inject(LiveSolverService);
+  protected readonly showSolveLog = signal(false);
   protected readonly gpsMessage = signal('');
   protected readonly bortleClasses = BORTLE_CLASSES;
 

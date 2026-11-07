@@ -4,16 +4,18 @@ import type { Horizontal, Vector3 } from './astronomy';
 import {
   equatorialToHorizontal,
   horizontalVector,
+  litOnRight,
   localToEquatorial,
   skyConditions,
   skyRotation,
   solarSystemPosition,
+  sunPosition,
 } from './astronomy';
 import type { Equipment, TelescopeType } from './equipment';
 import { EQUIPMENT_KEYS, rememberEquipment } from './equipment';
 import { telescopeLimit } from './sky-quality';
 import type { Target } from './targets';
-import { SOLAR_SYSTEM_BODIES } from './targets';
+import { PHASED_BODIES, SOLAR_SYSTEM_BODIES } from './targets';
 
 export type { TelescopeType } from './equipment';
 export type MountType = 'direct' | 'clip-on' | 'mirror';
@@ -37,6 +39,8 @@ export interface Settings {
   textSize: TextSize;
   /** Plate solve automatically whenever sensors are on and the phone is still. */
   autoSolve: boolean;
+  /** Show a toast for successful plate solves too, with the stars matched. For debugging. */
+  solveSuccessToast: boolean;
   /** How dark the observer's sky is, on the Bortle scale from 1 (darkest) to 9. */
   bortle: number;
   /** The faintest stars the eyepiece view shows, or null to work it out from the sky. */
@@ -77,6 +81,7 @@ const DEFAULT_SETTINGS: Settings = {
   // Larger than usual by default, because many observers are past forty.
   textSize: 'large',
   autoSolve: true,
+  solveSuccessToast: false,
   // Central Valencia measures about 17.5 magnitudes per square arcsecond, a city sky.
   bortle: 8,
   eyepieceStarLimit: null,
@@ -147,15 +152,30 @@ export class AppState {
   /** Everything the user can aim at, with planets and the Moon where they are now. */
   readonly targets = computed<Target[]>(() => {
     const { latitudeDeg, longitudeDeg } = this.settings();
-    const solarSystem = SOLAR_SYSTEM_BODIES.map((body): Target => ({
-      id: body,
-      name: body === 'Moon' ? "Earth's Moon" : 'Planet',
-      kind: body === 'Moon' ? 'Moon' : 'Planet',
-      ...(body === 'Moon' ? { sizeArcmin: 31 } : {}),
-      body,
-      ...solarSystemPosition(body, this.now(), latitudeDeg, longitudeDeg),
-    }));
+    const sun = this.sunEquatorial();
+    const solarSystem = SOLAR_SYSTEM_BODIES.map((body): Target => {
+      const { raDeg, decDeg, mag, litFraction } = solarSystemPosition(body, this.now(), latitudeDeg, longitudeDeg);
+      return {
+        id: body,
+        name: body === 'Moon' ? "Earth's Moon" : 'Planet',
+        kind: body === 'Moon' ? 'Moon' : 'Planet',
+        ...(body === 'Moon' ? { sizeArcmin: 31 } : {}),
+        body,
+        raDeg,
+        decDeg,
+        mag,
+        ...(PHASED_BODIES.includes(body)
+          ? { phase: { litFraction, litOnRight: litOnRight(raDeg, sun.raDeg, latitudeDeg) } }
+          : {}),
+      };
+    });
     return [...solarSystem, ...this.catalog()];
+  });
+
+  /** Where the Sun is now, in catalogue coordinates. Phases are lit from its side. */
+  readonly sunEquatorial = computed(() => {
+    const { latitudeDeg, longitudeDeg } = this.settings();
+    return sunPosition(this.now(), latitudeDeg, longitudeDeg);
   });
 
   /** Rotation from catalogue positions to the local sky, right now. */
