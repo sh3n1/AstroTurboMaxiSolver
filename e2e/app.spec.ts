@@ -27,7 +27,7 @@ test('shows RA and Dec on the sky map only when chosen in Settings', async ({ pa
   await expect(page.locator('[data-testid=show-equatorial]')).toHaveAttribute('aria-checked', 'false');
   await page.locator('[data-testid=show-equatorial]').click();
   await page.getByRole('tab', { name: 'Sky' }).click();
-  await expect(page.locator('[data-testid=equatorial]')).toContainText(/RA \d+h \d+m, Dec [+-]\d+°/);
+  await expect(page.locator('[data-testid=equatorial]')).toContainText(/RA \d+h \d+m, Dec [+−-]\d+°/);
 });
 
 test('shows the location bottom left, only while no target is selected', async ({ page, context }) => {
