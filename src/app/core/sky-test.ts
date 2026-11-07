@@ -72,7 +72,21 @@ export interface StepReport {
   solve: SolveReport | null;
   /** A preview of the stacked frame, as a JPEG data URL. */
   image: string | null;
+  /** How the preview's grey levels map back to the frame's, so it can be analysed later. */
+  previewStretch?: PreviewStretch;
   error?: string;
+}
+
+/**
+ * The preview's curve: frame level = black + softness × sinh(preview level / 255 ×
+ * asinh((255 − black) / softness)). Faint levels just above the sky are spread out, so
+ * faint stars show, and bright ones are squeezed, so lit buildings and glow keep their
+ * detail rather than turning flat white.
+ */
+export interface PreviewStretch {
+  kind: 'asinh';
+  black: number;
+  softness: number;
 }
 
 export interface SkyTestOptions {
@@ -88,30 +102,34 @@ export interface SkyTestOptions {
 const wait = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 const round = (value: number, digits = 2): number => Number(value.toFixed(digits));
 
-/** Makes a preview that shows faint stars by stretching just above the sky brightness. */
-function previewImage(
-  pixels: Float32Array,
-  width: number,
-  height: number,
-  background: number,
-  noise: number,
-): string | null {
+/** The preview's curve for a frame, from its sky brightness and noise. */
+function previewStretch(background: number, noise: number): PreviewStretch {
+  return { kind: 'asinh', black: round(background - noise, 3), softness: round(Math.max(noise * 4, 1), 3) };
+}
+
+/**
+ * Makes a preview that shows faint stars and bright detail alike: levels just above the
+ * sky are stretched, and brighter ones squeezed, with the curve in PreviewStretch.
+ */
+function previewImage(pixels: Float32Array, width: number, height: number, stretch: PreviewStretch): string | null {
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
   const image = ctx.createImageData(width, height);
-  const [black, range] = [background - noise, Math.max(noise * 40, 20)];
+  const { black, softness } = stretch;
+  const top = Math.asinh((255 - black) / softness);
   for (let i = 0; i < pixels.length; i++) {
-    const value = Math.max(0, Math.min(255, ((pixels[i] - black) / range) * 255));
+    const value = Math.min(255, (Math.asinh(Math.max(0, pixels[i] - black) / softness) / top) * 255);
     image.data[i * 4] = value;
     image.data[i * 4 + 1] = value;
     image.data[i * 4 + 2] = value;
     image.data[i * 4 + 3] = 255;
   }
   ctx.putImageData(image, 0, 0);
-  return canvas.toDataURL('image/jpeg', 0.85);
+  // High quality, so the levels can be recovered closely for analysis.
+  return canvas.toDataURL('image/jpeg', 0.95);
 }
 
 /** Runs every step, keeping whatever it gets if one of them fails. */
@@ -202,7 +220,8 @@ async function runStep(
       snr: round(s.snr, 1),
       pixels: s.pixels,
     }));
-    report.image = previewImage(pixels, width, height, detection.background, detection.noise);
+    report.previewStretch = previewStretch(detection.background, detection.noise);
+    report.image = previewImage(pixels, width, height, report.previewStretch);
 
     // Clipped frames only produce artifacts, and those can look like stars to the solver.
     report.tooBright = report.clippedPercent > MAX_CLIPPED_PERCENT;

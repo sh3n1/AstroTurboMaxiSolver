@@ -34,8 +34,20 @@ export interface DetectionResult {
 const BLOCK_SIZE = 32; // Sky brightness and noise are estimated in blocks this many pixels wide
 const THRESHOLD_SIGMA = 4; // Against the local noise, so faint stars in the darker corners count too
 const MIN_STAR_PIXELS = 2; // A single bright pixel is a hot pixel, not a star
-const MAX_STAR_PIXELS = 900; // Anything larger is a light, the Moon or a building
+/**
+ * Anything larger is a light, a lit part of a building, the Moon or a bright planet.
+ * Stars through a phone's main camera cover a few dozen pixels at most, even bright ones.
+ */
+const MAX_STAR_PIXELS = 150;
 const MAX_STARS = 200;
+/**
+ * Lit windows, gaps between leaves and the lights of a street come in tight clusters,
+ * while stars bright enough to cover this many pixels are scattered across the sky. A
+ * spot this large with this many others within this distance is part of such a cluster.
+ */
+const CLUSTER_SPOT_PIXELS = 30;
+const CLUSTER_NEIGHBOURS = 3;
+const CLUSTER_RADIUS_PX = 50;
 const MIN_NOISE = 0.25; // Video processing can flatten noise to nothing, so keep a floor
 
 /**
@@ -49,6 +61,22 @@ const MAX_ELONGATION = 3;
  * the light's own size if that is larger, are left out.
  */
 const GLARE_MARGIN_PX = 15;
+/**
+ * Only compact, bright things are lights. A light is at most this many pixels across,
+ * which keeps the glow over a city, or a lit building's edge, from being taken for one
+ * and masking the whole sky.
+ */
+const MAX_LIGHT_SIZE_PX = 200;
+/** A light's brightest pixel stands at least this many times the threshold above the sky. */
+const LIGHT_MIN_PEAK = 10;
+/**
+ * The camera's image has whole grey levels, so in a dark frame a patch just one level
+ * brighter than the sky around it can pass the noise threshold, though it is only
+ * rounding. Faint stars are that dim too, but small, so only patches this large must
+ * stand at least this many levels above the sky around them.
+ */
+const ROUNDING_PATCH_PIXELS = 10;
+const MIN_PATCH_PEAK_LEVELS = 1.5;
 /** Groups this small are too few pixels to judge their shape reliably. */
 const MIN_PIXELS_FOR_SHAPE = 6;
 /**
@@ -65,10 +93,17 @@ const BROAD_MIN_PEAK = 2;
  */
 const MAX_FLAT_SHARE = 0.7;
 /**
- * Only larger groups are judged this way. Small lights are blurred into the same shape as a
- * star, and the middle of a small bright star can be clipped flat, so they can't be told apart.
+ * Groups this large are judged this way. A faint star is only a level or two bright, so
+ * its few pixels can look flat too.
  */
 const MIN_PIXELS_FOR_FLATNESS = 30;
+/**
+ * Smaller groups are judged too if they stand at least this many grey levels above the
+ * sky around them. A star that bright always fades out around its middle, even with the
+ * middle clipped, so a small, bright and flat spot is a distant lit window.
+ */
+const MIN_PIXELS_FOR_BRIGHT_FLATNESS = 6;
+const BRIGHT_FLAT_LEVELS = 10;
 
 /**
  * The sky right around each group is measured in a ring this many pixels out from it,
@@ -249,24 +284,31 @@ export function detectStars(pixels: Float32Array, width: number, height: number)
       glare.push([left - margin, top - margin, right + margin, bottom + margin]);
     };
     if (count > MAX_STAR_PIXELS) {
-      // Too large for a star. If it is bright, it is a light, such as a streetlight.
-      // A large faint patch is only uneven sky, with no glare.
-      if (peak >= BROAD_MIN_PEAK * threshold) maskGlare();
+      // Too large for a star. If it is compact and bright, it is a light, such as a
+      // streetlight. Anything else is sky glow or the edge of a building, with no glare.
+      const isLight =
+        right - left <= MAX_LIGHT_SIZE_PX && bottom - top <= MAX_LIGHT_SIZE_PX && peak >= LIGHT_MIN_PEAK * threshold;
+      if (isLight) maskGlare();
       continue;
     }
     if (count < MIN_STAR_PIXELS) continue;
+    // Only the part above the sky right around it counts. A step in the sky has none.
+    const localSky = ringSky(residual, width, height, [left, top, right, bottom]);
+    const rise = peak - localSky;
+    if (rise < threshold) continue;
+    // A patch one grey level above the sky: rounding, not a star.
+    if (count >= ROUNDING_PATCH_PIXELS && rise < MIN_PATCH_PEAK_LEVELS) continue;
+
     // Evenly lit with hard edges: a lit window, a screen or a sign.
-    if (count >= MIN_PIXELS_FOR_FLATNESS) {
-      const nearPeak = members.filter((index) => residual[index] >= peak / 2).length;
+    const judgeFlatness =
+      count >= MIN_PIXELS_FOR_FLATNESS || (count >= MIN_PIXELS_FOR_BRIGHT_FLATNESS && rise >= BRIGHT_FLAT_LEVELS);
+    if (judgeFlatness) {
+      const nearPeak = members.filter((index) => residual[index] - localSky >= rise / 2).length;
       if (nearPeak > MAX_FLAT_SHARE * count) {
         maskGlare();
         continue;
       }
     }
-
-    // Only the part above the sky right around it counts. A step in the sky has none.
-    const localSky = ringSky(residual, width, height, [left, top, right, bottom]);
-    if (peak - localSky < threshold) continue;
 
     const [cx, cy] = [sumX / flux, sumY / flux];
     // Long and thin: a smear along an edge, not a star.
@@ -281,7 +323,13 @@ export function detectStars(pixels: Float32Array, width: number, height: number)
   // Lights are only known once found, so glare is removed at the end.
   const isGlare = ({ x, y }: DetectedStar): boolean =>
     glare.some(([l, t, r, b]) => x >= l && x <= r && y >= t && y <= b);
-  const real = glare.length > 0 ? stars.filter((star) => !isGlare(star)) : stars;
+  const unglared = glare.length > 0 ? stars.filter((star) => !isGlare(star)) : stars;
+  // Large spots crowded by others are lit buildings or trees, not stars.
+  const isInCluster = (star: DetectedStar): boolean =>
+    star.pixels >= CLUSTER_SPOT_PIXELS &&
+    unglared.filter((other) => other !== star && Math.hypot(other.x - star.x, other.y - star.y) < CLUSTER_RADIUS_PX)
+      .length >= CLUSTER_NEIGHBOURS;
+  const real = unglared.filter((star) => !isInCluster(star));
 
   real.sort((a, b) => b.flux - a.flux);
   return {

@@ -375,6 +375,30 @@ describe('star detection among real-world clutter', () => {
     expect(angleDeg(solution!.pointing, truth)).toBeLessThan(0.2);
   });
 
+  it('keeps the stars above a bright city glow and lit buildings low in the frame', () => {
+    const { pixels, truth } = render({ raDeg: 84, decDeg: 0 });
+    // The glow over a city rises steeply towards the rooftops, two thirds of the way down.
+    for (let y = 0; y < height; y++) {
+      const glow = y < 640 ? 120 * Math.exp((y - 640) / 60) : 160;
+      for (let x = 0; x < width; x++) pixels[at(x, y)] = Math.min(255, pixels[at(x, y)] + glow);
+    }
+    // Rooftops with rows of lit windows below them.
+    for (let y = 700; y < height; y++) for (let x = 0; x < width; x++) pixels[at(x, y)] = 20;
+    for (let row = 0; row < 5; row++) {
+      for (let col = 0; col < 12; col++) {
+        const [left, top] = [10 + col * 44, 720 + row * 45];
+        for (let y = top; y < top + 5; y++) for (let x = left; x < left + 4; x++) pixels[at(x, y)] = 230;
+      }
+    }
+    const { stars: found } = detectStars(pixels, width, height);
+    // Nearly all the real stars well above the glow are still found.
+    const above = clean.filter((star) => star.y < 450);
+    const kept = above.filter((star) => found.some((f) => Math.hypot(f.x - star.x, f.y - star.y) < 2));
+    expect(kept.length).toBeGreaterThanOrEqual(0.95 * above.length);
+    const solution = solveFrame(found, FRAME, index);
+    expect(angleDeg(solution!.pointing, truth)).toBeLessThan(0.2);
+  });
+
   it('still finds a bright star whose middle is clipped by the camera', () => {
     const pixels = new Float32Array(width * height).fill(30);
     const [starX, starY] = [270.4, 480.6];

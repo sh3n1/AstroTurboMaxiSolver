@@ -103,7 +103,8 @@ export class TargetsPage {
     return this.matches()
       .map((target) => {
         const isExact = !!term && isExactDesignation(target, term);
-        const isUp = this.state.positionOf(target).altDeg > 0;
+        // The minute clock is enough for sorting, and saves re-sorting every second.
+        const isUp = this.state.positionAt(target, this.state.now()).altDeg > 0;
         return { target, rank: (isExact ? 0 : 2000) + (isUp ? 0 : 1000) + target.mag };
       })
       .sort((a, b) => a.rank - b.rank)
