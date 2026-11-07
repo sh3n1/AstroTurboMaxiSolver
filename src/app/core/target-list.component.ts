@@ -23,7 +23,7 @@ import { iconDataUrl, targetIcon } from './target-icons';
 import type { Target, TargetKind } from './targets';
 
 /** Standard icons for the kinds without one of AstroFinder's own, in target-icons.ts. */
-const KIND_ICONS: Record<Exclude<TargetKind, 'Galaxy' | 'Nebula' | 'Planet' | 'Moon'>, string> = {
+const KIND_ICONS: Record<Exclude<TargetKind, 'Galaxy' | 'Nebula' | 'Constellation' | 'Planet' | 'Moon'>, string> = {
   Other: 'ellipsis-horizontal-outline',
   'Open cluster': 'sparkles-outline',
   'Globular cluster': 'ellipse-outline',
@@ -64,7 +64,13 @@ const GOOD_ALTITUDE_DEG = 30;
           <ion-label>
             <!-- Every catalogue number: Messier, then Caldwell, then NGC and IC. -->
             <h2 data-testid="designations">{{ designationText(target) }}</h2>
-            <p>{{ target.name }} · mag {{ target.mag < 90 ? (target.mag | number: '1.1-1') : '?' }}</p>
+            <!-- Magnitude only where it is known. Constellations, and some objects, have none. -->
+            <p>
+              {{ target.name }}
+              @if (target.mag < 90) {
+                · mag {{ target.mag | number: '1.1-1' }}
+              }
+            </p>
           </ion-label>
           @if (altDeg > 0) {
             <!-- How high, and which way to face: "42° SE". -->

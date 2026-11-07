@@ -9,7 +9,7 @@ import type { Target } from '../core/targets';
 /** Target types the user can filter by. Clusters combine open and globular. */
 const MAX_RESULTS = 40;
 
-const FILTERS = ['All', 'Solar system', 'Galaxy', 'Nebula', 'Cluster', 'Star'] as const;
+const FILTERS = ['All', 'Solar system', 'Galaxy', 'Nebula', 'Cluster', 'Star', 'Constellation'] as const;
 type Filter = (typeof FILTERS)[number];
 
 function matchesFilter(target: Target, filter: Filter): boolean {
@@ -61,10 +61,10 @@ function matchesFilter(target: Target, filter: Filter): boolean {
 
     <ion-content>
       <app-target-list [targets]="results()"></app-target-list>
-      @if (matchCount() > maxResults) {
+      @if (matchCount() > maxResults()) {
         <ion-text color="medium" data-testid="more-results">
           <p class="ion-text-center ion-padding">
-            Showing {{ maxResults }} of {{ matchCount() }}. Search to narrow them down.
+            Showing {{ maxResults() }} of {{ matchCount() }}. Search to narrow them down.
           </p>
         </ion-text>
       }
@@ -91,7 +91,8 @@ export class TargetsPage {
   });
 
   protected readonly matchCount = computed(() => this.matches().length);
-  protected readonly maxResults = MAX_RESULTS;
+  /** All 88 constellations fit in one list, so they are never cut short. */
+  protected readonly maxResults = computed(() => (this.filter() === 'Constellation' ? Infinity : MAX_RESULTS));
 
   /**
    * The best matches: exact designations first, then whatever is up and brightest.
@@ -106,7 +107,7 @@ export class TargetsPage {
         return { target, rank: (isExact ? 0 : 2000) + (isUp ? 0 : 1000) + target.mag };
       })
       .sort((a, b) => a.rank - b.rank)
-      .slice(0, MAX_RESULTS)
+      .slice(0, this.maxResults())
       .map(({ target }) => target);
   });
 }

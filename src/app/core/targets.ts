@@ -3,7 +3,7 @@
 // calculated instead. Catalogue positions are J2000.
 
 export type TargetKind =
-  'Galaxy' | 'Nebula' | 'Open cluster' | 'Globular cluster' | 'Star' | 'Planet' | 'Moon' | 'Other';
+  'Galaxy' | 'Nebula' | 'Open cluster' | 'Globular cluster' | 'Star' | 'Constellation' | 'Planet' | 'Moon' | 'Other';
 
 export interface Target {
   id: string;

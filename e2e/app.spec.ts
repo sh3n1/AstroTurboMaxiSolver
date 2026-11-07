@@ -96,6 +96,17 @@ test('switches night mode from the sky map', async ({ page }) => {
   await expect(page.locator('html')).not.toHaveClass(/night/);
 });
 
+test('goes full screen and back from the sky map', async ({ page }) => {
+  await page.goto('/');
+  const button = page.locator('[data-testid=fullscreen-toggle]');
+  const isFullscreen = (): Promise<boolean> => page.evaluate(() => document.fullscreenElement !== null);
+  await expect.poll(isFullscreen).toBe(false);
+  await button.click();
+  await expect.poll(isFullscreen).toBe(true);
+  await button.click();
+  await expect.poll(isFullscreen).toBe(false);
+});
+
 test('keeps the zoom buttons above the target bar', async ({ page }) => {
   await page.goto('/tabs/targets');
   await page.locator('app-targets ion-searchbar input').fill('Vega');
@@ -156,6 +167,18 @@ test('filters targets by type', async ({ page }) => {
   await expect(page.locator('app-targets ion-item')).toHaveCount(40);
   await expect(page.locator('[data-testid=more-results]')).toContainText('Showing 40 of');
   await expect(page.locator('app-targets ion-item', { hasText: 'Vega' })).toHaveCount(0);
+});
+
+test('lists all 88 constellations, and finds one by its abbreviation', async ({ page }) => {
+  await page.goto('/tabs/targets');
+  await page.locator('app-targets ion-chip', { hasText: 'Constellation' }).click();
+  await expect(page.locator('app-targets ion-item')).toHaveCount(88);
+  await expect(page.locator('[data-testid=more-results]')).toHaveCount(0);
+  await page.locator('app-targets ion-searchbar input').fill('Ori');
+  await expect(page.locator('app-targets ion-item').first()).toContainText('Orion');
+  // Aiming at it shows it on the sky map with the crosshair, like any target.
+  await page.locator('app-targets ion-item', { hasText: 'Orion' }).first().click();
+  await expect(page.locator('[data-testid=target-bar]')).toContainText('Orion');
 });
 
 test('finds catalogue objects by name and other designation', async ({ page }) => {

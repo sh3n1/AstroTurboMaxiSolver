@@ -39,7 +39,7 @@ test('moves the map with the phone sensors', async ({ page }) => {
 
   // Upright with the top up, looking north at the horizon.
   await sendOrientation(page, 0, 90, 0);
-  await expect(pointing).toContainText('Alt 0°, az 0°');
+  await expect(pointing).toContainText('Alt 0° Az 0°');
 
   // Dragging must not fight the sensors while they are on.
   const box = await page.locator('app-sky canvas').boundingBox();
@@ -47,7 +47,7 @@ test('moves the map with the phone sensors', async ({ page }) => {
   await page.mouse.down();
   await page.mouse.move(box!.x + 200, box!.y + 300, { steps: 3 });
   await page.mouse.up();
-  await expect(pointing).toContainText('Alt 0°, az 0°');
+  await expect(pointing).toContainText('Alt 0° Az 0°');
 
   // Turning sensors off returns control to dragging.
   await page.locator('[data-testid=sensor-toggle]').click();
@@ -56,7 +56,7 @@ test('moves the map with the phone sensors', async ({ page }) => {
   await page.mouse.down();
   await page.mouse.move(box!.x + 200, box!.y + 300, { steps: 3 });
   await page.mouse.up();
-  await expect(pointing).not.toContainText('Alt 0°, az 0°');
+  await expect(pointing).not.toContainText('Alt 0° Az 0°');
 });
 
 test('turns compass headings to true north for the location', async ({ page }) => {
@@ -71,7 +71,7 @@ test('turns compass headings to true north for the location', async ({ page }) =
   await startSensors(page);
   // The phone's top points at magnetic north, which is true azimuth 15° here.
   await sendOrientation(page, 0, 90, 0);
-  await expect(page.locator('[data-testid=pointing]')).toContainText(/az 1[456]°/);
+  await expect(page.locator('[data-testid=pointing]')).toContainText(/Az 1[456]°/);
 });
 
 test('explains when no sensor data arrives', async ({ page }) => {
@@ -96,6 +96,8 @@ test('aligns using the real sensor reading', async ({ page }) => {
   await expect(page.locator('[data-testid=alignment-result]')).toContainText('according to the sensors');
   await page.locator('[data-testid=alignment-done]').click();
   await expect(page.locator('[data-testid=alignment-status]')).toContainText('rough');
+  // Aligned, even roughly, so the button is green. The Align page says how it was done.
+  await expect(page.locator('[data-testid=alignment-status]')).toHaveClass(/good/);
 });
 
 test('runs the camera test and produces a report', async ({ page }) => {
@@ -131,12 +133,12 @@ test('follows the gyroscope between orientation readings', async ({ page }) => {
   const pointing = page.locator('[data-testid=pointing]');
   await startSensors(page);
   await sendOrientation(page, 0, 90, 0);
-  await expect(pointing).toContainText('Alt 0°, az 0°');
+  await expect(pointing).toContainText('Alt 0° Az 0°');
 
   // Spinning about the top of the phone turns it left, from north towards west.
   await sendGyroscope(page, 0, 60, 0, 30);
   const text = await pointing.innerText();
-  const azimuth = Number(/az (\d+)/.exec(text)?.[1]);
+  const azimuth = Number(/Az (\d+)/.exec(text)?.[1]);
   expect(azimuth).toBeGreaterThan(300);
   expect(azimuth).toBeLessThan(359);
 });
