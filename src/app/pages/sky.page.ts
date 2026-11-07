@@ -1,6 +1,6 @@
 import { DecimalPipe } from '@angular/common';
 import type { AfterViewInit, ElementRef, OnDestroy } from '@angular/core';
-import { Component, computed, effect, inject, signal, viewChild } from '@angular/core';
+import { Component, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import {
   IonButton,
@@ -35,6 +35,7 @@ import {
   azimuthChangeDeg,
   equatorialVector,
   formatDec,
+  formatLocation,
   formatRa,
   horizontalVector,
   magnification,
@@ -46,11 +47,14 @@ import {
   trueFieldDeg,
   viewBasis,
 } from '../core/astronomy';
+import { designationText, designations } from '../core/designations';
 import type { Equipment } from '../core/equipment';
 import { equipmentLabel, sameEquipment } from '../core/equipment';
 import { LiveSolverService } from '../core/live-solver.service';
 import { chevronSpacingPx, guideAngleDeg, pulseOpacity } from '../core/reticle';
 import { SensorService } from '../core/sensor.service';
+import type { IconPath } from '../core/target-icons';
+import { DISC_RADIUS, ICON_DASH, ICON_GRID, phaseIcon, targetIcon } from '../core/target-icons';
 import type { Target } from '../core/targets';
 import { EYEPIECE_SMOOTHING_MS, SKY_MAP_SMOOTHING_MS, smoothPointing, smoothingFactor } from '../core/view-smoothing';
 
@@ -114,6 +118,25 @@ const CARDINALS = [
 ];
 /** Below this size on screen, an object's real outline is too small to be useful. */
 const MIN_SIZE_CIRCLE_PX = 6;
+
+/** Radius of a planet's or the Moon's icon disc on the map, at standard text size. */
+const ICON_DISC_PX = 7;
+
+/** Line width of the map's icons, in screen pixels. */
+const ICON_LINE_PX = 1.6;
+
+/** Canvas versions of the icon paths, made once each, since parsing them every frame is slow. */
+const iconPaths = new Map<string, Path2D>();
+function iconPath(d: string): Path2D {
+  let path = iconPaths.get(d);
+  if (!path) {
+    // Phases change slowly, but over a long session their old shapes would pile up.
+    if (iconPaths.size > 200) iconPaths.clear();
+    path = new Path2D(d);
+    iconPaths.set(d, path);
+  }
+  return path;
+}
 /** Fainter than this, an object's size circle only shows when it is the selected target. */
 const MAX_SIZE_CIRCLE_MAG = 6;
 /** The guidance chevrons, from the one nearest the reticle outwards. */
@@ -136,9 +159,7 @@ const DAY_COLOR = {
   cardinal: '#6fcf9f',
   reticle: '#e5484d',
   onTarget: '#6fcf9f',
-  /** The selected target, a lighter blue than other objects so it stands out. */
-  target: '#a9cbff',
-  /** The guidance chevrons and line, matching the selected target. */
+  /** The guidance chevrons and line. The selected target itself is marked in onTarget green. */
   guide: '#a9cbff',
   deepSky: '#8fb7ff',
   solarSystem: '#ffd479',
@@ -332,8 +353,31 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
     .dock > * {
       pointer-events: auto;
     }
+    /* A row along the bottom: location on the left, zoom on the right. */
+    .corner {
+      display: flex;
+      align-items: flex-end;
+      pointer-events: none;
+    }
+    .corner > * {
+      pointer-events: auto;
+    }
+    /* Shares the pointing readout's look, but sits in the row instead of the top corner. */
+    .readout.location {
+      position: static;
+      margin-bottom: 6px;
+    }
+    /* A button, so it takes taps, with a border to show it can be tapped. */
+    .readout.location.unset {
+      pointer-events: auto;
+      color: var(--af-text);
+      font: inherit;
+      font-size: calc(14px * var(--af-scale, 1));
+      text-align: left;
+      border: 1px solid #ffb454;
+    }
     .zoom {
-      align-self: flex-end;
+      margin-left: auto;
       display: flex;
       flex-direction: column;
       margin-right: -6px;
@@ -390,8 +434,11 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
             No compass<br />
           }
           Alt {{ state.pointing().altDeg | number: '1.0-0' }}°, az {{ state.pointing().azDeg | number: '1.0-0' }}°<br />
-          <span data-testid="equatorial">RA {{ pointingRa() }}, Dec {{ pointingDec() }}</span>
-          <br />
+          <!-- Hidden unless chosen in Settings, since most observers steer by the map, not coordinates. -->
+          @if (state.settings().showEquatorial) {
+            <span data-testid="equatorial">RA {{ pointingRa() }}, Dec {{ pointingDec() }}</span>
+            <br />
+          }
           @if (mode() === 'eyepiece') {
             {{ power() | number: '1.0-0' }}× · {{ eyepieceField() | number: '1.1-2' }}° field
           } @else {
@@ -454,29 +501,42 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
         }
 
         <div class="dock">
-          <!-- Zoom sits bottom right, just above whatever boxes are open below it. -->
-          @if (mode() === 'sky') {
-            <div class="zoom">
-              <ion-fab-button
-                size="small"
-                aria-label="Zoom in"
-                data-testid="zoom-in"
-                [disabled]="fieldDeg() <= minField"
-                (click)="zoomBy(1 / zoomStep)"
-              >
-                <ion-icon name="add" aria-hidden="true"></ion-icon>
-              </ion-fab-button>
-              <ion-fab-button
-                size="small"
-                aria-label="Zoom out"
-                data-testid="zoom-out"
-                [disabled]="fieldDeg() >= maxField"
-                (click)="zoomBy(zoomStep)"
-              >
-                <ion-icon name="remove" aria-hidden="true"></ion-icon>
-              </ion-fab-button>
-            </div>
-          }
+          <!-- Location sits bottom left and zoom bottom right, just above whatever boxes are open below. -->
+          <div class="corner">
+            @if (!state.selectedTarget()) {
+              <!-- Where the sky is calculated for, like the pointing readout at the top. -->
+              @if (state.settings().locationSet) {
+                <div class="readout location" data-testid="location">{{ location() }}</div>
+              } @else {
+                <!-- Until a location is set, the sky shown is for a neutral place, so ask for one. -->
+                <button type="button" class="readout location unset" data-testid="location" (click)="locate()">
+                  {{ locating() || 'Location not set · tap to use GPS' }}
+                </button>
+              }
+            }
+            @if (mode() === 'sky') {
+              <div class="zoom">
+                <ion-fab-button
+                  size="small"
+                  aria-label="Zoom in"
+                  data-testid="zoom-in"
+                  [disabled]="fieldDeg() <= minField"
+                  (click)="zoomBy(1 / zoomStep)"
+                >
+                  <ion-icon name="add" aria-hidden="true"></ion-icon>
+                </ion-fab-button>
+                <ion-fab-button
+                  size="small"
+                  aria-label="Zoom out"
+                  data-testid="zoom-out"
+                  [disabled]="fieldDeg() >= maxField"
+                  (click)="zoomBy(zoomStep)"
+                >
+                  <ion-icon name="remove" aria-hidden="true"></ion-icon>
+                </ion-fab-button>
+              </div>
+            }
+          </div>
           @if (mode() === 'eyepiece') {
             <div class="eyepiece-panel" data-testid="eyepiece-panel">
               <div class="bar-row">
@@ -582,7 +642,7 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
             <div class="bar" data-testid="target-bar">
               <div class="bar-row">
                 <div>
-                  <strong>{{ target.id }}</strong> {{ target.name }}
+                  <strong data-testid="target-designations">{{ designationText(target) }}</strong> {{ target.name }}
                   <div class="directions" data-testid="directions">{{ directions() }}</div>
                   <div class="muted" data-testid="guidance">
                     {{ targetDistance() | number: '1.1-1' }}° away
@@ -640,8 +700,8 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   protected readonly liveSolver = inject(LiveSolverService);
   private readonly router = inject(Router);
   private readonly toasts = inject(ToastController);
-  /** Whether the last finished plate solve failed, so a run of failures gives one toast. */
-  private lastSolveFailed = false;
+  /** The newest plate solve already given a toast, so each attempt gets at most one. */
+  private lastToastedSolveId = this.liveSolver.log()[0]?.id ?? 0;
   /** When the alignment shown last was made, or undefined before the first check. */
   private shownAlignedAt?: string | null;
 
@@ -651,6 +711,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   protected readonly maxField = MAX_FIELD_DEG;
   protected readonly zoomStep = ZOOM_STEP;
   protected readonly formatRa = formatRa;
+  protected readonly designationText = designationText;
   protected readonly formatDec = formatDec;
   protected readonly stars = signal<Star[]>([]);
   protected readonly constellations = signal<Constellation[]>([]);
@@ -686,6 +747,20 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     this.mode() === 'eyepiece' ? this.eyepieceField() * EYEPIECE_VIEW_SCALE : this.fieldDeg(),
   );
 
+  /** What the location button says while GPS is working, or after it fails. Empty otherwise. */
+  protected readonly locating = signal('');
+
+  protected async locate(): Promise<void> {
+    this.locating.set('Finding location…');
+    const message = await this.state.locateWithGps();
+    // On success the box shows the location instead, so only a problem needs saying.
+    this.locating.set(this.state.settings().locationSet ? '' : `${message} · tap to try again`);
+  }
+
+  /** The observer's location, as set in Settings or from GPS, such as "39.47° N, 0.38° W". */
+  protected readonly location = computed(() =>
+    formatLocation(this.state.settings().latitudeDeg, this.state.settings().longitudeDeg),
+  );
   protected readonly pointingRa = computed(() => formatRa(this.state.pointingEquatorial().raDeg));
   protected readonly pointingDec = computed(() => formatDec(this.state.pointingEquatorial().decDeg));
 
@@ -751,11 +826,17 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     });
     void this.loadConstellations();
 
-    // A failed plate solve is told once, as a toast, not again on every retry while it keeps failing.
+    // Every failed automatic plate solve is told with a toast. Successes only when the
+    // debugging setting asks for them. Alignment shows its own results, so it is left out.
     effect(() => {
-      const status = this.liveSolver.status();
-      if (status === 'failed' && !this.lastSolveFailed) void this.toast(this.liveSolver.statusText(), 'solve-toast');
-      if (status === 'failed' || status === 'solved') this.lastSolveFailed = status === 'failed';
+      const newest = this.liveSolver.log()[0];
+      if (!newest || newest.id <= this.lastToastedSolveId) return;
+      this.lastToastedSolveId = newest.id;
+      if (newest.trigger !== 'auto') return;
+      const showSuccess = untracked(() => this.state.settings().solveSuccessToast);
+      if (newest.outcome === 'failed' || (newest.outcome === 'solved' && showSuccess)) {
+        void this.toast(newest.message, 'solve-toast');
+      }
     });
     // A new alignment is confirmed with a toast. The one already saved at start-up is not.
     effect(() => {
@@ -1276,6 +1357,8 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     const { clientWidth: screenWidth, clientHeight: screenHeight } = this.canvasRef().nativeElement;
     ctx.font = this.font(15);
     ctx.textAlign = 'left';
+    const sun = this.state.sunEquatorial();
+    const sunLocal = applyMatrix(toLocal, equatorialVector(sun.raDeg, sun.decDeg));
 
     // The selected target goes first, so its label always wins a clash.
     const others = this.state.targets().filter((t) => t.id !== selected?.id && isShownAtField(t, fieldDeg));
@@ -1288,19 +1371,25 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       if (!point || point.x < -OFF_SCREEN_MARGIN_PX || point.x > screenWidth + OFF_SCREEN_MARGIN_PX) continue;
       if (point.y < -OFF_SCREEN_MARGIN_PX || point.y > screenHeight + OFF_SCREEN_MARGIN_PX) continue;
 
-      const color = isSelected
-        ? COLOR.target
-        : target.body
-          ? COLOR.solarSystem
-          : target.kind === 'Star'
-            ? COLOR.starLabel
-            : COLOR.deepSky;
+      // A selected object keeps its own colour, so its kind stays clear. The crosshair marks it.
+      const color = target.body ? COLOR.solarSystem : target.kind === 'Star' ? COLOR.starLabel : COLOR.deepSky;
 
       // The object's real size, when it is large enough to see at this zoom.
       // Only for the selected target and bright objects, since faint large ones crowd the view.
       const showsSize = isSelected || !!target.body || /^M\d/.test(target.id) || target.mag <= MAX_SIZE_CIRCLE_MAG;
       const sizeRadius = showsSize && target.sizeArcmin ? stereographicRadius(target.sizeArcmin / 60 / 2) * scale : 0;
-      if (sizeRadius >= MIN_SIZE_CIRCLE_PX) {
+      // How far the marker reaches from the centre, to keep the label and selection clear of it.
+      let markerRadius = sizeRadius;
+      if (target.body) {
+        // Planets and the Moon show their own icon. It grows to the real size when zoomed
+        // in far enough, so the Moon's phase fills the eyepiece view as it would there.
+        const discPx = Math.max(sizeRadius, ICON_DISC_PX * this.textScale());
+        // A phase is drawn lit on the right, then turned so the lit side faces the Sun.
+        const icon = target.phase ? phaseIcon(target.phase.litFraction, true) : targetIcon(target);
+        const angle = target.phase ? this.directionOnScreen(local, sunLocal, point, project) : 0;
+        if (icon) this.drawIcon(ctx, icon, point, discPx, color, angle);
+        markerRadius = (discPx * ICON_GRID) / 2 / DISC_RADIUS;
+      } else if (sizeRadius >= MIN_SIZE_CIRCLE_PX) {
         ctx.strokeStyle = isSelected ? color : COLOR.sizeCircle;
         ctx.lineWidth = 1;
         ctx.setLineDash([3, 3]);
@@ -1316,29 +1405,90 @@ export class SkyPage implements AfterViewInit, OnDestroy {
         ctx.arc(point.x, point.y, 4, 0, 2 * Math.PI);
         ctx.stroke();
       }
-      if (isSelected) this.drawTargetMarker(ctx, point, Math.max(12, sizeRadius + 5));
+      if (isSelected) this.drawTargetMarker(ctx, point, Math.max(6, markerRadius + 3));
 
+      // The map labels each object with its best-known designation, such as C20 for NGC 7000.
+      const label = designations(target)[0];
       // Skip a label that would overlap one already drawn.
-      const offset = Math.max(9, sizeRadius + (isSelected ? 8 : 3));
+      const offset = Math.max(9, markerRadius + (isSelected ? 15 : 3));
       ctx.fillStyle = color;
       const box: Box = {
         left: point.x + offset,
-        right: point.x + offset + ctx.measureText(target.id).width,
+        right: point.x + offset + ctx.measureText(label).width,
         top: point.y - 10 * this.textScale(),
         bottom: point.y + 7 * this.textScale(),
       };
       if (labels.some((other) => this.overlaps(box, other))) continue;
       labels.push(box);
-      this.drawLabel(ctx, target.id, box.left, point.y + 5 * this.textScale());
+      this.drawLabel(ctx, label, box.left, point.y + 5 * this.textScale());
     }
     return labels;
   }
 
-  /** The selected target: four short strokes forming a diamond around it. */
-  private drawTargetMarker(ctx: CanvasRenderingContext2D, { x, y }: Point, radius: number): void {
-    const stroke = radius * 0.45;
-    ctx.strokeStyle = COLOR.target;
-    ctx.lineWidth = 3;
+  /**
+   * Draws one of AstroFinder's line icons centred on a point, sized so its disc has the
+   * given radius, and turned by an angle in radians. A dark edge keeps it readable over
+   * stars and lines, like the map's labels.
+   */
+  private drawIcon(
+    ctx: CanvasRenderingContext2D,
+    icon: readonly IconPath[],
+    { x, y }: Point,
+    discPx: number,
+    color: string,
+    angle: number,
+  ): void {
+    const scale = discPx / DISC_RADIUS;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+    ctx.scale(scale, scale);
+    ctx.translate(-ICON_GRID / 2, -ICON_GRID / 2);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    // Lengths are in icon units here. Dividing by the scale keeps lines and dashes the
+    // same on screen at any size, so a large Moon in the eyepiece still has thin lines.
+    const lineWidth = ICON_LINE_PX / scale;
+    for (const [edgeColor, width] of [
+      [COLOR.sky, lineWidth + 3 / scale],
+      [color, lineWidth],
+    ] as const) {
+      ctx.strokeStyle = edgeColor;
+      ctx.fillStyle = edgeColor;
+      ctx.lineWidth = width;
+      for (const { d, fill, dashed } of icon) {
+        const path = iconPath(d);
+        ctx.setLineDash(dashed ? ICON_DASH.map((length) => (length * 2) / scale) : []);
+        if (fill) ctx.fill(path);
+        ctx.stroke(path);
+      }
+    }
+    ctx.restore();
+  }
+
+  /**
+   * The direction on screen from a point on the sky towards another, such as from the
+   * Moon towards the Sun, as an angle in radians. It takes a tiny step along the sky,
+   * so it works even when the Sun is far off screen or below the horizon.
+   */
+  private directionOnScreen(from: Vector3, towards: Vector3, point: Point, project: Project): number {
+    const along = towards[0] * from[0] + towards[1] * from[1] + towards[2] * from[2];
+    const nudge = (i: number): number => from[i] + 0.001 * (towards[i] - along * from[i]);
+    const step: Vector3 = [nudge(0), nudge(1), nudge(2)];
+    const next = project(step);
+    return next ? Math.atan2(next.y - point.y, next.x - point.x) : 0;
+  }
+
+  /**
+   * The selected target: a crosshair of four short rounded strokes, with a gap in the
+   * middle so the object itself stays visible. It uses the green the aiming rings turn
+   * when the telescope is on target.
+   */
+  private drawTargetMarker(ctx: CanvasRenderingContext2D, { x, y }: Point, gap: number): void {
+    // Each stroke runs out from the gap, which keeps clear of the object's icon or size.
+    const radius = gap + 10;
+    ctx.save();
+    ctx.lineCap = 'round';
     ctx.beginPath();
     for (const [dx, dy] of [
       [0, -1],
@@ -1346,11 +1496,17 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       [0, 1],
       [-1, 0],
     ]) {
-      // Each stroke leans clockwise from a diamond point, so the shape reads as a star sign.
-      ctx.moveTo(x + dx * radius, y + dy * radius);
-      ctx.lineTo(x + dx * (radius - stroke) - dy * stroke, y + dy * (radius - stroke) + dx * stroke);
+      ctx.moveTo(x + dx * gap, y + dy * gap);
+      ctx.lineTo(x + dx * radius, y + dy * radius);
     }
+    // A dark edge first, so the crosshair stands out over stars and lines.
+    ctx.strokeStyle = COLOR.sky;
+    ctx.lineWidth = 6;
     ctx.stroke();
+    ctx.strokeStyle = COLOR.onTarget;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.restore();
   }
 
   /**

@@ -2,6 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { IonChip, IonContent, IonHeader, IonSearchbar, IonText, IonTitle, IonToolbar } from '@ionic/angular';
 
 import { AppState } from '../core/app-state.service';
+import { isExactDesignation, normalizeSearch, targetSearchText } from '../core/search';
 import { TargetListComponent } from '../core/target-list.component';
 import type { Target } from '../core/targets';
 
@@ -83,14 +84,10 @@ export class TargetsPage {
 
   /** Every target that matches, before limiting how many are shown. */
   private readonly matches = computed(() => {
-    const term = this.query().trim().toLowerCase();
+    // Typing "ngc224" or "NGC 224" finds the same object.
+    const term = normalizeSearch(this.query());
     const filter = this.filter();
-    return this.state
-      .targets()
-      .filter(
-        (t) =>
-          matchesFilter(t, filter) && `${t.id} ${t.name} ${t.kind} ${t.aliases ?? ''}`.toLowerCase().includes(term),
-      );
+    return this.state.targets().filter((t) => matchesFilter(t, filter) && targetSearchText(t).includes(term));
   });
 
   protected readonly matchCount = computed(() => this.matches().length);
@@ -101,12 +98,12 @@ export class TargetsPage {
    * Rendering thousands of rows would freeze a phone, so the list is limited.
    */
   protected readonly results = computed(() => {
-    const term = this.query().trim().toLowerCase();
+    const term = normalizeSearch(this.query());
     return this.matches()
       .map((target) => {
-        const isExact = ` ${target.id} ${target.aliases ?? ''} `.toLowerCase().includes(` ${term} `);
+        const isExact = !!term && isExactDesignation(target, term);
         const isUp = this.state.positionOf(target).altDeg > 0;
-        return { target, rank: (term && isExact ? 0 : 2000) + (isUp ? 0 : 1000) + target.mag };
+        return { target, rank: (isExact ? 0 : 2000) + (isUp ? 0 : 1000) + target.mag };
       })
       .sort((a, b) => a.rank - b.rank)
       .slice(0, MAX_RESULTS)

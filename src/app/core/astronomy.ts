@@ -167,12 +167,30 @@ export function solarSystemPosition(
   date: Date,
   latitudeDeg: number,
   longitudeDeg: number,
-): { raDeg: number; decDeg: number; mag: number } {
+): { raDeg: number; decDeg: number; mag: number; litFraction: number } {
   const body = bodyName as Body;
   // Using the observer's location matters most for the Moon, which is close enough
   // to appear in a different place from different parts of the Earth.
   const { ra, dec } = Equator(body, date, new Observer(latitudeDeg, longitudeDeg, 0), false, true);
-  return { raDeg: ra * 15, decDeg: dec, mag: Illumination(body, date).mag };
+  const { mag, phase_fraction } = Illumination(body, date);
+  return { raDeg: ra * 15, decDeg: dec, mag, litFraction: phase_fraction };
+}
+
+/** Where the Sun is, as a J2000 position, for working out which side of a phase is lit. */
+export function sunPosition(date: Date, latitudeDeg: number, longitudeDeg: number): { raDeg: number; decDeg: number } {
+  const { ra, dec } = Equator(Body.Sun, date, new Observer(latitudeDeg, longitudeDeg, 0), false, true);
+  return { raDeg: ra * 15, decDeg: dec };
+}
+
+/**
+ * Whether a body's sunlit side looks to be on the right, for someone facing it from
+ * where they stand. The lit side faces the Sun. A body east of the Sun, like the
+ * evening Moon, has the Sun to its west, which is on the right when facing south
+ * from the northern hemisphere and on the left from the southern hemisphere.
+ */
+export function litOnRight(bodyRaDeg: number, sunRaDeg: number, latitudeDeg: number): boolean {
+  const eastOfSun = (((bodyRaDeg - sunRaDeg) % 360) + 360) % 360 < 180;
+  return eastOfSun === latitudeDeg >= 0;
 }
 
 /** Altitude of the Sun or Moon for a time and place. */
@@ -214,6 +232,13 @@ export function localToEquatorial(rotation: Matrix3, [east, north, up]: Vector3)
 export function formatRa(raDeg: number): string {
   const totalMinutes = Math.round((normalizeDeg(raDeg) / 15) * 60) % (24 * 60);
   return `${Math.floor(totalMinutes / 60)}h ${String(totalMinutes % 60).padStart(2, '0')}m`;
+}
+
+/** A place on Earth as compass-labelled degrees, such as "39.47° N, 0.38° W". */
+export function formatLocation(latitudeDeg: number, longitudeDeg: number): string {
+  const part = (value: number, positive: string, negative: string): string =>
+    `${Math.abs(value).toFixed(2)}° ${value >= 0 ? positive : negative}`;
+  return `${part(latitudeDeg, 'N', 'S')}, ${part(longitudeDeg, 'E', 'W')}`;
 }
 
 /** Declination as degrees and minutes, such as "+38° 47′". */

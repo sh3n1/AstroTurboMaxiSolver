@@ -116,6 +116,25 @@ html.night ion-app {
   font-weight: 500;
 }
 
+/*
+ * The night filter keeps only red light, and the light blue accent has little red in
+ * it, so icons, switches and buttons in that blue would turn dark red. At night the
+ * accent is white, which becomes full-strength red. The theme sets the accent on
+ * :root.md and :root.ios, so these selectors match that and add night.
+ */
+:root.night.md,
+:root.night.ios {
+  --ion-color-primary: #ffffff;
+  --ion-color-primary-rgb: 255, 255, 255;
+  --ion-color-primary-contrast: #000000;
+  --ion-color-primary-contrast-rgb: 0, 0, 0;
+  --ion-color-primary-shade: #e0e0e0;
+  --ion-color-primary-tint: #ffffff;
+}
+html.night ion-segment-button {
+  --color: var(--af-text);
+}
+
 /* Controls that use Ionic's own lighter colours stay bright at night too. */
 html.night ion-chip,
 html.night ion-tab-button {

@@ -4,16 +4,20 @@ import type { Horizontal, Vector3 } from './astronomy';
 import {
   equatorialToHorizontal,
   horizontalVector,
+  litOnRight,
   localToEquatorial,
   skyConditions,
   skyRotation,
   solarSystemPosition,
+  sunPosition,
 } from './astronomy';
+import type { CaldwellData } from './caldwell';
+import { joinCaldwell } from './caldwell';
 import type { Equipment, TelescopeType } from './equipment';
 import { EQUIPMENT_KEYS, rememberEquipment } from './equipment';
 import { telescopeLimit } from './sky-quality';
 import type { Target } from './targets';
-import { SOLAR_SYSTEM_BODIES } from './targets';
+import { PHASED_BODIES, SOLAR_SYSTEM_BODIES } from './targets';
 
 export type { TelescopeType } from './equipment';
 export type MountType = 'direct' | 'clip-on' | 'mirror';
@@ -26,6 +30,11 @@ export const TEXT_SCALE: Record<TextSize, number> = { standard: 1, large: 1.2, '
 export interface Settings {
   latitudeDeg: number;
   longitudeDeg: number; // Positive to the east
+  /**
+   * Whether the user has set their location, by GPS or by typing it. Until then the
+   * sky is worked out for a neutral place, and the sky map asks for the location.
+   */
+  locationSet: boolean;
   telescopeType: TelescopeType;
   telescopeFocalMm: number;
   telescopeApertureMm: number;
@@ -37,6 +46,10 @@ export interface Settings {
   textSize: TextSize;
   /** Plate solve automatically whenever sensors are on and the phone is still. */
   autoSolve: boolean;
+  /** Show where the view points in right ascension and declination, on the sky map. */
+  showEquatorial: boolean;
+  /** Show a toast for successful plate solves too, with the stars matched. For debugging. */
+  solveSuccessToast: boolean;
   /** How dark the observer's sky is, on the Bortle scale from 1 (darkest) to 9. */
   bortle: number;
   /** The faintest stars the eyepiece view shows, or null to work it out from the sky. */
@@ -63,10 +76,12 @@ export interface Alignment {
   method?: AlignmentMethod;
 }
 
-// Starts at Valencia, with a common beginner telescope and eyepiece.
+// Starts with no location of its own, and a common beginner telescope and eyepiece.
 const DEFAULT_SETTINGS: Settings = {
-  latitudeDeg: 39.47,
-  longitudeDeg: -0.38,
+  // A neutral place on the equator, used only until the user sets their location.
+  latitudeDeg: 0,
+  longitudeDeg: 0,
+  locationSet: false,
   telescopeType: 'newtonian',
   telescopeFocalMm: 650,
   telescopeApertureMm: 130,
@@ -77,8 +92,10 @@ const DEFAULT_SETTINGS: Settings = {
   // Larger than usual by default, because many observers are past forty.
   textSize: 'large',
   autoSolve: true,
-  // Central Valencia measures about 17.5 magnitudes per square arcsecond, a city sky.
-  bortle: 8,
+  solveSuccessToast: false,
+  showEquatorial: false,
+  // The middle of the scale, a suburban sky, until the user sets their own.
+  bortle: 5,
   eyepieceStarLimit: null,
   recentEquipment: [],
   cameraFocalFactor: 1,
@@ -128,8 +145,21 @@ export class AppState {
 
   readonly selectedTargetId = signal<string | null>(null);
 
-  /** Fixed objects from the catalogue file. Empty until it has loaded. */
+  /** Fixed objects from the catalogue files. Empty until they have loaded. */
   private readonly catalog = signal<Target[]>([]);
+
+  /** The Caldwell catalogue, which adds its numbers to NGC and IC objects. Null until loaded. */
+  private readonly caldwell = signal<CaldwellData | null>(null);
+
+  /**
+   * The catalogue objects with their Caldwell numbers, plus the Caldwell objects that
+   * have no NGC or IC number. Kept apart from targets, which changes every minute, so
+   * this join only runs again when a file finishes loading.
+   */
+  private readonly catalogWithCaldwell = computed(() => {
+    const caldwell = this.caldwell();
+    return caldwell ? [...joinCaldwell(this.catalog(), caldwell), ...caldwell.extraTargets] : this.catalog();
+  });
   readonly selectedTarget = computed(() => this.targets().find((t) => t.id === this.selectedTargetId()) ?? null);
 
   /** Target ids the user has added to their session plan. */
@@ -147,15 +177,30 @@ export class AppState {
   /** Everything the user can aim at, with planets and the Moon where they are now. */
   readonly targets = computed<Target[]>(() => {
     const { latitudeDeg, longitudeDeg } = this.settings();
-    const solarSystem = SOLAR_SYSTEM_BODIES.map((body): Target => ({
-      id: body,
-      name: body === 'Moon' ? "Earth's Moon" : 'Planet',
-      kind: body === 'Moon' ? 'Moon' : 'Planet',
-      ...(body === 'Moon' ? { sizeArcmin: 31 } : {}),
-      body,
-      ...solarSystemPosition(body, this.now(), latitudeDeg, longitudeDeg),
-    }));
-    return [...solarSystem, ...this.catalog()];
+    const sun = this.sunEquatorial();
+    const solarSystem = SOLAR_SYSTEM_BODIES.map((body): Target => {
+      const { raDeg, decDeg, mag, litFraction } = solarSystemPosition(body, this.now(), latitudeDeg, longitudeDeg);
+      return {
+        id: body,
+        name: body === 'Moon' ? "Earth's Moon" : 'Planet',
+        kind: body === 'Moon' ? 'Moon' : 'Planet',
+        ...(body === 'Moon' ? { sizeArcmin: 31 } : {}),
+        body,
+        raDeg,
+        decDeg,
+        mag,
+        ...(PHASED_BODIES.includes(body)
+          ? { phase: { litFraction, litOnRight: litOnRight(raDeg, sun.raDeg, latitudeDeg) } }
+          : {}),
+      };
+    });
+    return [...solarSystem, ...this.catalogWithCaldwell()];
+  });
+
+  /** Where the Sun is now, in catalogue coordinates. Phases are lit from its side. */
+  readonly sunEquatorial = computed(() => {
+    const { latitudeDeg, longitudeDeg } = this.settings();
+    return sunPosition(this.now(), latitudeDeg, longitudeDeg);
   });
 
   /** Rotation from catalogue positions to the local sky, right now. */
@@ -184,6 +229,7 @@ export class AppState {
     setInterval(() => this.now.set(new Date()), 60_000);
     void this.loadCatalog('assets/data/targets.json');
     void this.loadCatalog('assets/data/openngc.json');
+    void this.loadCaldwell();
     effect(() => save(SETTINGS_KEY, this.settings()));
     effect(() => save(PLAN_KEY, { ids: this.planIds() }));
     effect(() => save(ALIGNMENT_KEY, { value: this.alignment() }));
@@ -205,6 +251,29 @@ export class AppState {
       }
       return next;
     });
+  }
+
+  /**
+   * Sets the location from the phone's GPS. Resolves with a short message for the user,
+   * since it can take a while, be refused, or be unavailable.
+   */
+  locateWithGps(): Promise<string> {
+    if (!('geolocation' in navigator)) return Promise.resolve('Not available on this device');
+    return new Promise((resolve) =>
+      navigator.geolocation.getCurrentPosition(
+        ({ coords }) => {
+          // Two decimals is about a kilometre, plenty for the sky, and keeps the exact place private.
+          this.updateSettings({
+            latitudeDeg: Number(coords.latitude.toFixed(2)),
+            longitudeDeg: Number(coords.longitude.toFixed(2)),
+            locationSet: true,
+          });
+          resolve('Location updated');
+        },
+        () => resolve('Location unavailable'),
+        { timeout: 15_000 },
+      ),
+    );
   }
 
   applyEquipment(equipment: Equipment): void {
@@ -236,6 +305,16 @@ export class AppState {
       this.catalog.update((current) => [...current, ...targets]);
     } catch {
       // Planets and the Moon still work without the catalogue files.
+    }
+  }
+
+  /** Loads the Caldwell list. Without it, everything still works, just without Caldwell numbers. */
+  private async loadCaldwell(): Promise<void> {
+    try {
+      const response = await fetch('assets/data/caldwell.json');
+      this.caldwell.set((await response.json()) as CaldwellData);
+    } catch {
+      // Search by NGC and IC numbers still finds every Caldwell object.
     }
   }
 

@@ -169,6 +169,33 @@ test('plate solves automatically when the phone is still', async ({ page }) => {
   }
   // The fake camera has no stars, so the honest answer is no solve, told in a toast.
   await expect(toast.locator('.toast-message')).toHaveText(/No stars|No match/);
+
+  // Still in the same place, well past the pause between attempts: no second attempt.
+  await sendGyroscope(page, 0, 0, 0, 400);
+  const failures = async (): Promise<number> => {
+    await page.getByRole('tab', { name: 'Settings' }).click();
+    await page.locator('[data-testid=open-solve-log]').click();
+    await expect(page.locator('[data-testid=solve-log-entry]').first()).toBeVisible();
+    const count = await page.locator('[data-testid=solve-log-entry]', { hasText: /No stars|No match/ }).count();
+    await page.locator('[data-testid=open-solve-log]').click();
+    await page.getByRole('tab', { name: 'Sky' }).click();
+    return count;
+  };
+  expect(await failures()).toBe(1);
+
+  // Turning the phone a few degrees is a new place, so it tries again, and says so again.
+  await sendGyroscope(page, 0, 10, 0, 30);
+  for (let i = 0; i < 12 && (await failures()) < 2; i++) {
+    await sendGyroscope(page, 0, 0, 0, 60);
+  }
+  expect(await failures()).toBe(2);
+});
+
+test('lists plate solving attempts in Settings', async ({ page }) => {
+  await page.goto('/tabs/settings');
+  await expect(page.locator('[data-testid=success-toast]')).toHaveAttribute('aria-checked', 'false');
+  await page.locator('[data-testid=open-solve-log]').click();
+  await expect(page.locator('[data-testid=solve-log-empty]')).toBeVisible();
 });
 
 test('does not use the camera when automatic solving is off', async ({ page }) => {

@@ -5,26 +5,21 @@ import { IonBadge, IonButton, IonIcon, IonItem, IonLabel, IonList, IonNote } fro
 import { addIcons } from 'ionicons';
 import {
   bookmark,
-  apertureOutline,
   bookmarkOutline,
-  cloudOutline,
   ellipsisHorizontalOutline,
-  moonOutline,
   ellipseOutline,
-  planetOutline,
   sparklesOutline,
   starOutline,
 } from 'ionicons/icons';
 
 import { AppState } from './app-state.service';
+import { designationText } from './designations';
+import { iconDataUrl, targetIcon } from './target-icons';
 import type { Target, TargetKind } from './targets';
 
-const KIND_ICONS: Record<TargetKind, string> = {
-  Galaxy: 'aperture-outline',
-  Planet: 'planet-outline',
-  Moon: 'moon-outline',
+/** Standard icons for the kinds without one of AstroFinder's own, in target-icons.ts. */
+const KIND_ICONS: Record<Exclude<TargetKind, 'Galaxy' | 'Nebula' | 'Planet' | 'Moon'>, string> = {
   Other: 'ellipsis-horizontal-outline',
-  Nebula: 'cloud-outline',
   'Open cluster': 'sparkles-outline',
   'Globular cluster': 'ellipse-outline',
   Star: 'star-outline',
@@ -42,9 +37,20 @@ const GOOD_ALTITUDE_DEG = 30;
       @for (target of targets(); track target.id) {
         @let altDeg = altitudeOf(target);
         <ion-item button detail="false" (click)="aimAt(target)">
-          <ion-icon slot="start" color="medium" aria-hidden="true" [name]="iconFor(target)"></ion-icon>
+          @let icon = customIcon(target);
+          <!-- Galaxies, nebulae, planets and the Moon have AstroFinder's own icons. -->
+          <ion-icon
+            slot="start"
+            color="medium"
+            aria-hidden="true"
+            data-testid="target-icon"
+            [attr.data-icon]="icon ? 'custom' : kindIcons[target.kind]"
+            [name]="icon ? undefined : kindIcons[target.kind]"
+            [src]="icon ?? undefined"
+          ></ion-icon>
           <ion-label>
-            <h2>{{ target.id }}</h2>
+            <!-- Every catalogue number: Messier, then Caldwell, then NGC and IC. -->
+            <h2 data-testid="designations">{{ designationText(target) }}</h2>
             <p>{{ target.name }} · mag {{ target.mag < 90 ? (target.mag | number: '1.1-1') : '?' }}</p>
           </ion-label>
           @if (altDeg > 0) {
@@ -78,14 +84,10 @@ export class TargetListComponent {
 
   constructor() {
     addIcons({
-      apertureOutline,
       bookmark,
       bookmarkOutline,
-      cloudOutline,
       ellipseOutline,
       ellipsisHorizontalOutline,
-      moonOutline,
-      planetOutline,
       sparklesOutline,
       starOutline,
     });
@@ -96,8 +98,13 @@ export class TargetListComponent {
     return (at ? this.state.positionAt(target, at) : this.state.positionOf(target)).altDeg;
   }
 
-  protected iconFor(target: Target): string {
-    return KIND_ICONS[target.kind];
+  protected readonly designationText = designationText;
+  protected readonly kindIcons: Partial<Record<TargetKind, string>> = KIND_ICONS;
+
+  /** AstroFinder's own icon as an image, or null to use a standard one. */
+  protected customIcon(target: Target): string | null {
+    const paths = targetIcon(target);
+    return paths ? iconDataUrl(paths) : null;
   }
 
   protected isPlanned(target: Target): boolean {

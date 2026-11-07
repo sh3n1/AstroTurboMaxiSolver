@@ -18,7 +18,19 @@ export interface Target {
   sizeArcmin?: number;
   /** Set for planets and the Moon, whose positions must be recalculated over time. */
   body?: string;
+  /** Set for the Moon and Venus, which show phases that matter at the eyepiece. */
+  phase?: TargetPhase;
 }
+
+export interface TargetPhase {
+  /** How much of the disc is sunlit, from 0 (new) to 1 (full). */
+  litFraction: number;
+  /** Whether the lit side is on the right, seen from where the observer stands. */
+  litOnRight: boolean;
+}
+
+/** The bodies whose phase the app shows. */
+export const PHASED_BODIES = ['Moon', 'Venus'];
 
 /** Planets and the Moon, in the names astronomy-engine uses. The Sun is left out for safety. */
 export const SOLAR_SYSTEM_BODIES = ['Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune'];

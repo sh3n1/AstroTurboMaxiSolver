@@ -146,7 +146,8 @@ Keep this as plain TypeScript with no Angular dependency, so it is easy to test.
 
 - [x] Add Messier objects, named stars, planets and the Moon
 - [x] Add NGC and IC objects from OpenNGC, approved as a CC-BY-SA exception and credited in Settings
-- [ ] Add Caldwell designations. OpenNGC doesn't include them
+- [x] Add Caldwell designations, in their own file, caldwell.json, joined to NGC and IC objects when the app loads
+- [x] Show every catalogue number of an object, in the order Messier, Caldwell, NGC, IC
 - [ ] Check the terms of the Messier and star name data, and whether OpenNGC's share-alike terms are fully met, before release
 - [x] Decide whether to include planets and the Moon: yes
 - [x] Store catalogues for offline use
