@@ -1,4 +1,4 @@
-import { DatePipe, DecimalPipe } from '@angular/common';
+import { DecimalPipe } from '@angular/common';
 import { Component, computed, inject, isDevMode, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import {
@@ -27,6 +27,8 @@ import { compassPoint } from '../core/astronomy';
 import { rearCameraDirection } from '../core/attitude';
 import { cameraPointing } from '../core/device-orientation';
 import { LiveSolverService } from '../core/live-solver.service';
+import { LocalTimePipe } from '../core/local-time.pipe';
+import { alignmentStarLimit } from '../core/sky-quality';
 import type { Target } from '../core/targets';
 
 type Step = 'choose' | 'centre' | 'solving' | 'failed' | 'done';
@@ -48,7 +50,7 @@ const PREVIEW_CAMERA_ERROR: Horizontal = { altDeg: 2, azDeg: 3 };
 @Component({
   selector: 'app-align',
   imports: [
-    DatePipe,
+    LocalTimePipe,
     DecimalPipe,
     IonBackButton,
     IonButton,
@@ -82,7 +84,7 @@ const PREVIEW_CAMERA_ERROR: Horizontal = { altDeg: 2, azDeg: 3 };
           @if (state.alignment(); as current) {
             <ion-card data-testid="current-alignment">
               <ion-card-content>
-                Aligned on <strong>{{ current.starId }}</strong> on {{ current.alignedAt | date: 'd MMM, HH:mm' }}
+                Aligned on <strong>{{ current.starId }}</strong> on {{ current.alignedAt | localTime: 'date-time' }}
                 {{ methodNote(current.method) }}. You only need to align again if the phone has moved in its mount.
               </ion-card-content>
             </ion-card>
@@ -207,6 +209,9 @@ export class AlignPage {
           mag: star.mag,
           position: this.state.positionOf(star),
         })),
+      4,
+      // Fainter stars are easy to recognise under a dark sky, but not from a city.
+      alignmentStarLimit(this.state.settings().bortle),
     ),
   );
 

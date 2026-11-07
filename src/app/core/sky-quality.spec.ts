@@ -1,4 +1,4 @@
-import { nakedEyeLimit, telescopeLimit } from './sky-quality';
+import { alignmentStarLimit, nakedEyeLimit, recommendationLimit, telescopeLimit } from './sky-quality';
 
 describe('sky quality', () => {
   it('sees fainter stars under darker skies', () => {
@@ -21,5 +21,18 @@ describe('sky quality', () => {
 
   it('never makes a telescope worse than the naked eye', () => {
     expect(telescopeLimit(8, 3)).toBe(nakedEyeLimit(8));
+  });
+
+  it('recommends fainter objects under a darker sky and with a bigger telescope', () => {
+    // A city with 130 mm: about the old fixed limit of magnitude 10.
+    expect(recommendationLimit(8, 130)).toBeCloseTo(9.6, 1);
+    expect(recommendationLimit(3, 130)).toBeGreaterThan(recommendationLimit(8, 130));
+    expect(recommendationLimit(8, 200)).toBeGreaterThan(recommendationLimit(8, 130));
+  });
+
+  it('offers fainter alignment stars under a dark sky, within easy-to-recognise limits', () => {
+    expect(alignmentStarLimit(8)).toBeCloseTo(2.5, 1);
+    expect(alignmentStarLimit(9)).toBeCloseTo(2.2, 1);
+    expect(alignmentStarLimit(1)).toBe(3.5);
   });
 });

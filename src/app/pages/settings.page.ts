@@ -1,4 +1,4 @@
-import { DatePipe, DecimalPipe } from '@angular/common';
+import { DecimalPipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import {
@@ -45,6 +45,7 @@ import { AppState } from '../core/app-state.service';
 import type { Settings } from '../core/app-state.service';
 import { formatLocation } from '../core/astronomy';
 import { LiveSolverService } from '../core/live-solver.service';
+import { LocalTimePipe } from '../core/local-time.pipe';
 import { BORTLE_CLASSES } from '../core/sky-quality';
 
 type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
@@ -57,7 +58,7 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
 @Component({
   selector: 'app-settings',
   imports: [
-    DatePipe,
+    LocalTimePipe,
     DecimalPipe,
     IonBadge,
     IonButton,
@@ -371,7 +372,8 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
               <ion-label class="ion-text-wrap">
                 <h3 [class.good]="entry.outcome === 'solved'">{{ entry.message }}</h3>
                 <p>
-                  {{ entry.at | date: 'HH:mm:ss' }} · {{ entry.trigger === 'auto' ? 'Automatic' : 'Alignment' }} ·
+                  {{ entry.at | localTime: 'time-seconds' }} ·
+                  {{ entry.trigger === 'auto' ? 'Automatic' : 'Alignment' }} ·
                   {{ entry.durationMs / 1000 | number: '1.1-1' }} s · ISO {{ entry.iso }}
                   @if (entry.starCount > 0) {
                     · {{ entry.starCount }} stars found
@@ -417,6 +419,12 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
         </ion-item>
         <ion-item>
           <ion-label class="ion-text-wrap credit">Caldwell catalogue compiled by Sir Patrick Moore.</ion-label>
+        </ion-item>
+        <ion-item>
+          <ion-label class="ion-text-wrap credit"
+            >Compass correction from the World Magnetic Model, NOAA and the British Geological Survey, via geomagnetism
+            by Natural Atlas, Apache License 2.0.</ion-label
+          >
         </ion-item>
         <ion-item lines="none">
           <ion-label class="ion-text-wrap credit"

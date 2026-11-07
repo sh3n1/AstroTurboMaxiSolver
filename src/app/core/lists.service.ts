@@ -2,6 +2,7 @@ import { Injectable, computed, effect, inject, signal } from '@angular/core';
 
 import { apparentMagnitude } from './alignment';
 import { AppState } from './app-state.service';
+import { recommendationLimit } from './sky-quality';
 import type { FixedListId, TargetList } from './target-lists';
 import {
   FIXED_LISTS,
@@ -23,7 +24,6 @@ const OLD_PLAN_KEY = 'astrofinder.plan';
 // Tonight's recommendations: objects well up in the sky when it gets dark, brightest first.
 const GOOD_ALTITUDE_DEG = 30;
 const TONIGHT_COUNT = 20;
-const TONIGHT_MAG_LIMIT = 10; // Fainter objects are very hard to find from a city
 
 /** A list as the pages show it, whether the app made it or the user did. */
 export interface ListView {
@@ -66,9 +66,12 @@ export class ListsService {
   // counting the dimming near the horizon, because faint objects are hard to see from a city.
   private readonly tonight = computed(() => {
     const time = this.tonightTime();
+    // As faint as the user's sky and telescope can show, so a dark site gets more.
+    const { bortle, telescopeApertureMm } = this.state.settings();
+    const limit = recommendationLimit(bortle, telescopeApertureMm);
     return this.state
       .targets()
-      .filter((target) => target.kind !== 'Star' && target.mag <= TONIGHT_MAG_LIMIT)
+      .filter((target) => target.kind !== 'Star' && target.mag <= limit)
       .map((target) => ({ target, altDeg: this.state.positionAt(target, time).altDeg }))
       .filter(({ altDeg }) => altDeg >= GOOD_ALTITUDE_DEG)
       .sort((a, b) => apparentMagnitude(a.target.mag, a.altDeg) - apparentMagnitude(b.target.mag, b.altDeg))

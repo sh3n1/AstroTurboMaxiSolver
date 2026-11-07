@@ -59,6 +59,21 @@ test('moves the map with the phone sensors', async ({ page }) => {
   await expect(pointing).not.toContainText('Alt 0°, az 0°');
 });
 
+test('turns compass headings to true north for the location', async ({ page }) => {
+  // In Seattle, magnetic north is about 15° east of true north.
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      'astrofinder.settings',
+      JSON.stringify({ autoSolve: false, latitudeDeg: 47.61, longitudeDeg: -122.33, locationSet: true }),
+    ),
+  );
+  await page.goto('/');
+  await startSensors(page);
+  // The phone's top points at magnetic north, which is true azimuth 15° here.
+  await sendOrientation(page, 0, 90, 0);
+  await expect(page.locator('[data-testid=pointing]')).toContainText(/az 1[456]°/);
+});
+
 test('explains when no sensor data arrives', async ({ page }) => {
   await page.goto('/');
   await page.locator('[data-testid=sensor-toggle]').click();
