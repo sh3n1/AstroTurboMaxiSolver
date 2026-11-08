@@ -2,6 +2,9 @@ import { Injectable, computed, effect, inject, signal } from '@angular/core';
 
 import { apparentMagnitude } from './alignment';
 import { AppState } from './app-state.service';
+import { equatorialVector } from './astronomy';
+import { insideReticle } from './reticle';
+import type { SkyItem } from './reticle';
 import { recommendationLimit } from './sky-quality';
 import type { FixedListId, TargetList } from './target-lists';
 import {
@@ -79,6 +82,30 @@ export class ListsService {
       .map(({ target }) => target);
   });
 
+  /**
+   * Each target's direction, worked out once each time the targets change (each minute,
+   * as the planets move), so following the telescope is only a quick check per target.
+   * Constellations are left out: their position is only a label spot, not something to aim at.
+   */
+  private readonly targetVectors = computed<SkyItem<Target>[]>(() =>
+    this.state
+      .targets()
+      .filter((target) => target.kind !== 'Constellation')
+      .map((target) => ({ item: target, vector: equatorialVector(target.raDeg, target.decDeg) })),
+  );
+
+  /**
+   * What is inside the reticle's rings right now. It follows the telescope as it moves,
+   * but only tells the pages when the targets in it change, not at every small movement.
+   */
+  private readonly inReticle = computed(
+    () => {
+      const { raDeg, decDeg } = this.state.pointingEquatorial();
+      return insideReticle(this.targetVectors(), equatorialVector(raDeg, decDeg));
+    },
+    { equal: (a, b) => a.length === b.length && a.every((target, i) => target === b[i]) },
+  );
+
   private readonly messier = computed(() => catalogueTargets(this.state.targets(), 'M'));
   private readonly caldwell = computed(() => catalogueTargets(this.state.targets(), 'C'));
 
@@ -86,6 +113,7 @@ export class ListsService {
   readonly fixedLists = computed<ListView[]>(() => {
     const targets: Record<FixedListId, Target[]> = {
       tonight: this.tonight(),
+      reticle: this.inReticle(),
       messier: this.messier(),
       caldwell: this.caldwell(),
     };

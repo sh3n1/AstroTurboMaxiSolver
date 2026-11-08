@@ -1,4 +1,36 @@
-// How the reticle looks over time, with no Angular dependency.
+// How the reticle looks over time, and what lies inside it, with no Angular dependency.
+
+import type { Vector3 } from './astronomy';
+
+/** The reticle's rings, as diameters in degrees: the same sizes as a Telrad finder. */
+export const RETICLE_RINGS_DEG = [0.5, 2, 4] as const;
+
+/** How far from the centre the outer ring reaches. */
+export const RETICLE_RADIUS_DEG = RETICLE_RINGS_DEG.at(-1)! / 2;
+
+/** Something in the sky, with its direction as a unit vector, worked out once in advance. */
+export interface SkyItem<T> {
+  item: T;
+  vector: Vector3;
+}
+
+/**
+ * The items inside the reticle's outer ring, nearest the centre first. Directions are
+ * compared as unit vectors: the dot product of two is the cosine of the angle between
+ * them, so this is one multiply-add per object, fast enough to run as the phone moves.
+ */
+export function insideReticle<T>(items: readonly SkyItem<T>[], centre: Vector3): T[] {
+  const minCosine = Math.cos((RETICLE_RADIUS_DEG * Math.PI) / 180);
+  const [x, y, z] = centre;
+  // A plain loop that keeps only the few inside, since this runs over every target.
+  const inside: { item: T; cosine: number }[] = [];
+  for (const { item, vector } of items) {
+    const cosine = vector[0] * x + vector[1] * y + vector[2] * z;
+    if (cosine >= minCosine) inside.push({ item, cosine });
+  }
+  // A larger cosine is a smaller angle, so this puts the nearest first.
+  return inside.sort((a, b) => b.cosine - a.cosine).map(({ item }) => item);
+}
 
 /** One full fade out and back, about the pace of a slow heartbeat. */
 const PULSE_PERIOD_MS = 1200;

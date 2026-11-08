@@ -56,7 +56,7 @@ import type { Equipment } from '../core/equipment';
 import { equipmentLabel, sameEquipment } from '../core/equipment';
 import { FullscreenService } from '../core/fullscreen.service';
 import { LiveSolverService } from '../core/live-solver.service';
-import { chevronSpacingPx, guideAngleDeg, pulseOpacity } from '../core/reticle';
+import { RETICLE_RADIUS_DEG, RETICLE_RINGS_DEG, chevronSpacingPx, guideAngleDeg, pulseOpacity } from '../core/reticle';
 import { SensorService } from '../core/sensor.service';
 import type { IconPath } from '../core/target-icons';
 import { DISC_RADIUS, ICON_DASH, ICON_GRID, phaseIcon, targetIcon } from '../core/target-icons';
@@ -146,8 +146,6 @@ const MAX_SKY_TURN_WAIT_MS = 10_000;
 const CHEVRON_FADE = [0.35, 0.65, 1];
 const CHEVRON_HEIGHT_PX = 8;
 const CHEVRON_HALF_WIDTH_PX = 11;
-/** Reticle ring diameters, the same as a Telrad finder's, so star hops carry over. */
-const RETICLE_RINGS_DEG = [0.5, 2, 4];
 /** Rings smaller than this have no room for a size label. */
 const MIN_LABELLED_RING_PX = 30;
 
@@ -304,12 +302,12 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
       clip-path: inset(50%);
       white-space: nowrap;
     }
-    /* A sensor problem, in a small box at the bottom, just above the tab bar. */
+    /* A sensor problem, in a small solid box at the bottom, just above the tab bar. */
     .message {
       margin-top: 6px;
       padding: 6px 10px;
       border-radius: 10px;
-      background: rgb(10 14 28 / 85%);
+      background: rgb(10 14 28);
       color: #ffb454;
       font-size: calc(15px * var(--af-scale, 1));
       text-align: center;
@@ -398,18 +396,33 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
       flex-direction: column;
       margin-right: -6px;
     }
+    /* Solid, so map labels behind it never show through the text. */
     .bar {
       padding: 6px 4px 6px 12px;
       border: 1px solid #232a3d;
       border-radius: 12px;
-      background: rgb(10 14 28 / 88%);
+      background: rgb(10 14 28);
       color: var(--af-text);
       font-size: calc(16px * var(--af-scale, 1));
     }
+    /* The text takes what room is left, and the buttons stay together on one line beside it. */
     .bar-row {
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      gap: 4px;
+    }
+    .bar-text {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .bar-buttons {
+      flex: none;
+      display: flex;
+      align-items: center;
+    }
+    /* Each part of a line wraps as a whole, never in the middle, like "below the horizon". */
+    .keep {
+      white-space: nowrap;
     }
     .muted {
       color: var(--af-muted);
@@ -672,17 +685,17 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
           @if (state.selectedTarget(); as target) {
             <div class="bar" data-testid="target-bar">
               <div class="bar-row">
-                <div>
+                <div class="bar-text">
                   <strong data-testid="target-designations">{{ designationText(target) }}</strong> {{ target.name }}
                   <div class="directions" data-testid="directions">{{ directions() }}</div>
                   <div class="muted" data-testid="guidance">
-                    {{ targetDistance() | number: '1.1-1' }}° away
+                    <span class="keep">{{ targetDistance() | number: '1.1-1' }}° away</span>
                     @if (targetBelowHorizon()) {
-                      · below the horizon
+                      · <span class="keep">below the horizon</span>
                     }
                   </div>
                 </div>
-                <div>
+                <div class="bar-buttons">
                   @if (!state.sensorsActive()) {
                     <ion-button fill="clear" size="small" data-testid="aim-at-target" (click)="aimAtTarget()">
                       Aim
@@ -1611,7 +1624,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       }
     }
 
-    const outerRadius = stereographicRadius(RETICLE_RINGS_DEG.at(-1)! / 2) * scale;
+    const outerRadius = stereographicRadius(RETICLE_RADIUS_DEG) * scale;
 
     ctx.globalAlpha = 1;
 

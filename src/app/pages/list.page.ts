@@ -33,6 +33,7 @@ import { map } from 'rxjs';
 import { AppState } from '../core/app-state.service';
 import { ListsService } from '../core/lists.service';
 import { LocalTimePipe } from '../core/local-time.pipe';
+import { RETICLE_RINGS_DEG } from '../core/reticle';
 import { normalizeSearch, targetSearchText } from '../core/search';
 import { TargetListComponent } from '../core/target-list.component';
 import { exportFileName, exportLists } from '../core/target-lists';
@@ -112,6 +113,19 @@ import { exportFileName, exportLists } from '../core/target-lists';
           </ion-card>
         }
 
+        @if (current.id === 'reticle') {
+          <!-- Where the reticle is, since this list follows it. -->
+          <ion-card>
+            <ion-card-content data-testid="reticle-centre">
+              <p>
+                <strong>Around: </strong>Alt {{ state.pointing().altDeg | number: '1.0-0' }}° Az
+                {{ state.pointing().azDeg | number: '1.0-0' }}°
+              </p>
+              <p>Inside the {{ reticleRingDeg }}° ring. The list follows the telescope as it moves.</p>
+            </ion-card-content>
+          </ion-card>
+        }
+
         @if (shown().length > 0) {
           <app-target-list [targets]="shown()" [at]="current.id === 'tonight' ? tonightTime() : null"></app-target-list>
         } @else {
@@ -119,6 +133,8 @@ import { exportFileName, exportLists } from '../core/target-lists';
             <p class="ion-padding" data-testid="list-empty">
               @if (query()) {
                 Nothing in this list matches your search.
+              } @else if (current.id === 'reticle') {
+                Nothing is inside the aiming rings. Move the telescope, or the map, to fill this list.
               } @else if (current.kind === 'fixed') {
                 Nothing is well placed at that time.
               } @else {
@@ -137,7 +153,7 @@ export class ListPage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly lists = inject(ListsService);
-  private readonly state = inject(AppState);
+  protected readonly state = inject(AppState);
   private readonly alerts = inject(AlertController);
   private readonly actionSheets = inject(ActionSheetController);
   private readonly toasts = inject(ToastController);
@@ -145,6 +161,8 @@ export class ListPage {
   protected readonly conditions = this.state.conditions;
   protected readonly tonightTime = this.lists.tonightTime;
   protected readonly query = signal('');
+  /** The outer ring's size, which this list's targets are inside. */
+  protected readonly reticleRingDeg = RETICLE_RINGS_DEG.at(-1);
 
   private readonly id = toSignal(this.route.paramMap.pipe(map((params) => params.get('id') ?? '')), {
     initialValue: '',

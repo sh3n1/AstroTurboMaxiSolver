@@ -27,6 +27,50 @@ test('shows the Tonight, Messier and Caldwell collections', async ({ page }) => 
   await expect(page.locator('[data-testid=conditions]')).toContainText('% lit');
 });
 
+test('lists what is inside the reticle, following the telescope', async ({ page }) => {
+  await page.goto('/tabs/lists');
+  await expect(listLink(page, 'In the reticle')).toBeVisible();
+  await listLink(page, 'In the reticle').click();
+  await expect(page.locator('[data-testid=reticle-centre]')).toContainText('Alt');
+
+  /** Points the telescope at a target's position, plus an offset, using Angular's development tools. */
+  const aimNear = (id: string, offsetDeg: number) =>
+    page.evaluate(
+      ([targetId, offset]) => {
+        type Position = { altDeg: number; azDeg: number };
+        const { ng } = window as unknown as {
+          ng: {
+            getComponent: (el: Element) => {
+              state: {
+                targets: () => { id: string }[];
+                positionOf: (t: unknown) => Position;
+                pointing: { set: (p: Position) => void };
+              };
+            };
+          };
+        };
+        const { state } = ng.getComponent(document.querySelector('app-list')!);
+        const position = state.positionOf(state.targets().find((t) => t.id === targetId));
+        state.pointing.set({ altDeg: position.altDeg + offset, azDeg: position.azDeg });
+      },
+      [id, offsetDeg] as const,
+    );
+
+  // Half a degree from Vega, it is in the list, and first, as nothing else is that close.
+  await aimNear('Vega', 0.5);
+  const rows = page.locator('app-list app-target-list ion-item');
+  await expect(rows.first().locator('[data-testid=designations]')).toContainText('Vega');
+
+  // Ten degrees away, it has left the rings, so the list follows without any tap.
+  await aimNear('Vega', 10);
+  await expect(page.locator('app-list [data-testid=designations]', { hasText: 'Vega' })).toHaveCount(0);
+
+  // It can't be edited, only copied, like the app's other lists.
+  await page.locator('[data-testid=list-actions]').click();
+  await expect(page.locator('ion-action-sheet')).toContainText('Make an editable copy');
+  await expect(page.locator('ion-action-sheet')).not.toContainText('Rename');
+});
+
 test('lists a catalogue in order, and searches inside it', async ({ page }) => {
   await page.goto('/tabs/lists');
   await listLink(page, 'Caldwell catalogue').click();
