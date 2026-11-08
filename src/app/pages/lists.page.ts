@@ -26,6 +26,7 @@ import {
   cloudUploadOutline,
   documentTextOutline,
   folderOutline,
+  locateOutline,
   moonOutline,
   sparklesOutline,
 } from 'ionicons/icons';
@@ -34,7 +35,7 @@ import { ListsService } from '../core/lists.service';
 import { FIXED_LISTS } from '../core/target-lists';
 
 /**
- * The Bookmarks tab: the app's own lists (Tonight, Messier and Caldwell), then the
+ * The Bookmarks tab: the app's own lists (Tonight, In the reticle, Messier and Caldwell), then the
  * user's lists, which they can make, import and export.
  */
 @Component({
@@ -155,6 +156,7 @@ export class ListsPage {
       cloudUploadOutline,
       documentTextOutline,
       folderOutline,
+      locateOutline,
       moonOutline,
       sparklesOutline,
     });

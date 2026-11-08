@@ -9,8 +9,9 @@ import { bookmarksOutline, planetOutline, searchOutline, settingsOutline } from 
   imports: [IonIcon, IonLabel, IonTabBar, IonTabButton, IonTabs],
   styles: `
     /*
-     * On the Sky tab the tab bar floats over the map, see-through, instead of taking
-     * space from it. The sky page reads the height to keep its target bar above it.
+     * On the Sky tab the tab bar floats over the map instead of taking space from it.
+     * It is nearly solid, so map labels underneath don't mix with the tab names.
+     * The sky page reads the height to keep its target bar above it.
      */
     ion-tabs.over-map {
       --af-tab-bar-height: calc(56px + var(--ion-safe-area-bottom, 0px));
@@ -20,7 +21,7 @@ import { bookmarksOutline, planetOutline, searchOutline, settingsOutline } from 
       left: 0;
       right: 0;
       bottom: 0;
-      --background: rgb(13 18 32 / 35%);
+      --background: rgb(13 18 32 / 90%);
       --border: none;
     }
   `,
