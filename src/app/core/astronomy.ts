@@ -176,9 +176,11 @@ export function solarSystemPosition(
   longitudeDeg: number,
 ): { raDeg: number; decDeg: number; mag: number; litFraction: number } {
   // Ceres and the asteroids aren't in astronomy-engine, so they come from their orbits.
-  // They show no phase that matters, so they count as fully lit.
   const minor = minorPlanet(bodyName);
-  if (minor) return { ...minorPlanetPosition(minor, date), litFraction: 1 };
+  if (minor) {
+    const { raDeg, decDeg, mag, litFraction } = minorPlanetPosition(minor, date);
+    return { raDeg, decDeg, mag, litFraction };
+  }
   const body = bodyName as Body;
   // Using the observer's location matters most for the Moon, which is close enough
   // to appear in a different place from different parts of the Earth.

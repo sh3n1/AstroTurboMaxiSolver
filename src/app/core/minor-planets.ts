@@ -28,6 +28,21 @@ export interface MinorPlanet {
   /** Brightness at 1 au from the Sun and the Earth, and how it fades with phase. */
   h: number;
   g: number;
+  /** Mean diameter in kilometres. */
+  diameterKm: number;
+}
+
+/** Where a minor planet appears from the Earth, how bright, and how far from us and the Sun. */
+export interface MinorPlanetPosition {
+  raDeg: number;
+  decDeg: number;
+  mag: number;
+  /** Distance from the Earth, in astronomical units. */
+  earthDistanceAu: number;
+  /** The angle between it and the Sun, seen from the Earth. */
+  sunAngleDeg: number;
+  /** How much of the disc facing us is sunlit, from 0 to 1. */
+  litFraction: number;
 }
 
 export const MINOR_PLANETS: readonly MinorPlanet[] = data.bodies as MinorPlanet[];
@@ -95,7 +110,7 @@ function magnitude(planet: MinorPlanet, sunDistance: number, earthDistance: numb
  * bright it looks. Allows for the time its light takes to reach us. Seen from the Earth's
  * centre, since these are far enough away for where on Earth to make no difference.
  */
-export function minorPlanetPosition(planet: MinorPlanet, date: Date): { raDeg: number; decDeg: number; mag: number } {
+export function minorPlanetPosition(planet: MinorPlanet, date: Date): MinorPlanetPosition {
   const time = MakeTime(date);
   const earthVector = HelioVector(Body.Earth, time);
   const earth: Vector = [earthVector.x, earthVector.y, earthVector.z];
@@ -112,5 +127,22 @@ export function minorPlanetPosition(planet: MinorPlanet, date: Date): { raDeg: n
   const distance = length(fromEarth);
   const raDeg = (((Math.atan2(fromEarth[1], fromEarth[0]) / RAD) % 360) + 360) % 360;
   const decDeg = Math.asin(fromEarth[2] / distance) / RAD;
-  return { raDeg, decDeg, mag: magnitude(planet, length(sun), distance, length(earth)) };
+  // The Sun is in the opposite direction to the Earth's own position from it.
+  const sunAngleDeg = angleDeg([-earth[0], -earth[1], -earth[2]], fromEarth);
+  // The phase angle is Sun to object to Earth. The lit share of the disc follows from it.
+  const phaseAngle = angleDeg([-sun[0], -sun[1], -sun[2]], [-fromEarth[0], -fromEarth[1], -fromEarth[2]]) * RAD;
+  return {
+    raDeg,
+    decDeg,
+    mag: magnitude(planet, length(sun), distance, length(earth)),
+    earthDistanceAu: distance,
+    sunAngleDeg,
+    litFraction: (1 + Math.cos(phaseAngle)) / 2,
+  };
+}
+
+/** The angle between two directions, in degrees. */
+function angleDeg(a: Vector, b: Vector): number {
+  const cosine = (a[0] * b[0] + a[1] * b[1] + a[2] * b[2]) / (length(a) * length(b));
+  return Math.acos(Math.max(-1, Math.min(1, cosine))) / RAD;
 }

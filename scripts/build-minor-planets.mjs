@@ -54,6 +54,8 @@ for (const { number: id, name, kind } of OBJECTS) {
     // Brightness at 1 au from the Sun and the Earth, and how it changes with phase.
     h: number(physical.H, `${name} H`),
     g: Number.isFinite(Number(physical.G)) ? Number(physical.G) : 0.15,
+    // Mean diameter in kilometres, for the size of the disc in the details box.
+    diameterKm: number(physical.diameter, `${name} diameter`),
   });
 }
 
