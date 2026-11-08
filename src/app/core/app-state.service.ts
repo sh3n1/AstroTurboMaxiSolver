@@ -53,6 +53,8 @@ export interface Settings {
   autoSolve: boolean;
   /** Show where the view points in right ascension and declination, on the sky map. */
   showEquatorial: boolean;
+  /** Keep the phone's screen on while the app is open. */
+  keepScreenOn: boolean;
   /** Show a toast for successful plate solves too, with the stars matched. For debugging. */
   solveSuccessToast: boolean;
   /** How dark the observer's sky is, on the Bortle scale from 1 (darkest) to 9. */
@@ -99,6 +101,8 @@ const DEFAULT_SETTINGS: Settings = {
   autoSolve: true,
   solveSuccessToast: false,
   showEquatorial: false,
+  // On by default: at the telescope the phone sits untouched, and a sleeping screen stops the sensors.
+  keepScreenOn: true,
   // The middle of the scale, a suburban sky, until the user sets their own.
   bortle: 5,
   eyepieceStarLimit: null,

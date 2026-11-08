@@ -1,5 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { IonApp, IonRouterOutlet } from '@ionic/angular';
+
+import { ScreenWakeService } from './core/screen-wake.service';
 
 @Component({
   selector: 'app-root',
@@ -7,5 +9,8 @@ import { IonApp, IonRouterOutlet } from '@ionic/angular';
   imports: [IonApp, IonRouterOutlet],
 })
 export class AppComponent {
-  constructor() {}
+  constructor() {
+    // Starts keeping the screen on, following the setting, for the whole app.
+    inject(ScreenWakeService);
+  }
 }

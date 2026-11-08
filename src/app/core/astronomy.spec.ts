@@ -1,7 +1,7 @@
 import { Body, Equator, Horizon, Observer } from 'astronomy-engine';
 
 import {
-  applyMatrix,
+  apparentAxes,
   azimuthChangeDeg,
   bearingInViewDeg,
   compassPoint,
@@ -22,10 +22,13 @@ import {
   skyConditions,
   skyRotation,
   solarSystemPosition,
+  refract,
   stereographic,
   stereographicRadius,
+  toApparent,
   toViewCoordinates,
   trueFieldDeg,
+  unrefract,
   vectorToHorizontal,
   viewBasis,
   viewRollDeg,
@@ -101,7 +104,8 @@ describe('astronomy', () => {
       // The library's own altitude and azimuth for the Moon, a separate calculation path.
       const observer = new Observer(VALENCIA.lat, VALENCIA.lon, 0);
       const ofDate = Equator(Body.Moon, date, observer, true, true);
-      const direct = Horizon(date, observer, ofDate.ra, ofDate.dec);
+      // With the library's own refraction, the same model the app uses.
+      const direct = Horizon(date, observer, ofDate.ra, ofDate.dec, 'normal');
 
       const { raDeg, decDeg } = solarSystemPosition('Moon', date, VALENCIA.lat, VALENCIA.lon);
       const viaRotation = equatorialToHorizontal(skyRotation(date, VALENCIA.lat, VALENCIA.lon), raDeg, decDeg);
@@ -142,9 +146,46 @@ describe('astronomy', () => {
   });
 
   describe('readouts', () => {
+    it('lifts things near the horizon by the air, and hardly at all overhead', () => {
+      const lift = (altDeg: number) =>
+        vectorToHorizontal(refract(horizontalVector({ altDeg, azDeg: 120 }))).altDeg - altDeg;
+      // About 34 arcminutes at the horizon, 5 at 10° and next to nothing overhead.
+      expect(lift(0)).toBeCloseTo(0.48, 1);
+      expect(lift(10)).toBeCloseTo(0.09, 2);
+      expect(lift(80)).toBeLessThan(0.01);
+      // The direction round the horizon doesn't change.
+      expect(vectorToHorizontal(refract(horizontalVector({ altDeg: 5, azDeg: 120 }))).azDeg).toBeCloseTo(120, 9);
+    });
+
+    it('undoes the lift exactly', () => {
+      for (const altDeg of [-0.4, 0, 3, 20, 60]) {
+        const v = horizontalVector({ altDeg, azDeg: 250 });
+        expect(vectorToHorizontal(unrefract(refract(v))).altDeg).toBeCloseTo(altDeg, 6);
+      }
+    });
+
+    it('lifts a plate solve as a whole, keeping its axes perpendicular', () => {
+      const rotation = skyRotation(new Date(Date.UTC(2026, 10, 5, 20)), VALENCIA.lat, VALENCIA.lon);
+      // Camera axes for a field low in the east: z is the centre of the image.
+      const z = equatorialVector(30, 10);
+      const x = equatorialVector(120, 0);
+      const y: [number, number, number] = [
+        z[1] * x[2] - z[2] * x[1],
+        z[2] * x[0] - z[0] * x[2],
+        z[0] * x[1] - z[1] * x[0],
+      ];
+      const [ax, ay, az] = apparentAxes(rotation, [x, y, z]);
+      const dot = (a: readonly number[], b: readonly number[]) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+      expect(dot(ax, ay)).toBeCloseTo(0, 9);
+      expect(dot(ay, az)).toBeCloseTo(0, 9);
+      // The centre lands where the star at the centre appears.
+      const expected = toApparent(rotation, z);
+      for (let i = 0; i < 3; i++) expect(az[i]).toBeCloseTo(expected[i], 9);
+    });
+
     it('recovers a sky position from where it appears locally', () => {
       const rotation = skyRotation(new Date(Date.UTC(2026, 10, 5, 20)), VALENCIA.lat, VALENCIA.lon);
-      const { raDeg, decDeg } = localToEquatorial(rotation, applyMatrix(rotation, equatorialVector(279.23, 38.78)));
+      const { raDeg, decDeg } = localToEquatorial(rotation, toApparent(rotation, equatorialVector(279.23, 38.78)));
       expect(raDeg).toBeCloseTo(279.23, 9);
       expect(decDeg).toBeCloseTo(38.78, 9);
     });

@@ -30,6 +30,36 @@ test('shows RA and Dec on the sky map only when chosen in Settings', async ({ pa
   await expect(page.locator('[data-testid=equatorial]')).toContainText(/RA \d+h \d+m, Dec [+−-]\d+°/);
 });
 
+test('keeps the screen on while the app is open, and lets go when turned off', async ({ page }) => {
+  // Counts the screen locks the app asks for and lets go of, in place of the real API.
+  await page.addInitScript(() => {
+    const counts = { requested: 0, released: 0 };
+    (window as unknown as { wakeCounts: typeof counts }).wakeCounts = counts;
+    Object.defineProperty(navigator, 'wakeLock', {
+      value: {
+        request: async () => {
+          counts.requested++;
+          const lock = new EventTarget() as EventTarget & { release: () => Promise<void> };
+          lock.release = async () => {
+            counts.released++;
+          };
+          return lock;
+        },
+      },
+    });
+  });
+  await page.goto('/');
+  const counts = () => page.evaluate(() => (window as unknown as { wakeCounts: object }).wakeCounts);
+  // On by default.
+  await expect.poll(counts).toEqual({ requested: 1, released: 0 });
+
+  await page.getByRole('tab', { name: 'Settings' }).click();
+  const toggle = page.locator('[data-testid=keep-screen-on]');
+  await expect(toggle).toHaveAttribute('aria-checked', 'true');
+  await toggle.click();
+  await expect.poll(counts).toEqual({ requested: 1, released: 1 });
+});
+
 test('shows the location bottom left, only while no target is selected', async ({ page, context }) => {
   // The test's phone is in Madrid. The app has no location of its own until asked.
   await context.grantPermissions(['geolocation']);

@@ -34,7 +34,7 @@ import { AppState } from '../core/app-state.service';
 import type { Settings } from '../core/app-state.service';
 import type { Horizontal, Vector3 } from '../core/astronomy';
 import {
-  applyMatrix,
+  toApparent,
   azimuthChangeDeg,
   equatorialToHorizontal,
   equatorialVector,
@@ -1463,7 +1463,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     };
     for (const { lines } of this.constellations()) {
       for (const line of lines) {
-        const points = line.map((vector) => applyMatrix(toLocal, vector));
+        const points = line.map((vector) => toApparent(toLocal, vector));
         for (let i = 1; i < points.length; i++) {
           const [a, b] = [points[i - 1], points[i]];
           if (a[2] >= 0 && b[2] >= 0) addSegment(above, a, b);
@@ -1493,7 +1493,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     ctx.font = this.font(14, 'italic');
     ctx.textAlign = 'center';
     for (const { name, label } of this.constellations()) {
-      const local = applyMatrix(toLocal, label);
+      const local = toApparent(toLocal, label);
       const point = project(local);
       if (!point) continue;
       const halfWidth = ctx.measureText(name).width / 2;
@@ -1531,7 +1531,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
         if (isEyepiece) continue;
         break;
       }
-      const local = applyMatrix(toLocal, star.vector);
+      const local = toApparent(toLocal, star.vector);
       // The sky map fades what is below the horizon. The eyepiece view also serves for
       // planning ahead, so it shows those stars in full.
       const below = local[2] < 0 && !isEyepiece;
@@ -1585,20 +1585,17 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     ctx.font = this.font(15);
     ctx.textAlign = 'left';
     const sun = this.state.sunEquatorial();
-    const sunLocal = applyMatrix(toLocal, equatorialVector(sun.raDeg, sun.decDeg));
+    const sunLocal = toApparent(toLocal, equatorialVector(sun.raDeg, sun.decDeg));
 
     // The selected target goes first, so its label always wins a clash.
     // Then those above the horizon, so their labels win a clash with faded ones below.
     const others = this.state
       .targets()
       .filter((t) => t.id !== selected?.id && isShownAtField(t, fieldDeg))
-      .map((target) => ({ target, local: applyMatrix(toLocal, equatorialVector(target.raDeg, target.decDeg)) }))
+      .map((target) => ({ target, local: toApparent(toLocal, equatorialVector(target.raDeg, target.decDeg)) }))
       .sort((a, b) => Number(a.local[2] < 0) - Number(b.local[2] < 0));
     const ordered = selected
-      ? [
-          { target: selected, local: applyMatrix(toLocal, equatorialVector(selected.raDeg, selected.decDeg)) },
-          ...others,
-        ]
+      ? [{ target: selected, local: toApparent(toLocal, equatorialVector(selected.raDeg, selected.decDeg)) }, ...others]
       : others;
     for (const { target, local } of ordered) {
       const isSelected = target === selected;
