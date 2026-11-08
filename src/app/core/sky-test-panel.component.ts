@@ -3,7 +3,7 @@ import { Component, computed, inject, isDevMode, signal } from '@angular/core';
 import { IonButton, IonText } from '@ionic/angular';
 
 import { AppState } from './app-state.service';
-import { equatorialVector, formatDec, formatRa, horizontalVector } from './astronomy';
+import { equatorialVector, formatDec, formatRa, horizontalVector, unrefract } from './astronomy';
 import type { Vector3 } from './astronomy';
 import type { StepReport } from './sky-test';
 import { runSkyTest } from './sky-test';
@@ -230,7 +230,8 @@ export class SkyTestPanelComponent {
     const camera = this.state.cameraPointing();
     if (!camera) return null;
     const rotation = this.state.skyRotation();
-    const [east, north, up] = horizontalVector(camera);
+    // Where the camera points as it appears, turned back to the real direction.
+    const [east, north, up] = unrefract(horizontalVector(camera));
     const x = rotation[0][0] * east + rotation[1][0] * north + rotation[2][0] * up;
     const y = rotation[0][1] * east + rotation[1][1] * north + rotation[2][1] * up;
     const z = rotation[0][2] * east + rotation[1][2] * north + rotation[2][2] * up;

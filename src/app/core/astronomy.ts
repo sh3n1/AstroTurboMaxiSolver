@@ -5,9 +5,20 @@
 //
 // Angles are in degrees unless a name says otherwise. Azimuth is measured from
 // north through east. Local vectors use the axes east, north, up. Catalogue
-// positions are J2000. Atmospheric refraction is not applied yet.
+// positions are J2000. Local positions include atmospheric refraction: they are where
+// things appear in the sky, which is what the phone's sensors and camera see.
 
-import { Body, Equator, Horizon, Illumination, Observer, Rotation_EQJ_HOR, SearchAltitude } from 'astronomy-engine';
+import {
+  Body,
+  Equator,
+  Horizon,
+  Illumination,
+  InverseRefraction,
+  Observer,
+  Refraction,
+  Rotation_EQJ_HOR,
+  SearchAltitude,
+} from 'astronomy-engine';
 
 import { minorPlanet, minorPlanetPosition } from './minor-planets';
 
@@ -78,6 +89,62 @@ export function skyRotation(date: Date, latitudeDeg: number, longitudeDeg: numbe
 
 export const applyMatrix = (m: Matrix3, v: Vector3): Vector3 => [dot(m[0], v), dot(m[1], v), dot(m[2], v)];
 
+/**
+ * astronomy-engine's refraction model for average air (10 °C, 1010 hPa). The air lifts
+ * what is near the horizon by up to about half a degree, and almost nothing overhead.
+ */
+const REFRACTION = 'normal';
+
+/** A local direction moved up (or down, for a negative angle), keeping its azimuth. */
+function raiseBy([east, north, up]: Vector3, deg: number): Vector3 {
+  const horizontal = Math.hypot(east, north);
+  if (deg === 0 || horizontal < 1e-9) return [east, north, up]; // Straight up has no azimuth to keep
+  const alt = Math.min(90, Math.atan2(up, horizontal) / RAD + deg) * RAD;
+  const scale = Math.cos(alt) / horizontal;
+  return [east * scale, north * scale, Math.sin(alt)];
+}
+
+/** Where a local direction appears in the sky, lifted by the air. */
+export function refract(v: Vector3): Vector3 {
+  return raiseBy(v, Refraction(REFRACTION, vectorToHorizontal(v).altDeg));
+}
+
+/** The real direction of something that appears at a local direction: refract() undone. */
+export function unrefract(v: Vector3): Vector3 {
+  return raiseBy(v, InverseRefraction(REFRACTION, vectorToHorizontal(v).altDeg));
+}
+
+/** A J2000 direction turned to where it appears in the local sky, using a rotation from skyRotation. */
+export function toApparent(rotation: Matrix3, v: Vector3): Vector3 {
+  return refract(applyMatrix(rotation, v));
+}
+
+/**
+ * A plate solve's camera axes turned from J2000 to the local sky as it appears. The
+ * camera sees the refracted sky, so all three axes are tilted together by the lift at
+ * the centre of the image (z, out through the lens), which keeps them perpendicular.
+ */
+export function apparentAxes(rotation: Matrix3, axes: readonly Vector3[]): Vector3[] {
+  const local = axes.map((axis) => applyMatrix(rotation, axis));
+  const centre = local[2];
+  const lifted = refract(centre);
+  const turn = cross(centre, lifted);
+  const sin = Math.hypot(turn[0], turn[1], turn[2]);
+  if (sin < 1e-12) return local;
+  // Rodrigues' rotation formula, about the axis that takes the centre to where it appears.
+  const k = normalize(turn);
+  const cos = dot(centre, lifted);
+  return local.map((v): Vector3 => {
+    const kxv = cross(k, v);
+    const along = dot(k, v) * (1 - cos);
+    return [
+      v[0] * cos + kxv[0] * sin + k[0] * along,
+      v[1] * cos + kxv[1] * sin + k[1] * along,
+      v[2] * cos + kxv[2] * sin + k[2] * along,
+    ];
+  });
+}
+
 /** Unit vector in local coordinates for an altitude and azimuth. */
 export function horizontalVector({ altDeg, azDeg }: Horizontal): Vector3 {
   const alt = altDeg * RAD;
@@ -90,9 +157,9 @@ export function vectorToHorizontal([east, north, up]: Vector3): Horizontal {
   return { altDeg: Math.asin(Math.max(-1, Math.min(1, up))) / RAD, azDeg: normalizeDeg(Math.atan2(east, north) / RAD) };
 }
 
-/** Altitude and azimuth of a J2000 sky position, using a rotation from skyRotation. */
+/** Where a J2000 sky position appears, as altitude and azimuth, using a rotation from skyRotation. */
 export function equatorialToHorizontal(rotation: Matrix3, raDeg: number, decDeg: number): Horizontal {
-  return vectorToHorizontal(applyMatrix(rotation, equatorialVector(raDeg, decDeg)));
+  return vectorToHorizontal(toApparent(rotation, equatorialVector(raDeg, decDeg)));
 }
 
 /** Angle between two sky positions in altitude and azimuth. */
@@ -194,20 +261,27 @@ export function solarSystemPosition(
 const SKY_TURN_DEG_PER_HOUR = 360 / 23.9345;
 
 /**
- * Hours until an object fixed among the stars rises above the horizon, from where it is
- * now, or null if it never rises from this latitude. Worked out from its current height
- * and direction, so it agrees exactly with the heights shown elsewhere in the app.
+ * The real height of something that appears exactly on the horizon: just below it,
+ * since the air lifts it by about half a degree there.
  */
-export function hoursUntilRise({ altDeg, azDeg }: Horizontal, latitudeDeg: number): number | null {
-  const [east, north, up] = horizontalVector({ altDeg, azDeg });
+const HORIZON_REAL_ALT_DEG = InverseRefraction(REFRACTION, 0);
+
+/**
+ * Hours until an object fixed among the stars rises above the horizon, from where it
+ * appears now, or null if it never rises from this latitude. Worked out from its current
+ * height and direction, so it agrees exactly with the heights shown elsewhere in the app.
+ */
+export function hoursUntilRise(apparent: Horizontal, latitudeDeg: number): number | null {
+  const [east, north, up] = unrefract(horizontalVector(apparent));
   const lat = latitudeDeg * RAD;
   // Declination is the angle from the celestial equator, towards the celestial pole.
   const sinDec = north * Math.cos(lat) + up * Math.sin(lat);
   const dec = Math.asin(Math.max(-1, Math.min(1, sinDec)));
   // Hour angle: how far west of the meridian the object is, in degrees.
   const hourAngle = Math.atan2(-east, -north * Math.sin(lat) + up * Math.cos(lat)) / RAD;
-  // The hour angle at which it crosses the horizon. Beyond ±1, it never rises here.
-  const cosRise = -Math.tan(lat) * Math.tan(dec);
+  // The hour angle at which it appears on the horizon. Beyond ±1, it never rises here.
+  const cosRise =
+    (Math.sin(HORIZON_REAL_ALT_DEG * RAD) - Math.sin(lat) * Math.sin(dec)) / (Math.cos(lat) * Math.cos(dec));
   if (cosRise >= 1) return null;
   if (cosRise <= -1) return 0; // Never sets, so it is up already
   const riseHourAngle = -Math.acos(cosRise) / RAD;
@@ -217,8 +291,8 @@ export function hoursUntilRise({ altDeg, azDeg }: Horizontal, latitudeDeg: numbe
 
 /**
  * When a planet or the Moon next rises above the horizon, within a day, or null if it
- * stays down that long. Measured to the body's centre, with no allowance for the air
- * bending its light, the same way the app works out every height.
+ * stays down that long. Measured to the body's centre as it appears, lifted by the air,
+ * the same way the app works out every height.
  */
 export function nextBodyRise(bodyName: string, date: Date, latitudeDeg: number, longitudeDeg: number): Date | null {
   // Ceres and the asteroids move so slowly that their rise is worked out like a star's.
@@ -229,7 +303,7 @@ export function nextBodyRise(bodyName: string, date: Date, latitudeDeg: number, 
     return hours === null || hours > 24 ? null : new Date(date.getTime() + hours * 3_600_000);
   }
   const observer = new Observer(latitudeDeg, longitudeDeg, 0);
-  return SearchAltitude(bodyName as Body, observer, +1, date, 1, 0)?.date ?? null;
+  return SearchAltitude(bodyName as Body, observer, +1, date, 1, HORIZON_REAL_ALT_DEG)?.date ?? null;
 }
 
 /** Where the Sun is, as a J2000 position, for working out which side of a phase is lit. */
@@ -275,8 +349,12 @@ export function skyConditions(date: Date, latitudeDeg: number, longitudeDeg: num
   };
 }
 
-/** A J2000 position for a local vector, using a rotation from skyRotation. */
-export function localToEquatorial(rotation: Matrix3, [east, north, up]: Vector3): { raDeg: number; decDeg: number } {
+/**
+ * The J2000 position of what appears at a local direction, such as where the phone
+ * points, using a rotation from skyRotation. Undoes the refraction first.
+ */
+export function localToEquatorial(rotation: Matrix3, apparent: Vector3): { raDeg: number; decDeg: number } {
+  const [east, north, up] = unrefract(apparent);
   // A rotation's inverse is its transpose.
   const x = rotation[0][0] * east + rotation[1][0] * north + rotation[2][0] * up;
   const y = rotation[0][1] * east + rotation[1][1] * north + rotation[2][1] * up;

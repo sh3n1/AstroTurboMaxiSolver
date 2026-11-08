@@ -2,7 +2,7 @@ import { Injectable, effect, inject, signal } from '@angular/core';
 
 import { AppState } from './app-state.service';
 import type { Horizontal, Vector3 } from './astronomy';
-import { applyMatrix, horizontalVector, localToEquatorial, equatorialVector, separationDeg } from './astronomy';
+import { apparentAxes, horizontalVector, localToEquatorial, equatorialVector, separationDeg } from './astronomy';
 import type { Quaternion } from './attitude';
 import { attitudeFromImageAxes } from './attitude';
 import type { OpenCamera } from './camera';
@@ -176,7 +176,7 @@ export class LiveSolverService {
       const response = await this.solve(frame.pixels, frame.width, frame.height);
       if (response.solution && this.status() === 'solving') {
         const rotation = this.state.skyRotation();
-        const [x, y, z] = response.solution.axes.map((axis) => applyMatrix(rotation, axis));
+        const [x, y, z] = apparentAxes(rotation, response.solution.axes);
         this.sensors.applyPlateSolve(attitudeFromImageAxes(x, y, z));
         this.learnFieldOfView(response.solution.focalPx, frame.width, frame.height);
         // The sensors now show the solved position, so that is where this attempt was.
@@ -303,7 +303,7 @@ export class LiveSolverService {
       }
 
       const rotation = this.state.skyRotation();
-      const [x, y, z] = response.solution.axes.map((axis) => applyMatrix(rotation, axis));
+      const [x, y, z] = apparentAxes(rotation, response.solution.axes);
       const attitude = attitudeFromImageAxes(x, y, z);
       this.sensors.applyPlateSolve(attitude);
       this.learnFieldOfView(response.solution.focalPx, frame.width, frame.height);

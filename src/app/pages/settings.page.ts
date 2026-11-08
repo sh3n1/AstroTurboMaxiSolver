@@ -37,6 +37,7 @@ import {
   openOutline,
   phonePortraitOutline,
   scanOutline,
+  sunnyOutline,
   telescopeOutline,
   textOutline,
 } from 'ionicons/icons';
@@ -46,6 +47,7 @@ import type { Settings } from '../core/app-state.service';
 import { formatLocation } from '../core/astronomy';
 import { LiveSolverService } from '../core/live-solver.service';
 import { LocalTimePipe } from '../core/local-time.pipe';
+import { ScreenWakeService } from '../core/screen-wake.service';
 import { BORTLE_CLASSES } from '../core/sky-quality';
 
 type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
@@ -319,6 +321,22 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
             Red night mode
           </ion-toggle>
         </ion-item>
+        <ion-item>
+          <ion-icon slot="start" name="sunny-outline" aria-hidden="true"></ion-icon>
+          <ion-toggle
+            data-testid="keep-screen-on"
+            [helperText]="
+              screenWake.supported
+                ? 'Stops the phone sleeping while the app is open, so the map stays ready at the eyepiece.'
+                : 'This browser can’t keep the screen on. The phone’s own sleep setting applies.'
+            "
+            [disabled]="!screenWake.supported"
+            [checked]="settings().keepScreenOn && screenWake.supported"
+            (ionChange)="state.updateSettings({ keepScreenOn: $any($event).detail.checked })"
+          >
+            Keep screen on
+          </ion-toggle>
+        </ion-item>
         <ion-item lines="none">
           <ion-icon slot="start" name="grid-outline" aria-hidden="true"></ion-icon>
           <ion-toggle
@@ -445,6 +463,7 @@ export class SettingsPage {
   private readonly router = inject(Router);
   protected readonly settings = this.state.settings;
   protected readonly liveSolver = inject(LiveSolverService);
+  protected readonly screenWake = inject(ScreenWakeService);
   protected readonly showSolveLog = signal(false);
   protected readonly gpsMessage = signal('');
   protected readonly bortleClasses = BORTLE_CLASSES;
@@ -472,6 +491,7 @@ export class SettingsPage {
       openOutline,
       phonePortraitOutline,
       scanOutline,
+      sunnyOutline,
       telescopeOutline,
       textOutline,
     });
