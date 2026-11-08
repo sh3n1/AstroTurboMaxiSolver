@@ -32,7 +32,6 @@ import { map } from 'rxjs';
 
 import { AppState } from '../core/app-state.service';
 import { ListsService } from '../core/lists.service';
-import { LocalTimePipe } from '../core/local-time.pipe';
 import { RETICLE_RINGS_DEG } from '../core/reticle';
 import { normalizeSearch, targetSearchText } from '../core/search';
 import { TargetListComponent } from '../core/target-list.component';
@@ -42,7 +41,6 @@ import { exportFileName, exportLists } from '../core/target-lists';
 @Component({
   selector: 'app-list',
   imports: [
-    LocalTimePipe,
     DecimalPipe,
     IonBackButton,
     IonButton,
@@ -88,31 +86,6 @@ import { exportFileName, exportLists } from '../core/target-lists';
 
     <ion-content>
       @if (list(); as current) {
-        @if (current.id === 'tonight') {
-          <!-- Tonight's conditions, which the recommendations below are chosen for. -->
-          <ion-card>
-            <ion-card-content data-testid="conditions">
-              <p>
-                <strong>Darkness: </strong>
-                @if (conditions().darkFrom; as from) {
-                  from {{ from | localTime }}
-                } @else if (conditions().darkUntil) {
-                  now
-                } @else {
-                  no full darkness in the next day
-                }
-                @if (conditions().darkUntil; as until) {
-                  until {{ until | localTime }}
-                }
-              </p>
-              <p>
-                <strong>Moon: </strong>{{ conditions().moonIlluminatedPercent | number: '1.0-0' }}% lit,
-                {{ conditions().moonAltDeg > 0 ? 'up now' : 'below the horizon' }}
-              </p>
-            </ion-card-content>
-          </ion-card>
-        }
-
         @if (current.id === 'reticle') {
           <!-- Where the reticle is, since this list follows it. -->
           <ion-card>
@@ -127,7 +100,7 @@ import { exportFileName, exportLists } from '../core/target-lists';
         }
 
         @if (shown().length > 0) {
-          <app-target-list [targets]="shown()" [at]="current.id === 'tonight' ? tonightTime() : null"></app-target-list>
+          <app-target-list [targets]="shown()"></app-target-list>
         } @else {
           <ion-text color="medium">
             <p class="ion-padding" data-testid="list-empty">
@@ -158,8 +131,6 @@ export class ListPage {
   private readonly actionSheets = inject(ActionSheetController);
   private readonly toasts = inject(ToastController);
 
-  protected readonly conditions = this.state.conditions;
-  protected readonly tonightTime = this.lists.tonightTime;
   protected readonly query = signal('');
   /** The outer ring's size, which this list's targets are inside. */
   protected readonly reticleRingDeg = RETICLE_RINGS_DEG.at(-1);

@@ -16,7 +16,12 @@ export const UNCATEGORIZED_ID = 'uncategorized';
 
 /** The lists the app makes itself. They can't be edited or deleted. */
 export const FIXED_LISTS = [
-  { id: 'tonight', name: 'Tonight', icon: 'moon-outline', description: 'Recommended for tonight, from here' },
+  {
+    id: 'now',
+    name: 'Best right now',
+    icon: 'moon-outline',
+    description: 'Well up in the sky now, from here, brightest first',
+  },
   {
     id: 'reticle',
     name: 'In the reticle',

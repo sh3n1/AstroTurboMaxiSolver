@@ -223,7 +223,7 @@ export class AppState {
   /**
    * The time the live sky is shown for, updated every second. The sky turns a quarter of
    * a degree a minute, so the once-a-minute clock above would make it jump by that much,
-   * half the app's accuracy target. Lists and tonight's conditions don't need this, and
+   * half the app's accuracy target. Lists and the sky conditions don't need this, and
    * use the minute clock to save work. The sky map goes further and uses the exact time
    * of each frame it draws, so even a zoomed-in eyepiece view moves smoothly.
    */
