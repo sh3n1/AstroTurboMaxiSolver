@@ -1,4 +1,4 @@
-// AstroFinder's own line icons for galaxies, nebulae, the planets and the Moon.
+// AstroFinder's own line icons for galaxies, nebulae, double stars, the planets and the Moon.
 // Each icon is a few SVG paths on a 24 × 24 grid, drawn as thin lines like the Ionic
 // outline icons. The same paths draw the icon in lists (as an SVG image) and on the sky
 // map (as canvas paths), so both always look alike.
@@ -207,12 +207,16 @@ export function phaseIcon(litFraction: number, litOnRight: boolean): IconPath[] 
  * Phases are drawn with the lit side where the target's phase says, which suits lists.
  * The sky map instead turns the icon so the lit side faces the real Sun.
  */
+/** A double star: a bright star with a smaller companion beside it. */
+const DOUBLE_STAR: IconPath[] = [{ d: circle(9, 14, 4.5) }, { d: circle(17.5, 7, 2.5), fill: true }];
+
 export function targetIcon(target: Target): IconPath[] | null {
   if (target.phase) return phaseIcon(target.phase.litFraction, target.phase.litOnRight);
   if (target.body) return PLANETS[target.body] ?? null;
   if (target.kind === 'Galaxy') return GALAXY;
   if (target.kind === 'Nebula') return NEBULA;
   if (target.kind === 'Constellation') return CONSTELLATION;
+  if (target.double) return DOUBLE_STAR;
   return null;
 }
 

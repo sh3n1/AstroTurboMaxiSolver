@@ -27,7 +27,10 @@ import type { Target, TargetKind } from './targets';
 
 /** Standard icons for the kinds without one of AstroFinder's own, in target-icons.ts. */
 const KIND_ICONS: Record<
-  Exclude<TargetKind, 'Galaxy' | 'Nebula' | 'Constellation' | 'Planet' | 'Dwarf planet' | 'Asteroid' | 'Moon'>,
+  Exclude<
+    TargetKind,
+    'Galaxy' | 'Nebula' | 'Constellation' | 'Planet' | 'Dwarf planet' | 'Asteroid' | 'Moon' | 'Double star'
+  >,
   string
 > = {
   Other: 'ellipsis-horizontal-outline',

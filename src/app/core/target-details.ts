@@ -5,6 +5,7 @@
 import { Constellation } from 'astronomy-engine';
 
 import { equatorialVector } from './astronomy';
+import { doubleKindText } from './double-stars';
 import type { Target } from './targets';
 
 /** Object types in OpenNGC's codes, which the catalogue files keep, in plain words. */
@@ -61,6 +62,7 @@ export function starColourName(bv: number): string {
 
 /** What kind of object a target is, as specifically as the catalogues say. */
 export function objectTypeText(target: Target): string {
+  if (target.double) return doubleKindText(target.double);
   if (target.kind === 'Star') return target.bv === undefined ? 'Star' : `${starColourName(target.bv)} star`;
   if (target.type && TYPE_NAMES[target.type]) return TYPE_NAMES[target.type];
   if (target.kind === 'Galaxy' && target.hubble) return hubbleText(target.hubble);

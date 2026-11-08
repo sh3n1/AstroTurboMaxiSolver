@@ -9,13 +9,15 @@ import type { Target } from '../core/targets';
 /** Target types the user can filter by. Clusters combine open and globular. */
 const MAX_RESULTS = 40;
 
-const FILTERS = ['All', 'Solar system', 'Galaxy', 'Nebula', 'Cluster', 'Star', 'Constellation'] as const;
+const FILTERS = ['All', 'Solar system', 'Galaxy', 'Nebula', 'Cluster', 'Star', 'Double star', 'Constellation'] as const;
 type Filter = (typeof FILTERS)[number];
 
 function matchesFilter(target: Target, filter: Filter): boolean {
   if (filter === 'All') return true;
   if (filter === 'Solar system') return !!target.body;
   if (filter === 'Cluster') return target.kind.includes('cluster');
+  // Named stars that are doubles, such as Albireo, are stars and doubles both.
+  if (filter === 'Double star') return !!target.double;
   return target.kind === filter;
 }
 
