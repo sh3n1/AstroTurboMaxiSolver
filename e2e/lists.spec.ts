@@ -13,18 +13,17 @@ async function bookmarkFromTargets(page: Page, search: string): Promise<void> {
   await expect(page.locator('ion-modal [data-testid=bookmark-list]').first()).toBeVisible();
 }
 
-test('shows the Tonight, Messier and Caldwell collections', async ({ page }) => {
+test('shows the Best right now, Messier and Caldwell collections', async ({ page }) => {
   await page.goto('/tabs/lists');
-  await expect(listLink(page, 'Tonight')).toBeVisible();
+  await expect(listLink(page, 'Best right now')).toBeVisible();
   await expect(listLink(page, 'Messier catalogue').locator('ion-badge')).toHaveText('110');
   // 109 Caldwell numbers, but C14, the Double Cluster, is two objects.
   await expect(listLink(page, 'Caldwell catalogue').locator('ion-badge')).toHaveText('110');
   await expect(listLink(page, 'Uncategorized')).toBeVisible();
 
-  // Tonight explains the conditions its recommendations are for.
-  await listLink(page, 'Tonight').click();
-  await expect(page.locator('[data-testid=conditions]')).toContainText('Darkness');
-  await expect(page.locator('[data-testid=conditions]')).toContainText('% lit');
+  // Something is always well up, by day or night: at least the brightest objects.
+  await listLink(page, 'Best right now').click();
+  await expect(page.locator('app-target-list ion-item').first()).toBeVisible();
 });
 
 test('lists what is inside the reticle, following the telescope', async ({ page }) => {

@@ -24,9 +24,9 @@ const LISTS_KEY = 'astrofinder.lists';
 /** Where the old session plan kept its bookmarks. They move into Uncategorized. */
 const OLD_PLAN_KEY = 'astrofinder.plan';
 
-// Tonight's recommendations: objects well up in the sky when it gets dark, brightest first.
+// The best right now: objects well up in the sky at this moment, brightest first.
 const GOOD_ALTITUDE_DEG = 30;
-const TONIGHT_COUNT = 20;
+const BEST_NOW_COUNT = 20;
 
 /** A list as the pages show it, whether the app made it or the user did. */
 export interface ListView {
@@ -62,13 +62,11 @@ export class ListsService {
   /** The lists the user can edit, Uncategorized first. */
   readonly editableLists = signal<TargetList[]>(loadLists());
 
-  /** Suggestions are for when it gets dark, or for now if it is already dark. */
-  readonly tonightTime = computed(() => this.state.conditions().darkFrom ?? this.state.now());
-
   // Stars are mainly useful for alignment, so they are left out. The brightest first,
   // counting the dimming near the horizon, because faint objects are hard to see from a city.
-  private readonly tonight = computed(() => {
-    const time = this.tonightTime();
+  // It follows the sky minute by minute, by day or night, as the app's clock moves on.
+  private readonly bestNow = computed(() => {
+    const time = this.state.now();
     // As faint as the user's sky and telescope can show, so a dark site gets more.
     const { bortle, telescopeApertureMm } = this.state.settings();
     const limit = recommendationLimit(bortle, telescopeApertureMm);
@@ -78,7 +76,7 @@ export class ListsService {
       .map((target) => ({ target, altDeg: this.state.positionAt(target, time).altDeg }))
       .filter(({ altDeg }) => altDeg >= GOOD_ALTITUDE_DEG)
       .sort((a, b) => apparentMagnitude(a.target.mag, a.altDeg) - apparentMagnitude(b.target.mag, b.altDeg))
-      .slice(0, TONIGHT_COUNT)
+      .slice(0, BEST_NOW_COUNT)
       .map(({ target }) => target);
   });
 
@@ -112,7 +110,7 @@ export class ListsService {
   /** The app's own lists, which can't be changed. */
   readonly fixedLists = computed<ListView[]>(() => {
     const targets: Record<FixedListId, Target[]> = {
-      tonight: this.tonight(),
+      now: this.bestNow(),
       reticle: this.inReticle(),
       messier: this.messier(),
       caldwell: this.caldwell(),

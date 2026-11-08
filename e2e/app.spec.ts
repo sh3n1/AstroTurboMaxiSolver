@@ -88,7 +88,7 @@ test('shows target details from the target bar', async ({ page }) => {
   await expect(page.locator('[data-testid=target-bar]')).toContainText('M31');
   await page.locator('[data-testid=target-info]').click();
   const details = page.locator('[data-testid=target-details]');
-  // What it is and where, both of its sizes, and when to look tonight.
+  // What it is and where, both of its sizes, and its pass across the sky.
   await expect(page.locator('[data-testid=details-type]')).toHaveText(/Spiral galaxy\s+· in Andromeda/);
   await expect(details).toContainText('190′ × 60′');
   await expect(page.locator('[data-testid=details-pass]')).toContainText(/Rise|Never sets|Never rises/);
