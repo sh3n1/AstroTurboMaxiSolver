@@ -3,10 +3,10 @@ import {
   equatorialSeparationDeg,
   hubbleText,
   moonNote,
-  nightPlan,
   objectTypeText,
   otherNames,
   sizeText,
+  skyPass,
   starColourName,
 } from './target-details';
 import type { Target } from './targets';
@@ -91,36 +91,39 @@ describe('other names', () => {
   });
 });
 
-describe("tonight's plan", () => {
+describe('the pass across the sky', () => {
   const hour = 3_600_000;
-  const start = new Date('2026-11-08T18:00:00Z');
+  const start = new Date('2026-11-08T00:00:00Z');
   const at = (hours: number) => new Date(start.getTime() + hours * hour);
-  // A height that rises at 20:00, peaks at 50° at 02:00 and sets at 08:00, in a day-long wave.
+  // A height that rises at 2 h, is highest at 50° at 8 h and sets at 14 h, once a day.
   const wave = (time: Date) => {
     const hours = (time.getTime() - start.getTime()) / hour;
     return 50 * Math.sin(((hours - 2) / 12) * Math.PI);
   };
+  const near = (date: Date | null, hours: number) =>
+    expect(Math.abs(date!.getTime() - at(hours).getTime())).toBeLessThanOrEqual(5 * 60_000);
 
-  it('finds the rise, the best time in darkness and the set', () => {
-    const plan = nightPlan(wave, at(1), at(12));
-    expect(Math.abs(plan.best!.time.getTime() - at(8).getTime())).toBeLessThanOrEqual(5 * 60_000);
-    expect(plan.best!.altDeg).toBeCloseTo(50, 0);
-    expect(Math.abs(plan.rise!.getTime() - at(2).getTime())).toBeLessThan(2 * 60_000);
-    expect(Math.abs(plan.set!.getTime() - at(14).getTime())).toBeLessThan(2 * 60_000);
+  it('gives the pass it is on, when up now', () => {
+    const pass = skyPass(wave, at(5));
+    near(pass.rise, 2);
+    near(pass.highest!.time, 8);
+    expect(pass.highest!.altDeg).toBeCloseTo(50, 0);
+    near(pass.set, 14);
   });
 
-  it('uses the highest moment of darkness when it peaks in daylight', () => {
-    // Darkness from 11 to 13 hours: falling all the time, so best at the start.
-    const plan = nightPlan(wave, at(11), at(13));
-    expect(plan.best!.time.getTime()).toBe(at(11).getTime());
+  it('gives the next pass, when down now', () => {
+    const pass = skyPass(wave, at(16));
+    near(pass.rise, 26);
+    near(pass.highest!.time, 32);
+    near(pass.set, 38);
   });
 
-  it('says when it never rises during darkness, or never sets', () => {
-    expect(nightPlan(() => -10, at(0), at(10))).toEqual({ rise: null, best: null, set: null });
-    const circumpolar = nightPlan(() => 30, at(0), at(10));
+  it('says when it never sets, or never rises', () => {
+    const circumpolar = skyPass(() => 30, at(0));
     expect(circumpolar.rise).toBeNull();
     expect(circumpolar.set).toBeNull();
-    expect(circumpolar.best?.altDeg).toBe(30);
+    expect(circumpolar.highest?.altDeg).toBe(30);
+    expect(skyPass(() => -10, at(0))).toEqual({ rise: null, highest: null, set: null });
   });
 });
 
