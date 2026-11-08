@@ -25,6 +25,7 @@ import {
   informationCircleOutline,
   locateOutline,
   mapOutline,
+  radioButtonOffOutline,
   moonOutline,
   remove,
 } from 'ionicons/icons';
@@ -59,7 +60,7 @@ import { equipmentLabel, sameEquipment } from '../core/equipment';
 import { FullscreenService } from '../core/fullscreen.service';
 import { LiveSolverService } from '../core/live-solver.service';
 import { LocalTimePipe } from '../core/local-time.pipe';
-import { RETICLE_RADIUS_DEG, RETICLE_RINGS_DEG, chevronSpacingPx, guideAngleDeg, pulseOpacity } from '../core/reticle';
+import { RETICLE_RINGS_DEG, chevronSpacingPx, guideAngleDeg, pulseOpacity } from '../core/reticle';
 import { SensorService } from '../core/sensor.service';
 import type { NightPlan } from '../core/target-details';
 import {
@@ -76,7 +77,19 @@ import { DISC_RADIUS, ICON_DASH, ICON_GRID, phaseIcon, targetIcon } from '../cor
 import type { Target } from '../core/targets';
 import { EYEPIECE_SMOOTHING_MS, SKY_MAP_SMOOTHING_MS, smoothPointing, smoothingFactor } from '../core/view-smoothing';
 
-type ViewMode = 'sky' | 'eyepiece';
+/**
+ * The three views the view button steps through, in this order: the sky map with the
+ * Telrad rings, the eyepiece view, and the sky map with one ring the size of the
+ * eyepiece's field, to see what will fit in the eyepiece while finding the way there.
+ */
+type ViewMode = 'sky' | 'eyepiece' | 'ring';
+const NEXT_VIEW: Record<ViewMode, ViewMode> = { sky: 'eyepiece', eyepiece: 'ring', ring: 'sky' };
+/** The button shows the view it switches to: its icon, and its name for screen readers. */
+const VIEW_BUTTONS: Record<ViewMode, { icon: string; label: string }> = {
+  sky: { icon: 'map-outline', label: 'Sky map' },
+  eyepiece: { icon: 'eye-outline', label: 'Eyepiece view' },
+  ring: { icon: 'radio-button-off-outline', label: 'Sky map with the eyepiece field' },
+};
 type Point = { x: number; y: number };
 type Project = (v: Vector3) => Point | null;
 
@@ -490,6 +503,11 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
             {{ power() | number: '1.0-0' }}× · FOV {{ eyepieceField() | number: '1.1-2' }}°
           } @else {
             FOV {{ fieldDeg() | number: '1.0-0' }}°
+            @if (mode() === 'ring') {
+              <br /><span data-testid="ring-readout"
+                >Ring {{ eyepieceField() | number: '1.1-2' }}° · {{ power() | number: '1.0-0' }}×</span
+              >
+            }
           }
         </div>
 
@@ -505,15 +523,10 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
             <ion-icon name="compass-outline" aria-hidden="true"></ion-icon>
             <span class="visually-hidden">{{ state.sensorsActive() ? 'Sensors on' : 'Use sensors' }}</span>
           </ion-fab-button>
-          <!-- Switches between the sky map and the eyepiece view, showing the view it switches to. -->
-          <ion-fab-button
-            size="small"
-            data-testid="view-mode"
-            [attr.data-mode]="mode()"
-            (click)="mode.set(mode() === 'sky' ? 'eyepiece' : 'sky')"
-          >
-            <ion-icon [name]="mode() === 'sky' ? 'eye-outline' : 'map-outline'" aria-hidden="true"></ion-icon>
-            <span class="visually-hidden">{{ mode() === 'sky' ? 'Eyepiece view' : 'Sky map' }}</span>
+          <!-- Steps through the sky map, the eyepiece view and the eyepiece ring, showing the view it switches to. -->
+          <ion-fab-button size="small" data-testid="view-mode" [attr.data-mode]="mode()" (click)="mode.set(nextView())">
+            <ion-icon [name]="viewButtons[nextView()].icon" aria-hidden="true"></ion-icon>
+            <span class="visually-hidden">{{ viewButtons[nextView()].label }}</span>
           </ion-fab-button>
           <!-- Green once aligned, amber until then. The Align page says if it was only rough. -->
           <ion-fab-button
@@ -576,7 +589,7 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
                 </button>
               }
             }
-            @if (mode() === 'sky') {
+            @if (mode() !== 'eyepiece') {
               <div class="zoom">
                 <ion-fab-button
                   size="small"
@@ -820,6 +833,8 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   private shownAlignedAt?: string | null;
 
   protected readonly mode = signal<ViewMode>('sky');
+  protected readonly nextView = computed(() => NEXT_VIEW[this.mode()]);
+  protected readonly viewButtons = VIEW_BUTTONS;
   protected readonly fieldDeg = signal(DEFAULT_FIELD_DEG);
   protected readonly minField = MIN_FIELD_DEG;
   protected readonly maxField = MAX_FIELD_DEG;
@@ -985,6 +1000,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       informationCircleOutline,
       locateOutline,
       mapOutline,
+      radioButtonOffOutline,
       moonOutline,
       remove,
     });
@@ -1123,7 +1139,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   }
 
   protected wheel(event: WheelEvent): void {
-    if (this.mode() === 'sky') this.zoomBy(event.deltaY > 0 ? 1.1 : 1 / 1.1);
+    if (this.mode() !== 'eyepiece') this.zoomBy(event.deltaY > 0 ? 1.1 : 1 / 1.1);
   }
 
   protected pointerDown(event: PointerEvent): void {
@@ -1150,7 +1166,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     const fingers = [...this.pointers.values()];
     this.dragStart = fingers.length === 1 ? { ...fingers[0], ...this.state.pointing() } : undefined;
     this.pinchStart =
-      fingers.length === 2 && this.mode() === 'sky'
+      fingers.length === 2 && this.mode() !== 'eyepiece'
         ? { distance: Math.hypot(fingers[0].x - fingers[1].x, fingers[0].y - fingers[1].y), fieldDeg: this.fieldDeg() }
         : undefined;
   }
@@ -1728,18 +1744,21 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     ctx.font = this.font(13);
     ctx.textAlign = 'left';
 
-    for (const diameterDeg of RETICLE_RINGS_DEG) {
+    const rings = this.mode() === 'ring' ? [this.eyepieceField()] : RETICLE_RINGS_DEG;
+    for (const diameterDeg of rings) {
       const radius = stereographicRadius(diameterDeg / 2) * scale;
       ctx.beginPath();
       ctx.arc(cx, cy, radius, 0, 2 * Math.PI);
       ctx.stroke();
       // Small rings have no room for a label until zoomed in.
       if (radius >= MIN_LABELLED_RING_PX) {
-        this.drawLabel(ctx, `${diameterDeg}°`, cx + radius * 0.72 + 4, cy - radius * 0.72 - 4);
+        // Eyepiece fields such as 0.8333° read better rounded: "0.83°".
+        this.drawLabel(ctx, `${Number(diameterDeg.toFixed(2))}°`, cx + radius * 0.72 + 4, cy - radius * 0.72 - 4);
       }
     }
 
-    const outerRadius = stereographicRadius(RETICLE_RADIUS_DEG) * scale;
+    // The guide starts just outside the largest ring.
+    const outerRadius = stereographicRadius(Math.max(...rings) / 2) * scale;
 
     ctx.globalAlpha = 1;
 

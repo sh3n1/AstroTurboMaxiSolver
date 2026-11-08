@@ -480,3 +480,29 @@ test('guides the tube the same way in the eyepiece view as on the sky map', asyn
   await page.locator('[data-testid=aim-at-target]').click();
   await expect(canvas).not.toHaveAttribute('data-guide-angle', /.*/);
 });
+
+test('steps through the sky map, the eyepiece view and the eyepiece ring', async ({ page }) => {
+  await page.goto('/');
+  const button = page.locator('[data-testid=view-mode]');
+  const ring = page.locator('[data-testid=ring-readout]');
+
+  // The sky map, with the Telrad rings and zoom.
+  await expect(button).toHaveAttribute('data-mode', 'sky');
+  await expect(ring).toHaveCount(0);
+
+  // Then the eyepiece view, which has no zoom: the eyepiece sets the field.
+  await button.click();
+  await expect(button).toHaveAttribute('data-mode', 'eyepiece');
+  await expect(page.locator('[data-testid=zoom-in]')).toHaveCount(0);
+
+  // Then the sky map with one ring the size of the eyepiece's field, still zoomable.
+  await button.click();
+  await expect(button).toHaveAttribute('data-mode', 'ring');
+  await expect(ring).toContainText('Ring');
+  await expect(ring).toContainText('×');
+  await expect(page.locator('[data-testid=zoom-in]')).toBeVisible();
+
+  // And back to the sky map.
+  await button.click();
+  await expect(button).toHaveAttribute('data-mode', 'sky');
+});
