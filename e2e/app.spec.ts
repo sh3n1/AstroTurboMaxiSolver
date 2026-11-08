@@ -97,6 +97,36 @@ test('shows target details from the target bar', async ({ page }) => {
   await expect(page.locator('[data-testid=details-names]')).toHaveCount(0);
 });
 
+test('describes double stars, named or not, and finds them by catalogue number', async ({ page }) => {
+  /** Selects a target from the Targets tab and opens its details. */
+  const details = async (search: string, expected: string) => {
+    await page.goto('/tabs/targets');
+    await page.locator('app-targets ion-searchbar input').fill(search);
+    await expect(page.locator('app-targets ion-item').first()).toContainText(expected);
+    await page.locator('app-targets ion-item').first().click();
+    await page.locator('[data-testid=target-info]').click();
+  };
+
+  // A named star that is a double keeps its name, and gains its pair.
+  await details('Albireo', 'Albireo');
+  await expect(page.locator('[data-testid=details-type]')).toHaveText(/Double star\s+· in Cygnus/);
+  await expect(page.locator('[data-testid=details-pair]')).toHaveText(
+    /AB 34″ apart at 54°\s+·\s+mag 3\.2 and 4\.7\s+·\s+line-of-sight pair/,
+  );
+  await expect(page.locator('[data-testid=details-colours]')).toHaveText('Orange and blue-white');
+  // The default telescope is 650 mm with a 25 mm eyepiece: 26×.
+  await expect(page.locator('[data-testid=details-split]')).toHaveText('Splits with your eyepiece, at 26×');
+
+  // One without a name, found by its catalogue number, written either way.
+  await details('STF2470', 'STF 2470');
+  await expect(page.locator('[data-testid=details-pair]')).toContainText('AB 14″ apart');
+
+  // Mizar and Alcor, the wide pair, too.
+  await details('Mizar', 'Mizar');
+  await expect(page.locator('[data-testid=details-type]')).toHaveText(/Multiple star/);
+  await expect(page.locator('[data-testid=details-pair]').nth(1)).toContainText('AC 12′ apart');
+});
+
 test('describes star colours and solar-system bodies in the details', async ({ page }) => {
   /** Selects a target from the Targets tab and opens its details. */
   const details = async (search: string) => {
@@ -361,7 +391,8 @@ test('shows its own icons for galaxies and nebulae', async ({ page }) => {
   await expect(page.locator('app-targets [data-testid=target-icon]').first()).toHaveAttribute('data-icon', 'custom');
   await page.locator('app-targets ion-chip', { hasText: 'Galaxy' }).click();
   await expect(page.locator('app-targets [data-testid=target-icon]').first()).toHaveAttribute('data-icon', 'custom');
-  await page.locator('app-targets ion-chip', { hasText: 'Star' }).click();
+  // Exactly "Star", not "Double star".
+  await page.locator('app-targets ion-chip', { hasText: /^\s*Star\s*$/ }).click();
   await expect(page.locator('app-targets [data-testid=target-icon]').first()).toHaveAttribute(
     'data-icon',
     'star-outline',

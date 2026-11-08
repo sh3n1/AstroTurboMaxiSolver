@@ -439,6 +439,11 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
           <ion-label class="ion-text-wrap credit">Caldwell catalogue compiled by Sir Patrick Moore.</ion-label>
         </ion-item>
         <ion-item>
+          <ion-label class="ion-text-wrap credit" data-testid="credit-wds"
+            >Double stars from the Washington Double Star Catalog, maintained at the U.S. Naval Observatory.</ion-label
+          >
+        </ion-item>
+        <ion-item>
           <ion-label class="ion-text-wrap credit"
             >Compass correction from the World Magnetic Model, NOAA and the British Geological Survey, via geomagnetism
             by Natural Atlas, Apache License 2.0.</ion-label

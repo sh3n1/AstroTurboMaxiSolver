@@ -17,6 +17,7 @@ import type { CaldwellData } from './caldwell';
 import { joinCaldwell } from './caldwell';
 import { constellationTargets } from './constellations';
 import type { ConstellationRow } from './constellations';
+import type { DoubleRow } from './double-stars';
 import type { Equipment, TelescopeType } from './equipment';
 import { EQUIPMENT_KEYS, rememberEquipment } from './equipment';
 import { MINOR_PLANETS, minorPlanet } from './minor-planets';
@@ -253,7 +254,8 @@ export class AppState {
   constructor() {
     setInterval(() => this.now.set(new Date()), 60_000);
     setInterval(() => this.skyTime.set(new Date()), SKY_TIME_STEP_MS);
-    void this.loadCatalog('assets/data/targets.json');
+    // Double stars go onto the named stars too, so they wait for them.
+    void this.loadCatalog('assets/data/targets.json').then(() => this.loadDoubles());
     void this.loadCatalog('assets/data/openngc.json');
     void this.loadCaldwell();
     void this.loadConstellations();
@@ -338,6 +340,30 @@ export class AppState {
       this.catalog.update((current) => [...current, ...targets]);
     } catch {
       // Planets and the Moon still work without the catalogue files.
+    }
+  }
+
+  /**
+   * Adds the double stars. Those whose main star is a named star, such as Albireo, are
+   * added to that star, so it stays one target. Without them, every object still works.
+   */
+  private async loadDoubles(): Promise<void> {
+    try {
+      const response = await fetch('assets/data/doubles.json');
+      const rows = (await response.json()) as DoubleRow[];
+      const toStar = new Map(rows.filter((row) => row.starId).map((row) => [row.starId, row]));
+      const own = rows.filter((row): row is DoubleRow & Target => !row.starId);
+      this.catalog.update((current) => [
+        ...current.map((target) => {
+          const row = toStar.get(target.id);
+          if (!row || target.kind !== 'Star') return target;
+          const aliases = [target.aliases, row.aliases].filter(Boolean).join(' ');
+          return { ...target, aliases, double: row.double };
+        }),
+        ...own,
+      ]);
+    } catch {
+      // Everything else works without the double stars.
     }
   }
 

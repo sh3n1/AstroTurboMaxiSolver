@@ -56,6 +56,15 @@ import type { BodyFacts } from '../core/body-facts';
 import { bodyFacts, discText, distanceText, lightTimeText } from '../core/body-facts';
 import type { ConstellationRow } from '../core/constellations';
 import { designationText, designations } from '../core/designations';
+import type { ComponentStar } from '../core/double-stars';
+import {
+  arcsecText,
+  doubleComponents,
+  pairBv,
+  pairRelation,
+  splitAdvice,
+  withoutDoubleCopies,
+} from '../core/double-stars';
 import type { Equipment } from '../core/equipment';
 import { equipmentLabel, sameEquipment } from '../core/equipment';
 import { FullscreenService } from '../core/fullscreen.service';
@@ -71,10 +80,11 @@ import {
   otherNames,
   sizeText,
   skyPass,
+  starColourName,
 } from '../core/target-details';
 import type { IconPath } from '../core/target-icons';
 import { DISC_RADIUS, ICON_DASH, ICON_GRID, phaseIcon, targetIcon } from '../core/target-icons';
-import type { Target } from '../core/targets';
+import type { DoubleStar, Target } from '../core/targets';
 import { EYEPIECE_SMOOTHING_MS, SKY_MAP_SMOOTHING_MS, smoothPointing, smoothingFactor } from '../core/view-smoothing';
 
 /**
@@ -238,6 +248,8 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
   // The map already writes each constellation's name among its lines.
   if (target.kind === 'Constellation') return false;
   if (target.kind === 'Star') return target.mag <= (fieldDeg >= 60 ? 1.5 : fieldDeg >= 25 ? 3 : 5);
+  // There are some 1,400 doubles without a name, so they wait until zoomed in.
+  if (target.kind === 'Double star') return fieldDeg < 25 && (fieldDeg < 8 || target.mag <= 6);
   // Messier objects are the familiar showpieces, so they appear sooner. The thousands
   // of NGC and IC objects only appear once zoomed in on them.
   if (/^M\d/.test(target.id)) return target.mag <= (fieldDeg >= 60 ? 7 : 99);
@@ -761,6 +773,24 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
                       · in {{ constellation }}
                     }
                   </div>
+                  <!-- A double star's pairs, colours, and whether the telescope splits it. -->
+                  @if (info.double; as double) {
+                    @for (pair of double.pairs; track pair.components) {
+                      <div data-testid="details-pair">
+                        <span class="keep">{{ pair.components }} {{ pair.sep }} apart at {{ pair.paDeg }}°</span> ·
+                        <span class="keep"
+                          >mag {{ pair.mag1 | number: '1.1-1' }} and {{ pair.mag2 | number: '1.1-1' }}</span
+                        >
+                        @if (pair.relation; as relation) {
+                          · <span class="keep">{{ relation }}</span>
+                        }
+                      </div>
+                    }
+                    @if (double.colours; as colours) {
+                      <div data-testid="details-colours">{{ colours }}</div>
+                    }
+                    <div data-testid="details-split">{{ double.split }}</div>
+                  }
                   <div>
                     @if (target.mag < 90) {
                       <span class="keep">mag {{ target.mag | number: '1.1-1' }}</span>
@@ -874,9 +904,26 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       facts: target.body ? bodyFacts(target.body, now) : null,
       pass: skyPass((time) => this.state.positionAt(target, time).altDeg, now),
       moon: target.body === 'Moon' ? null : this.moonNoteFor(target, now),
+      double: target.double ? this.doubleDetails(target.double, target.bv) : null,
       otherNames: otherNames(target.aliases, [...designations(target), target.name]),
     };
   });
+
+  /** A double star's pairs, its colours, and whether the user's telescope splits it. */
+  private doubleDetails(double: DoubleStar, bv: number | undefined) {
+    const { telescopeApertureMm } = this.state.settings();
+    const [mainBv, companionBv] = pairBv(double.spectral);
+    // A named star's own colour index is better than one from its spectral type.
+    const [main, companion] = [bv ?? mainBv, companionBv].map((value) =>
+      value === null || value === undefined ? null : starColourName(value),
+    );
+    return {
+      pairs: double.pairs.map((pair) => ({ ...pair, sep: arcsecText(pair.sepArcsec), relation: pairRelation(pair) })),
+      colours: main && companion ? `${main} and ${companion.toLowerCase()}` : null,
+      // The closest pair is the one that tests the telescope.
+      split: splitAdvice(double.pairs[0], telescopeApertureMm, this.power()).text,
+    };
+  }
 
   /** Where the Moon is from the target, and whether its glare will get in the way. */
   private moonNoteFor(target: Target, now: Date): { text: string; warn: boolean } | null {
@@ -895,10 +942,35 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   }
   protected readonly showEquipment = signal(false);
 
+  /**
+   * The double stars' own stars. Only changes when the doubles load, not each minute as
+   * the planets move, so the stars below aren't sorted again for nothing.
+   */
+  private readonly doubleStars = computed(() => doubleComponents(this.state.targets().filter((t) => t.double)), {
+    equal: (a, b) => a.length === b.length,
+  });
+
+  /**
+   * Every star to draw, brightest first: the map's stars, with each double star's stars
+   * at their precise places instead of the map's rounded or blended copies.
+   */
+  private readonly allStars = computed(() => {
+    const components = this.doubleStars();
+    if (components.length === 0) return this.stars();
+    const toStar = ({ raDeg, decDeg, mag, bv }: ComponentStar): Star => ({
+      raDeg,
+      decDeg,
+      vector: equatorialVector(raDeg, decDeg),
+      mag,
+      colorIndex: starTintIndex(bv),
+    });
+    return [...withoutDoubleCopies(this.stars(), components), ...components.map(toStar)].sort((a, b) => a.mag - b.mag);
+  });
+
   /** Stars grouped into cells of right ascension and declination. */
   private readonly starGrid = computed(() => {
     const grid = new Map<number, Star[]>();
-    for (const star of this.stars()) {
+    for (const star of this.allStars()) {
       const key = this.cellKey(star.raDeg, star.decDeg);
       const cell = grid.get(key);
       if (cell) cell.push(star);
@@ -1047,7 +1119,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       this.state.now();
       this.mode();
       this.fieldDeg();
-      this.stars();
+      this.allStars();
       this.constellations();
       this.queueDraw();
     });
@@ -1525,7 +1597,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     const shapes = new Map<number, { path: Path2D; magGroup: number; tint: number; below: boolean }>();
     // The eyepiece only needs stars near where it points, which the grid finds quickly.
     // The full list is sorted brightest first, so the sky map can stop at its limit.
-    const candidates = isEyepiece ? this.starsNear(this.viewField()) : this.stars();
+    const candidates = isEyepiece ? this.starsNear(this.viewField()) : this.allStars();
     for (const star of candidates) {
       if (star.mag > limit) {
         if (isEyepiece) continue;
@@ -1607,7 +1679,8 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       if (point.y < -OFF_SCREEN_MARGIN_PX || point.y > screenHeight + OFF_SCREEN_MARGIN_PX) continue;
 
       // A selected object keeps its own colour, so its kind stays clear. The crosshair marks it.
-      const color = target.body ? COLOR.solarSystem : target.kind === 'Star' ? COLOR.starLabel : COLOR.deepSky;
+      const isStar = target.kind === 'Star' || target.kind === 'Double star';
+      const color = target.body ? COLOR.solarSystem : isStar ? COLOR.starLabel : COLOR.deepSky;
 
       // The object's real size, when it is large enough to see at this zoom.
       // Only for the selected target and bright objects, since faint large ones crowd the view.
@@ -1632,7 +1705,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
         ctx.arc(point.x, point.y, sizeRadius, 0, 2 * Math.PI);
         ctx.stroke();
         ctx.setLineDash([]);
-      } else if (!isSelected && target.kind !== 'Star') {
+      } else if (!isSelected && !isStar) {
         // Stars are already drawn as dots, so only other objects need a small marker.
         ctx.strokeStyle = color;
         ctx.lineWidth = 1;
