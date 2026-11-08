@@ -42,6 +42,7 @@ import {
   formatLocation,
   formatRa,
   horizontalVector,
+  normalize,
   magnification,
   rotateInView,
   separationDeg,
@@ -62,15 +63,14 @@ import { LiveSolverService } from '../core/live-solver.service';
 import { LocalTimePipe } from '../core/local-time.pipe';
 import { RETICLE_RINGS_DEG, chevronSpacingPx, guideAngleDeg, pulseOpacity } from '../core/reticle';
 import { SensorService } from '../core/sensor.service';
-import type { NightPlan } from '../core/target-details';
 import {
   constellationName,
   equatorialSeparationDeg,
   moonNote,
-  nightPlan,
   objectTypeText,
   otherNames,
   sizeText,
+  skyPass,
 } from '../core/target-details';
 import type { IconPath } from '../core/target-icons';
 import { DISC_RADIUS, ICON_DASH, ICON_GRID, phaseIcon, targetIcon } from '../core/target-icons';
@@ -163,6 +163,12 @@ function iconPath(d: string): Path2D {
 }
 /** Fainter than this, an object's size circle only shows when it is the selected target. */
 const MAX_SIZE_CIRCLE_MAG = 6;
+/**
+ * How strongly the sky map draws what is below the horizon: still there, to plan what
+ * comes up next, but clearly faded so it isn't mistaken for something visible now.
+ */
+const BELOW_HORIZON_OPACITY = 0.35;
+
 /** How fast the sky turns, in degrees a second: a full turn in a sidereal day. */
 const SKY_TURN_DEG_PER_S = 360 / 86_164;
 // Limits on how often the map redraws just to follow the sky's turning.
@@ -783,21 +789,22 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
                       </div>
                     }
                   }
-                  <!-- When to look tonight, during full darkness. -->
-                  <div data-testid="details-tonight">
-                    @if (info.plan.best; as best) {
-                      Tonight:
-                      @if (info.plan.rise; as rise) {
-                        <span class="keep">rises {{ rise | localTime }}</span> ·
+                  <!-- Its pass across the sky: the one it is on now, or else the next. -->
+                  <div data-testid="details-pass">
+                    @if (info.pass.highest; as highest) {
+                      @if (info.pass.rise; as rise) {
+                        <span class="keep">Rise {{ rise | localTime }}</span> ·
                       } @else {
-                        <span class="keep">up all night</span> ·
+                        <span class="keep">Never sets</span> ·
                       }
-                      <span class="keep">best {{ best.time | localTime }} at {{ best.altDeg | number: '1.0-0' }}°</span>
-                      @if (info.plan.set; as set) {
-                        · <span class="keep">sets {{ set | localTime }}</span>
+                      <span class="keep"
+                        >highest {{ highest.time | localTime }} at {{ highest.altDeg | number: '1.0-0' }}°</span
+                      >
+                      @if (info.pass.set; as set) {
+                        · <span class="keep">set {{ set | localTime }}</span>
                       }
                     } @else {
-                      Below the horizon during darkness tonight
+                      Never rises from here
                     }
                   </div>
                   @if (info.moon; as moon) {
@@ -851,7 +858,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
 
   /**
    * What the details box says about the selected target. Only worked out while the box is
-   * open, and with the minute clock, since finding tonight's rise and set takes a few
+   * open, and with the minute clock, since finding the rise, highest point and set takes a few
    * hundred position calculations.
    */
   protected readonly details = computed(() => {
@@ -865,20 +872,11 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       // Solar-system bodies show their disc instead, which changes with their distance.
       size: target.body ? null : sizeText(target),
       facts: target.body ? bodyFacts(target.body, now) : null,
-      plan: this.tonightPlan(target, now),
+      pass: skyPass((time) => this.state.positionAt(target, time).altDeg, now),
       moon: target.body === 'Moon' ? null : this.moonNoteFor(target, now),
       otherNames: otherNames(target.aliases, [...designations(target), target.name]),
     };
   });
-
-  /** When the target rises, is best placed and sets around tonight's full darkness. */
-  private tonightPlan(target: Target, now: Date): NightPlan {
-    const { darkFrom, darkUntil } = this.state.conditions();
-    // Already dark: from now. No full darkness at all, far north in summer: the next 12 hours.
-    const from = darkFrom ?? now;
-    const until = darkUntil ?? new Date(now.getTime() + 12 * 3_600_000);
-    return nightPlan((time) => this.state.positionAt(target, time).altDeg, from, until);
-  }
 
   /** Where the Moon is from the target, and whether its glare will get in the way. */
   private moonNoteFor(target: Target, now: Date): { text: string; warn: boolean } | null {
@@ -1454,19 +1452,38 @@ export class SkyPage implements AfterViewInit, OnDestroy {
 
   private drawConstellationLines(ctx: CanvasRenderingContext2D, project: Project): void {
     const toLocal = this.frameRotation;
-    ctx.strokeStyle = COLOR.constellationLine;
-    ctx.lineWidth = 1.5;
+    // Two paths, so each is stroked once: above the horizon, and below it, faded.
+    const above = new Path2D();
+    const below = new Path2D();
+    const addSegment = (path: Path2D, a: Vector3, b: Vector3): void => {
+      const [pa, pb] = [project(a), project(b)];
+      if (!pa || !pb) return;
+      path.moveTo(pa.x, pa.y);
+      path.lineTo(pb.x, pb.y);
+    };
     for (const { lines } of this.constellations()) {
       for (const line of lines) {
-        this.drawCurve(
-          ctx,
-          line.map((vector) => {
-            const local = applyMatrix(toLocal, vector);
-            return local[2] < -0.05 ? null : project(local); // Below the horizon
-          }),
-        );
+        const points = line.map((vector) => applyMatrix(toLocal, vector));
+        for (let i = 1; i < points.length; i++) {
+          const [a, b] = [points[i - 1], points[i]];
+          if (a[2] >= 0 && b[2] >= 0) addSegment(above, a, b);
+          else if (a[2] < 0 && b[2] < 0) addSegment(below, a, b);
+          else {
+            // The segment crosses the horizon: split it where it meets the horizon.
+            const t = a[2] / (a[2] - b[2]);
+            const crossing = normalize([a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1]), 0]);
+            addSegment(a[2] >= 0 ? above : below, a, crossing);
+            addSegment(b[2] >= 0 ? above : below, crossing, b);
+          }
+        }
       }
     }
+    ctx.strokeStyle = COLOR.constellationLine;
+    ctx.lineWidth = 1.5;
+    ctx.stroke(above);
+    ctx.globalAlpha = BELOW_HORIZON_OPACITY;
+    ctx.stroke(below);
+    ctx.globalAlpha = 1;
   }
 
   /** Constellation names go last and give way to anything already labelled. */
@@ -1477,7 +1494,6 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     ctx.textAlign = 'center';
     for (const { name, label } of this.constellations()) {
       const local = applyMatrix(toLocal, label);
-      if (local[2] < 0) continue;
       const point = project(local);
       if (!point) continue;
       const halfWidth = ctx.measureText(name).width / 2;
@@ -1489,8 +1505,10 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       };
       if (labels.some((other) => this.overlaps(box, other))) continue;
       labels.push(box);
+      ctx.globalAlpha = local[2] < 0 ? BELOW_HORIZON_OPACITY : 1;
       this.drawLabel(ctx, name, point.x, point.y + 5 * this.textScale());
     }
+    ctx.globalAlpha = 1;
   }
 
   private overlaps(a: Box, b: Box): boolean {
@@ -1504,7 +1522,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
 
     // Filling stars of a similar brightness and colour as one shape is far faster than
     // filling each on its own, which matters most on older phones.
-    const shapes = new Map<number, { path: Path2D; magGroup: number; tint: number }>();
+    const shapes = new Map<number, { path: Path2D; magGroup: number; tint: number; below: boolean }>();
     // The eyepiece only needs stars near where it points, which the grid finds quickly.
     // The full list is sorted brightest first, so the sky map can stop at its limit.
     const candidates = isEyepiece ? this.starsNear(this.viewField()) : this.stars();
@@ -1514,17 +1532,17 @@ export class SkyPage implements AfterViewInit, OnDestroy {
         break;
       }
       const local = applyMatrix(toLocal, star.vector);
-      // The sky map hides what is below the horizon. The eyepiece view also serves for
-      // planning ahead, so it shows those stars too.
-      if (local[2] < 0 && !isEyepiece) continue;
+      // The sky map fades what is below the horizon. The eyepiece view also serves for
+      // planning ahead, so it shows those stars in full.
+      const below = local[2] < 0 && !isEyepiece;
       const point = project(local);
       if (!point || point.x < 0 || point.x > width || point.y < 0 || point.y > height) continue;
 
       const magGroup = Math.floor(star.mag);
-      const key = magGroup * 10 + star.colorIndex;
+      const key = (magGroup * 10 + star.colorIndex) * 2 + (below ? 1 : 0);
       let shape = shapes.get(key);
       if (!shape) {
-        shape = { path: new Path2D(), magGroup, tint: star.colorIndex };
+        shape = { path: new Path2D(), magGroup, tint: star.colorIndex, below };
         shapes.set(key, shape);
       }
       const radius = Math.max(0.8, 3.4 - star.mag * 0.42);
@@ -1532,9 +1550,9 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       shape.path.arc(point.x, point.y, radius, 0, 2 * Math.PI);
     }
 
-    for (const { path, magGroup, tint } of shapes.values()) {
+    for (const { path, magGroup, tint, below } of shapes.values()) {
       // Faint stars fade as well as shrink.
-      ctx.globalAlpha = Math.min(1, Math.max(0.55, 1.15 - magGroup * 0.1));
+      ctx.globalAlpha = Math.min(1, Math.max(0.55, 1.15 - magGroup * 0.1)) * (below ? BELOW_HORIZON_OPACITY : 1);
       ctx.fillStyle = STAR_TINTS[tint];
       ctx.fill(path);
     }
@@ -1570,11 +1588,22 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     const sunLocal = applyMatrix(toLocal, equatorialVector(sun.raDeg, sun.decDeg));
 
     // The selected target goes first, so its label always wins a clash.
-    const others = this.state.targets().filter((t) => t.id !== selected?.id && isShownAtField(t, fieldDeg));
-    for (const target of selected ? [selected, ...others] : others) {
-      const local = applyMatrix(toLocal, equatorialVector(target.raDeg, target.decDeg));
+    // Then those above the horizon, so their labels win a clash with faded ones below.
+    const others = this.state
+      .targets()
+      .filter((t) => t.id !== selected?.id && isShownAtField(t, fieldDeg))
+      .map((target) => ({ target, local: applyMatrix(toLocal, equatorialVector(target.raDeg, target.decDeg)) }))
+      .sort((a, b) => Number(a.local[2] < 0) - Number(b.local[2] < 0));
+    const ordered = selected
+      ? [
+          { target: selected, local: applyMatrix(toLocal, equatorialVector(selected.raDeg, selected.decDeg)) },
+          ...others,
+        ]
+      : others;
+    for (const { target, local } of ordered) {
       const isSelected = target === selected;
-      if (local[2] < 0 && !isSelected && this.mode() !== 'eyepiece') continue;
+      // The selected target always shows in full. The eyepiece view shows everything in full.
+      ctx.globalAlpha = local[2] < 0 && !isSelected && this.mode() !== 'eyepiece' ? BELOW_HORIZON_OPACITY : 1;
       const point = project(local);
       // Drawing markers and labels that are off screen wastes most of the frame's time.
       if (!point || point.x < -OFF_SCREEN_MARGIN_PX || point.x > screenWidth + OFF_SCREEN_MARGIN_PX) continue;
@@ -1633,6 +1662,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       labels.push(box);
       this.drawLabel(ctx, label, box.left, point.y + 5 * this.textScale());
     }
+    ctx.globalAlpha = 1;
     return labels;
   }
 

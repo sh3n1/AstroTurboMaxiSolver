@@ -1,6 +1,6 @@
 // What the details box on the sky map says about a target, beyond its name: what kind of
-// object it is, in words, its size, which constellation it is in, when it is best seen
-// tonight, and whether the Moon is in the way. Plain functions, so they can be tested.
+// object it is, in words, its size, which constellation it is in, when it rises, is highest
+// and sets, and whether the Moon is in the way. Plain functions, so they can be tested.
 
 import { Constellation } from 'astronomy-engine';
 
@@ -110,42 +110,39 @@ export function otherNames(aliases: string | undefined, shown: readonly string[]
   return rest.replace(/\s+/g, ' ').trim();
 }
 
-/** When a target is up tonight, as found by nightPlan(). */
-export interface NightPlan {
-  /** When it rises before its best time, or null if it is up all day and night. */
+/** A target's pass across the sky, as found by skyPass(). */
+export interface SkyPass {
+  /** When it rises, or null if it never sets. */
   rise: Date | null;
-  /** When it is highest during darkness, and how high. Null if it stays below the horizon. */
-  best: { time: Date; altDeg: number } | null;
-  /** When it sets after its best time, or null if it never sets. */
+  /** When it is highest, and how high. Null if it doesn't rise within a day. */
+  highest: { time: Date; altDeg: number } | null;
+  /** When it sets, or null if it never sets. */
   set: Date | null;
 }
 
 /** Ten minutes between checks: close enough for times read off a phone. */
-const PLAN_STEP_MS = 10 * 60_000;
-/** How far either side of the best time to look for the rise and set. */
-const PLAN_SEARCH_MS = 24 * 3_600_000;
+const PASS_STEP_MS = 10 * 60_000;
+/** How far to look for a rise or set: a day, the longest a pass can take. */
+const PASS_SEARCH_MS = 24 * 3_600_000;
 
 /**
- * When a target rises, is best placed and sets around tonight's darkness. Takes its
- * height at any time, so it works the same for stars, planets and the Moon. Checks every
- * ten minutes, and finds rise and set times between checks by straight-line steps.
+ * A target's pass across the sky: the one it is on now if it is up, or else its next
+ * one. Its rise, its highest point and its set, whether that is day or night. Takes the
+ * target's height at any time, so it works the same for stars, planets and the Moon.
+ * Checks every ten minutes, and finds the rise and set between checks by straight lines.
  */
-export function nightPlan(altitudeAt: (time: Date) => number, from: Date, until: Date): NightPlan {
-  // The highest point during darkness.
-  let best: { time: Date; altDeg: number } | null = null;
-  for (let t = from.getTime(); t <= until.getTime(); t += PLAN_STEP_MS) {
-    const altDeg = altitudeAt(new Date(t));
-    if (!best || altDeg > best.altDeg) best = { time: new Date(t), altDeg };
-  }
-  if (!best || best.altDeg <= 0) return { rise: null, best: null, set: null };
-
-  /** The first horizon crossing from the best time, going back (-1) or forward (+1). */
-  const crossing = (direction: 1 | -1): Date | null => {
-    let [time, altDeg] = [best.time.getTime(), best.altDeg];
-    for (let step = PLAN_STEP_MS; step <= PLAN_SEARCH_MS; step += PLAN_STEP_MS) {
-      const nextTime = best.time.getTime() + direction * step;
+export function skyPass(altitudeAt: (time: Date) => number, now: Date): SkyPass {
+  /**
+   * The first moment, going back (-1) or forward (+1) from a start, when the height
+   * crosses the horizon to the other side from where it started, or null within a day.
+   */
+  const crossing = (start: number, direction: 1 | -1): Date | null => {
+    let [time, altDeg] = [start, altitudeAt(new Date(start))];
+    const startsUp = altDeg > 0;
+    for (let step = PASS_STEP_MS; step <= PASS_SEARCH_MS; step += PASS_STEP_MS) {
+      const nextTime = start + direction * step;
       const nextAlt = altitudeAt(new Date(nextTime));
-      if (nextAlt <= 0) {
+      if (nextAlt > 0 !== startsUp) {
         // Where the straight line between the two checks meets the horizon.
         return new Date(time + ((nextTime - time) * altDeg) / (altDeg - nextAlt));
       }
@@ -153,7 +150,30 @@ export function nightPlan(altitudeAt: (time: Date) => number, from: Date, until:
     }
     return null;
   };
-  return { rise: crossing(-1), best, set: crossing(1) };
+
+  /** The highest point between two times. */
+  const highestBetween = (from: number, until: number): { time: Date; altDeg: number } => {
+    let highest = { time: new Date(from), altDeg: altitudeAt(new Date(from)) };
+    for (let t = from + PASS_STEP_MS; t <= until; t += PASS_STEP_MS) {
+      const altDeg = altitudeAt(new Date(t));
+      if (altDeg > highest.altDeg) highest = { time: new Date(t), altDeg };
+    }
+    return highest;
+  };
+
+  const time = now.getTime();
+  if (altitudeAt(now) > 0) {
+    // Up now: the pass it is on, from its last rise to its next set.
+    const [rise, set] = [crossing(time, -1), crossing(time, 1)];
+    // Never sets: its highest point within the next day.
+    const highest = highestBetween(rise?.getTime() ?? time, set?.getTime() ?? time + PASS_SEARCH_MS);
+    return { rise, highest, set };
+  }
+  // Down now: its next pass, if it rises within a day at all.
+  const rise = crossing(time, 1);
+  if (!rise) return { rise: null, highest: null, set: null };
+  const set = crossing(rise.getTime() + PASS_STEP_MS, 1);
+  return { rise, highest: highestBetween(rise.getTime(), set?.getTime() ?? rise.getTime() + PASS_SEARCH_MS), set };
 }
 
 /** Within this, a bright Moon's glare washes out faint objects. */

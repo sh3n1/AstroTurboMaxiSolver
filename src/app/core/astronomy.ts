@@ -49,7 +49,8 @@ const cross = (a: Vector3, b: Vector3): Vector3 => [
   a[2] * b[0] - a[0] * b[2],
   a[0] * b[1] - a[1] * b[0],
 ];
-const normalize = (a: Vector3): Vector3 => {
+/** The same direction as a vector, scaled to length 1. */
+export const normalize = (a: Vector3): Vector3 => {
   const length = Math.hypot(a[0], a[1], a[2]);
   return [a[0] / length, a[1] / length, a[2] / length];
 };

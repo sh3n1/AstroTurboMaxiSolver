@@ -61,7 +61,7 @@ test('shows target details from the target bar', async ({ page }) => {
   // What it is and where, both of its sizes, and when to look tonight.
   await expect(page.locator('[data-testid=details-type]')).toHaveText(/Spiral galaxy\s+· in Andromeda/);
   await expect(details).toContainText('190′ × 60′');
-  await expect(page.locator('[data-testid=details-tonight]')).toContainText(/Tonight|Below the horizon/);
+  await expect(page.locator('[data-testid=details-pass]')).toContainText(/Rise|Never sets|Never rises/);
   await expect(page.locator('[data-testid=details-moon]')).toContainText('Moon');
   // NGC 224 and the name are already in the heading, so they aren't repeated below.
   await expect(page.locator('[data-testid=details-names]')).toHaveCount(0);
