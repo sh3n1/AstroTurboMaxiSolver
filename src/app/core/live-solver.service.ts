@@ -393,7 +393,7 @@ export class LiveSolverService {
       width,
       height,
       focalPx: FOCAL_SHARE_OF_LONG_SIDE * Math.max(width, height) * this.state.settings().cameraFocalFactor,
-      // A mirror mount, like StarSense, flips the image.
+      // A mirror mount flips the image.
       flipped: this.state.settings().mount === 'mirror',
       hint: this.hint(),
       timeLimitMs,

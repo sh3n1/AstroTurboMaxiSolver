@@ -76,6 +76,10 @@ Before finishing a change, run: `npm run lint`, `npm run test:unit` and `npm run
 - **Plate solving approach:** Must run in the browser and work offline. Astrometry.net can't be used because its distribution is GPL. tetra3 and cedar-solve are Apache-2.0 candidates. TODO: final choice after the solver spike.
   - Use a strict confidence check. Weak frames can produce wrong matches, and the app must never show an unverified position as correct.
   - Record in each mount profile whether the image is flipped, so the solver doesn't have to try both.
+  - Patents (checked 2026-11-08, not legal advice). Ask before changing the solver's matching method, and before publishing outside localhost:
+    - US 8,401,307 (Celestron, until about 2031, US only) claims solving from a star-group signature, such as sorted pair distances divided by the largest, with a database search and an affine fit. That is close to tetra3/cedar-solve pattern hashing. The current solver (sensor hint, star pairs, match counting) doesn't work that way.
+    - US 11,181,606 (Celestron StarSense Explorer, until about 2038, US only) claims a mirror holder with an adjustable phone whose rear camera sees the sky, plus plate solving and guidance. It concerns the mirror mount, not the camera-straight-up setup.
+    - EP 2472471 (Celestron auto-align, until about 2031, granted in Europe) adjusts time and latitude to fit a mount model. The app takes time and location from the phone instead.
 - **Camera approach:** Simulated, not yet measured. See `spikes/sky-sim/RESULTS.md`.
   - Default to the main camera. The telephoto and ultrawide needed much longer exposures in simulation, and Chrome on the Magic5 Pro only offers one rear camera anyway.
   - Aim for at least 1/8 s per frame, with stacked frames as the fallback. The Honor Magic5 Pro allows up to 1/3 s in Chrome, measured.

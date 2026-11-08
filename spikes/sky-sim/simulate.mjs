@@ -44,7 +44,7 @@ const CAMERAS = {
   wide: { label: 'Ultrawide 13 mm f/2.0', fEqMm: 13, fNumber: 2.0, sensorWidthMm: 5.2, sensorDiagMm: 6.5, nativePixelUm: 0.64, psfUm: 4, readNoiseE: 1.5 },
   // A hypothetical 8×30 monocular clipped in front of the main camera.
   clipOn: { label: 'Main + 8×30 clip-on', fEqMm: 23, fNumber: 1.6, sensorWidthMm: 11.4, sensorDiagMm: 14.3, nativePixelUm: 1.4, psfUm: 8, readNoiseE: 1.5, afocalMagnification: 8, objectiveMm: 30, throughput: 0.7 },
-  // A StarSense-style mirror mount. Same camera, some light lost, image flipped.
+  // A mirror mount alongside the tube. Same camera, some light lost, image flipped.
   mirror: { label: 'Main + mirror', fEqMm: 23, fNumber: 1.6, sensorWidthMm: 11.4, sensorDiagMm: 14.3, nativePixelUm: 1.4, psfUm: 6, readNoiseE: 1.5, throughput: 0.85, flipped: true },
 };
 
