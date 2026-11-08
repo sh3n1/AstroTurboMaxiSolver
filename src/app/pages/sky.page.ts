@@ -302,12 +302,12 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
       clip-path: inset(50%);
       white-space: nowrap;
     }
-    /* A sensor problem, in a small solid box at the bottom, just above the tab bar. */
+    /* A sensor problem, in a small box at the bottom, just above the tab bar. */
     .message {
       margin-top: 6px;
       padding: 6px 10px;
       border-radius: 10px;
-      background: rgb(10 14 28);
+      background: rgb(10 14 28 / 92%);
       color: #ffb454;
       font-size: calc(15px * var(--af-scale, 1));
       text-align: center;
@@ -396,12 +396,12 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
       flex-direction: column;
       margin-right: -6px;
     }
-    /* Solid, so map labels behind it never show through the text. */
+    /* Nearly solid, like the readout at the top, so map labels behind it barely show. */
     .bar {
       padding: 6px 4px 6px 12px;
       border: 1px solid #232a3d;
       border-radius: 12px;
-      background: rgb(10 14 28);
+      background: rgb(10 14 28 / 92%);
       color: var(--af-text);
       font-size: calc(16px * var(--af-scale, 1));
     }
