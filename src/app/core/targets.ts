@@ -26,6 +26,17 @@ export interface Target {
   mag: number;
   /** Apparent size along the longest side, where known. */
   sizeArcmin?: number;
+  /** Apparent size along the shortest side, for oval objects such as most galaxies. */
+  minorArcmin?: number;
+  /**
+   * The detailed object type, in OpenNGC's codes, where the kind doesn't say it all:
+   * "PN" for a planetary nebula, "GPair" for a galaxy pair. See target-details.ts.
+   */
+  type?: string;
+  /** A galaxy's shape in Hubble's scheme, such as "SBb" for a barred spiral. */
+  hubble?: string;
+  /** A star's B-V colour index: negative for blue-white stars, above 1.4 for red ones. */
+  bv?: number;
   /** Set for the Moon, planets, dwarf planets and asteroids, which move among the stars. */
   body?: string;
   /** Set for the Moon and Venus, which show phases that matter at the eyepiece. */

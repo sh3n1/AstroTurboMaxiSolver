@@ -50,14 +50,27 @@ import {
   trueFieldDeg,
   viewBasis,
 } from '../core/astronomy';
+import type { BodyFacts } from '../core/body-facts';
+import { bodyFacts, discText, distanceText, lightTimeText } from '../core/body-facts';
 import type { ConstellationRow } from '../core/constellations';
 import { designationText, designations } from '../core/designations';
 import type { Equipment } from '../core/equipment';
 import { equipmentLabel, sameEquipment } from '../core/equipment';
 import { FullscreenService } from '../core/fullscreen.service';
 import { LiveSolverService } from '../core/live-solver.service';
+import { LocalTimePipe } from '../core/local-time.pipe';
 import { RETICLE_RADIUS_DEG, RETICLE_RINGS_DEG, chevronSpacingPx, guideAngleDeg, pulseOpacity } from '../core/reticle';
 import { SensorService } from '../core/sensor.service';
+import type { NightPlan } from '../core/target-details';
+import {
+  constellationName,
+  equatorialSeparationDeg,
+  moonNote,
+  nightPlan,
+  objectTypeText,
+  otherNames,
+  sizeText,
+} from '../core/target-details';
 import type { IconPath } from '../core/target-icons';
 import { DISC_RADIUS, ICON_DASH, ICON_GRID, phaseIcon, targetIcon } from '../core/target-icons';
 import type { Target } from '../core/targets';
@@ -220,6 +233,7 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
   selector: 'app-sky',
   imports: [
     DecimalPipe,
+    LocalTimePipe,
     IonButton,
     IonChip,
     IonContent,
@@ -431,6 +445,10 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
     .directions {
       color: #a9cbff;
       font-size: calc(15px * var(--af-scale, 1));
+    }
+    /* The Moon's glare will spoil the view: in the same colour as other warnings. */
+    .moon-warning {
+      color: #ffb454;
     }
     .details {
       padding: 6px 8px 4px 0;
@@ -715,19 +733,66 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
                   </ion-button>
                 </div>
               </div>
-              @if (showDetails()) {
+              @if (details(); as info) {
                 <div class="details" data-testid="target-details">
-                  {{ target.kind }}
-                  @if (target.mag < 90) {
-                    · mag {{ target.mag | number: '1.1-1' }}
+                  <!-- What it is, in words, and where among the stars. -->
+                  <div data-testid="details-type">
+                    {{ info.type }}
+                    @if (info.constellation; as constellation) {
+                      · in {{ constellation }}
+                    }
+                  </div>
+                  <div>
+                    @if (target.mag < 90) {
+                      <span class="keep">mag {{ target.mag | number: '1.1-1' }}</span>
+                    }
+                    @if (info.size; as size) {
+                      · <span class="keep">{{ size }}</span>
+                    }
+                    @if (info.facts; as facts) {
+                      · <span class="keep">disc {{ discText(facts.discArcsec) }}</span> ·
+                      <span class="keep">{{ facts.litFraction * 100 | number: '1.0-0' }}% lit</span>
+                    }
+                  </div>
+                  <!-- For the Moon, planets, Pluto and asteroids: how far, and how far from the Sun. -->
+                  @if (info.facts; as facts) {
+                    <div data-testid="details-distance">
+                      <span class="keep">{{ distanceText(facts.distanceAu) }} away</span> ·
+                      <span class="keep">{{ lightTimeText(facts.lightSeconds) }}</span> ·
+                      <span class="keep">{{ facts.sunAngleDeg | number: '1.0-0' }}° from the Sun</span>
+                    </div>
+                    @if (facts.moon; as moon) {
+                      <div data-testid="details-moon-phase">
+                        <span class="keep">Age {{ moon.ageDays | number: '1.0-0' }} days</span>
+                        @for (event of moonEvents(moon); track event.name) {
+                          · <span class="keep">{{ event.name }} {{ event.date | localTime: 'date' }}</span>
+                        }
+                      </div>
+                    }
                   }
-                  @if (target.sizeArcmin) {
-                    · {{ target.sizeArcmin | number: '1.0-1' }}′ across
+                  <!-- When to look tonight, during full darkness. -->
+                  <div data-testid="details-tonight">
+                    @if (info.plan.best; as best) {
+                      Tonight:
+                      @if (info.plan.rise; as rise) {
+                        <span class="keep">rises {{ rise | localTime }}</span> ·
+                      } @else {
+                        <span class="keep">up all night</span> ·
+                      }
+                      <span class="keep">best {{ best.time | localTime }} at {{ best.altDeg | number: '1.0-0' }}°</span>
+                      @if (info.plan.set; as set) {
+                        · <span class="keep">sets {{ set | localTime }}</span>
+                      }
+                    } @else {
+                      Below the horizon during darkness tonight
+                    }
+                  </div>
+                  @if (info.moon; as moon) {
+                    <div data-testid="details-moon" [class.moon-warning]="moon.warn">{{ moon.text }}</div>
                   }
-                  <br />
-                  RA {{ formatRa(target.raDeg) }}, Dec {{ formatDec(target.decDeg) }}
-                  @if (target.aliases) {
-                    <br />Also known as {{ target.aliases }}
+                  <div>RA {{ formatRa(target.raDeg) }}, Dec {{ formatDec(target.decDeg) }}</div>
+                  @if (info.otherNames) {
+                    <div data-testid="details-names">Also known as {{ info.otherNames }}</div>
                   }
                 </div>
               }
@@ -765,6 +830,56 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   protected readonly stars = signal<Star[]>([]);
   protected readonly constellations = signal<Constellation[]>([]);
   protected readonly showDetails = signal(false);
+  protected readonly discText = discText;
+  protected readonly distanceText = distanceText;
+  protected readonly lightTimeText = lightTimeText;
+
+  /**
+   * What the details box says about the selected target. Only worked out while the box is
+   * open, and with the minute clock, since finding tonight's rise and set takes a few
+   * hundred position calculations.
+   */
+  protected readonly details = computed(() => {
+    const target = this.state.selectedTarget();
+    if (!this.showDetails() || !target) return null;
+    const now = this.state.now();
+    return {
+      type: objectTypeText(target),
+      // A constellation is its own place in the sky, so "Orion · in Orion" would add nothing.
+      constellation: target.kind === 'Constellation' ? null : constellationName(target.raDeg, target.decDeg),
+      // Solar-system bodies show their disc instead, which changes with their distance.
+      size: target.body ? null : sizeText(target),
+      facts: target.body ? bodyFacts(target.body, now) : null,
+      plan: this.tonightPlan(target, now),
+      moon: target.body === 'Moon' ? null : this.moonNoteFor(target, now),
+      otherNames: otherNames(target.aliases, [...designations(target), target.name]),
+    };
+  });
+
+  /** When the target rises, is best placed and sets around tonight's full darkness. */
+  private tonightPlan(target: Target, now: Date): NightPlan {
+    const { darkFrom, darkUntil } = this.state.conditions();
+    // Already dark: from now. No full darkness at all, far north in summer: the next 12 hours.
+    const from = darkFrom ?? now;
+    const until = darkUntil ?? new Date(now.getTime() + 12 * 3_600_000);
+    return nightPlan((time) => this.state.positionAt(target, time).altDeg, from, until);
+  }
+
+  /** Where the Moon is from the target, and whether its glare will get in the way. */
+  private moonNoteFor(target: Target, now: Date): { text: string; warn: boolean } | null {
+    const moon = this.state.targets().find((t) => t.id === 'Moon');
+    if (!moon) return null;
+    const separation = equatorialSeparationDeg(target, moon);
+    return moonNote(separation, this.state.positionAt(moon, now).altDeg, moon.phase?.litFraction ?? 0);
+  }
+
+  /** The next full and new Moon, the sooner one first. */
+  protected moonEvents(moon: NonNullable<BodyFacts['moon']>): { name: string; date: Date }[] {
+    return [
+      { name: 'full Moon', date: moon.nextFull },
+      { name: 'new Moon', date: moon.nextNew },
+    ].sort((a, b) => a.date.getTime() - b.date.getTime());
+  }
   protected readonly showEquipment = signal(false);
 
   /** Stars grouped into cells of right ascension and declination. */

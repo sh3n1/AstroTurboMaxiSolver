@@ -28,6 +28,11 @@ const MESSIER_KINDS = {
   pos: 'Other',
 };
 
+// The same object types in OpenNGC's codes, so the app describes both sources alike.
+// Galaxies get a coarse Hubble type instead: spiral, elliptical or irregular.
+const MESSIER_TYPES = { snr: { type: 'SNR' }, sfr: { type: 'HII' }, pn: { type: 'PN' }, rn: { type: 'RfN' } };
+const MESSIER_HUBBLE = { s: { hubble: 'S' }, e: { hubble: 'E' }, i: { hubble: 'I' } };
+
 const readJson = (path) => JSON.parse(readFileSync(path, 'utf8'));
 // The source stores right ascension from -180 to 180, and the app uses 0 to 360.
 const round = (value, digits = 3) => Number(value.toFixed(digits));
@@ -47,6 +52,10 @@ const messier = readJson(messierPath).features.map(({ id, properties, geometry }
     mag: properties.mag,
     // The source gives sizes in arcminutes, as "6x4" or "13". The longer side comes first.
     ...(Number.parseFloat(properties.dim) ? { sizeArcmin: Number.parseFloat(properties.dim) } : {}),
+    // The shorter side, the second number in "66x60".
+    ...(Number.parseFloat(properties.dim?.split('x')[1]) ? { minorArcmin: Number.parseFloat(properties.dim.split('x')[1]) } : {}),
+    ...MESSIER_TYPES[properties.type],
+    ...MESSIER_HUBBLE[properties.type],
   };
 });
 
@@ -69,6 +78,8 @@ const namedStars = readJson(starsPath)
         raDeg: toRa(geometry.coordinates[0]),
         decDeg: round(geometry.coordinates[1]),
         mag: properties.mag,
+        // B-V colour index: how blue or red the star looks, which the details box describes.
+        ...(Number.isFinite(Number.parseFloat(properties.bv)) ? { bv: Number.parseFloat(properties.bv) } : {}),
       },
     ];
   });

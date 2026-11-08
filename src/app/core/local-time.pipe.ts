@@ -2,11 +2,12 @@ import { Pipe } from '@angular/core';
 import type { PipeTransform } from '@angular/core';
 
 /** How much of the date and time to show. */
-export type LocalTimeFormat = 'time' | 'time-seconds' | 'date-time';
+export type LocalTimeFormat = 'time' | 'time-seconds' | 'date' | 'date-time';
 
 const OPTIONS: Record<LocalTimeFormat, Intl.DateTimeFormatOptions> = {
   time: { hour: 'numeric', minute: '2-digit' },
   'time-seconds': { hour: 'numeric', minute: '2-digit', second: '2-digit' },
+  date: { weekday: 'short', day: 'numeric', month: 'short' },
   'date-time': { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' },
 };
 

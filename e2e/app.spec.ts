@@ -57,8 +57,38 @@ test('shows target details from the target bar', async ({ page }) => {
   await page.locator('app-targets ion-item').first().click();
   await expect(page.locator('[data-testid=target-bar]')).toContainText('M31');
   await page.locator('[data-testid=target-info]').click();
-  await expect(page.locator('[data-testid=target-details]')).toContainText('across');
-  await expect(page.locator('[data-testid=target-details]')).toContainText('NGC 224');
+  const details = page.locator('[data-testid=target-details]');
+  // What it is and where, both of its sizes, and when to look tonight.
+  await expect(page.locator('[data-testid=details-type]')).toHaveText(/Spiral galaxy\s+· in Andromeda/);
+  await expect(details).toContainText('190′ × 60′');
+  await expect(page.locator('[data-testid=details-tonight]')).toContainText(/Tonight|Below the horizon/);
+  await expect(page.locator('[data-testid=details-moon]')).toContainText('Moon');
+  // NGC 224 and the name are already in the heading, so they aren't repeated below.
+  await expect(page.locator('[data-testid=details-names]')).toHaveCount(0);
+});
+
+test('describes star colours and solar-system bodies in the details', async ({ page }) => {
+  /** Selects a target from the Targets tab and opens its details. */
+  const details = async (search: string) => {
+    await page.goto('/tabs/targets');
+    await page.locator('app-targets ion-searchbar input').fill(search);
+    await expect(page.locator('app-targets ion-item').first()).toContainText(search);
+    await page.locator('app-targets ion-item').first().click();
+    await page.locator('[data-testid=target-info]').click();
+  };
+
+  await details('Betelgeuse');
+  await expect(page.locator('[data-testid=details-type]')).toHaveText(/Orange-red star\s+· in Orion/);
+
+  await details('Jupiter');
+  await expect(page.locator('[data-testid=details-distance]')).toContainText(/\d\.\d\d au away · light takes \d+ min/);
+  await expect(page.locator('[data-testid=target-details]')).toContainText(/disc \d+″/);
+
+  await details('Moon');
+  await expect(page.locator('[data-testid=details-distance]')).toContainText(/ km away · \d\.\d light-seconds/);
+  await expect(page.locator('[data-testid=details-moon-phase]')).toContainText(/Age \d+ days · (full|new) Moon/);
+  // The Moon gets no note about the Moon.
+  await expect(page.locator('[data-testid=details-moon]')).toHaveCount(0);
 });
 
 test('follows the sky turning by the second, not by the minute', async ({ page }) => {

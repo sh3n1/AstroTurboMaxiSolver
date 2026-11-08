@@ -27,6 +27,10 @@ const KINDS = {
   SNR: 'Nebula',
 };
 
+// The types the kind already says, so they aren't stored again: a plain galaxy or cluster.
+// Every other type is kept as `type`, for the details box: "Planetary nebula", "Galaxy pair".
+const PLAIN_TYPES = new Set(['G', 'OCl', 'GCl']);
+
 // Stands for an unknown brightness, which the app shows as a question mark.
 const UNKNOWN_MAG = 99;
 
@@ -63,6 +67,11 @@ const targets = rows
       mag: Number(row['V-Mag'] || row['B-Mag'] || UNKNOWN_MAG),
       // The major axis is in arcminutes, and many objects don't have one.
       ...(Number(row.MajAx) ? { sizeArcmin: Number(row.MajAx) } : {}),
+      // The shorter side, as many objects are oval rather than round.
+      ...(Number(row.MajAx) && Number(row.MinAx) ? { minorArcmin: Number(row.MinAx) } : {}),
+      ...(PLAIN_TYPES.has(row.Type) ? {} : { type: row.Type }),
+      // A galaxy's shape in Hubble's scheme, such as "SBb", a barred spiral.
+      ...(row.Hubble ? { hubble: row.Hubble } : {}),
     };
   });
 
