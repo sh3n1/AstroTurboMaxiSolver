@@ -91,6 +91,19 @@ test('turns the sensors on when a target is chosen', async ({ page }) => {
   await expect(page.locator('[data-testid=pointing]')).toContainText('Alt 0° Az 0°');
 });
 
+test('aims at the target with the sensors on, switching them off', async ({ page }) => {
+  await page.goto('/tabs/targets');
+  await page.locator('app-targets ion-searchbar input').fill('Vega');
+  await page.locator('app-targets ion-item').first().click();
+  await expect(page.locator('[data-testid=sensor-toggle]')).toContainText('Sensors on');
+  await sendOrientation(page, 0, 90, 0);
+
+  // Aim is there with the sensors on. It turns them off, so they can't pull the map back.
+  await page.locator('[data-testid=aim-at-target]').click();
+  await expect(page.locator('[data-testid=sensor-toggle]')).toContainText('Use sensors');
+  await expect(page.locator('[data-testid=guidance]')).toContainText('0.0° away');
+});
+
 test('turns automatic sensors off quietly on a device without them', async ({ page }) => {
   await page.goto('/tabs/targets');
   await page.locator('app-targets ion-searchbar input').fill('Vega');
@@ -107,13 +120,12 @@ test('aligns using the real sensor reading', async ({ page }) => {
   await sendOrientation(page, 0, 90, 0);
   await page.locator('[data-testid=alignment-status]').click();
   await page.locator('[data-testid=alignment-star]').first().click();
-  await expect(page.locator('[data-testid=alignment-source]')).toContainText('plate solves');
   await page.locator('[data-testid=confirm-centred]').click();
 
   // The fake camera shows no stars, so plate solving honestly fails and offers the sensors.
   await expect(page.locator('[data-testid=alignment-failed]')).toContainText(/no stars|couldn't match/);
   await page.locator('[data-testid=align-with-sensors]').click();
-  await expect(page.locator('[data-testid=alignment-result]')).toContainText('according to the sensors');
+  await expect(page.locator('[data-testid=alignment-result]')).toContainText('from the sensors');
   await page.locator('[data-testid=alignment-done]').click();
   await expect(page.locator('[data-testid=alignment-status]')).toContainText('rough');
   // Aligned, even roughly, so the button is green. The Align page says how it was done.

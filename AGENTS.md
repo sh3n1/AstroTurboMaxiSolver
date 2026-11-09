@@ -98,6 +98,8 @@ The app has its own look, not a copy of other astronomy apps. Other apps may inf
 
 Many users are past forty and read the screen at arm's length in the dark. Use the --af-scale text sizes, never text below 13 px at standard size, outlined labels on the map, and no grey text in night mode, where everything becomes red and greys turn hard to read. Night mode uses full-strength red: dimming is left to the phone's screen brightness.
 
+Keep on-screen text short. Don't over-explain: say what matters in a few words, and drop explanations the user doesn't need to act on. Prefer an icon over text wherever one is clear, such as a cross to close, and give icon-only buttons a hidden label for screen readers.
+
 ## Conventions
 
 - Code style: Clean code, kiss, dont reinvent the wheel, human readable, very commented

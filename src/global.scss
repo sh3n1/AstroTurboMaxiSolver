@@ -156,3 +156,52 @@ ion-toast.af-toast {
   --border-radius: 12px;
   font-size: calc(16px * var(--af-scale, 1));
 }
+
+/*
+ * The time control's calendar: a small card over the map rather than a full screen,
+ * as tall as the month it shows. Ionic moves the modal to the app's root, so it is
+ * styled here rather than in the component.
+ */
+ion-modal.day-picker-modal {
+  --width: min(360px, calc(100% - 32px));
+  --height: auto;
+  --border-radius: 16px;
+  --background: #141b2d;
+  --backdrop-opacity: 0.55;
+}
+ion-modal.day-picker-modal .ion-page {
+  position: relative;
+  display: block;
+  contain: content;
+}
+ion-modal.day-picker-modal::part(content) {
+  border: 1px solid rgb(255 255 255 / 12%);
+}
+.day-picker-card {
+  padding: 4px 4px 0;
+  color: var(--af-text);
+}
+.day-picker-card ion-datetime {
+  --background: #141b2d;
+  --background-rgb: 20, 27, 45;
+  --title-color: var(--af-text);
+  width: 100%;
+  max-width: none;
+  color: var(--af-text);
+}
+.day-picker-card ion-datetime::part(calendar-day) {
+  font-size: calc(16px * var(--af-scale));
+}
+.day-picker-card ion-datetime::part(month-year-button) {
+  font-size: calc(17px * var(--af-scale));
+  color: var(--af-text);
+}
+.day-picker-actions {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 4px 4px;
+}
+.day-picker-actions ion-button {
+  text-transform: none;
+  font-weight: 600;
+}

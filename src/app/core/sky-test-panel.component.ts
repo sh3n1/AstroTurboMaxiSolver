@@ -229,7 +229,7 @@ export class SkyTestPanelComponent {
   private sensorDirection(): Vector3 | null {
     const camera = this.state.cameraPointing();
     if (!camera) return null;
-    const rotation = this.state.skyRotation();
+    const rotation = this.state.realSkyRotation();
     // Where the camera points as it appears, turned back to the real direction.
     const [east, north, up] = unrefract(horizontalVector(camera));
     const x = rotation[0][0] * east + rotation[1][0] * north + rotation[2][0] * up;

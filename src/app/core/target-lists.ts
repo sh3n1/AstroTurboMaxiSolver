@@ -14,20 +14,10 @@ export interface TargetList {
 /** The list every bookmark goes to unless the user picks another. It can't be deleted. */
 export const UNCATEGORIZED_ID = 'uncategorized';
 
-/** The lists the app makes itself. They can't be edited or deleted. */
+/** The lists the app makes itself. They can't be edited or deleted. A description only where the name needs one. */
 export const FIXED_LISTS = [
-  {
-    id: 'now',
-    name: 'Best right now',
-    icon: 'moon-outline',
-    description: 'Well up in the sky now, from here, brightest first',
-  },
-  {
-    id: 'reticle',
-    name: 'In the reticle',
-    icon: 'locate-outline',
-    description: 'Inside the aiming rings now, nearest first',
-  },
+  { id: 'now', name: 'Best right now', icon: 'moon-outline', description: '' },
+  { id: 'reticle', name: 'In the reticle', icon: 'locate-outline', description: '' },
   { id: 'messier', name: 'Messier catalogue', icon: 'sparkles-outline', description: 'M1 to M110' },
   { id: 'caldwell', name: 'Caldwell catalogue', icon: 'sparkles-outline', description: 'C1 to C109' },
 ] as const;

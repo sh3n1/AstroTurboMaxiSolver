@@ -109,9 +109,13 @@ export class LiveSolverService {
   constructor() {
     // Run only while the sensors are on, automatic solving is allowed, and the camera
     // looks straight at the sky. Mirror and clip-on mounts need their own geometry first.
+    // Not while planning: the camera sees the real sky, not the one at the chosen time.
     effect(() => {
       const shouldRun =
-        this.state.sensorsActive() && this.state.settings().autoSolve && this.state.settings().mount === 'direct';
+        this.state.sensorsActive() &&
+        this.state.settings().autoSolve &&
+        this.state.settings().mount === 'direct' &&
+        !this.state.planning();
       if (shouldRun) this.start();
       else this.stop();
     });
@@ -175,7 +179,7 @@ export class LiveSolverService {
 
       const response = await this.solve(frame.pixels, frame.width, frame.height);
       if (response.solution && this.status() === 'solving') {
-        const rotation = this.state.skyRotation();
+        const rotation = this.state.realSkyRotation();
         const [x, y, z] = apparentAxes(rotation, response.solution.axes);
         this.sensors.applyPlateSolve(attitudeFromImageAxes(x, y, z));
         this.learnFieldOfView(response.solution.focalPx, frame.width, frame.height);
@@ -256,8 +260,11 @@ export class LiveSolverService {
    * the sensors are on, and corrects them if they are.
    */
   async solveNow(): Promise<SolveNowResult> {
+    if (this.state.planning()) {
+      return { ok: false, reason: 'Paused while showing another time. Go back to now to solve.' };
+    }
     if (this.state.settings().mount !== 'direct') {
-      return { ok: false, reason: 'Plate solving only works with the camera pointing straight at the sky so far.' };
+      return { ok: false, reason: 'Only works with the camera pointing straight at the sky, for now.' };
     }
     // Let an automatic solve that is already running finish first.
     for (let waited = 0; this.status() === 'solving' && waited < 10_000; waited += 100) {
@@ -282,7 +289,7 @@ export class LiveSolverService {
       const entry = { trigger: 'alignment' as const, startedAt, iso: this.iso };
       if (averageLevel(frame.pixels) > MAX_SKY_LEVEL) {
         this.record({ ...entry, outcome: 'failed', message: 'Too bright to see stars' });
-        return { ok: false, reason: 'The sky is too bright for the camera to see stars. Keep lights out of view.' };
+        return { ok: false, reason: 'Too bright for the camera. Keep lights out of view.' };
       }
 
       const response = await this.solve(frame.pixels, frame.width, frame.height, SOLVE_NOW_TIME_LIMIT_MS);
@@ -297,12 +304,12 @@ export class LiveSolverService {
           ok: false,
           reason:
             response.starCount > 0
-              ? `The camera found ${response.starCount} stars but couldn't match them to the sky. Check that the sky is clear.`
-              : 'The camera found no stars. Check that the sky is clear and that the camera has a clear view.',
+              ? `The camera saw ${response.starCount} stars but couldn't match them. Is the sky clear?`
+              : 'The camera saw no stars. Is the sky clear?',
         };
       }
 
-      const rotation = this.state.skyRotation();
+      const rotation = this.state.realSkyRotation();
       const [x, y, z] = apparentAxes(rotation, response.solution.axes);
       const attitude = attitudeFromImageAxes(x, y, z);
       this.sensors.applyPlateSolve(attitude);
@@ -374,7 +381,7 @@ export class LiveSolverService {
   private hint(): { direction: Vector3; radiusDeg: number } | null {
     const camera = this.state.cameraPointing();
     if (!camera) return null;
-    const { raDeg, decDeg } = localToEquatorial(this.state.skyRotation(), horizontalVector(camera));
+    const { raDeg, decDeg } = localToEquatorial(this.state.realSkyRotation(), horizontalVector(camera));
     return { direction: equatorialVector(raDeg, decDeg), radiusDeg: HINT_RADIUS_DEG };
   }
 

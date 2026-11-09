@@ -56,6 +56,8 @@ export interface Settings {
   showEquatorial: boolean;
   /** Keep the phone's screen on while the app is open. */
   keepScreenOn: boolean;
+  /** A Bluetooth camera shutter remote presses the Align page's big round button. */
+  shutterAligns: boolean;
   /** Show a toast for successful plate solves too, with the stars matched. For debugging. */
   solveSuccessToast: boolean;
   /** How dark the observer's sky is, on the Bortle scale from 1 (darkest) to 9. */
@@ -104,6 +106,8 @@ const DEFAULT_SETTINGS: Settings = {
   showEquatorial: false,
   // On by default: at the telescope the phone sits untouched, and a sleeping screen stops the sensors.
   keepScreenOn: true,
+  // Off by default: a remote's Enter or volume key would otherwise act on the Align page unasked.
+  shutterAligns: false,
   // The middle of the scale, a suburban sky, until the user sets their own.
   bortle: 5,
   eyepieceStarLimit: null,
@@ -186,8 +190,26 @@ export class AppState {
 
   private lastRotation?: { key: string; rotation: ReturnType<typeof skyRotation> };
 
-  /** Current time, refreshed each minute, so positions keep up with the sky. */
-  readonly now = signal(new Date());
+  /**
+   * The time chosen for planning, or null to follow the real time. While set, the sky
+   * map, the lists and the details all show the sky at that time, and it stays still.
+   * Never saved, so the app always opens on the real sky.
+   */
+  readonly plannedTime = signal<Date | null>(null);
+  /** Whether the app shows a chosen time instead of the real one. */
+  readonly planning = computed(() => this.plannedTime() !== null);
+  /** Whether the time control is open for changing the time, on whichever tab. */
+  readonly timeControlOpen = signal(false);
+
+  /** The real time, refreshed each minute and each second. */
+  private readonly realMinute = signal(new Date());
+  private readonly realSecond = signal(new Date());
+
+  /**
+   * The time the app shows, refreshed each minute, so positions keep up with the sky:
+   * the real time, or the time chosen for planning.
+   */
+  readonly now = computed(() => this.plannedTime() ?? this.realMinute());
 
   /** Everything the user can aim at, with planets and the Moon where they are now. */
   readonly targets = computed<Target[]>(() => {
@@ -227,10 +249,21 @@ export class AppState {
    * use the minute clock to save work. The sky map goes further and uses the exact time
    * of each frame it draws, so even a zoomed-in eyepiece view moves smoothly.
    */
-  readonly skyTime = signal(new Date());
+  readonly skyTime = computed(() => this.plannedTime() ?? this.realSecond());
 
-  /** Rotation from catalogue positions to the local sky, right now. */
+  /** Rotation from catalogue positions to the local sky, at the time the app shows. */
   readonly skyRotation = computed(() => this.rotationAt(this.skyTime()));
+
+  /**
+   * Rotation to the real sky, right now, even while planning. The camera always sees
+   * the real sky, so plate solving and the sensor tests use this one.
+   */
+  readonly realSkyRotation = computed(() => this.rotationAt(this.realSecond()));
+
+  /** The exact time to draw a frame of the sky for: the chosen time, or this very moment. */
+  frameTime(): Date {
+    return this.plannedTime() ?? new Date();
+  }
 
   /** Where the telescope points, in catalogue coordinates. */
   readonly pointingEquatorial = computed(() =>
@@ -252,8 +285,8 @@ export class AppState {
   });
 
   constructor() {
-    setInterval(() => this.now.set(new Date()), 60_000);
-    setInterval(() => this.skyTime.set(new Date()), SKY_TIME_STEP_MS);
+    setInterval(() => this.realMinute.set(new Date()), 60_000);
+    setInterval(() => this.realSecond.set(new Date()), SKY_TIME_STEP_MS);
     // Double stars go onto the named stars too, so they wait for them.
     void this.loadCatalog('assets/data/targets.json').then(() => this.loadDoubles());
     void this.loadCatalog('assets/data/openngc.json');

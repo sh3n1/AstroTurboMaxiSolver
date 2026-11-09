@@ -74,7 +74,7 @@ import type { Target } from './targets';
         }
         <ion-item button detail="false" class="new-list" data-testid="bookmark-new-list" (click)="newList()">
           <ion-icon slot="start" name="add-circle-outline" aria-hidden="true"></ion-icon>
-          <ion-label>New list…</ion-label>
+          <ion-label>New list</ion-label>
         </ion-item>
       </ion-list>
     </ion-content>
