@@ -13,6 +13,19 @@ describe('local time', () => {
     expect(pipe.transform(date, 'date-time')).toContain('7');
   });
 
+  it('adds a two-digit year to dates in another year, and only to dates', () => {
+    const thisYear = new Date();
+    thisYear.setMonth(0, 15);
+    const nextYear = new Date(thisYear.getFullYear() + 1, 0, 15, 21, 5);
+    const twoDigits = String(nextYear.getFullYear()).slice(2);
+    expect(pipe.transform(thisYear, 'date')).not.toContain(String(thisYear.getFullYear()).slice(2));
+    for (const format of ['date', 'day', 'date-time'] as const) {
+      expect(pipe.transform(nextYear, format)).toContain(twoDigits);
+      expect(pipe.transform(nextYear, format)).not.toContain(String(nextYear.getFullYear()));
+    }
+    expect(pipe.transform(nextYear, 'time')).not.toContain(twoDigits);
+  });
+
   it('accepts saved dates as text, and shows nothing for a missing or bad one', () => {
     expect(pipe.transform(date.toISOString())).toBe(pipe.transform(date));
     expect(pipe.transform(null)).toBe('');

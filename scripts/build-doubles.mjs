@@ -175,7 +175,8 @@ for (const list of systems) {
   usedIds.add(id);
   doubles.push({
     id,
-    name: id,
+    // Lists show the name under the designation, so it says what the object is, as for galaxies.
+    name: list.length > 1 || list.some((pair) => pair.components.length > 2) ? 'Multiple star' : 'Double star',
     aliases,
     kind: 'Double star',
     // Five decimals, about 0.04″, so close pairs keep their shape in the eyepiece view.

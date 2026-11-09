@@ -26,13 +26,13 @@ import {
   ellipsisVertical,
   saveOutline,
   shareSocialOutline,
+  timeOutline,
   trashOutline,
 } from 'ionicons/icons';
 import { map } from 'rxjs';
 
 import { AppState } from '../core/app-state.service';
 import { ListsService } from '../core/lists.service';
-import { RETICLE_RINGS_DEG } from '../core/reticle';
 import { normalizeSearch, targetSearchText } from '../core/search';
 import { TargetListComponent } from '../core/target-list.component';
 import { exportFileName, exportLists } from '../core/target-lists';
@@ -56,6 +56,12 @@ import { exportFileName, exportLists } from '../core/target-lists';
     IonToolbar,
     TargetListComponent,
   ],
+  styles: `
+    /* The clock is amber while another time is on show, as on the sky map. */
+    ion-button.warn {
+      --color: #ffb454;
+    }
+  `,
   template: `
     <ion-header>
       <ion-toolbar>
@@ -65,6 +71,17 @@ import { exportFileName, exportLists } from '../core/target-lists';
         <ion-title data-testid="list-title">{{ list()?.name ?? 'List' }}</ion-title>
         @if (list(); as current) {
           <ion-buttons slot="end">
+            @if (current.id === 'now') {
+              <!-- Opens the time control: the list follows the time as it changes. -->
+              <ion-button
+                aria-label="Change the time"
+                data-testid="list-change-time"
+                [class.warn]="state.planning()"
+                (click)="state.timeControlOpen.set(true)"
+              >
+                <ion-icon slot="icon-only" name="time-outline" aria-hidden="true"></ion-icon>
+              </ion-button>
+            }
             <ion-button aria-label="Share" data-testid="share-list" (click)="share()">
               <ion-icon slot="icon-only" name="share-social-outline" aria-hidden="true"></ion-icon>
             </ion-button>
@@ -94,7 +111,6 @@ import { exportFileName, exportLists } from '../core/target-lists';
                 <strong>Around: </strong>Alt {{ state.pointing().altDeg | number: '1.0-0' }}° Az
                 {{ state.pointing().azDeg | number: '1.0-0' }}°
               </p>
-              <p>Inside the {{ reticleRingDeg }}° ring. The list follows the telescope as it moves.</p>
             </ion-card-content>
           </ion-card>
         }
@@ -132,8 +148,6 @@ export class ListPage {
   private readonly toasts = inject(ToastController);
 
   protected readonly query = signal('');
-  /** The outer ring's size, which this list's targets are inside. */
-  protected readonly reticleRingDeg = RETICLE_RINGS_DEG.at(-1);
 
   private readonly id = toSignal(this.route.paramMap.pipe(map((params) => params.get('id') ?? '')), {
     initialValue: '',
@@ -155,7 +169,15 @@ export class ListPage {
   });
 
   constructor() {
-    addIcons({ copyOutline, createOutline, ellipsisVertical, saveOutline, shareSocialOutline, trashOutline });
+    addIcons({
+      copyOutline,
+      createOutline,
+      ellipsisVertical,
+      saveOutline,
+      shareSocialOutline,
+      timeOutline,
+      trashOutline,
+    });
   }
 
   protected async share(): Promise<void> {

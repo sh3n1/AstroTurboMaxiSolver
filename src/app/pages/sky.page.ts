@@ -22,12 +22,18 @@ import {
   contractOutline,
   expandOutline,
   eyeOutline,
+  informationCircle,
   informationCircleOutline,
   locateOutline,
   mapOutline,
   radioButtonOffOutline,
   moonOutline,
+  refreshOutline,
   remove,
+  scanOutline,
+  timeOutline,
+  eyeOffOutline,
+  locationOutline,
 } from 'ionicons/icons';
 
 import { AppState } from '../core/app-state.service';
@@ -434,6 +440,19 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
       font-size: calc(14px * var(--af-scale, 1));
       text-align: left;
       border: 1px solid #ffb454;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .readout.location.unset ion-icon {
+      flex: none;
+      font-size: 20px;
+      color: #ffb454;
+    }
+    /* The eye shown instead of a pass, for a target that never rises. */
+    .never-rises {
+      font-size: 22px;
+      vertical-align: middle;
     }
     .zoom {
       margin-left: auto;
@@ -546,6 +565,21 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
             <ion-icon [name]="viewButtons[nextView()].icon" aria-hidden="true"></ion-icon>
             <span class="visually-hidden">{{ viewButtons[nextView()].label }}</span>
           </ion-fab-button>
+          <!--
+            Opens the time control, to see the sky at another time. Amber while the map shows
+            another time, like the other warnings, since the sky shown isn't the real one.
+          -->
+          <ion-fab-button
+            size="small"
+            data-testid="open-time"
+            [class.warn]="state.planning()"
+            [class.on]="state.planning()"
+            [attr.aria-pressed]="state.timeControlOpen()"
+            (click)="state.timeControlOpen.set(!state.timeControlOpen())"
+          >
+            <ion-icon name="time-outline" aria-hidden="true"></ion-icon>
+            <span class="visually-hidden">Change the time</span>
+          </ion-fab-button>
           <!-- Green once aligned, amber until then. The Align page says if it was only rough. -->
           <ion-fab-button
             size="small"
@@ -603,7 +637,8 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
               } @else {
                 <!-- Until a location is set, the sky shown is for a neutral place, so ask for one. -->
                 <button type="button" class="readout location unset" data-testid="location" (click)="locate()">
-                  {{ locating() || 'Location not set · tap to use GPS' }}
+                  <ion-icon name="location-outline" aria-hidden="true"></ion-icon>
+                  {{ locating() || 'Set location' }}
                 </button>
               }
             }
@@ -644,7 +679,8 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
                   [disabled]="isAutoStarLimit()"
                   (click)="resetStarLimit()"
                 >
-                  Reset to my sky
+                  <ion-icon slot="icon-only" name="refresh-outline" aria-hidden="true"></ion-icon>
+                  <span class="visually-hidden">Reset to my sky</span>
                 </ion-button>
               </div>
               <ion-range
@@ -745,19 +781,30 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
                   </div>
                 </div>
                 <div class="bar-buttons">
-                  @if (!state.sensorsActive()) {
-                    <ion-button fill="clear" size="small" data-testid="aim-at-target" (click)="aimAtTarget()">
-                      Aim
-                    </ion-button>
-                  }
+                  <!-- Turns the map to the target: a frame closing in on it. -->
+                  <ion-button
+                    fill="clear"
+                    size="small"
+                    aria-label="Aim at the target"
+                    data-testid="aim-at-target"
+                    (click)="aimAtTarget()"
+                  >
+                    <ion-icon slot="icon-only" name="scan-outline" aria-hidden="true"></ion-icon>
+                  </ion-button>
                   <ion-button
                     fill="clear"
                     size="small"
                     aria-label="Target details"
                     data-testid="target-info"
+                    [attr.aria-pressed]="showDetails()"
                     (click)="showDetails.set(!showDetails())"
                   >
-                    <ion-icon slot="icon-only" name="information-circle-outline"></ion-icon>
+                    <!-- Filled while the details are open, as the cloud on the time control. -->
+                    <ion-icon
+                      slot="icon-only"
+                      aria-hidden="true"
+                      [name]="showDetails() ? 'information-circle' : 'information-circle-outline'"
+                    ></ion-icon>
                   </ion-button>
                   <ion-button fill="clear" size="small" aria-label="Clear target" (click)="clearTarget()">
                     <ion-icon slot="icon-only" name="close-circle"></ion-icon>
@@ -834,7 +881,9 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
                         · <span class="keep">set {{ set | localTime }}</span>
                       }
                     } @else {
-                      Never rises from here
+                      <!-- A struck-through eye: it can't be seen from here. -->
+                      <ion-icon class="never-rises" name="eye-off-outline" aria-hidden="true"></ion-icon>
+                      <span class="visually-hidden">Never rises</span>
                     }
                   </div>
                   @if (info.moon; as moon) {
@@ -842,7 +891,7 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
                   }
                   <div>RA {{ formatRa(target.raDeg) }}, Dec {{ formatDec(target.decDeg) }}</div>
                   @if (info.otherNames) {
-                    <div data-testid="details-names">Also known as {{ info.otherNames }}</div>
+                    <div data-testid="details-names">Aka {{ info.otherNames }}</div>
                   }
                 </div>
               }
@@ -1044,7 +1093,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   private readonly canvasRef = viewChild.required<ElementRef<HTMLCanvasElement>>('canvas');
   private resizeObserver?: ResizeObserver;
   /** The sky's rotation at the frame being drawn. */
-  private frameRotation = this.state.rotationAt(new Date());
+  private frameRotation = this.state.rotationAt(this.state.frameTime());
   private skyTurnTimer?: ReturnType<typeof setTimeout>;
   private drawQueued = false;
   /** The pointing the view shows, which follows the sensors smoothly. */
@@ -1067,12 +1116,18 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       contractOutline,
       expandOutline,
       eyeOutline,
+      informationCircle,
       informationCircleOutline,
       locateOutline,
       mapOutline,
       radioButtonOffOutline,
       moonOutline,
+      refreshOutline,
       remove,
+      scanOutline,
+      timeOutline,
+      eyeOffOutline,
+      locationOutline,
     });
     this.baseStarsLoaded = this.loadStars();
     // The faint stars are a large file, so they only load once the eyepiece view opens.
@@ -1194,12 +1249,14 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   }
 
   /**
-   * Jumps straight to the target. A preview shortcut for when sensors are off, because
-   * dragging across the sky is impractical in the eyepiece's narrow field.
+   * Turns the map straight to the target, since dragging across the sky is impractical in
+   * the eyepiece's narrow field. The sensors would turn it back to where the phone points,
+   * so they are switched off first.
    */
   protected aimAtTarget(): void {
     const target = this.state.selectedTarget();
     if (!target) return;
+    if (this.state.sensorsActive()) this.sensors.stop();
     const { altDeg, azDeg } = this.state.positionOf(target);
     this.state.pointing.set({ altDeg: Math.min(altDeg, MAX_ALTITUDE_DEG), azDeg });
   }
@@ -1413,7 +1470,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
 
     const isEyepiece = this.mode() === 'eyepiece';
     // The sky as it is at this very frame, so it turns smoothly rather than in steps.
-    this.frameRotation = this.state.rotationAt(new Date());
+    this.frameRotation = this.state.rotationAt(this.state.frameTime());
     this.queueSkyTurn(width);
     const basis = viewBasis(this.steadyPointing(isEyepiece));
     const centreY = isEyepiece ? height * EYEPIECE_CENTRE_SHARE : height / 2;

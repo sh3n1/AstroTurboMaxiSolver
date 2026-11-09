@@ -397,3 +397,8 @@ export function rotateInView(x: number, y: number, rollDeg: number): { x: number
   const [sin, cos] = [Math.sin(rollDeg * RAD), Math.cos(rollDeg * RAD)];
   return { x: x * cos - y * sin, y: x * sin + y * cos };
 }
+
+/** How high the Sun is, in degrees, for a time and place. Negative once it has set. */
+export function sunAltitudeDeg(date: Date, latitudeDeg: number, longitudeDeg: number): number {
+  return bodyAltitudeDeg(Body.Sun, date, new Observer(latitudeDeg, longitudeDeg, 0));
+}

@@ -22,6 +22,7 @@ import {
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
+  bluetoothOutline,
   chatbubbleEllipsesOutline,
   chevronDown,
   chevronUp,
@@ -232,10 +233,7 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
           </ion-select>
         </ion-item>
       </ion-list>
-      <p class="section-note">
-        Sky darkness, on the Bortle scale, sets how faint the eyepiece view shows stars. Class 1 is a remote dark site,
-        4 to 5 is countryside near a town or the suburbs, and 8 to 9 is a city centre.
-      </p>
+      <p class="section-note">Bortle: 1 dark site · 5 suburbs · 9 city centre</p>
 
       <!-- How the phone sits on the telescope, and how it finds where it points. -->
       <ion-list inset="true">
@@ -276,11 +274,23 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
             Plate solve when still
           </ion-toggle>
         </ion-item>
+        <!-- A Bluetooth camera shutter remote, to align without reaching for the phone. -->
+        <ion-item>
+          <ion-icon slot="start" name="bluetooth-outline" aria-hidden="true"></ion-icon>
+          <ion-toggle
+            data-testid="shutter-aligns"
+            helperText="Its button aligns, as the big round button does"
+            [checked]="settings().shutterAligns"
+            (ionChange)="state.updateSettings({ shutterAligns: $any($event).detail.checked })"
+          >
+            Shutter remote aligns
+          </ion-toggle>
+        </ion-item>
         <ion-item lines="none" data-testid="equipment-moved">
           <ion-icon slot="start" name="telescope-outline" aria-hidden="true"></ion-icon>
           <ion-label class="ion-text-wrap">
             <h2>Telescope and eyepiece</h2>
-            <p>Set them in the Eyepiece view on the Sky tab, where you see the result straight away.</p>
+            <p>Set in the Sky tab's eyepiece view</p>
           </ion-label>
         </ion-item>
       </ion-list>
@@ -325,11 +335,7 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
           <ion-icon slot="start" name="sunny-outline" aria-hidden="true"></ion-icon>
           <ion-toggle
             data-testid="keep-screen-on"
-            [helperText]="
-              screenWake.supported
-                ? 'Stops the phone sleeping while the app is open, so the map stays ready at the eyepiece.'
-                : 'This browser can’t keep the screen on. The phone’s own sleep setting applies.'
-            "
+            [helperText]="screenWake.supported ? '' : 'Not supported in this browser'"
             [disabled]="!screenWake.supported"
             [checked]="settings().keepScreenOn && screenWake.supported"
             (ionChange)="state.updateSettings({ keepScreenOn: $any($event).detail.checked })"
@@ -443,6 +449,13 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
             >Double stars from the Washington Double Star Catalog, maintained at the U.S. Naval Observatory.</ion-label
           >
         </ion-item>
+        <!-- Open-Meteo's data is CC BY 4.0, which asks for this credit. -->
+        <ion-item>
+          <ion-label class="ion-text-wrap credit" data-testid="credit-open-meteo"
+            >Weather forecast by Open-Meteo.com, CC BY 4.0, from NOAA's GFS model. Seeing worked out with the AXP model
+            of Trinquet and Vernin.</ion-label
+          >
+        </ion-item>
         <ion-item>
           <ion-label class="ion-text-wrap credit"
             >Compass correction from the World Magnetic Model, NOAA and the British Geological Survey, via geomagnetism
@@ -481,6 +494,7 @@ export class SettingsPage {
 
   constructor() {
     addIcons({
+      bluetoothOutline,
       chatbubbleEllipsesOutline,
       chevronDown,
       chevronUp,

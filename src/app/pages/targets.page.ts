@@ -65,9 +65,7 @@ function matchesFilter(target: Target, filter: Filter): boolean {
       <app-target-list [targets]="results()"></app-target-list>
       @if (matchCount() > maxResults()) {
         <ion-text color="medium" data-testid="more-results">
-          <p class="ion-text-center ion-padding">
-            Showing {{ maxResults() }} of {{ matchCount() }}. Search to narrow them down.
-          </p>
+          <p class="ion-text-center ion-padding">{{ maxResults() }} of {{ matchCount() }}</p>
         </ion-text>
       }
       @if (results().length === 0) {

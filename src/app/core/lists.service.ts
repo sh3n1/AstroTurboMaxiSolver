@@ -3,6 +3,7 @@ import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { apparentMagnitude } from './alignment';
 import { AppState } from './app-state.service';
 import { equatorialVector } from './astronomy';
+import { LocalTimePipe } from './local-time.pipe';
 import { insideReticle } from './reticle';
 import type { SkyItem } from './reticle';
 import { recommendationLimit } from './sky-quality';
@@ -27,6 +28,10 @@ const OLD_PLAN_KEY = 'astrofinder.plan';
 // The best right now: objects well up in the sky at this moment, brightest first.
 const GOOD_ALTITUDE_DEG = 30;
 const BEST_NOW_COUNT = 20;
+/** Formats the planned time for the list's name, as the pages do. */
+const TIME_PIPE = new LocalTimePipe();
+/** The weekday, short, in the phone's language: "Tue". */
+const WEEKDAY = new Intl.DateTimeFormat(undefined, { weekday: 'short' });
 
 /** A list as the pages show it, whether the app made it or the user did. */
 export interface ListView {
@@ -107,6 +112,20 @@ export class ListsService {
   private readonly messier = computed(() => catalogueTargets(this.state.targets(), 'M'));
   private readonly caldwell = computed(() => catalogueTargets(this.state.targets(), 'C'));
 
+  /**
+   * "Best right now", or while planning the time it is for: "Best at 23:30" today,
+   * "Best Tue 23:30" in the coming week, or "Best 14 Nov 23:30" further away.
+   */
+  private readonly bestNowName = computed(() => {
+    const planned = this.state.plannedTime();
+    if (!planned) return 'Best right now';
+    const time = TIME_PIPE.transform(planned);
+    if (planned.toDateString() === new Date().toDateString()) return `Best at ${time}`;
+    const withinWeek = Math.abs(planned.getTime() - Date.now()) < 6 * 24 * 3_600_000;
+    const day = withinWeek ? WEEKDAY.format(planned) : TIME_PIPE.transform(planned, 'day');
+    return `Best ${day} ${time}`;
+  });
+
   /** The app's own lists, which can't be changed. */
   readonly fixedLists = computed<ListView[]>(() => {
     const targets: Record<FixedListId, Target[]> = {
@@ -115,7 +134,12 @@ export class ListsService {
       messier: this.messier(),
       caldwell: this.caldwell(),
     };
-    return FIXED_LISTS.map(({ id, name }) => ({ id, name, kind: 'fixed', targets: targets[id] }));
+    return FIXED_LISTS.map(({ id, name }) => ({
+      id,
+      name: id === 'now' ? this.bestNowName() : name,
+      kind: 'fixed',
+      targets: targets[id],
+    }));
   });
 
   /** The user's lists, with their targets looked up. Targets not in the catalogue are skipped. */

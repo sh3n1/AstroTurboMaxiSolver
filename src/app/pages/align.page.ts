@@ -1,7 +1,8 @@
 import { DecimalPipe } from '@angular/common';
-import { Component, computed, inject, isDevMode, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, isDevMode, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import {
+  AlertController,
   IonBackButton,
   IonButton,
   IonButtons,
@@ -9,15 +10,19 @@ import {
   IonCardContent,
   IonContent,
   IonHeader,
+  IonIcon,
   IonItem,
   IonLabel,
   IonList,
   IonListHeader,
   IonNote,
+  IonSpinner,
   IonText,
   IonTitle,
   IonToolbar,
 } from '@ionic/angular';
+import { addIcons } from 'ionicons';
+import { checkmark, checkmarkCircleOutline, locateOutline, refresh, timeOutline, trashOutline } from 'ionicons/icons';
 
 import { cameraOffset, offsetAngleDeg, suggestAlignmentStars } from '../core/alignment';
 import type { AlignmentMethod } from '../core/app-state.service';
@@ -28,6 +33,7 @@ import { rearCameraDirection } from '../core/attitude';
 import { cameraPointing } from '../core/device-orientation';
 import { LiveSolverService } from '../core/live-solver.service';
 import { LocalTimePipe } from '../core/local-time.pipe';
+import { isShutterPress } from '../core/shutter-remote';
 import { alignmentStarLimit } from '../core/sky-quality';
 import type { Target } from '../core/targets';
 
@@ -59,15 +65,138 @@ const PREVIEW_CAMERA_ERROR: Horizontal = { altDeg: 2, azDeg: 3 };
     IonCardContent,
     IonContent,
     IonHeader,
+    IonIcon,
     IonItem,
     IonLabel,
     IonList,
     IonListHeader,
     IonNote,
+    IonSpinner,
     IonText,
     IonTitle,
     IonToolbar,
   ],
+  styles: `
+    /* While another time is on show: the amber clock, as on the sky map. */
+    .showing-other-time {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 600;
+    }
+    .showing-other-time ion-icon {
+      font-size: 24px;
+      color: #ffb454;
+    }
+    /* Words as written, not in Ionic's capitals. Outlines thick enough to see at night. */
+    ion-button {
+      text-transform: none;
+      font-size: calc(17px * var(--af-scale));
+      font-weight: 600;
+    }
+    ion-button[fill='outline'] {
+      --border-width: 2px;
+      --border-color: var(--ion-color-primary);
+      min-height: 52px;
+    }
+    /*
+     * A step of the alignment: what to do at the top, a big round button in the middle,
+     * and the other choices at the bottom, well apart.
+     */
+    .step {
+      display: flex;
+      flex-direction: column;
+      min-height: calc(100dvh - 56px - var(--ion-safe-area-top, 0px) - var(--ion-safe-area-bottom, 0px) - 32px);
+    }
+    /*
+     * The text at the top and the buttons at the bottom keep the same room on every step,
+     * so the big circle between them never moves: the thumb finds it in the same place.
+     */
+    .step-head {
+      min-height: calc(118px * var(--af-scale));
+    }
+    .step-head h2 {
+      margin: 0 0 8px;
+      font-size: calc(22px * var(--af-scale));
+      font-weight: 700;
+    }
+    .step-head p {
+      margin: 0 0 4px;
+      font-size: calc(17px * var(--af-scale));
+    }
+    .warn-text {
+      color: #ffb454;
+    }
+    .big-round {
+      align-self: center;
+      margin: auto 0;
+      width: calc(170px * var(--af-scale));
+      height: calc(170px * var(--af-scale));
+      --border-radius: 50%;
+      --box-shadow: 0 0 0 8px rgb(143 183 255 / 22%);
+      font-size: calc(20px * var(--af-scale));
+      font-weight: 700;
+    }
+    .big-round-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    .big-round ion-icon {
+      font-size: calc(56px * var(--af-scale));
+    }
+    /* While solving: the same circle, outlined, with a spinner. */
+    .big-round.solving {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 3px solid var(--ion-color-primary);
+      border-radius: 50%;
+      color: var(--af-text);
+    }
+    .big-round.solving ion-spinner {
+      width: calc(48px * var(--af-scale));
+      height: calc(48px * var(--af-scale));
+      color: var(--ion-color-primary);
+    }
+    .step-actions {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      gap: 14px;
+      /* Room for three buttons, the most any step has, filled from the bottom. */
+      height: calc(3 * 52px + 2 * 14px);
+    }
+    .step-actions ion-button {
+      margin: 0;
+    }
+    /* The alignment in use: an icon and one line of text. */
+    .aligned-line {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      /* Full-strength text, not Ionic's card grey, which is hard to read at night. */
+      color: var(--af-text);
+    }
+    .aligned-line > ion-icon {
+      flex: none;
+      font-size: 24px;
+    }
+    .aligned-text {
+      flex: 1;
+    }
+    .aligned-line ion-button {
+      flex: none;
+      margin: -8px -8px -8px 0;
+    }
+    .good {
+      color: #6fcf9f;
+    }
+    .warn {
+      color: #ffb454;
+    }
+  `,
   template: `
     <ion-header>
       <ion-toolbar>
@@ -79,106 +208,174 @@ const PREVIEW_CAMERA_ERROR: Horizontal = { altDeg: 2, azDeg: 3 };
     </ion-header>
 
     <ion-content class="ion-padding">
-      @switch (step()) {
-        @case ('choose') {
-          @if (state.alignment(); as current) {
-            <ion-card data-testid="current-alignment">
-              <ion-card-content>
-                Aligned on <strong>{{ current.starId }}</strong> on {{ current.alignedAt | localTime: 'date-time' }}
-                {{ methodNote(current.method) }}. You only need to align again if the phone has moved in its mount.
-              </ion-card-content>
-            </ion-card>
-          }
-
-          <p>Choose a bright star you can see. Alignment teaches the app how your phone sits on your telescope.</p>
-
-          @if (skyIsBright()) {
-            <ion-text color="warning" data-testid="bright-sky">
-              <p>
-                The sky is still too bright to see most stars. Try again after dark, when these positions will have
-                changed.
-              </p>
-            </ion-text>
-          }
-
-          <ion-list>
-            <ion-list-header>Easiest to see now</ion-list-header>
-            @for (suggestion of suggestions(); track suggestion.star.id) {
-              <ion-item button detail="true" data-testid="alignment-star" (click)="choose(suggestion.star)">
-                <ion-label>
-                  <h2>{{ suggestion.star.id }}</h2>
-                  <p>{{ describePosition(suggestion.position) }} · mag {{ suggestion.mag | number: '1.1-1' }}</p>
-                </ion-label>
-              </ion-item>
-            } @empty {
-              <ion-item>
-                <ion-note>No bright stars are well placed right now.</ion-note>
-              </ion-item>
+      <!-- Alignment measures the real sky, so it can't use a time chosen for planning. -->
+      @if (state.planning()) {
+        <p class="showing-other-time" data-testid="align-planning">
+          <ion-icon name="time-outline" aria-hidden="true"></ion-icon>
+          Showing another time
+        </p>
+        <ion-button expand="block" data-testid="align-back-to-now" (click)="backToNow()">Back to now</ion-button>
+      } @else {
+        @switch (step()) {
+          @case ('choose') {
+            @if (state.alignment(); as current) {
+              <!-- The alignment in use, on one line: green when plate solved, amber when rough. -->
+              <ion-card data-testid="current-alignment">
+                <ion-card-content class="aligned-line">
+                  <ion-icon
+                    name="checkmark-circle-outline"
+                    aria-hidden="true"
+                    [class.good]="current.method === 'plate-solve'"
+                    [class.warn]="current.method !== 'plate-solve'"
+                  ></ion-icon>
+                  <span class="aligned-text">
+                    <strong>{{ current.starId }}</strong> · {{ current.alignedAt | localTime: 'date-time' }} ·
+                    {{ methodNote(current.method) }}
+                  </span>
+                  <!-- Removes the alignment, after asking. -->
+                  <ion-button
+                    fill="clear"
+                    size="small"
+                    aria-label="Remove alignment"
+                    data-testid="remove-alignment"
+                    (click)="removeAlignment()"
+                  >
+                    <ion-icon slot="icon-only" name="trash-outline" aria-hidden="true"></ion-icon>
+                  </ion-button>
+                </ion-card-content>
+              </ion-card>
             }
-          </ion-list>
-        }
 
-        @case ('centre') {
-          @if (chosen(); as star) {
-            <h2>Centre {{ star.id }}</h2>
-            <p>Look {{ describePosition(state.positionOf(star)) }}.</p>
-            <ol>
-              <li>Use your lowest-power eyepiece.</li>
-              <li>Move the telescope until {{ star.id }} is in the centre of the view.</li>
-              <li>Keep the telescope still, then confirm.</li>
-            </ol>
-            <ion-button expand="block" data-testid="confirm-centred" (click)="confirm()">
-              The star is centred
-            </ion-button>
-            <ion-button expand="block" fill="clear" (click)="step.set('choose')">Choose another star</ion-button>
-            <ion-text color="medium">
-              <p data-testid="alignment-source">
-                When you confirm, the phone's camera takes a picture of the sky and plate solves it to find exactly
-                where it points. Keep the telescope still for a few seconds.
-              </p>
-            </ion-text>
-          }
-        }
+            <p>Choose a bright object you can see.</p>
 
-        @case ('solving') {
-          <h2 data-testid="alignment-solving">Plate solving…</h2>
-          <p>Keep the telescope still.</p>
-        }
-
-        @case ('failed') {
-          <h2>Couldn't plate solve</h2>
-          <ion-text color="warning">
-            <p data-testid="alignment-failed">{{ failure() }}</p>
-          </ion-text>
-          <ion-button expand="block" data-testid="retry-solve" (click)="confirm()">Try again</ion-button>
-          @if (state.cameraPointing()) {
-            <ion-button expand="block" fill="outline" data-testid="align-with-sensors" (click)="useSensors()">
-              Use the sensors instead, less accurate
-            </ion-button>
-          }
-          @if (isPreview) {
-            <ion-button expand="block" fill="clear" data-testid="align-simulated" (click)="useSimulated()">
-              Development preview: simulate the camera
-            </ion-button>
-          }
-          <ion-button expand="block" fill="clear" (click)="step.set('choose')">Choose another star</ion-button>
-        }
-
-        @case ('done') {
-          @if (state.alignment(); as current) {
-            <h2>Aligned on {{ current.starId }}</h2>
-            <p data-testid="alignment-result">
-              Your camera points {{ offsetAngle() | number: '1.1-1' }}° away from your telescope,
-              {{ resultNote(current.method) }}. The app will now allow for this difference.
-            </p>
-            @if (current.method !== 'plate-solve') {
-              <ion-text color="warning">
-                <p>Align again with plate solving when the sky is clear, for an accurate result.</p>
+            @if (skyIsBright()) {
+              <ion-text color="warning" data-testid="bright-sky">
+                <p>Too bright, try after dark.</p>
               </ion-text>
             }
-            <p>No further alignment is needed unless the phone moves in its mount.</p>
-            <ion-button expand="block" data-testid="alignment-done" (click)="finish()">Done</ion-button>
-            <ion-button expand="block" fill="clear" (click)="step.set('choose')">Align again</ion-button>
+
+            <!-- The target selected on the map, while it is above the horizon: any object in view can be solved. -->
+            @if (selectedTarget(); as target) {
+              <ion-list>
+                <ion-list-header>Selected target</ion-list-header>
+                <ion-item button detail="true" data-testid="align-selected-target" (click)="choose(target)">
+                  <ion-label>
+                    <h2>{{ target.id }}</h2>
+                    <p>{{ describePosition(state.positionOf(target)) }} · mag {{ target.mag | number: '1.1-1' }}</p>
+                  </ion-label>
+                </ion-item>
+              </ion-list>
+            }
+
+            <ion-list>
+              <ion-list-header>Easiest to see now</ion-list-header>
+              @for (suggestion of suggestions(); track suggestion.star.id) {
+                <ion-item button detail="true" data-testid="alignment-star" (click)="choose(suggestion.star)">
+                  <ion-label>
+                    <h2>{{ suggestion.star.id }}</h2>
+                    <p>{{ describePosition(suggestion.position) }} · mag {{ suggestion.mag | number: '1.1-1' }}</p>
+                  </ion-label>
+                </ion-item>
+              } @empty {
+                <ion-item>
+                  <ion-note>No bright stars are well placed right now.</ion-note>
+                </ion-item>
+              }
+            </ion-list>
+          }
+
+          @case ('centre') {
+            @if (chosen(); as target) {
+              <div class="step">
+                <div class="step-head">
+                  <h2>Centre {{ target.id }}</h2>
+                  <p>{{ describePosition(state.positionOf(target)) }}</p>
+                  <p>Lowest-power eyepiece, then hold still</p>
+                </div>
+                <!-- Big and round in the middle, to find by feel while looking in the eyepiece. -->
+                <!-- The same crosshair as the align button on the map. -->
+                <ion-button class="big-round" data-testid="confirm-centred" (click)="confirm()">
+                  <span class="big-round-content">
+                    <ion-icon name="locate-outline" aria-hidden="true"></ion-icon>
+                    <span>Align</span>
+                  </span>
+                </ion-button>
+                <div class="step-actions">
+                  <ion-button expand="block" fill="outline" (click)="step.set('choose')">Other target</ion-button>
+                </div>
+              </div>
+            }
+          }
+
+          @case ('solving') {
+            <div class="step">
+              <div class="step-head">
+                <h2>Plate solving</h2>
+                <p>Hold still</p>
+              </div>
+              <div class="big-round solving" data-testid="alignment-solving">
+                <span class="big-round-content">
+                  <ion-spinner name="crescent" aria-hidden="true"></ion-spinner>
+                  <span>Solving…</span>
+                </span>
+              </div>
+              <div class="step-actions"></div>
+            </div>
+          }
+
+          @case ('failed') {
+            <div class="step">
+              <div class="step-head">
+                <h2>Couldn't solve</h2>
+                <p class="warn-text" data-testid="alignment-failed">{{ failure() }}</p>
+              </div>
+              <ion-button class="big-round" data-testid="retry-solve" (click)="confirm()">
+                <span class="big-round-content">
+                  <ion-icon name="refresh" aria-hidden="true"></ion-icon>
+                  <span>Retry</span>
+                </span>
+              </ion-button>
+              <div class="step-actions">
+                @if (state.cameraPointing()) {
+                  <ion-button expand="block" fill="outline" data-testid="align-with-sensors" (click)="useSensors()">
+                    Use sensors (rough)
+                  </ion-button>
+                }
+                @if (isPreview) {
+                  <!-- Development only: there are no stars to solve on a desk. -->
+                  <ion-button expand="block" fill="outline" data-testid="align-simulated" (click)="useSimulated()">
+                    Simulate the camera
+                  </ion-button>
+                }
+                <ion-button expand="block" fill="outline" (click)="step.set('choose')">Other target</ion-button>
+              </div>
+            </div>
+          }
+
+          @case ('done') {
+            @if (state.alignment(); as current) {
+              <!-- The same layout as the steps before: the result at the top, Done in the middle. -->
+              <div class="step">
+                <div class="step-head">
+                  <h2>Aligned on {{ current.starId }}</h2>
+                  <p data-testid="alignment-result">
+                    Camera offset {{ offsetAngle() | number: '1.1-1' }}° · {{ resultNote(current.method) }}
+                  </p>
+                  @if (current.method !== 'plate-solve') {
+                    <p class="warn-text">Rough. Align again with a clear sky.</p>
+                  }
+                </div>
+                <ion-button class="big-round" data-testid="alignment-done" (click)="finish()">
+                  <span class="big-round-content">
+                    <ion-icon name="checkmark" aria-hidden="true"></ion-icon>
+                    <span>Done</span>
+                  </span>
+                </ion-button>
+                <div class="step-actions">
+                  <ion-button expand="block" fill="outline" (click)="step.set('choose')">Align again</ion-button>
+                </div>
+              </div>
+            }
           }
         }
       }
@@ -189,6 +386,15 @@ export class AlignPage {
   protected readonly state = inject(AppState);
   private readonly liveSolver = inject(LiveSolverService);
   private readonly router = inject(Router);
+  private readonly alerts = inject(AlertController);
+
+  constructor() {
+    // A Bluetooth shutter remote presses the big round button, when the setting is on.
+    const onKey = (event: KeyboardEvent) => this.shutterPressed(event);
+    window.addEventListener('keydown', onKey);
+    inject(DestroyRef).onDestroy(() => window.removeEventListener('keydown', onKey));
+    addIcons({ checkmark, checkmarkCircleOutline, locateOutline, refresh, timeOutline, trashOutline });
+  }
 
   /** Simulating the camera is only offered in development, where there are no stars. */
   protected readonly isPreview = isDevMode();
@@ -196,6 +402,12 @@ export class AlignPage {
   protected readonly chosen = signal<Target | null>(null);
   protected readonly failure = signal('');
   private readonly solvedStars = signal(0);
+
+  /** Leaves planning, so alignment can measure the real sky. */
+  protected backToNow(): void {
+    this.state.plannedTime.set(null);
+    this.state.timeControlOpen.set(false);
+  }
 
   protected readonly skyIsBright = computed(() => this.state.conditions().sunAltDeg > BRIGHT_SKY_SUN_ALT_DEG);
 
@@ -221,20 +433,51 @@ export class AlignPage {
   });
 
   /** Describes a position in everyday terms, such as "in the east, 60° up". */
+  /** The target selected on the map, if it is above the horizon to centre in the eyepiece. */
+  protected readonly selectedTarget = computed(() => {
+    const target = this.state.selectedTarget();
+    return target && this.state.positionOf(target).altDeg > 0 ? target : null;
+  });
+
+  /**
+   * A shutter remote's press: Align while centring, and Retry after a failed solve. Only
+   * on this page and those steps, so a stray press elsewhere does nothing.
+   */
+  private shutterPressed(event: KeyboardEvent): void {
+    if (!this.state.settings().shutterAligns || !isShutterPress(event)) return;
+    if (!this.router.url.startsWith('/align')) return;
+    const step = this.step();
+    if (step !== 'centre' && step !== 'failed') return;
+    event.preventDefault();
+    void this.confirm();
+  }
+
+  /** Forgets the alignment, after asking: it took a clear sky to measure. */
+  protected async removeAlignment(): Promise<void> {
+    const alert = await this.alerts.create({
+      header: 'Remove alignment?',
+      buttons: [
+        { text: 'Cancel', role: 'cancel' },
+        { text: 'Remove', role: 'destructive', handler: () => this.state.alignment.set(null) },
+      ],
+    });
+    await alert.present();
+  }
+
   protected describePosition(position: Horizontal): string {
-    return `in the ${compassPoint(position.azDeg)}, ${Math.round(position.altDeg)}° up`;
+    return `In the ${compassPoint(position.azDeg)}, ${Math.round(position.altDeg)}° up`;
   }
 
   protected methodNote(method: AlignmentMethod | undefined): string {
-    if (method === 'plate-solve') return 'by plate solving';
-    if (method === 'simulated') return 'with a simulated camera';
-    return 'using the sensors, which is less accurate';
+    if (method === 'plate-solve') return 'plate solved';
+    if (method === 'simulated') return 'simulated';
+    return 'sensors, rough';
   }
 
   protected resultNote(method: AlignmentMethod | undefined): string {
-    if (method === 'plate-solve') return `measured by plate solving ${this.solvedStars()} stars`;
-    if (method === 'simulated') return 'simulated in this preview';
-    return 'according to the sensors, which can be several degrees off';
+    if (method === 'plate-solve') return `plate solved, ${this.solvedStars()} stars`;
+    if (method === 'simulated') return 'simulated';
+    return 'from the sensors';
   }
 
   protected choose(star: Target): void {

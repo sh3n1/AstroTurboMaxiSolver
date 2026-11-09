@@ -66,7 +66,7 @@ test('shows the location bottom left, only while no target is selected', async (
   await context.setGeolocation({ latitude: 40.4168, longitude: -3.7038 });
   await page.goto('/');
   const location = page.locator('[data-testid=location]');
-  await expect(location).toContainText('Location not set');
+  await expect(location).toContainText('Set location');
 
   // One tap uses the GPS, rounded to two decimals.
   await location.click();
@@ -86,7 +86,11 @@ test('shows target details from the target bar', async ({ page }) => {
   await expect(page.locator('app-targets ion-item').first()).toContainText('M31');
   await page.locator('app-targets ion-item').first().click();
   await expect(page.locator('[data-testid=target-bar]')).toContainText('M31');
+  // The details button is filled while the details are open.
+  const infoIcon = page.locator('[data-testid=target-info] ion-icon');
+  await expect(infoIcon).toHaveAttribute('name', 'information-circle-outline');
   await page.locator('[data-testid=target-info]').click();
+  await expect(infoIcon).toHaveAttribute('name', 'information-circle');
   const details = page.locator('[data-testid=target-details]');
   // What it is and where, both of its sizes, and its pass across the sky.
   await expect(page.locator('[data-testid=details-type]')).toHaveText(/Spiral galaxy\s+· in Andromeda/);
@@ -248,6 +252,37 @@ test('aligns the telescope on a suggested star', async ({ page }) => {
   await expect(page.locator('[data-testid=alignment-status]')).toContainText(starName);
 });
 
+test('aligns on the selected target, and sums up the alignment on one line', async ({ page }) => {
+  // A star the page suggests, so it is surely above the horizon now.
+  await page.goto('/align');
+  const name = (await page.locator('[data-testid=alignment-star] h2').first().textContent())!.trim();
+  await expect(page.locator('[data-testid=align-selected-target]')).toHaveCount(0);
+
+  // Selected on the map, it is offered first.
+  await page.goto('/tabs/targets');
+  await page.locator('app-targets ion-searchbar input').fill(name);
+  await expect(page.locator('app-targets ion-item').first()).toContainText(name);
+  await page.locator('app-targets ion-item').first().click();
+  await page.locator('[data-testid=alignment-status]').click();
+  await expect(page.locator('[data-testid=align-selected-target]')).toContainText(name);
+  await page.locator('[data-testid=align-selected-target]').click();
+  await expect(page.locator('h2').filter({ hasText: `Centre ${name}` })).toBeVisible();
+
+  await page.locator('[data-testid=confirm-centred]').click();
+  await page.locator('[data-testid=align-simulated]').click();
+  await page.locator('[data-testid=alignment-done]').click();
+  await page.locator('[data-testid=alignment-status]').click();
+  await expect(page.locator('[data-testid=current-alignment]')).toContainText(`${name} ·`);
+  await expect(page.locator('[data-testid=current-alignment]')).toContainText('simulated');
+
+  // The bin removes it, after asking.
+  await page.locator('[data-testid=remove-alignment]').click();
+  await page.locator('ion-alert button', { hasText: 'Remove' }).click();
+  await expect(page.locator('[data-testid=current-alignment]')).toHaveCount(0);
+  await page.locator('ion-back-button').click();
+  await expect(page.locator('[data-testid=alignment-status]')).toContainText('Not aligned');
+});
+
 test('asks for alignment again after the mount changes', async ({ page }) => {
   await page.goto('/align');
   await page.locator('[data-testid=alignment-star]').first().click();
@@ -270,7 +305,7 @@ test('filters targets by type', async ({ page }) => {
   await page.goto('/tabs/targets');
   await page.locator('app-targets ion-chip', { hasText: 'Galaxy' }).click();
   await expect(page.locator('app-targets ion-item')).toHaveCount(40);
-  await expect(page.locator('[data-testid=more-results]')).toContainText('Showing 40 of');
+  await expect(page.locator('[data-testid=more-results]')).toContainText('40 of');
   await expect(page.locator('app-targets ion-item', { hasText: 'Vega' })).toHaveCount(0);
 });
 
@@ -566,4 +601,29 @@ test('steps through the sky map, the eyepiece view and the eyepiece ring', async
   // And back to the sky map.
   await button.click();
   await expect(button).toHaveAttribute('data-mode', 'sky');
+});
+
+test('aligns with a Bluetooth shutter remote, when switched on in Settings', async ({ page }) => {
+  // A remote sends Volume Up, as a key press.
+  const pressRemote = () =>
+    page.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'AudioVolumeUp' })));
+
+  // Off at first: a press does nothing.
+  await page.goto('/align');
+  await page.locator('[data-testid=alignment-star]').first().click();
+  await expect(page.locator('[data-testid=confirm-centred]')).toBeVisible();
+  await pressRemote();
+  await page.waitForTimeout(300);
+  await expect(page.locator('[data-testid=confirm-centred]')).toBeVisible();
+
+  // Switched on, a press aligns. This browser has no camera, so the solve fails, and a press retries.
+  await page.goto('/tabs/settings');
+  await page.locator('[data-testid=shutter-aligns]').click();
+  await expect(page.locator('[data-testid=shutter-aligns]')).toHaveClass(/toggle-checked/);
+  await page.goto('/align');
+  await page.locator('[data-testid=alignment-star]').first().click();
+  await pressRemote();
+  await expect(page.locator('[data-testid=alignment-failed]')).toBeVisible();
+  await pressRemote();
+  await expect(page.locator('[data-testid=alignment-failed]')).toBeVisible();
 });

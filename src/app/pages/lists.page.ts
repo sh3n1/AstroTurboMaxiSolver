@@ -98,7 +98,9 @@ import { FIXED_LISTS } from '../core/target-lists';
             <ion-icon slot="start" aria-hidden="true" [name]="fixed[i].icon"></ion-icon>
             <ion-label>
               <h2>{{ list.name }}</h2>
-              <p>{{ fixed[i].description }}</p>
+              @if (fixed[i].description) {
+                <p>{{ fixed[i].description }}</p>
+              }
             </ion-label>
             <ion-badge slot="end" color="medium">{{ list.targets.length }}</ion-badge>
           </ion-item>
@@ -123,7 +125,7 @@ import { FIXED_LISTS } from '../core/target-lists';
         }
         <ion-item button detail="false" data-testid="new-list-item" (click)="newList()">
           <ion-icon slot="start" name="add" aria-hidden="true"></ion-icon>
-          <ion-label>New list…</ion-label>
+          <ion-label>New list</ion-label>
         </ion-item>
       </ion-list>
 
