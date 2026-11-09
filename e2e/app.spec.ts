@@ -500,7 +500,9 @@ test('sets star visibility and equipment in the eyepiece view', async ({ page })
 
 test('sets sky darkness in Settings, which changes the eyepiece view', async ({ page }) => {
   await page.goto('/tabs/settings');
-  await expect(page.locator('[data-testid=equipment-moved]')).toBeVisible();
+  // Telescope and eyepiece are set in the eyepiece view, not here.
+  await expect(page.locator('[data-testid=bortle]')).toBeVisible();
+  await expect(page.locator('app-settings')).not.toContainText('Telescope and eyepiece');
   await page.evaluate(() => {
     const select = document.querySelector('[data-testid=bortle]')!;
     select.dispatchEvent(new CustomEvent('ionChange', { detail: { value: 3 }, bubbles: true }));

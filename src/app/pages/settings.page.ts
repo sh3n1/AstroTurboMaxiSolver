@@ -39,7 +39,6 @@ import {
   phonePortraitOutline,
   scanOutline,
   sunnyOutline,
-  telescopeOutline,
   textOutline,
 } from 'ionicons/icons';
 
@@ -267,7 +266,6 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
           <ion-icon slot="start" name="scan-outline" aria-hidden="true"></ion-icon>
           <ion-toggle
             data-testid="auto-solve"
-            helperText="Uses the camera while sensors are on. For now, only with the camera pointing straight at the sky."
             [checked]="settings().autoSolve"
             (ionChange)="state.updateSettings({ autoSolve: $any($event).detail.checked })"
           >
@@ -279,19 +277,11 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
           <ion-icon slot="start" name="bluetooth-outline" aria-hidden="true"></ion-icon>
           <ion-toggle
             data-testid="shutter-aligns"
-            helperText="Its button aligns, as the big round button does"
             [checked]="settings().shutterAligns"
             (ionChange)="state.updateSettings({ shutterAligns: $any($event).detail.checked })"
           >
             Shutter remote aligns
           </ion-toggle>
-        </ion-item>
-        <ion-item lines="none" data-testid="equipment-moved">
-          <ion-icon slot="start" name="telescope-outline" aria-hidden="true"></ion-icon>
-          <ion-label class="ion-text-wrap">
-            <h2>Telescope and eyepiece</h2>
-            <p>Set in the Sky tab's eyepiece view</p>
-          </ion-label>
         </ion-item>
       </ion-list>
 
@@ -324,7 +314,6 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
           <ion-icon slot="start" name="moon-outline" aria-hidden="true"></ion-icon>
           <ion-toggle
             data-testid="night-mode"
-            helperText="Keeps your eyes used to the dark. Also on the moon button on the sky map."
             [checked]="settings().nightMode"
             (ionChange)="state.updateSettings({ nightMode: $any($event).detail.checked })"
           >
@@ -347,7 +336,6 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
           <ion-icon slot="start" name="grid-outline" aria-hidden="true"></ion-icon>
           <ion-toggle
             data-testid="show-equatorial"
-            helperText="Right ascension and declination of the view, top left on the sky map."
             [checked]="settings().showEquatorial"
             (ionChange)="state.updateSettings({ showEquatorial: $any($event).detail.checked })"
           >
@@ -370,7 +358,7 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
           <ion-icon slot="start" name="chatbubble-ellipses-outline" aria-hidden="true"></ion-icon>
           <ion-toggle
             data-testid="success-toast"
-            helperText="Failures always show one. This adds one for each success, with the stars matched."
+            helperText="Failures always show one."
             [checked]="settings().solveSuccessToast"
             (ionChange)="state.updateSettings({ solveSuccessToast: $any($event).detail.checked })"
           >
@@ -511,7 +499,6 @@ export class SettingsPage {
       phonePortraitOutline,
       scanOutline,
       sunnyOutline,
-      telescopeOutline,
       textOutline,
     });
   }

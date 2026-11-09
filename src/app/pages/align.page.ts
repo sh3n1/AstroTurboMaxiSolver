@@ -127,37 +127,90 @@ const PREVIEW_CAMERA_ERROR: Horizontal = { altDeg: 2, azDeg: 3 };
     .warn-text {
       color: #ffb454;
     }
-    .big-round {
+    /*
+     * The big round button: a filled disc inside one thin ring, like the reticle's rings.
+     * Every step uses the same disc, ring, icon and words, and only the colours change:
+     * light blue to act, dashed and turning while solving, an amber ring after a failure,
+     * and green once aligned.
+     */
+    .big-round-ring {
+      position: relative;
       align-self: center;
       margin: auto 0;
+      padding: 10px;
+      border-radius: 50%;
+    }
+    .big-round-ring::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border: 2px solid var(--ring, var(--ion-color-primary));
+      border-radius: 50%;
+    }
+    .big-round-ring.solving::before {
+      border-style: dashed;
+      animation: turn 6s linear infinite;
+    }
+    .big-round-ring.failed {
+      --ring: #ffb454;
+    }
+    .big-round-ring.done {
+      --ring: #6fcf9f;
+    }
+    @keyframes turn {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .big-round-ring.solving::before {
+        animation: none;
+      }
+    }
+    .big-round {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
       width: calc(170px * var(--af-scale));
       height: calc(170px * var(--af-scale));
+      margin: 0;
       --border-radius: 50%;
-      --box-shadow: 0 0 0 8px rgb(143 183 255 / 22%);
+      --box-shadow: none;
+      --background: var(--ion-color-primary);
+      --background-activated: var(--ion-color-primary-shade);
+      --color: #0a0e1a;
       font-size: calc(20px * var(--af-scale));
       font-weight: 700;
+      transition: transform 80ms ease-out;
+    }
+    /* A small give when pressed, to feel it work without looking. */
+    .big-round:active {
+      transform: scale(0.96);
+    }
+    .big-round.done {
+      --background: #6fcf9f;
+      --background-activated: #5bb98b;
+    }
+    /* While solving it can't be pressed: a dim disc, the words in full-strength text. */
+    .big-round.solving {
+      border-radius: 50%;
+      background: rgb(143 183 255 / 16%);
+      color: var(--af-text);
     }
     .big-round-content {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
     }
-    .big-round ion-icon {
-      font-size: calc(56px * var(--af-scale));
+    .big-round ion-icon,
+    .big-round ion-spinner {
+      width: calc(52px * var(--af-scale));
+      height: calc(52px * var(--af-scale));
+      font-size: calc(52px * var(--af-scale));
     }
-    /* While solving: the same circle, outlined, with a spinner. */
-    .big-round.solving {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border: 3px solid var(--ion-color-primary);
-      border-radius: 50%;
-      color: var(--af-text);
-    }
-    .big-round.solving ion-spinner {
-      width: calc(48px * var(--af-scale));
-      height: calc(48px * var(--af-scale));
+    .big-round ion-spinner {
       color: var(--ion-color-primary);
     }
     .step-actions {
@@ -294,12 +347,14 @@ const PREVIEW_CAMERA_ERROR: Horizontal = { altDeg: 2, azDeg: 3 };
                 </div>
                 <!-- Big and round in the middle, to find by feel while looking in the eyepiece. -->
                 <!-- The same crosshair as the align button on the map. -->
-                <ion-button class="big-round" data-testid="confirm-centred" (click)="confirm()">
-                  <span class="big-round-content">
-                    <ion-icon name="locate-outline" aria-hidden="true"></ion-icon>
-                    <span>Align</span>
-                  </span>
-                </ion-button>
+                <div class="big-round-ring">
+                  <ion-button class="big-round" data-testid="confirm-centred" (click)="confirm()">
+                    <span class="big-round-content">
+                      <ion-icon name="locate-outline" aria-hidden="true"></ion-icon>
+                      <span>Align</span>
+                    </span>
+                  </ion-button>
+                </div>
                 <div class="step-actions">
                   <ion-button expand="block" fill="outline" (click)="step.set('choose')">Other target</ion-button>
                 </div>
@@ -313,11 +368,13 @@ const PREVIEW_CAMERA_ERROR: Horizontal = { altDeg: 2, azDeg: 3 };
                 <h2>Plate solving</h2>
                 <p>Hold still</p>
               </div>
-              <div class="big-round solving" data-testid="alignment-solving">
-                <span class="big-round-content">
-                  <ion-spinner name="crescent" aria-hidden="true"></ion-spinner>
-                  <span>Solving…</span>
-                </span>
+              <div class="big-round-ring solving">
+                <div class="big-round solving" data-testid="alignment-solving">
+                  <span class="big-round-content">
+                    <ion-spinner name="crescent" aria-hidden="true"></ion-spinner>
+                    <span>Solving…</span>
+                  </span>
+                </div>
               </div>
               <div class="step-actions"></div>
             </div>
@@ -329,12 +386,14 @@ const PREVIEW_CAMERA_ERROR: Horizontal = { altDeg: 2, azDeg: 3 };
                 <h2>Couldn't solve</h2>
                 <p class="warn-text" data-testid="alignment-failed">{{ failure() }}</p>
               </div>
-              <ion-button class="big-round" data-testid="retry-solve" (click)="confirm()">
-                <span class="big-round-content">
-                  <ion-icon name="refresh" aria-hidden="true"></ion-icon>
-                  <span>Retry</span>
-                </span>
-              </ion-button>
+              <div class="big-round-ring failed">
+                <ion-button class="big-round" data-testid="retry-solve" (click)="confirm()">
+                  <span class="big-round-content">
+                    <ion-icon name="refresh" aria-hidden="true"></ion-icon>
+                    <span>Retry</span>
+                  </span>
+                </ion-button>
+              </div>
               <div class="step-actions">
                 @if (state.cameraPointing()) {
                   <ion-button expand="block" fill="outline" data-testid="align-with-sensors" (click)="useSensors()">
@@ -365,12 +424,14 @@ const PREVIEW_CAMERA_ERROR: Horizontal = { altDeg: 2, azDeg: 3 };
                     <p class="warn-text">Rough. Align again with a clear sky.</p>
                   }
                 </div>
-                <ion-button class="big-round" data-testid="alignment-done" (click)="finish()">
-                  <span class="big-round-content">
-                    <ion-icon name="checkmark" aria-hidden="true"></ion-icon>
-                    <span>Done</span>
-                  </span>
-                </ion-button>
+                <div class="big-round-ring done">
+                  <ion-button class="big-round done" data-testid="alignment-done" (click)="finish()">
+                    <span class="big-round-content">
+                      <ion-icon name="checkmark" aria-hidden="true"></ion-icon>
+                      <span>Done</span>
+                    </span>
+                  </ion-button>
+                </div>
                 <div class="step-actions">
                   <ion-button expand="block" fill="outline" (click)="step.set('choose')">Align again</ion-button>
                 </div>
