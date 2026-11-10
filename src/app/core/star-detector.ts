@@ -21,6 +21,10 @@ export interface DetectedStar {
   /** How far the star stands above the noise. */
   snr: number;
   pixels: number;
+  /** The brightest pixel above the sky right around it, in grey levels. */
+  peak: number;
+  /** The spread of its light around its centre, in pixels (the RMS radius per axis). */
+  width: number;
 }
 
 export interface DetectionResult {
@@ -77,6 +81,35 @@ const LIGHT_MIN_PEAK = 10;
  */
 const ROUNDING_PATCH_PIXELS = 10;
 const MIN_PATCH_PEAK_LEVELS = 1.5;
+/**
+ * The camera's image has whole grey levels, so a speck one level above the sky is
+ * rounding, not light. Every star must stand at least this many levels above the sky
+ * right around it. Measured on city frames, this drops about two thirds of false
+ * detections and keeps four in five real stars.
+ */
+const MIN_PEAK_LEVELS = 2;
+/**
+ * The lens blurs every star in a frame to about the same size, whatever its brightness.
+ * A small light or a sharp edge is smaller than that, and a lit window or sign is larger.
+ * A detection's size, measured independently of its brightness, must be within this
+ * range of the frame's typical star size. Measured on city frames, real stars fall
+ * within 0.72 to 1.34 times the typical size nine times in ten.
+ */
+const MIN_RELATIVE_SIZE = 0.6;
+const MAX_RELATIVE_SIZE = 1.6;
+/** The typical size comes from detections at least this many times their threshold, which measure their size well. */
+const SIZE_SAMPLE_MIN_PEAK = 1.25;
+/** With fewer such detections the typical size isn't known, and the size check is skipped. */
+const MIN_SIZE_SAMPLE = 10;
+/**
+ * Stars are handed to the solver spread over the frame: the frame is cut into this many
+ * cells along its short and long sides, and each round takes the brightest remaining
+ * detection from every cell. Lit buildings, trees or glow in one part of the frame can
+ * then only fill their share of the list, wherever they are, and the stars elsewhere
+ * still reach the solver.
+ */
+const SPREAD_CELLS_SHORT_SIDE = 3;
+const SPREAD_CELLS_LONG_SIDE = 5;
 /** Groups this small are too few pixels to judge their shape reliably. */
 const MIN_PIXELS_FOR_SHAPE = 6;
 /**
@@ -214,7 +247,63 @@ function elongation(sumXX: number, sumYY: number, sumXY: number, flux: number, c
   return Math.sqrt(Math.max(longest, 0) / shortest);
 }
 
-/** Finds stars in a greyscale image, stored row by row. Brightest come first. */
+/**
+ * A star's blur size, independent of how bright it is. For a blur of standard deviation
+ * s, the pixels above a threshold T around a peak P cover an area of 2π·s²·ln(P / T), so
+ * s follows from the pixel count. A bright star covers more pixels than a faint one, but
+ * gives the same s.
+ */
+function blurSize(pixels: number, peak: number, threshold: number): number {
+  return Math.sqrt(pixels / (2 * Math.PI * Math.log(Math.max(peak / threshold, 1.05))));
+}
+
+/**
+ * Keeps the detections whose blur size is close to the frame's typical star size. `all`
+ * and `measures` are every detection found and its size, in the same order, from which
+ * the typical size is taken; `kept` are those still in play.
+ */
+function withTypicalSize(
+  kept: DetectedStar[],
+  all: DetectedStar[],
+  measures: { size: number; measurable: boolean }[],
+): DetectedStar[] {
+  const sizeOf = new Map(all.map((star, i) => [star, measures[i].size]));
+  const sample = measures.filter((measure) => measure.measurable).map((measure) => measure.size);
+  if (sample.length < MIN_SIZE_SAMPLE) return kept;
+  const typical = median(sample);
+  return kept.filter((star) => {
+    const relative = sizeOf.get(star)! / typical;
+    return relative >= MIN_RELATIVE_SIZE && relative <= MAX_RELATIVE_SIZE;
+  });
+}
+
+/**
+ * Orders stars so they are spread over the frame: each round takes the brightest remaining
+ * star from every cell of a grid, brightest of those first.
+ */
+function spreadOver(stars: DetectedStar[], width: number, height: number): DetectedStar[] {
+  const [cols, rows] =
+    width <= height
+      ? [SPREAD_CELLS_SHORT_SIDE, SPREAD_CELLS_LONG_SIDE]
+      : [SPREAD_CELLS_LONG_SIDE, SPREAD_CELLS_SHORT_SIDE];
+  const cells = new Map<number, DetectedStar[]>();
+  for (const star of [...stars].sort((a, b) => b.flux - a.flux)) {
+    const row = Math.min(rows - 1, Math.floor((star.y / height) * rows));
+    const col = Math.min(cols - 1, Math.floor((star.x / width) * cols));
+    const list = cells.get(row * cols + col) ?? [];
+    list.push(star);
+    cells.set(row * cols + col, list);
+  }
+  const ordered: DetectedStar[] = [];
+  for (let round = 0; ordered.length < stars.length; round++) {
+    const picks = [...cells.values()].flatMap((list) => (list[round] ? [list[round]] : []));
+    picks.sort((a, b) => b.flux - a.flux);
+    ordered.push(...picks);
+  }
+  return ordered;
+}
+
+/** Finds stars in a greyscale image, stored row by row, spread over the frame (see spreadOver). */
 export function detectStars(pixels: Float32Array, width: number, height: number): DetectionResult {
   const blocks: Blocks = {
     cols: Math.max(1, Math.floor(width / BLOCK_SIZE)),
@@ -237,6 +326,8 @@ export function detectStars(pixels: Float32Array, width: number, height: number)
   const stack: number[] = [];
   const members: number[] = [];
   const stars: DetectedStar[] = [];
+  // For each star, in the same order: its blur size, and whether it is bright enough to measure it well.
+  const measures: { size: number; measurable: boolean }[] = [];
   // Areas around bright lights, as [left, top, right, bottom], whose spots are glare.
   const glare: [number, number, number, number][] = [];
   for (let start = 0; start < residual.length; start++) {
@@ -295,7 +386,7 @@ export function detectStars(pixels: Float32Array, width: number, height: number)
     // Only the part above the sky right around it counts. A step in the sky has none.
     const localSky = ringSky(residual, width, height, [left, top, right, bottom]);
     const rise = peak - localSky;
-    if (rise < threshold) continue;
+    if (rise < threshold || rise < MIN_PEAK_LEVELS) continue;
     // A patch one grey level above the sky: rounding, not a star.
     if (count >= ROUNDING_PATCH_PIXELS && rise < MIN_PATCH_PEAK_LEVELS) continue;
 
@@ -317,7 +408,17 @@ export function detectStars(pixels: Float32Array, width: number, height: number)
     if (count >= BROAD_PIXELS && peak < BROAD_MIN_PEAK * threshold) continue;
 
     const noise = threshold / THRESHOLD_SIGMA;
-    stars.push({ x: cx, y: cy, flux, snr: flux / (noise * Math.sqrt(count)), pixels: count });
+    const spread = Math.sqrt(Math.max(0, (sumXX / flux - cx * cx + sumYY / flux - cy * cy) / 2));
+    stars.push({
+      x: cx,
+      y: cy,
+      flux,
+      snr: flux / (noise * Math.sqrt(count)),
+      pixels: count,
+      peak: rise,
+      width: spread,
+    });
+    measures.push({ size: blurSize(count, rise, threshold), measurable: rise >= SIZE_SAMPLE_MIN_PEAK * threshold });
   }
 
   // Lights are only known once found, so glare is removed at the end.
@@ -329,11 +430,11 @@ export function detectStars(pixels: Float32Array, width: number, height: number)
     star.pixels >= CLUSTER_SPOT_PIXELS &&
     unglared.filter((other) => other !== star && Math.hypot(other.x - star.x, other.y - star.y) < CLUSTER_RADIUS_PX)
       .length >= CLUSTER_NEIGHBOURS;
-  const real = unglared.filter((star) => !isInCluster(star));
+  const unclustered = unglared.filter((star) => !isInCluster(star));
+  const real = withTypicalSize(unclustered, stars, measures);
 
-  real.sort((a, b) => b.flux - a.flux);
   return {
-    stars: real.slice(0, MAX_STARS),
+    stars: spreadOver(real, width, height).slice(0, MAX_STARS),
     background: median(Array.from(sky)),
     noise: median(Array.from(noiseGrid)),
   };

@@ -6,6 +6,8 @@ import {
   buildSolverIndex,
   catalogFromRows,
   chanceOfAtLeast,
+  fitRotation,
+  imageToCamera,
   matchesNeeded,
   measureDepth,
   solveFrame,
@@ -128,6 +130,32 @@ describe('star detection', () => {
     const pixels = new Float32Array(width * height);
     for (let i = 0; i < pixels.length; i++) pixels[i] = 60 + (i / pixels.length) * 30 + (random() - 0.5) * 8;
     expect(detectStars(pixels, width, height).stars.length).toBeLessThan(3);
+  });
+});
+
+describe('fitting the camera rotation to matched stars', () => {
+  it('recovers the rotation from all matches, averaging out their errors', () => {
+    // A known rotation: 40° about one axis, then 25° about another.
+    const [a, b] = [40 * RAD, 25 * RAD];
+    const rotate = (v: Vector3): Vector3 => {
+      const r: Vector3 = [Math.cos(a) * v[0] - Math.sin(a) * v[1], Math.sin(a) * v[0] + Math.cos(a) * v[1], v[2]];
+      return [r[0], Math.cos(b) * r[1] - Math.sin(b) * r[2], Math.sin(b) * r[1] + Math.cos(b) * r[2]];
+    };
+    // Twenty stars across the frame, each measured with up to a pixel and a half of error.
+    const random = randomSource(3);
+    const matches = Array.from({ length: 20 }, () => {
+      const star = { x: random() * FRAME.width, y: random() * FRAME.height };
+      const camera = imageToCamera(star, FRAME);
+      const measured = imageToCamera({ x: star.x + (random() - 0.5) * 3, y: star.y + (random() - 0.5) * 3 }, FRAME);
+      return { camera: measured, sky: rotate(camera) };
+    });
+    const toSky = fitRotation(matches);
+    // The middle of the frame lands within a small fraction of a pixel's angle.
+    const pixelDeg = 1 / FRAME.focalPx / RAD;
+    expect(angleDeg(toSky([0, 0, 1]), rotate([0, 0, 1]))).toBeLessThan(0.5 * pixelDeg);
+    // And the result is a true rotation, keeping lengths.
+    const v = toSky(normalize([0.3, -0.2, 1]));
+    expect(Math.hypot(v[0], v[1], v[2])).toBeCloseTo(1, 9);
   });
 });
 
@@ -397,6 +425,55 @@ describe('star detection among real-world clutter', () => {
     expect(kept.length).toBeGreaterThanOrEqual(0.95 * above.length);
     const solution = solveFrame(found, FRAME, index);
     expect(angleDeg(solution!.pointing, truth)).toBeLessThan(0.2);
+  });
+
+  it('keeps stars elsewhere in the frame when bright star-like lights crowd one side', () => {
+    const { pixels, truth } = render({ raDeg: 84, decDeg: 0 });
+    // Fifty small lights down the left third, each shaped like a star but brighter than
+    // any real one, as distant lamps or windows can be. They can't be told from stars by
+    // shape, so they must simply not fill the solver's list.
+    const random = randomSource(7);
+    for (let i = 0; i < 50; i++) {
+      const [lx, ly] = [10 + random() * 160, 10 + random() * (height - 20)];
+      for (let dy = -4; dy <= 4; dy++) {
+        for (let dx = -4; dx <= 4; dx++) {
+          const [ix, iy] = [Math.round(lx) + dx, Math.round(ly) + dy];
+          pixels[at(ix, iy)] += 250 * Math.exp(-((ix - lx) ** 2 + (iy - ly) ** 2) / (2 * 1.1 ** 2));
+        }
+      }
+    }
+    const { stars: found } = detectStars(pixels, width, height);
+    // Among the first twelve, the ones the solver pairs up, most are real stars.
+    const realInFirst = found
+      .slice(0, 12)
+      .filter((f) => clean.some((star) => Math.hypot(star.x - f.x, star.y - f.y) < 2));
+    expect(realInFirst.length).toBeGreaterThanOrEqual(6);
+    const solution = solveFrame(found, FRAME, index);
+    expect(angleDeg(solution!.pointing, truth)).toBeLessThan(0.2);
+  });
+
+  it('ignores sharp points of light far smaller than the stars in the frame', () => {
+    const { pixels } = render({ raDeg: 84, decDeg: 0 });
+    // Bright 2 by 2 squares with no blur: too sharp to have come through the lens like a star.
+    const points: [number, number][] = [
+      [100, 150],
+      [300, 420],
+      [450, 700],
+    ];
+    for (const [x, y] of points) {
+      for (const [dx, dy] of [
+        [0, 0],
+        [1, 0],
+        [0, 1],
+        [1, 1],
+      ]) {
+        pixels[at(x + dx, y + dy)] = 250;
+      }
+    }
+    const { stars: found } = detectStars(pixels, width, height);
+    for (const [x, y] of points) {
+      expect(found.some((f) => Math.hypot(f.x - x - 0.5, f.y - y - 0.5) < 2)).toBe(false);
+    }
   });
 
   it('still finds a bright star whose middle is clipped by the camera', () => {

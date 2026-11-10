@@ -60,6 +60,8 @@ export interface Settings {
   shutterAligns: boolean;
   /** Show a toast for successful plate solves too, with the stars matched. For debugging. */
   solveSuccessToast: boolean;
+  /** Send every sky map plate solve, with its frame, to the PC running the dev server. For debugging. */
+  sendSolves: boolean;
   /** How dark the observer's sky is, on the Bortle scale from 1 (darkest) to 9. */
   bortle: number;
   /** The faintest stars the eyepiece view shows, or null to work it out from the sky. */
@@ -103,6 +105,8 @@ const DEFAULT_SETTINGS: Settings = {
   textSize: 'large',
   autoSolve: true,
   solveSuccessToast: false,
+  // Off by default: it only works with the dev server, and sends large frames.
+  sendSolves: false,
   showEquatorial: false,
   // On by default: at the telescope the phone sits untouched, and a sleeping screen stops the sensors.
   keepScreenOn: true,

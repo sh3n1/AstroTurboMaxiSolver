@@ -29,12 +29,20 @@ addEventListener('message', ({ data }: MessageEvent<SolveRequest>) => {
     indexes.set(key, index);
   }
 
+  const started = performance.now();
   const detection = detectStars(pixels, width, height);
+  const detected = performance.now();
   const solution = solveFrame(detection.stars, geometry, index, hint ?? undefined, timeLimitMs);
+  const solved = performance.now();
   const axis = (v: Vector3): Vector3 => (solution ? solution.toSky(v) : v);
   const response: SolveResponse = {
     id,
     starCount: detection.stars.length,
+    stars: detection.stars,
+    background: detection.background,
+    noise: detection.noise,
+    detectMs: Math.round(detected - started),
+    solveMs: Math.round(solved - detected),
     solution: solution
       ? {
           raDeg: solution.raDeg,

@@ -232,6 +232,60 @@ function triad(cameraA: Vector3, cameraB: Vector3, skyA: Vector3, skyB: Vector3)
   };
 }
 
+/**
+ * The rotation that best carries every matched camera direction onto its catalogue star,
+ * in the least-squares sense (Wahba's problem). Using all matches, rather than two,
+ * averages out centroid and lens distortion errors, which are largest towards the
+ * frame's edges. The answer is the rotation part (polar factor) of B = Σ sky · cameraᵀ,
+ * found with Higham's iteration X ← (X + X⁻ᵀ) / 2, which converges in a few steps.
+ */
+export function fitRotation(matches: readonly { camera: Vector3; sky: Vector3 }[]): (v: Vector3) => Vector3 {
+  let X = [
+    [0, 0, 0],
+    [0, 0, 0],
+    [0, 0, 0],
+  ];
+  for (const { camera, sky } of matches) {
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) X[i][j] += sky[i] * camera[j];
+  }
+  for (let step = 0; step < 30; step++) {
+    const inverseTranspose = invertTranspose(X);
+    if (!inverseTranspose) break;
+    X = X.map((row, i) => row.map((value, j) => (value + inverseTranspose[i][j]) / 2));
+  }
+  const R = X;
+  return (v) => [
+    R[0][0] * v[0] + R[0][1] * v[1] + R[0][2] * v[2],
+    R[1][0] * v[0] + R[1][1] * v[1] + R[1][2] * v[2],
+    R[2][0] * v[0] + R[2][1] * v[1] + R[2][2] * v[2],
+  ];
+}
+
+/** The inverse of a 3×3 matrix, transposed, or null if it has none. */
+function invertTranspose(m: number[][]): number[][] | null {
+  // The cofactor matrix divided by the determinant is exactly the inverse's transpose.
+  const cofactors = [
+    [
+      m[1][1] * m[2][2] - m[1][2] * m[2][1],
+      m[1][2] * m[2][0] - m[1][0] * m[2][2],
+      m[1][0] * m[2][1] - m[1][1] * m[2][0],
+    ],
+    [
+      m[0][2] * m[2][1] - m[0][1] * m[2][2],
+      m[0][0] * m[2][2] - m[0][2] * m[2][0],
+      m[0][1] * m[2][0] - m[0][0] * m[2][1],
+    ],
+    [
+      m[0][1] * m[1][2] - m[0][2] * m[1][1],
+      m[0][2] * m[1][0] - m[0][0] * m[1][2],
+      m[0][0] * m[1][1] - m[0][1] * m[1][0],
+    ],
+  ];
+  const determinant = m[0][0] * cofactors[0][0] + m[0][1] * cofactors[0][1] + m[0][2] * cofactors[0][2];
+  if (Math.abs(determinant) < 1e-12) return null;
+  return cofactors.map((row) => row.map((value) => value / determinant));
+}
+
 /** The direction in the camera's axes for a point in the image. */
 export function imageToCamera({ x, y }: ImageStar, geometry: FrameGeometry): Vector3 {
   const dx = (x - geometry.width / 2) * (geometry.flipped ? -1 : 1);
@@ -313,15 +367,18 @@ function solveAtFocal(
           });
           if (matches.length < needed) continue;
 
-          // Improve the answer using the two matches farthest apart.
-          let [bestA, bestB, widest] = [matches[0], matches[1], -1];
-          for (const m of matches) {
-            for (const n of matches) {
-              const angle = 1 - dot(m.camera, n.camera);
-              if (angle > widest) [bestA, bestB, widest] = [m, n, angle];
-            }
-          }
-          const refined = triad(bestA.camera, bestB.camera, bestA.sky, bestB.sky);
+          // Improve the answer with a least-squares fit to every match, then match again
+          // with the better rotation, which can only find the same stars or more, and fit
+          // once more.
+          let refined = fitRotation(matches);
+          const rematched = new Set<CatalogStar>();
+          const better = toCheck.flatMap((camera) => {
+            const star = index.grid.nearest(refined(camera), cosTolerance, limitMag);
+            if (!star || rematched.has(star)) return [];
+            rematched.add(star);
+            return [{ camera, sky: star.vector }];
+          });
+          if (better.length >= matches.length) refined = fitRotation(better);
           const pointing = refined([0, 0, 1]);
           return {
             pointing,
