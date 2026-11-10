@@ -43,6 +43,26 @@ const server = createServer((request, response) => {
         console.log(`Received image: ${imagePath}`);
       }
 
+      // Sky map solve reports carry one preview and the raw frame, saved as files too.
+      if (report.kind === 'live-solve') {
+        const match = /^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/.exec(report.image ?? '');
+        if (match) {
+          report.image = join(folder, `live-solve-${stamp}.jpg`);
+          writeFileSync(report.image, Buffer.from(match[1], 'base64'));
+        }
+        if (typeof report.raw === 'string') {
+          // 32-bit floats, little-endian, row by row: inputs.width × inputs.height values.
+          const rawPath = join(folder, `live-solve-${stamp}.f32`);
+          writeFileSync(rawPath, Buffer.from(report.raw, 'base64'));
+          report.raw = rawPath;
+        }
+        const path = join(folder, `live-solve-${stamp}.json`);
+        writeFileSync(path, JSON.stringify(report, null, 1));
+        console.log(`Received solve: ${path} (${report.outcome}, ${report.message})`);
+        response.writeHead(200).end('OK');
+        return;
+      }
+
       const path = join(folder, `device-report-${stamp}.json`);
       writeFileSync(path, JSON.stringify(report, null, 1));
       console.log(`Received report: ${path}`);

@@ -1,5 +1,5 @@
 import { DecimalPipe } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, isDevMode, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import {
   IonBadge,
@@ -27,6 +27,7 @@ import {
   chevronDown,
   chevronUp,
   contrastOutline,
+  desktopOutline,
   flaskOutline,
   globeOutline,
   gridOutline,
@@ -365,6 +366,18 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
             Toast on successful solves
           </ion-toggle>
         </ion-item>
+        @if (devMode) {
+          <ion-item>
+            <ion-icon slot="start" name="desktop-outline" aria-hidden="true"></ion-icon>
+            <ion-toggle
+              data-testid="send-solves"
+              [checked]="settings().sendSolves"
+              (ionChange)="state.updateSettings({ sendSolves: $any($event).detail.checked })"
+            >
+              Send solves to this PC
+            </ion-toggle>
+          </ion-item>
+        }
         <ion-item
           button
           detail="false"
@@ -471,6 +484,8 @@ export class SettingsPage {
   protected readonly liveSolver = inject(LiveSolverService);
   protected readonly screenWake = inject(ScreenWakeService);
   protected readonly showSolveLog = signal(false);
+  /** Sending solves needs the dev server's proxy, so it is only offered in development. */
+  protected readonly devMode = isDevMode();
   protected readonly gpsMessage = signal('');
   protected readonly bortleClasses = BORTLE_CLASSES;
 
@@ -487,6 +502,7 @@ export class SettingsPage {
       chevronDown,
       chevronUp,
       contrastOutline,
+      desktopOutline,
       flaskOutline,
       globeOutline,
       gridOutline,

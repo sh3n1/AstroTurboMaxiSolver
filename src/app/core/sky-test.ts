@@ -103,7 +103,7 @@ const wait = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(
 const round = (value: number, digits = 2): number => Number(value.toFixed(digits));
 
 /** The preview's curve for a frame, from its sky brightness and noise. */
-function previewStretch(background: number, noise: number): PreviewStretch {
+export function previewStretch(background: number, noise: number): PreviewStretch {
   return { kind: 'asinh', black: round(background - noise, 3), softness: round(Math.max(noise * 4, 1), 3) };
 }
 
@@ -111,7 +111,12 @@ function previewStretch(background: number, noise: number): PreviewStretch {
  * Makes a preview that shows faint stars and bright detail alike: levels just above the
  * sky are stretched, and brighter ones squeezed, with the curve in PreviewStretch.
  */
-function previewImage(pixels: Float32Array, width: number, height: number, stretch: PreviewStretch): string | null {
+export function previewImage(
+  pixels: Float32Array,
+  width: number,
+  height: number,
+  stretch: PreviewStretch,
+): string | null {
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;

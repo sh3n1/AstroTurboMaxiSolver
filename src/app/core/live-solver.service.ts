@@ -1,4 +1,4 @@
-import { Injectable, effect, inject, signal } from '@angular/core';
+import { Injectable, effect, inject, isDevMode, signal } from '@angular/core';
 
 import { AppState } from './app-state.service';
 import type { Horizontal, Vector3 } from './astronomy';
@@ -16,6 +16,8 @@ import {
   openRearCamera,
 } from './camera';
 import { SensorService } from './sensor.service';
+import type { SolveInputs } from './solve-report';
+import { buildSolveReport, sendSolveReport } from './solve-report';
 import type { SolveRequest, SolveResponse } from './solver-messages';
 
 type Status = 'off' | 'waiting' | 'solving' | 'solved' | 'failed';
@@ -177,7 +179,11 @@ export class LiveSolverService {
         return;
       }
 
-      const response = await this.solve(frame.pixels, frame.width, frame.height);
+      // The worker takes the pixels, so keep a copy if this attempt will be reported.
+      const kept = this.reporting() ? frame.pixels.slice() : null;
+      const { response, inputs } = await this.solve(frame.pixels, frame.width, frame.height);
+      const report = (outcome: 'solved' | 'failed', message: string): void =>
+        this.report({ trigger: 'auto', outcome, message, startedAt: entry.startedAt, before, kept, inputs, response });
       if (response.solution && this.status() === 'solving') {
         const rotation = this.state.realSkyRotation();
         const [x, y, z] = apparentAxes(rotation, response.solution.axes);
@@ -194,6 +200,7 @@ export class LiveSolverService {
           matched: response.solution.matched,
           sensorErrorDeg: before && after ? separationDeg(before, after) : null,
         });
+        report('solved', `Plate solved, ${response.solution.matched} stars matched`);
         this.finish(true, SOLVED_PAUSE_MS);
         return;
       }
@@ -204,6 +211,7 @@ export class LiveSolverService {
         message: failureMessage(response.starCount),
         starCount: response.starCount,
       });
+      report('failed', failureMessage(response.starCount));
       this.finish(false, FAILED_PAUSE_MS);
     } catch (error) {
       this.lastAttemptPointing = before;
@@ -292,7 +300,10 @@ export class LiveSolverService {
         return { ok: false, reason: 'Too bright for the camera. Keep lights out of view.' };
       }
 
-      const response = await this.solve(frame.pixels, frame.width, frame.height, SOLVE_NOW_TIME_LIMIT_MS);
+      const kept = this.reporting() ? frame.pixels.slice() : null;
+      const { response, inputs } = await this.solve(frame.pixels, frame.width, frame.height, SOLVE_NOW_TIME_LIMIT_MS);
+      const report = (outcome: 'solved' | 'failed', message: string): void =>
+        this.report({ trigger: 'alignment', outcome, message, startedAt, before, kept, inputs, response });
       if (!response.solution) {
         this.record({
           ...entry,
@@ -300,6 +311,7 @@ export class LiveSolverService {
           message: failureMessage(response.starCount),
           starCount: response.starCount,
         });
+        report('failed', failureMessage(response.starCount));
         return {
           ok: false,
           reason:
@@ -325,6 +337,7 @@ export class LiveSolverService {
         matched: response.solution.matched,
         sensorErrorDeg: before && after ? separationDeg(before, after) : null,
       });
+      report('solved', `Plate solved, ${response.solution.matched} stars matched`);
       return { ok: true, attitude, matched: response.solution.matched };
     } catch (error) {
       this.record({
@@ -350,6 +363,43 @@ export class LiveSolverService {
         this.status.set('off');
       }
     }
+  }
+
+  /** Whether each attempt is sent to the PC: a debugging setting, only in development. */
+  private reporting(): boolean {
+    return isDevMode() && this.state.settings().sendSolves;
+  }
+
+  /** Sends a finished attempt, with its frame, to the PC. Does nothing unless reporting. */
+  private report(attempt: {
+    trigger: 'auto' | 'alignment';
+    outcome: 'solved' | 'failed';
+    message: string;
+    startedAt: number;
+    before: Horizontal | null;
+    kept: Float32Array | null;
+    inputs: SolveInputs;
+    response: SolveResponse;
+  }): void {
+    if (!attempt.kept) return;
+    const report = buildSolveReport(
+      {
+        trigger: attempt.trigger,
+        outcome: attempt.outcome,
+        message: attempt.message,
+        durationMs: Date.now() - attempt.startedAt,
+        camera: { exposureSeconds: this.exposureSeconds, iso: this.iso, frames: 1 },
+        settings: { ...this.state.settings() },
+        alignment: this.state.alignment(),
+        inputs: attempt.inputs,
+        sensorsBefore: attempt.before,
+        sensorsAfter: this.state.cameraPointing(),
+        sensors: this.sensors.snapshot(),
+      },
+      attempt.kept,
+      attempt.response,
+    );
+    void sendSolveReport(report);
   }
 
   /**
@@ -390,13 +440,10 @@ export class LiveSolverService {
     width: number,
     height: number,
     timeLimitMs = SOLVE_TIME_LIMIT_MS,
-  ): Promise<SolveResponse> {
+  ): Promise<{ response: SolveResponse; inputs: SolveInputs }> {
     const worker = await this.ensureWorker();
     const id = ++this.requestId;
-    const request: SolveRequest = {
-      type: 'solve',
-      id,
-      pixels,
+    const inputs: SolveInputs = {
       width,
       height,
       focalPx: FOCAL_SHARE_OF_LONG_SIDE * Math.max(width, height) * this.state.settings().cameraFocalFactor,
@@ -405,8 +452,9 @@ export class LiveSolverService {
       hint: this.hint(),
       timeLimitMs,
     };
+    const request: SolveRequest = { type: 'solve', id, pixels, ...inputs };
     return new Promise((resolve) => {
-      this.pending.set(id, resolve);
+      this.pending.set(id, (response) => resolve({ response, inputs }));
       // The pixels move to the worker rather than being copied, which is much faster.
       worker.postMessage(request, [pixels.buffer]);
     });

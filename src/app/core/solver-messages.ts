@@ -2,6 +2,7 @@
 
 import type { Vector3 } from './astronomy';
 import type { SolveHint } from './plate-solver';
+import type { DetectedStar } from './star-detector';
 
 export type SolveRequest =
   | { type: 'init'; starRows: number[][] }
@@ -20,6 +21,14 @@ export type SolveRequest =
 export interface SolveResponse {
   id: number;
   starCount: number;
+  /** The stars found, brightest first, for debugging reports. */
+  stars: DetectedStar[];
+  /** Median sky brightness and noise, on the image's 0 to 255 scale. */
+  background: number;
+  noise: number;
+  /** How long finding stars and solving took, in milliseconds. */
+  detectMs: number;
+  solveMs: number;
   solution: {
     raDeg: number;
     decDeg: number;

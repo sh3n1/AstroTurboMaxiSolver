@@ -1,10 +1,11 @@
 import { DecimalPipe } from '@angular/common';
-import { Component, computed, inject, isDevMode, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, isDevMode, signal } from '@angular/core';
 import { IonButton, IonText } from '@ionic/angular';
 
 import { AppState } from './app-state.service';
 import { equatorialVector, formatDec, formatRa, horizontalVector, unrefract } from './astronomy';
 import type { Vector3 } from './astronomy';
+import { Beeper } from './beep';
 import type { StepReport } from './sky-test';
 import { runSkyTest } from './sky-test';
 
@@ -147,6 +148,11 @@ const COUNTDOWN_SECONDS = 5;
 })
 export class SkyTestPanelComponent {
   private readonly state = inject(AppState);
+  private readonly beeper = new Beeper();
+
+  constructor() {
+    inject(DestroyRef).onDestroy(() => this.beeper.close());
+  }
 
   protected readonly formatRa = formatRa;
   protected readonly formatDec = formatDec;
@@ -180,6 +186,9 @@ export class SkyTestPanelComponent {
   );
 
   protected async run(): Promise<void> {
+    // Sound must be allowed during the tap, so the beep can play when the test ends.
+    this.beeper.unlock();
+    let solved = false;
     this.busy.set(true);
     this.state.plateSolving.set(true);
     this.error.set('');
@@ -212,8 +221,9 @@ export class SkyTestPanelComponent {
       });
       this.reports.set(results);
       // A successful solve measures the camera's real field of view, which later solves use.
-      const solved = results.find((result) => result.solve);
-      if (solved?.solve) this.state.updateSettings({ cameraFocalFactor: solved.solve.focalFactor });
+      const firstSolve = results.find((result) => result.solve)?.solve;
+      if (firstSolve) this.state.updateSettings({ cameraFocalFactor: firstSolve.focalFactor });
+      solved = !!firstSolve;
     } catch (error) {
       this.error.set(error instanceof Error ? `${error.name}: ${error.message}` : String(error));
     } finally {
@@ -222,6 +232,10 @@ export class SkyTestPanelComponent {
       this.busy.set(false);
       this.state.plateSolving.set(false);
       void wakeLock?.release();
+      // Tells the user the test is over without looking: two rising beeps if it solved,
+      // one low beep if not.
+      if (solved) this.beeper.success();
+      else this.beeper.failure();
     }
   }
 

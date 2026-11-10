@@ -191,6 +191,27 @@ export class SensorService {
     this.publish();
   }
 
+  /** The sensors' inner state, for debugging reports. Quaternions are [w, x, y, z]. */
+  snapshot(): {
+    attitude: Quaternion | null;
+    rawReading: Quaternion | null;
+    compassCorrection: Quaternion | null;
+    hasCompass: boolean;
+    isStill: boolean;
+    gyroscope: boolean;
+    declinationDeg: number;
+  } {
+    return {
+      attitude: this.attitude,
+      rawReading: this.lastReading,
+      compassCorrection: this.compassCorrection,
+      hasCompass: this.hasCompass(),
+      isStill: this.isStill(),
+      gyroscope: this.lastGyroscopeTime !== null,
+      declinationDeg: this.declinationDeg(),
+    };
+  }
+
   /** Updates where the camera and the telescope point, using any saved alignment. */
   private publish(): void {
     if (!this.attitude || !this.state.sensorsActive()) return;
