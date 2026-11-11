@@ -202,7 +202,7 @@ test('runs the clear-sky test without crashing, and reports not solved', async (
   await expect(page.locator('[data-testid=sky-test-countdown]')).toContainText('1', { timeout: 7000 });
   await expect(page.locator('[data-testid=sky-test-countdown]')).toHaveCount(0, { timeout: 3000 });
   await expect(page.locator('[data-testid=sky-test-summary]')).toBeVisible({ timeout: 90_000 });
-  await expect(page.locator('[data-testid=sky-test-step]')).toHaveCount(4);
+  await expect(page.locator('[data-testid=sky-test-step]')).toHaveCount(6);
   await expect(page.locator('[data-testid=sky-test-error]')).toHaveCount(0);
   await expect(page.locator('[data-testid=sky-test-solved]')).toHaveCount(0);
   await expect(page.locator('[data-testid=save-sky-report]')).toBeVisible();

@@ -629,3 +629,14 @@ test('aligns with a Bluetooth shutter remote, when switched on in Settings', asy
   await pressRemote();
   await expect(page.locator('[data-testid=alignment-failed]')).toBeVisible();
 });
+
+test('turns the shutter sound for plate solves on and off in Settings', async ({ page }) => {
+  await page.goto('/tabs/settings');
+  const toggle = page.locator('[data-testid=solve-sound]');
+  // Off by default, so a sound never surprises anyone at night.
+  await expect(toggle).not.toHaveClass(/toggle-checked/);
+  await toggle.click();
+  await expect(toggle).toHaveClass(/toggle-checked/);
+  await page.reload();
+  await expect(page.locator('[data-testid=solve-sound]')).toHaveClass(/toggle-checked/);
+});

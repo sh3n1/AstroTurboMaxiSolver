@@ -22,6 +22,7 @@ import {
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
+  apertureOutline,
   bluetoothOutline,
   chatbubbleEllipsesOutline,
   chevronDown,
@@ -39,6 +40,7 @@ import {
   openOutline,
   phonePortraitOutline,
   scanOutline,
+  volumeLowOutline,
   sunnyOutline,
   textOutline,
 } from 'ionicons/icons';
@@ -50,6 +52,7 @@ import { LiveSolverService } from '../core/live-solver.service';
 import { LocalTimePipe } from '../core/local-time.pipe';
 import { ScreenWakeService } from '../core/screen-wake.service';
 import { BORTLE_CLASSES } from '../core/sky-quality';
+import { SoundService } from '../core/sound.service';
 
 type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
 
@@ -273,6 +276,16 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
             Plate solve when still
           </ion-toggle>
         </ion-item>
+        <ion-item>
+          <ion-icon slot="start" name="volume-low-outline" aria-hidden="true"></ion-icon>
+          <ion-toggle
+            data-testid="solve-sound"
+            [checked]="settings().solveSound"
+            (ionChange)="setSolveSound($any($event).detail.checked)"
+          >
+            Shutter sound on solve
+          </ion-toggle>
+        </ion-item>
         <!-- A Bluetooth camera shutter remote, to align without reaching for the phone. -->
         <ion-item>
           <ion-icon slot="start" name="bluetooth-outline" aria-hidden="true"></ion-icon>
@@ -377,6 +390,20 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
               Send solves to this PC
             </ion-toggle>
           </ion-item>
+          <ion-item>
+            <ion-icon slot="start" name="aperture-outline" aria-hidden="true"></ion-icon>
+            <ion-select
+              label="Camera capture"
+              interface="popover"
+              data-testid="capture-mode"
+              [value]="settings().captureMode"
+              (ionChange)="state.updateSettings({ captureMode: $any($event).detail.value })"
+            >
+              <ion-select-option value="normal">Normal</ion-select-option>
+              <ion-select-option value="exposure">Force long exposure</ion-select-option>
+              <ion-select-option value="stack">Force stacking</ion-select-option>
+            </ion-select>
+          </ion-item>
         }
         <ion-item
           button
@@ -400,6 +427,9 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
                   {{ entry.at | localTime: 'time-seconds' }} ·
                   {{ entry.trigger === 'auto' ? 'Automatic' : 'Alignment' }} ·
                   {{ entry.durationMs / 1000 | number: '1.1-1' }} s · ISO {{ entry.iso }}
+                  @if (entry.frames > 1) {
+                    · {{ entry.frames }} frames
+                  }
                   @if (entry.starCount > 0) {
                     · {{ entry.starCount }} stars found
                   }
@@ -483,6 +513,7 @@ export class SettingsPage {
   protected readonly settings = this.state.settings;
   protected readonly liveSolver = inject(LiveSolverService);
   protected readonly screenWake = inject(ScreenWakeService);
+  private readonly sound = inject(SoundService);
   protected readonly showSolveLog = signal(false);
   /** Sending solves needs the dev server's proxy, so it is only offered in development. */
   protected readonly devMode = isDevMode();
@@ -497,6 +528,7 @@ export class SettingsPage {
 
   constructor() {
     addIcons({
+      apertureOutline,
       bluetoothOutline,
       chatbubbleEllipsesOutline,
       chevronDown,
@@ -514,6 +546,7 @@ export class SettingsPage {
       openOutline,
       phonePortraitOutline,
       scanOutline,
+      volumeLowOutline,
       sunnyOutline,
       textOutline,
     });
@@ -527,6 +560,12 @@ export class SettingsPage {
       // A typed location counts as set, just like one from GPS.
       this.state.updateSettings({ [key]: value, locationSet: true } as Partial<Settings>);
     }
+  }
+
+  /** Turning the shutter sound on plays it once, so it can be heard without a solve. */
+  protected setSolveSound(on: boolean): void {
+    this.state.updateSettings({ solveSound: on });
+    if (on) this.sound.shutter();
   }
 
   protected openDeviceTest(): void {

@@ -5,9 +5,10 @@ import type { Horizontal, Vector3 } from './astronomy';
 import { apparentAxes, horizontalVector, localToEquatorial, equatorialVector, separationDeg } from './astronomy';
 import type { Quaternion } from './attitude';
 import { attitudeFromImageAxes } from './attitude';
-import type { OpenCamera } from './camera';
+import type { CaptureMode, CapturePlan, CaptureSettings, OpenCamera } from './camera';
 import {
   FOCAL_SHARE_OF_LONG_SIDE,
+  planCapture,
   longestExposureSeconds,
   applyCameraSettings,
   averageLevel,
@@ -36,6 +37,8 @@ export interface SolveLogEntry {
   starCount: number;
   matched: number;
   iso: number;
+  /** How many frames were averaged into the picture. */
+  frames: number;
   durationMs: number;
   /** After a solve, how far the sensors were from the true position. */
   sensorErrorDeg: number | null;
@@ -98,8 +101,10 @@ export class LiveSolverService {
   private camera: OpenCamera | null = null;
   private opening = false;
   private iso = START_ISO;
-  /** Set from the camera's own limit when it opens. */
-  private exposureSeconds = MAX_EXPOSURE_SECONDS;
+  /** How pictures are taken, decided from the camera's limits when it opens. */
+  private plan: CapturePlan = { frames: 1, frameSeconds: MAX_EXPOSURE_SECONDS, manual: false };
+  /** The capture mode the open camera was set up for. A change in Settings reopens it. */
+  private cameraMode: CaptureMode | null = null;
   private timer?: ReturnType<typeof setInterval>;
   private nextAttemptAt = 0;
   private worker: Worker | null = null;
@@ -158,16 +163,13 @@ export class LiveSolverService {
     const entry = { trigger: 'auto' as const, startedAt: Date.now(), iso: this.iso };
     try {
       const camera = await this.ensureCamera();
-      const frame = await captureStack(camera.video, {
-        exposureSeconds: this.exposureSeconds,
-        iso: this.iso,
-        frames: 1,
-      });
+      const frame = await captureStack(camera.video, this.captureSettings());
 
-      // A sky near clipping hides stars, so come down in ISO for next time.
-      if (averageLevel(frame.pixels) > MAX_SKY_LEVEL && this.iso > MIN_ISO) {
+      // A sky near clipping hides stars, so come down in ISO for next time. With
+      // automatic exposure the phone does that itself.
+      if (this.plan.manual && averageLevel(frame.pixels) > MAX_SKY_LEVEL && this.iso > MIN_ISO) {
         this.iso = Math.max(MIN_ISO, Math.round(this.iso / 2));
-        await applyCameraSettings(camera.track, { exposureSeconds: this.exposureSeconds, iso: this.iso, frames: 1 });
+        await applyCameraSettings(camera.track, this.captureSettings());
         this.record({ ...entry, outcome: 'retry', message: `Too bright, ISO lowered to ${this.iso}` });
         this.retrySoon(FAILED_PAUSE_MS / 5);
         return;
@@ -256,6 +258,7 @@ export class LiveSolverService {
       starCount: entry.starCount ?? 0,
       matched: entry.matched ?? 0,
       iso: entry.iso,
+      frames: this.plan.frames,
       durationMs: Date.now() - entry.startedAt,
       sensorErrorDeg: entry.sensorErrorDeg ?? null,
     };
@@ -286,13 +289,18 @@ export class LiveSolverService {
     const before = this.state.cameraPointing();
     try {
       const camera = await this.ensureCamera();
-      let frame = await captureStack(camera.video, { exposureSeconds: this.exposureSeconds, iso: this.iso, frames: 1 });
-      // Come down in ISO until the sky is no longer close to clipping.
-      for (let i = 0; i < MAX_ISO_REDUCTIONS && averageLevel(frame.pixels) > MAX_SKY_LEVEL && this.iso > MIN_ISO; i++) {
+      let frame = await captureStack(camera.video, this.captureSettings());
+      // Come down in ISO until the sky is no longer close to clipping. With automatic
+      // exposure the phone does that itself.
+      for (
+        let i = 0;
+        this.plan.manual && i < MAX_ISO_REDUCTIONS && averageLevel(frame.pixels) > MAX_SKY_LEVEL && this.iso > MIN_ISO;
+        i++
+      ) {
         this.iso = Math.max(MIN_ISO, Math.round(this.iso / 2));
-        await applyCameraSettings(camera.track, { exposureSeconds: this.exposureSeconds, iso: this.iso, frames: 1 });
+        await applyCameraSettings(camera.track, this.captureSettings());
         await new Promise((resolve) => setTimeout(resolve, SETTLE_MS));
-        frame = await captureStack(camera.video, { exposureSeconds: this.exposureSeconds, iso: this.iso, frames: 1 });
+        frame = await captureStack(camera.video, this.captureSettings());
       }
       const entry = { trigger: 'alignment' as const, startedAt, iso: this.iso };
       if (averageLevel(frame.pixels) > MAX_SKY_LEVEL) {
@@ -388,7 +396,12 @@ export class LiveSolverService {
         outcome: attempt.outcome,
         message: attempt.message,
         durationMs: Date.now() - attempt.startedAt,
-        camera: { exposureSeconds: this.exposureSeconds, iso: this.iso, frames: 1 },
+        camera: {
+          exposureSeconds: this.plan.frameSeconds,
+          iso: this.iso,
+          frames: this.plan.frames,
+          manual: this.plan.manual,
+        },
         settings: { ...this.state.settings() },
         alignment: this.state.alignment(),
         inputs: attempt.inputs,
@@ -414,17 +427,35 @@ export class LiveSolverService {
   }
 
   private async ensureCamera(): Promise<OpenCamera> {
-    if (this.camera) return this.camera;
+    const mode = this.state.settings().captureMode;
+    if (this.camera && this.cameraMode === mode) return this.camera;
+    // The capture mode changed in Settings: start again from a fresh camera, because one
+    // set to manual exposure can't always be put back to automatic.
+    closeCamera(this.camera);
+    this.camera = null;
     this.opening = true;
     try {
-      this.camera = await openRearCamera();
-      this.exposureSeconds = longestExposureSeconds(this.camera.track, MAX_EXPOSURE_SECONDS);
-      await applyCameraSettings(this.camera.track, { exposureSeconds: this.exposureSeconds, iso: this.iso, frames: 1 });
+      const camera = await openRearCamera();
+      // Forced stacking leaves the exposure to the phone, like phones that don't allow
+      // manual exposure, so that case can be tested on a phone that does.
+      const longest = longestExposureSeconds(camera.track, MAX_EXPOSURE_SECONDS);
+      const manual =
+        mode !== 'stack' &&
+        (await applyCameraSettings(camera.track, { exposureSeconds: longest, iso: this.iso, frames: 1 }));
+      const frameRate = camera.track.getSettings?.().frameRate;
+      this.plan = planCapture(mode, manual ? longest : null, frameRate);
+      this.cameraMode = mode;
       await new Promise((resolve) => setTimeout(resolve, SETTLE_MS));
-      return this.camera;
+      this.camera = camera;
+      return camera;
     } finally {
       this.opening = false;
     }
+  }
+
+  /** The settings for the next picture, from the plan and the current ISO. */
+  private captureSettings(): CaptureSettings {
+    return { exposureSeconds: this.plan.frameSeconds, iso: this.iso, frames: this.plan.frames };
   }
 
   /** Where the sensors say the camera points, as the solver's hint. */

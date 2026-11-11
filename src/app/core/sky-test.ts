@@ -10,6 +10,7 @@ import {
   applyCameraSettings,
   averageLevel,
   captureStack,
+  planCapture,
 } from './camera';
 import type { DepthBin } from './plate-solver';
 import { buildSolverIndex, catalogFromRows, measureDepth, solveFrame } from './plate-solver';
@@ -20,10 +21,20 @@ interface CaptureStep {
   exposureSeconds: number;
   iso: number;
   frames: number;
+  /**
+   * Leaves the exposure to the phone and stacks video frames, as the sky map does on
+   * phones without manual exposure, such as iPhones. The frame count then comes from the
+   * video's speed, and the exposure and ISO above are only placeholders.
+   */
+  automatic?: boolean;
 }
 
 export const SKY_TEST_STEPS: readonly CaptureStep[] = [
+  // First, while the camera is still automatic: how phones without manual exposure do.
+  { exposureSeconds: 1 / 30, iso: 0, frames: 12, automatic: true },
   { exposureSeconds: 1 / 8, iso: 1600, frames: 1 },
+  // Short exposures stacked, as on phones that cap manual exposure below 1/8 s.
+  { exposureSeconds: 1 / 15, iso: 3200, frames: 8 },
   { exposureSeconds: 1 / 3, iso: 1600, frames: 1 },
   { exposureSeconds: 1 / 3, iso: 3200, frames: 6 },
   { exposureSeconds: 1 / 3, iso: 6400, frames: 6 },
@@ -187,8 +198,16 @@ async function runStep(
   };
 
   try {
-    report.manualControl = await applyCameraSettings(track, step);
-    await wait(SETTLE_MS + step.exposureSeconds * 2000);
+    if (step.automatic) {
+      // Stack as many video frames as the sky map would, from the video's real speed.
+      const { frames, frameSeconds } = planCapture('stack', null, track.getSettings().frameRate);
+      step = { ...step, frames, exposureSeconds: frameSeconds };
+      report.requested = { ...step, exposureSeconds: round(frameSeconds, 4) };
+      await wait(SETTLE_MS);
+    } else {
+      report.manualControl = await applyCameraSettings(track, step);
+      await wait(SETTLE_MS + step.exposureSeconds * 2000);
+    }
 
     // City skies vary a lot, so lower the ISO until the sky is no longer close to clipping.
     // A clear gap in the clouds can be short, and a white frame would waste it.

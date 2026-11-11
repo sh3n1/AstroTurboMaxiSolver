@@ -19,7 +19,8 @@ export interface SolveReport {
   outcome: 'solved' | 'failed';
   message: string;
   durationMs: number;
-  camera: { exposureSeconds: number; iso: number; frames: number };
+  /** Each frame's exposure, how many were averaged, and whether the app set the exposure. */
+  camera: { exposureSeconds: number; iso: number; frames: number; manual: boolean };
   settings: Record<string, unknown>;
   alignment: unknown;
   inputs: SolveInputs;

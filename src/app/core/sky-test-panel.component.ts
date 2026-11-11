@@ -58,7 +58,7 @@ const COUNTDOWN_SECONDS = 5;
         <li>Rest the phone on something steady, with the back camera facing the clearest part of the sky.</li>
         <li>Keep streetlights and the Moon out of view.</li>
         <li>
-          Tap the button. You then have 5 seconds to position the phone, so leave it untouched for about 35 seconds.
+          Tap the button. You then have 5 seconds to position the phone, so leave it untouched for about 45 seconds.
         </li>
       </ol>
       <p class="muted">
@@ -104,8 +104,12 @@ const COUNTDOWN_SECONDS = 5;
       @for (result of results; track $index) {
         <div class="result" data-testid="sky-test-step">
           <strong>
-            {{ result.requested.frames }} × {{ result.requested.exposureSeconds | number: '1.0-3' }} s, ISO
-            {{ result.requested.iso }}
+            @if (result.requested.automatic) {
+              {{ result.requested.frames }} × automatic
+            } @else {
+              {{ result.requested.frames }} × {{ result.requested.exposureSeconds | number: '1.0-3' }} s, ISO
+              {{ result.requested.iso }}
+            }
           </strong>
           @if (result.error) {
             <ion-text color="danger"

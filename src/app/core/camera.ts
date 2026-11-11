@@ -13,6 +13,46 @@ export const FOCAL_SHARE_OF_LONG_SIDE = 0.667;
 
 const FRAME_TIMEOUT_MS = 3000;
 
+/**
+ * How the sky map takes its pictures. Normal picks for itself: one long exposure where the
+ * phone allows it, otherwise several short frames averaged. The other two force one way,
+ * for testing on a phone that could do either.
+ */
+export type CaptureMode = 'normal' | 'exposure' | 'stack';
+
+/** Below this, one frame shows too few stars in a city sky, so frames are stacked instead. */
+export const MIN_SINGLE_EXPOSURE_SECONDS = 1 / 8;
+/** A stack aims for about this much light in total, like one long exposure. */
+const STACK_TARGET_SECONDS = 0.5;
+const MIN_STACK_FRAMES = 4;
+/** More frames make each attempt slower, and the phone more likely to move. */
+const MAX_STACK_FRAMES = 12;
+/** The video rate assumed when the browser doesn't report one. */
+const DEFAULT_FRAME_RATE = 30;
+
+/** How each picture is taken: how many frames, how long each lasts, and whether manually. */
+export interface CapturePlan {
+  frames: number;
+  /** The exposure of each frame, or the time between frames when the phone chooses it. */
+  frameSeconds: number;
+  /** Whether the app set the exposure itself. Otherwise the phone exposes automatically. */
+  manual: boolean;
+}
+
+/**
+ * Decides how to take pictures. `manualSeconds` is the exposure the camera accepted, or
+ * null if it refused manual exposure. `frameRate` is the video's frames per second.
+ */
+export function planCapture(mode: CaptureMode, manualSeconds: number | null, frameRate?: number): CapturePlan {
+  const manual = manualSeconds !== null;
+  // With automatic exposure each frame lasts at most one video frame.
+  const frameSeconds = manualSeconds ?? 1 / (frameRate && frameRate > 0 ? frameRate : DEFAULT_FRAME_RATE);
+  const single = mode === 'exposure' || (mode === 'normal' && manual && frameSeconds >= MIN_SINGLE_EXPOSURE_SECONDS);
+  if (single) return { frames: 1, frameSeconds, manual };
+  const frames = Math.min(MAX_STACK_FRAMES, Math.max(MIN_STACK_FRAMES, Math.ceil(STACK_TARGET_SECONDS / frameSeconds)));
+  return { frames, frameSeconds, manual };
+}
+
 export interface CaptureSettings {
   exposureSeconds: number;
   iso: number;
