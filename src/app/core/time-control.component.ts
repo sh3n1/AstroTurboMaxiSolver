@@ -36,14 +36,19 @@ import {
 const TIME_PIPE = new LocalTimePipe();
 /** The ruler's scale: an hour is about a finger's width and a half. */
 const PX_PER_HOUR = 72;
-/** The sky's colour on the ruler, darker as the night deepens. */
+/**
+ * The sky's colour on the ruler: a clear blue day, darkening step by step into night,
+ * so each part of the evening is easy to tell apart at a glance.
+ */
 const SHADE_COLOURS: Record<SkyShade, string> = {
-  day: '#46597f',
-  civil: '#334263',
-  nautical: '#242f4a',
-  astronomical: '#182035',
+  day: '#4f78b8',
+  civil: '#3b4f86',
+  nautical: '#283563',
+  astronomical: '#182040',
   night: '#0a0e1a',
 };
+/** A dark edge around the labels and the marker, so they stand out on the bright day too. */
+const EDGE_COLOUR = '#0a0e1a';
 /** How finely the ruler checks where the Sun is, in minutes. */
 const SHADE_STEP_MINUTES = 10;
 /** The ruler's height, and each forecast row's, before the text size scales them. */
@@ -488,18 +493,29 @@ export class TimeControlComponent {
       ctx.stroke();
       if (isHour) {
         const label = date.getHours() === 0 ? dayFormat.format(date) : hourFormat.format(date);
+        // Outlined first, like the map's labels, then filled in the text colour.
+        ctx.save();
+        ctx.strokeStyle = EDGE_COLOUR;
+        ctx.lineWidth = 3;
+        ctx.lineJoin = 'round';
+        ctx.strokeText(label, x, height - 8);
+        ctx.restore();
         ctx.fillText(label, x, height - 8);
       }
     }
 
     if (this.forecast.shown()) this.drawForecast(ctx, width, height, xOf, time.getTime() - halfSpanMs, text);
 
-    // The marker for the chosen time, through the forecast rows too.
-    ctx.strokeStyle = accent;
-    ctx.lineWidth = 3;
+    // The marker for the chosen time, through the forecast rows too: a wider dark line
+    // first, as an edge, so the light blue shows on the bright blue day.
     ctx.beginPath();
     ctx.moveTo(centre, 0);
     ctx.lineTo(centre, fullHeight);
+    ctx.strokeStyle = EDGE_COLOUR;
+    ctx.lineWidth = 5;
+    ctx.stroke();
+    ctx.strokeStyle = accent;
+    ctx.lineWidth = 3;
     ctx.stroke();
   }
 

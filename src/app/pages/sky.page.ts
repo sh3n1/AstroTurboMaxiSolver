@@ -78,6 +78,7 @@ import { LiveSolverService } from '../core/live-solver.service';
 import { LocalTimePipe } from '../core/local-time.pipe';
 import { RETICLE_RINGS_DEG, chevronSpacingPx, guideAngleDeg, pulseOpacity } from '../core/reticle';
 import { SensorService } from '../core/sensor.service';
+import { SoundService } from '../core/sound.service';
 import {
   constellationName,
   equatorialSeparationDeg,
@@ -911,6 +912,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   protected readonly sensors = inject(SensorService);
   protected readonly fullscreen = inject(FullscreenService);
   protected readonly liveSolver = inject(LiveSolverService);
+  private readonly sound = inject(SoundService);
   private readonly router = inject(Router);
   private readonly toasts = inject(ToastController);
   /** The newest plate solve already given a toast, so each attempt gets at most one. */
@@ -1137,13 +1139,15 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     void this.loadConstellations();
 
     // Every failed automatic plate solve is told with a toast. Successes only when the
-    // debugging setting asks for them. Alignment shows its own results, so it is left out.
+    // debugging setting asks for them, and with a soft shutter sound if chosen in Settings.
+    // Alignment shows its own results, so it is left out.
     effect(() => {
       const newest = this.liveSolver.log()[0];
       if (!newest || newest.id <= this.lastToastedSolveId) return;
       this.lastToastedSolveId = newest.id;
       if (newest.trigger !== 'auto') return;
-      const showSuccess = untracked(() => this.state.settings().solveSuccessToast);
+      const { solveSuccessToast: showSuccess, solveSound } = untracked(() => this.state.settings());
+      if (newest.outcome === 'solved' && solveSound) this.sound.shutter();
       if (newest.outcome === 'failed' || (newest.outcome === 'solved' && showSuccess)) {
         void this.toast(newest.message, 'solve-toast');
       }

@@ -38,6 +38,48 @@ export class Beeper {
     this.play([{ hz: 440, start: 0, seconds: 0.45 }]);
   }
 
+  /**
+   * A soft camera shutter: two short, quiet clicks of filtered noise, the blades opening
+   * and closing. Subtle enough not to startle anyone nearby at night.
+   */
+  shutter(): void {
+    const context = this.context;
+    if (!context) return;
+    const now = context.currentTime;
+    // Half a second of white noise is plenty for both clicks.
+    const noise = context.createBuffer(1, Math.round(context.sampleRate * 0.5), context.sampleRate);
+    const samples = noise.getChannelData(0);
+    for (let i = 0; i < samples.length; i++) samples[i] = Math.random() * 2 - 1;
+    for (const { start, level } of [
+      // Filtering leaves only a small part of the noise, so these levels are higher than
+      // the beeps' and still don't clip.
+      { start: 0, level: 0.6 },
+      { start: 0.07, level: 0.4 },
+    ]) {
+      const source = context.createBufferSource();
+      source.buffer = noise;
+      // Only the mid-high band, so it sounds like a light mechanical click, not a hiss.
+      const band = context.createBiquadFilter();
+      band.type = 'bandpass';
+      band.frequency.value = 2500;
+      band.Q.value = 1.2;
+      // A sharp attack and a fast decay make a click.
+      const gain = context.createGain();
+      const at = now + start;
+      gain.gain.setValueAtTime(0, at);
+      gain.gain.linearRampToValueAtTime(level, at + 0.002);
+      gain.gain.exponentialRampToValueAtTime(0.001, at + 0.04);
+      source.connect(band).connect(gain).connect(context.destination);
+      source.start(at);
+      source.stop(at + 0.05);
+    }
+  }
+
+  /** Whether sound is ready to play: unlocked and not suspended by the browser. */
+  get ready(): boolean {
+    return this.context?.state === 'running';
+  }
+
   /** Frees the sound context. */
   close(): void {
     void this.context?.close();

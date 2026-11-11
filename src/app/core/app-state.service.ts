@@ -15,6 +15,7 @@ import {
 } from './astronomy';
 import type { CaldwellData } from './caldwell';
 import { joinCaldwell } from './caldwell';
+import type { CaptureMode } from './camera';
 import { constellationTargets } from './constellations';
 import type { ConstellationRow } from './constellations';
 import type { DoubleRow } from './double-stars';
@@ -60,8 +61,12 @@ export interface Settings {
   shutterAligns: boolean;
   /** Show a toast for successful plate solves too, with the stars matched. For debugging. */
   solveSuccessToast: boolean;
+  /** A soft camera shutter sound whenever the sky map plate solves. */
+  solveSound: boolean;
   /** Send every sky map plate solve, with its frame, to the PC running the dev server. For debugging. */
   sendSolves: boolean;
+  /** How the sky map takes pictures: normal, or forced to one long exposure or a stack. For debugging. */
+  captureMode: CaptureMode;
   /** How dark the observer's sky is, on the Bortle scale from 1 (darkest) to 9. */
   bortle: number;
   /** The faintest stars the eyepiece view shows, or null to work it out from the sky. */
@@ -105,8 +110,11 @@ const DEFAULT_SETTINGS: Settings = {
   textSize: 'large',
   autoSolve: true,
   solveSuccessToast: false,
+  // Off by default: a sound at night shouldn't come as a surprise.
+  solveSound: false,
   // Off by default: it only works with the dev server, and sends large frames.
   sendSolves: false,
+  captureMode: 'normal',
   showEquatorial: false,
   // On by default: at the telescope the phone sits untouched, and a sleeping screen stops the sensors.
   keepScreenOn: true,
