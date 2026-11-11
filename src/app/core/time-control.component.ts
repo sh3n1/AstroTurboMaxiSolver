@@ -19,7 +19,6 @@ import type { SeeingQuality } from './forecast';
 import { forecastAt, seeingQuality, shownSeeing } from './forecast';
 import { ForecastService } from './forecast.service';
 import { LocalTimePipe } from './local-time.pipe';
-import type { SkyShade } from './planning-time';
 import {
   PLANNING_RANGE_MS,
   STEP_MINUTES,
@@ -27,6 +26,7 @@ import {
   clampToRange,
   isoDay,
   onDay,
+  SKY_SHADE_COLOURS,
   skyShade,
   snapToStep,
   timeAfterDrag,
@@ -36,17 +36,6 @@ import {
 const TIME_PIPE = new LocalTimePipe();
 /** The ruler's scale: an hour is about a finger's width and a half. */
 const PX_PER_HOUR = 72;
-/**
- * The sky's colour on the ruler: a clear blue day, darkening step by step into night,
- * so each part of the evening is easy to tell apart at a glance.
- */
-const SHADE_COLOURS: Record<SkyShade, string> = {
-  day: '#4f78b8',
-  civil: '#3b4f86',
-  nautical: '#283563',
-  astronomical: '#182040',
-  night: '#0a0e1a',
-};
 /** A dark edge around the labels and the marker, so they stand out on the bright day too. */
 const EDGE_COLOUR = '#0a0e1a';
 /** How finely the ruler checks where the Sun is, in minutes. */
@@ -466,7 +455,7 @@ export class TimeControlComponent {
     const first = Math.floor((time.getTime() - halfSpanMs) / stepMs) * stepMs;
     for (let t = first; t < time.getTime() + halfSpanMs + stepMs; t += stepMs) {
       const middle = new Date(t + stepMs / 2);
-      ctx.fillStyle = SHADE_COLOURS[skyShade(sunAltitudeDeg(middle, latitudeDeg, longitudeDeg))];
+      ctx.fillStyle = SKY_SHADE_COLOURS[skyShade(sunAltitudeDeg(middle, latitudeDeg, longitudeDeg))];
       ctx.fillRect(xOf(t), 0, (stepMs / 3_600_000) * pxPerHour + 1, height);
     }
 

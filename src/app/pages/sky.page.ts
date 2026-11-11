@@ -58,19 +58,10 @@ import {
   trueFieldDeg,
   viewBasis,
 } from '../core/astronomy';
-import type { BodyFacts } from '../core/body-facts';
-import { bodyFacts, discText, distanceText, lightTimeText } from '../core/body-facts';
 import type { ConstellationRow } from '../core/constellations';
 import { designationText, designations } from '../core/designations';
 import type { ComponentStar } from '../core/double-stars';
-import {
-  arcsecText,
-  doubleComponents,
-  pairBv,
-  pairRelation,
-  splitAdvice,
-  withoutDoubleCopies,
-} from '../core/double-stars';
+import { doubleComponents, withoutDoubleCopies } from '../core/double-stars';
 import type { Equipment } from '../core/equipment';
 import { equipmentLabel, sameEquipment } from '../core/equipment';
 import { FullscreenService } from '../core/fullscreen.service';
@@ -79,19 +70,10 @@ import { LocalTimePipe } from '../core/local-time.pipe';
 import { RETICLE_RINGS_DEG, chevronSpacingPx, guideAngleDeg, pulseOpacity } from '../core/reticle';
 import { SensorService } from '../core/sensor.service';
 import { SoundService } from '../core/sound.service';
-import {
-  constellationName,
-  equatorialSeparationDeg,
-  moonNote,
-  objectTypeText,
-  otherNames,
-  sizeText,
-  skyPass,
-  starColourName,
-} from '../core/target-details';
+import { TargetDetailsComponent } from '../core/target-details.component';
 import type { IconPath } from '../core/target-icons';
-import { DISC_RADIUS, ICON_DASH, ICON_GRID, phaseIcon, targetIcon } from '../core/target-icons';
-import type { DoubleStar, Target } from '../core/targets';
+import { DISC_RADIUS, ICON_DASH, ICON_GRID, iconDataUrl, phaseIcon, targetIcon } from '../core/target-icons';
+import type { Target } from '../core/targets';
 import { EYEPIECE_SMOOTHING_MS, SKY_MAP_SMOOTHING_MS, smoothPointing, smoothingFactor } from '../core/view-smoothing';
 
 /**
@@ -281,6 +263,7 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
     IonRange,
     IonSelect,
     IonSelectOption,
+    TargetDetailsComponent,
   ],
   styles: `
     .stage {
@@ -450,11 +433,6 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
       font-size: 20px;
       color: #ffb454;
     }
-    /* The eye shown instead of a pass, for a target that never rises. */
-    .never-rises {
-      font-size: 22px;
-      vertical-align: middle;
-    }
     .zoom {
       margin-left: auto;
       display: flex;
@@ -480,6 +458,12 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
       flex: 1 1 auto;
       min-width: 0;
     }
+    .target-icon {
+      flex: none;
+      font-size: calc(24px * var(--af-scale, 1));
+      margin-right: 4px;
+      color: var(--ion-color-primary);
+    }
     .bar-buttons {
       flex: none;
       display: flex;
@@ -496,17 +480,6 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
     .directions {
       color: #a9cbff;
       font-size: calc(15px * var(--af-scale, 1));
-    }
-    /* The Moon's glare will spoil the view: in the same colour as other warnings. */
-    .moon-warning {
-      color: #ffb454;
-    }
-    .details {
-      padding: 6px 8px 4px 0;
-      border-top: 1px solid #232a3d;
-      color: var(--af-muted);
-      font-size: calc(14px * var(--af-scale, 1));
-      line-height: 1.5;
     }
   `,
   template: `
@@ -771,6 +744,10 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
           @if (state.selectedTarget(); as target) {
             <div class="bar" data-testid="target-bar">
               <div class="bar-row">
+                <!-- The target's own icon, as in the lists. -->
+                @if (targetIconUrl(); as icon) {
+                  <ion-icon class="target-icon" aria-hidden="true" [src]="icon"></ion-icon>
+                }
                 <div class="bar-text">
                   <strong data-testid="target-designations">{{ designationText(target) }}</strong> {{ target.name }}
                   <div class="directions" data-testid="directions">{{ directions() }}</div>
@@ -812,89 +789,8 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
                   </ion-button>
                 </div>
               </div>
-              @if (details(); as info) {
-                <div class="details" data-testid="target-details">
-                  <!-- What it is, in words, and where among the stars. -->
-                  <div data-testid="details-type">
-                    {{ info.type }}
-                    @if (info.constellation; as constellation) {
-                      · in {{ constellation }}
-                    }
-                  </div>
-                  <!-- A double star's pairs, colours, and whether the telescope splits it. -->
-                  @if (info.double; as double) {
-                    @for (pair of double.pairs; track pair.components) {
-                      <div data-testid="details-pair">
-                        <span class="keep">{{ pair.components }} {{ pair.sep }} apart at {{ pair.paDeg }}°</span> ·
-                        <span class="keep"
-                          >mag {{ pair.mag1 | number: '1.1-1' }} and {{ pair.mag2 | number: '1.1-1' }}</span
-                        >
-                        @if (pair.relation; as relation) {
-                          · <span class="keep">{{ relation }}</span>
-                        }
-                      </div>
-                    }
-                    @if (double.colours; as colours) {
-                      <div data-testid="details-colours">{{ colours }}</div>
-                    }
-                    <div data-testid="details-split">{{ double.split }}</div>
-                  }
-                  <div>
-                    @if (target.mag < 90) {
-                      <span class="keep">mag {{ target.mag | number: '1.1-1' }}</span>
-                    }
-                    @if (info.size; as size) {
-                      · <span class="keep">{{ size }}</span>
-                    }
-                    @if (info.facts; as facts) {
-                      · <span class="keep">disc {{ discText(facts.discArcsec) }}</span> ·
-                      <span class="keep">{{ facts.litFraction * 100 | number: '1.0-0' }}% lit</span>
-                    }
-                  </div>
-                  <!-- For the Moon, planets, Pluto and asteroids: how far, and how far from the Sun. -->
-                  @if (info.facts; as facts) {
-                    <div data-testid="details-distance">
-                      <span class="keep">{{ distanceText(facts.distanceAu) }} away</span> ·
-                      <span class="keep">{{ lightTimeText(facts.lightSeconds) }}</span> ·
-                      <span class="keep">{{ facts.sunAngleDeg | number: '1.0-0' }}° from the Sun</span>
-                    </div>
-                    @if (facts.moon; as moon) {
-                      <div data-testid="details-moon-phase">
-                        <span class="keep">Age {{ moon.ageDays | number: '1.0-0' }} days</span>
-                        @for (event of moonEvents(moon); track event.name) {
-                          · <span class="keep">{{ event.name }} {{ event.date | localTime: 'date' }}</span>
-                        }
-                      </div>
-                    }
-                  }
-                  <!-- Its pass across the sky: the one it is on now, or else the next. -->
-                  <div data-testid="details-pass">
-                    @if (info.pass.highest; as highest) {
-                      @if (info.pass.rise; as rise) {
-                        <span class="keep">Rise {{ rise | localTime }}</span> ·
-                      } @else {
-                        <span class="keep">Never sets</span> ·
-                      }
-                      <span class="keep"
-                        >highest {{ highest.time | localTime }} at {{ highest.altDeg | number: '1.0-0' }}°</span
-                      >
-                      @if (info.pass.set; as set) {
-                        · <span class="keep">set {{ set | localTime }}</span>
-                      }
-                    } @else {
-                      <!-- A struck-through eye: it can't be seen from here. -->
-                      <ion-icon class="never-rises" name="eye-off-outline" aria-hidden="true"></ion-icon>
-                      <span class="visually-hidden">Never rises</span>
-                    }
-                  </div>
-                  @if (info.moon; as moon) {
-                    <div data-testid="details-moon" [class.moon-warning]="moon.warn">{{ moon.text }}</div>
-                  }
-                  <div>RA {{ formatRa(target.raDeg) }}, Dec {{ formatDec(target.decDeg) }}</div>
-                  @if (info.otherNames) {
-                    <div data-testid="details-names">Aka {{ info.otherNames }}</div>
-                  }
-                </div>
+              @if (showDetails()) {
+                <app-target-details data-testid="target-details" [target]="target"></app-target-details>
               }
             </div>
           }
@@ -927,70 +823,17 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   protected readonly minField = MIN_FIELD_DEG;
   protected readonly maxField = MAX_FIELD_DEG;
   protected readonly zoomStep = ZOOM_STEP;
-  protected readonly formatRa = formatRa;
   protected readonly designationText = designationText;
-  protected readonly formatDec = formatDec;
   protected readonly stars = signal<Star[]>([]);
   protected readonly constellations = signal<Constellation[]>([]);
   protected readonly showDetails = signal(false);
-  protected readonly discText = discText;
-  protected readonly distanceText = distanceText;
-  protected readonly lightTimeText = lightTimeText;
-
-  /**
-   * What the details box says about the selected target. Only worked out while the box is
-   * open, and with the minute clock, since finding the rise, highest point and set takes a few
-   * hundred position calculations.
-   */
-  protected readonly details = computed(() => {
+  /** AstroFinder's own icon for the selected target, or null for kinds without one. */
+  protected readonly targetIconUrl = computed(() => {
     const target = this.state.selectedTarget();
-    if (!this.showDetails() || !target) return null;
-    const now = this.state.now();
-    return {
-      type: objectTypeText(target),
-      // A constellation is its own place in the sky, so "Orion · in Orion" would add nothing.
-      constellation: target.kind === 'Constellation' ? null : constellationName(target.raDeg, target.decDeg),
-      // Solar-system bodies show their disc instead, which changes with their distance.
-      size: target.body ? null : sizeText(target),
-      facts: target.body ? bodyFacts(target.body, now) : null,
-      pass: skyPass((time) => this.state.positionAt(target, time).altDeg, now),
-      moon: target.body === 'Moon' ? null : this.moonNoteFor(target, now),
-      double: target.double ? this.doubleDetails(target.double, target.bv) : null,
-      otherNames: otherNames(target.aliases, [...designations(target), target.name]),
-    };
+    const paths = target ? targetIcon(target) : null;
+    return paths ? iconDataUrl(paths) : null;
   });
 
-  /** A double star's pairs, its colours, and whether the user's telescope splits it. */
-  private doubleDetails(double: DoubleStar, bv: number | undefined) {
-    const { telescopeApertureMm } = this.state.settings();
-    const [mainBv, companionBv] = pairBv(double.spectral);
-    // A named star's own colour index is better than one from its spectral type.
-    const [main, companion] = [bv ?? mainBv, companionBv].map((value) =>
-      value === null || value === undefined ? null : starColourName(value),
-    );
-    return {
-      pairs: double.pairs.map((pair) => ({ ...pair, sep: arcsecText(pair.sepArcsec), relation: pairRelation(pair) })),
-      colours: main && companion ? `${main} and ${companion.toLowerCase()}` : null,
-      // The closest pair is the one that tests the telescope.
-      split: splitAdvice(double.pairs[0], telescopeApertureMm, this.power()).text,
-    };
-  }
-
-  /** Where the Moon is from the target, and whether its glare will get in the way. */
-  private moonNoteFor(target: Target, now: Date): { text: string; warn: boolean } | null {
-    const moon = this.state.targets().find((t) => t.id === 'Moon');
-    if (!moon) return null;
-    const separation = equatorialSeparationDeg(target, moon);
-    return moonNote(separation, this.state.positionAt(moon, now).altDeg, moon.phase?.litFraction ?? 0);
-  }
-
-  /** The next full and new Moon, the sooner one first. */
-  protected moonEvents(moon: NonNullable<BodyFacts['moon']>): { name: string; date: Date }[] {
-    return [
-      { name: 'full Moon', date: moon.nextFull },
-      { name: 'new Moon', date: moon.nextNew },
-    ].sort((a, b) => a.date.getTime() - b.date.getTime());
-  }
   protected readonly showEquipment = signal(false);
 
   /**

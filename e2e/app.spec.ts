@@ -92,11 +92,18 @@ test('shows target details from the target bar', async ({ page }) => {
   await page.locator('[data-testid=target-info]').click();
   await expect(infoIcon).toHaveAttribute('name', 'information-circle');
   const details = page.locator('[data-testid=target-details]');
-  // What it is and where, both of its sizes, and its pass across the sky.
-  await expect(page.locator('[data-testid=details-type]')).toHaveText(/Spiral galaxy\s+· in Andromeda/);
+  // What it is and where, both of its sizes, and its height through the night.
+  await expect(page.locator('[data-testid=details-type]')).toContainText('Spiral galaxy');
+  await expect(page.locator('[data-testid=details-constellation]')).toHaveText('Andromeda');
   await expect(details).toContainText('190′ × 60′');
-  await expect(page.locator('[data-testid=details-pass]')).toContainText(/Rise|Never sets|Never rises/);
-  await expect(page.locator('[data-testid=details-moon]')).toContainText('Moon');
+  await expect(page.locator('[data-testid=tonight-chart]')).toBeVisible();
+  await expect(page.locator('[data-testid=details-pass]')).toHaveText(
+    /Best .+–.+|Low tonight|Not up tonight|Only up in twilight/,
+  );
+  // How it fits the default 25 mm eyepiece: M31 is wider than its 2° field.
+  await expect(page.locator('[data-testid=details-eyepiece]')).toHaveText('Overfills at 26×');
+  await expect(page.locator('[data-testid=details-moon]')).toContainText(/Moon down|Bright Moon|No glare/);
+  await expect(page.locator('[data-testid=details-where]')).toContainText(/\d+° up|Below the horizon/);
   // NGC 224 and the name are already in the heading, so they aren't repeated below.
   await expect(page.locator('[data-testid=details-names]')).toHaveCount(0);
 });
@@ -113,13 +120,17 @@ test('describes double stars, named or not, and finds them by catalogue number',
 
   // A named star that is a double keeps its name, and gains its pair.
   await details('Albireo', 'Albireo');
-  await expect(page.locator('[data-testid=details-type]')).toHaveText(/Double star\s+· in Cygnus/);
-  await expect(page.locator('[data-testid=details-pair]')).toHaveText(
-    /AB 34″ apart at 54°\s+·\s+mag 3\.2 and 4\.7\s+·\s+line-of-sight pair/,
-  );
+  await expect(page.locator('[data-testid=details-type]')).toContainText('Double star');
+  await expect(page.locator('[data-testid=details-constellation]')).toHaveText('Cygnus');
+  await expect(page.locator('[data-testid=details-pair]')).toHaveText(/AB 34″ apart at 54°\s+·\s+line-of-sight pair/);
+  await expect(page.locator('[data-testid=target-details]')).toContainText('mag 3.2 and 4.7');
   await expect(page.locator('[data-testid=details-colours]')).toHaveText('Orange and blue-white');
   // The default telescope is 650 mm with a 25 mm eyepiece: 26×.
-  await expect(page.locator('[data-testid=details-split]')).toHaveText('Splits with your eyepiece, at 26×');
+  await expect(page.locator('[data-testid=details-split]')).toContainText('Splits at 26×');
+  await expect(page.locator('[data-testid=details-split]')).toHaveAttribute(
+    'title',
+    'Splits with your eyepiece, at 26×',
+  );
 
   // One without a name, found by its catalogue number, written either way.
   await details('STF2470', 'STF 2470');
@@ -142,7 +153,8 @@ test('describes star colours and solar-system bodies in the details', async ({ p
   };
 
   await details('Betelgeuse');
-  await expect(page.locator('[data-testid=details-type]')).toHaveText(/Orange-red star\s+· in Orion/);
+  await expect(page.locator('[data-testid=details-type]')).toContainText('Orange-red star');
+  await expect(page.locator('[data-testid=details-constellation]')).toHaveText('Orion');
 
   await details('Jupiter');
   await expect(page.locator('[data-testid=details-distance]')).toContainText(/\d\.\d\d au away · light takes \d+ min/);
@@ -426,12 +438,11 @@ test('shows its own icons for galaxies and nebulae', async ({ page }) => {
   await expect(page.locator('app-targets [data-testid=target-icon]').first()).toHaveAttribute('data-icon', 'custom');
   await page.locator('app-targets ion-chip', { hasText: 'Galaxy' }).click();
   await expect(page.locator('app-targets [data-testid=target-icon]').first()).toHaveAttribute('data-icon', 'custom');
-  // Exactly "Star", not "Double star".
+  // Exactly "Star", not "Double star". Plain stars have the standard star; named stars that
+  // are also doubles, such as Albireo, the double star icon. Which comes first depends on
+  // the sky at the time, so this only checks that plain stars show theirs.
   await page.locator('app-targets ion-chip', { hasText: /^\s*Star\s*$/ }).click();
-  await expect(page.locator('app-targets [data-testid=target-icon]').first()).toHaveAttribute(
-    'data-icon',
-    'star-outline',
-  );
+  await expect(page.locator('app-targets [data-testid=target-icon][data-icon=star-outline]').first()).toBeVisible();
 });
 
 test('fades the reticle in and out only while plate solving', async ({ page }) => {

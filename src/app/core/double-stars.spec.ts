@@ -46,12 +46,19 @@ describe('double stars', () => {
   it('says whether a telescope splits a pair, and at what magnification', () => {
     expect(dawesLimitArcsec(130)).toBeCloseTo(0.89, 2);
     // Albireo splits at any magnification.
-    expect(splitAdvice(ALBIREO.pairs[0], 130, 26)).toEqual({ text: 'Splits with your eyepiece, at 26×', splits: true });
-    // Epsilon Lyrae's 2.1″ pairs need more than a low-power eyepiece.
-    expect(splitAdvice({ sepArcsec: 2.1, mag1: 5.2, mag2: 6.1 }, 130, 26)).toEqual({
-      text: 'Needs about 115× to split · your eyepiece gives 26×',
+    expect(splitAdvice(ALBIREO.pairs[0], 130, 26)).toMatchObject({
+      text: 'Splits with your eyepiece, at 26×',
+      short: 'Splits at 26×',
       splits: true,
     });
+    // Epsilon Lyrae's 2.1″ pairs need more than a low-power eyepiece.
+    expect(splitAdvice({ sepArcsec: 2.1, mag1: 5.2, mag2: 6.1 }, 130, 26)).toMatchObject({
+      text: 'Needs about 115× to split · your eyepiece gives 26×',
+      short: 'Needs 115×',
+      splits: true,
+    });
+    // A 130 mm telescope's limit for an even pair: about 0.9″.
+    expect(splitAdvice({ sepArcsec: 5, mag1: 5, mag2: 5.5 }, 130, 26).limitArcsec).toBeCloseTo(0.89, 2);
     // Too close for a small telescope, and harder still with a faint companion.
     expect(splitAdvice({ sepArcsec: 1.2, mag1: 5, mag2: 5.5 }, 60, 100).splits).toBe(false);
     expect(splitAdvice({ sepArcsec: 1.2, mag1: 5, mag2: 5.5 }, 130, 250).splits).toBe(true);

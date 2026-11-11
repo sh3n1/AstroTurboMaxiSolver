@@ -1,6 +1,7 @@
 import {
   constellationName,
   equatorialSeparationDeg,
+  eyepieceFit,
   hubbleText,
   moonNote,
   objectTypeText,
@@ -66,6 +67,16 @@ describe('object sizes', () => {
     expect(sizeText({ sizeArcmin: 13 })).toBe('13′ across');
     expect(sizeText({ sizeArcmin: 8, minorArcmin: 8 })).toBe('8′ across');
     expect(sizeText({})).toBeNull();
+  });
+});
+
+describe('how an object fits the eyepiece', () => {
+  it('says it in a word, against a 2° field', () => {
+    // M31, 190′ long, is wider than the field; M57, 1.4′, is tiny in it.
+    expect(eyepieceFit(190, 120)).toEqual({ word: 'Overfills', share: 190 / 120 });
+    expect(eyepieceFit(60, 120).word).toBe('Fills');
+    expect(eyepieceFit(10, 120).word).toBe('Fits');
+    expect(eyepieceFit(1.4, 120).word).toBe('Tiny');
   });
 });
 

@@ -18,11 +18,12 @@ import { AppState } from './app-state.service';
 import type { Horizontal } from './astronomy';
 import { compassPoint, compassShort } from './astronomy';
 import { BookmarkSheetComponent } from './bookmark-sheet.component';
-import { designationText } from './designations';
 import { ListsService } from './lists.service';
 import { LocalTimePipe } from './local-time.pipe';
 import { SensorService } from './sensor.service';
 import { iconDataUrl, targetIcon } from './target-icons';
+import type { ListedTarget } from './target-lists';
+import { rowDesignations } from './target-lists';
 import type { Target, TargetKind } from './targets';
 
 /** Standard icons for the kinds without one of AstroFinder's own, in target-icons.ts. */
@@ -68,7 +69,7 @@ const GOOD_ALTITUDE_DEG = 30;
   `,
   template: `
     <ion-list>
-      @for (target of targets(); track target.id) {
+      @for (target of targets(); track target.id + (target.listedAs ?? '')) {
         @let position = positionOf(target);
         @let altDeg = position.altDeg;
         <ion-item button detail="false" (click)="aimAt(target)">
@@ -85,7 +86,7 @@ const GOOD_ALTITUDE_DEG = 30;
           ></ion-icon>
           <ion-label>
             <!-- Every catalogue number: Messier, then Caldwell, then NGC and IC. -->
-            <h2 data-testid="designations">{{ designationText(target) }}</h2>
+            <h2 data-testid="designations">{{ rowDesignations(target) }}</h2>
             <!-- Magnitude only where it is known. Constellations, and some objects, have none. -->
             <p>
               {{ target.name }}
@@ -142,7 +143,8 @@ const GOOD_ALTITUDE_DEG = 30;
   `,
 })
 export class TargetListComponent {
-  readonly targets = input.required<readonly Target[]>();
+  /** The rows. A catalogue may list a target twice, under two numbers: see ListedTarget. */
+  readonly targets = input.required<readonly ListedTarget[]>();
   /** The time altitudes are shown for. Defaults to right now. */
   readonly at = input<Date | null>(null);
 
@@ -192,7 +194,7 @@ export class TargetListComponent {
   protected readonly compassPoint = compassPoint;
   protected readonly compassShort = compassShort;
 
-  protected readonly designationText = designationText;
+  protected readonly rowDesignations = rowDesignations;
   protected readonly kindIcons: Partial<Record<TargetKind, string>> = KIND_ICONS;
 
   /** AstroFinder's own icon as an image, or null to use a standard one. */

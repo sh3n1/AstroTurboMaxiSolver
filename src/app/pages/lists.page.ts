@@ -1,5 +1,5 @@
 import type { ElementRef } from '@angular/core';
-import { Component, inject, viewChild } from '@angular/core';
+import { Component, computed, inject, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import {
   ActionSheetController,
@@ -26,17 +26,19 @@ import {
   cloudUploadOutline,
   documentTextOutline,
   folderOutline,
+  libraryOutline,
   locateOutline,
   moonOutline,
   sparklesOutline,
 } from 'ionicons/icons';
 
 import { ListsService } from '../core/lists.service';
-import { FIXED_LISTS } from '../core/target-lists';
+import { fixedListEntries } from '../core/target-lists';
 
 /**
- * The Bookmarks tab: the app's own lists (Best right now, In the reticle, Messier and Caldwell), then the
- * user's lists, which they can make, import and export.
+ * The Bookmarks tab: the app's own collections (Best right now, In the reticle, and the
+ * Catalogues page), then the user's lists, which they can make,
+ * import and export.
  */
 @Component({
   selector: 'app-lists',
@@ -90,21 +92,27 @@ import { FIXED_LISTS } from '../core/target-lists';
     </ion-header>
 
     <ion-content>
-      <!-- The app's own lists, which always stay as they are. -->
+      <!-- The app's own lists, which always stay as they are. The catalogues have their own page. -->
       <ion-list inset="true">
         <ion-list-header>Collections</ion-list-header>
-        @for (list of lists.fixedLists(); track list.id; let i = $index) {
-          <ion-item button detail="true" data-testid="list-link" (click)="open(list.id)">
-            <ion-icon slot="start" aria-hidden="true" [name]="fixed[i].icon"></ion-icon>
+        @for (entry of collections(); track entry.list.id) {
+          <ion-item button detail="true" data-testid="list-link" (click)="open(entry.list.id)">
+            <ion-icon slot="start" aria-hidden="true" [name]="entry.icon"></ion-icon>
             <ion-label>
-              <h2>{{ list.name }}</h2>
-              @if (fixed[i].description) {
-                <p>{{ fixed[i].description }}</p>
+              <h2>{{ entry.list.name }}</h2>
+              @if (entry.description) {
+                <p>{{ entry.description }}</p>
               }
             </ion-label>
-            <ion-badge slot="end" color="medium">{{ list.targets.length }}</ion-badge>
+            <ion-badge slot="end" color="medium">{{ entry.list.targets.length }}</ion-badge>
           </ion-item>
         }
+        <ion-item button detail="true" data-testid="catalogues-link" (click)="openCatalogues()">
+          <ion-icon slot="start" aria-hidden="true" name="library-outline"></ion-icon>
+          <ion-label>
+            <h2>Catalogues</h2>
+          </ion-label>
+        </ion-item>
       </ion-list>
 
       <!-- The user's lists. Uncategorized is always first and can't be deleted. -->
@@ -143,7 +151,8 @@ import { FIXED_LISTS } from '../core/target-lists';
 })
 export class ListsPage {
   protected readonly lists = inject(ListsService);
-  protected readonly fixed = FIXED_LISTS;
+  /** The collections that change with the sky and the telescope. */
+  protected readonly collections = computed(() => fixedListEntries(this.lists.fixedLists(), 'collections'));
   private readonly router = inject(Router);
   private readonly alerts = inject(AlertController);
   private readonly actionSheets = inject(ActionSheetController);
@@ -158,6 +167,7 @@ export class ListsPage {
       cloudUploadOutline,
       documentTextOutline,
       folderOutline,
+      libraryOutline,
       locateOutline,
       moonOutline,
       sparklesOutline,
@@ -166,6 +176,10 @@ export class ListsPage {
 
   protected open(id: string): void {
     void this.router.navigateByUrl(`/tabs/lists/${id}`);
+  }
+
+  protected openCatalogues(): void {
+    void this.router.navigateByUrl('/tabs/lists/catalogues');
   }
 
   protected async newList(): Promise<void> {
