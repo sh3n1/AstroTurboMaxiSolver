@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   UNCATEGORIZED_ID,
   catalogueTargets,
+  ngcTargets,
+  rowDesignations,
   exportFileName,
   exportLists,
   parseImport,
@@ -55,5 +57,18 @@ describe('bookmark lists', () => {
     const targets = [target('M110'), target('NGC 7000', 'C20'), target('M2'), target('Vega'), target('NGC 188', 'C1')];
     expect(catalogueTargets(targets, 'M').map((t) => t.id)).toEqual(['M2', 'M110']);
     expect(catalogueTargets(targets, 'C').map((t) => t.id)).toEqual(['NGC 188', 'NGC 7000']);
+  });
+
+  it('finds NGC lists by any designation, with a row for each number of a shared object', () => {
+    const targets = [target('M76', 'NGC 650/1'), target('NGC 2371', 'NGC 2372'), target('NGC 40')];
+    // 2371 and 2372 are one object, so the second row is listed as 2372. NGC 9999 isn't in the data.
+    const rows = ngcTargets(targets, [40, 650, 2371, 2372, 9999]);
+    expect(rows.map((t) => t.id)).toEqual(['NGC 40', 'M76', 'NGC 2371', 'NGC 2371']);
+    expect(rows.map(rowDesignations)).toEqual([
+      'NGC 40',
+      'M76 · NGC 650',
+      'NGC 2371 · NGC 2372',
+      'NGC 2372 · NGC 2371',
+    ]);
   });
 });

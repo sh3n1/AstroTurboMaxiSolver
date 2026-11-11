@@ -218,7 +218,8 @@ export class ListPage {
     const list = this.list();
     if (!list) return;
     this.lists.download(
-      exportLists([{ name: list.name, targetIds: list.targets.map((t) => t.id) }]),
+      // A target listed twice, under two numbers, is saved once.
+      exportLists([{ name: list.name, targetIds: [...new Set(list.targets.map((t) => t.id))] }]),
       exportFileName(list.name),
     );
   }
@@ -228,7 +229,8 @@ export class ListPage {
     const list = this.list();
     if (!list) return;
     const id = this.lists.create(list.name);
-    for (const target of list.targets) this.lists.toggle(id, target.id);
+    // A target listed twice, under two numbers, is added once: a second toggle would remove it.
+    for (const targetId of new Set(list.targets.map((t) => t.id))) this.lists.toggle(id, targetId);
     void this.router.navigateByUrl(`/tabs/lists/${id}`, { replaceUrl: true });
   }
 

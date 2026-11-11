@@ -80,25 +80,39 @@ export function splitPower(sepArcsec: number): number {
 /** Wide enough to split by eye or in binoculars, like Mizar and Alcor. */
 const NAKED_EYE_SEP_ARCSEC = 180;
 
-/** Whether and how the user's telescope splits a pair, as a sentence and a yes or no. */
+/**
+ * Whether and how the user's telescope splits a pair: as a sentence, as a few words for a
+ * chip, as a yes or no, and the closest pair the telescope splits, in arcseconds.
+ */
 export function splitAdvice(
   pair: Pick<DoublePair, 'sepArcsec' | 'mag1' | 'mag2'>,
   apertureMm: number,
   power: number,
-): { text: string; splits: boolean } {
+): { text: string; short: string; splits: boolean; limitArcsec: number } {
   const { sepArcsec: sep } = pair;
-  if (sep >= NAKED_EYE_SEP_ARCSEC) return { text: 'Splits by eye or in binoculars', splits: true };
-  const limit = splitLimitArcsec(apertureMm, Math.abs(pair.mag2 - pair.mag1));
-  if (sep < limit) {
+  const limitArcsec = splitLimitArcsec(apertureMm, Math.abs(pair.mag2 - pair.mag1));
+  if (sep >= NAKED_EYE_SEP_ARCSEC) {
+    return { text: 'Splits by eye or in binoculars', short: 'Splits by eye', splits: true, limitArcsec };
+  }
+  if (sep < limitArcsec) {
     return {
-      text: `Too close for a ${Math.round(apertureMm)} mm telescope, which splits pairs down to about ${arcsecText(limit)}`,
+      text: `Too close for a ${Math.round(apertureMm)} mm telescope, which splits pairs down to about ${arcsecText(limitArcsec)}`,
+      short: 'Too close',
       splits: false,
+      limitArcsec,
     };
   }
   const needed = splitPower(sep);
   const shown = Math.round(power);
-  if (shown >= needed) return { text: `Splits with your eyepiece, at ${shown}×`, splits: true };
-  return { text: `Needs about ${needed}× to split · your eyepiece gives ${shown}×`, splits: true };
+  if (shown >= needed) {
+    return { text: `Splits with your eyepiece, at ${shown}×`, short: `Splits at ${shown}×`, splits: true, limitArcsec };
+  }
+  return {
+    text: `Needs about ${needed}× to split · your eyepiece gives ${shown}×`,
+    short: `Needs ${needed}×`,
+    splits: true,
+    limitArcsec,
+  };
 }
 
 /** A separation in arcseconds, or arcminutes from a minute up: "2.1″", "34″", "12′". */

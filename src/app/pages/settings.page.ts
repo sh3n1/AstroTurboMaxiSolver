@@ -476,6 +476,38 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
           <ion-label class="ion-text-wrap credit">Caldwell catalogue compiled by Sir Patrick Moore.</ion-label>
         </ion-item>
         <ion-item>
+          <ion-label class="ion-text-wrap credit">
+            Herschel 400 selected by the Ancient City Astronomy Club, Herschel II by the Rose City Astronomers, as
+            observed in the Astronomical League's programmes.
+          </ion-label>
+        </ion-item>
+        <ion-item>
+          <ion-label class="ion-text-wrap credit">
+            110 Best NGC Objects by A. J. Crayon and Steve Coe, Saguaro Astronomy Club.
+          </ion-label>
+        </ion-item>
+        <ion-item>
+          <ion-label class="ion-text-wrap credit">
+            Finest NGC list by Alan Dyer, Royal Astronomical Society of Canada.
+          </ion-label>
+        </ion-item>
+        <ion-item>
+          <ion-label class="ion-text-wrap credit">
+            Deep-Sky Gems by David H. Levy and Explore the Universe, Royal Astronomical Society of Canada.
+          </ion-label>
+        </ion-item>
+        <ion-item>
+          <ion-label class="ion-text-wrap credit">
+            Urban Observing Program, Astronomical League. Top-100 Deepsky Objects, Astronomical Society of Southern
+            Africa.
+          </ion-label>
+        </ion-item>
+        <ion-item>
+          <ion-label class="ion-text-wrap credit">
+            Monthly lists from NASA's Hubble Night Sky Challenge. NASA does not endorse this app.
+          </ion-label>
+        </ion-item>
+        <ion-item>
           <ion-label class="ion-text-wrap credit" data-testid="credit-wds"
             >Double stars from the Washington Double Star Catalog, maintained at the U.S. Naval Observatory.</ion-label
           >

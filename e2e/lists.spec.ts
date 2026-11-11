@@ -13,12 +13,71 @@ async function bookmarkFromTargets(page: Page, search: string): Promise<void> {
   await expect(page.locator('ion-modal [data-testid=bookmark-list]').first()).toBeVisible();
 }
 
-test('shows the Best right now, Messier and Caldwell collections', async ({ page }) => {
+test('shows the Best right now collection, and the Messier and Caldwell catalogues', async ({ page }) => {
   await page.goto('/tabs/lists');
   await expect(listLink(page, 'Best right now')).toBeVisible();
-  await expect(listLink(page, 'Messier catalogue').locator('ion-badge')).toHaveText('110');
+  await expect(listLink(page, 'Uncategorized')).toBeVisible();
+
+  // The catalogues have their own page.
+  await page.locator('[data-testid=catalogues-link]').click();
+  const catalogues = page.locator('app-catalogues');
+  await expect(catalogues.locator('ion-title')).toHaveText('Catalogues');
+  await expect(catalogues.locator('[data-testid=list-link]', { hasText: 'Messier' }).locator('ion-badge')).toHaveText(
+    '110',
+  );
   // 109 Caldwell numbers, but C14, the Double Cluster, is two objects.
-  await expect(listLink(page, 'Caldwell catalogue').locator('ion-badge')).toHaveText('110');
+  await expect(catalogues.locator('[data-testid=list-link]', { hasText: 'Caldwell' }).locator('ion-badge')).toHaveText(
+    '110',
+  );
+  // Two objects are listed under two NGC numbers each, and get a row for each.
+  await expect(
+    catalogues.locator('[data-testid=list-link]', { hasText: 'Herschel 400' }).locator('ion-badge'),
+  ).toHaveText('400');
+  await expect(
+    catalogues.locator('[data-testid=list-link]', { hasText: 'Herschel II' }).locator('ion-badge'),
+  ).toHaveText('400');
+  // 111 rows: the Double Cluster's two halves each have one.
+  await expect(
+    catalogues.locator('[data-testid=list-link]', { hasText: 'SAC 110 Best NGC' }).locator('ion-badge'),
+  ).toHaveText('111');
+  for (const [name, count] of [
+    ['Explore the Universe', '45'],
+    ['Urban', '87'],
+    ['ASSA Top-100', '100'],
+  ]) {
+    await expect(catalogues.locator('[data-testid=list-link]', { hasText: name }).locator('ion-badge')).toHaveText(
+      count,
+    );
+  }
+
+  // The RASC Finest NGC opens a page of its seasons: 110 objects and 7 companions.
+  await page.locator('[data-testid=catalogue-group-link]', { hasText: 'RASC Finest NGC' }).click();
+  const seasons = page.locator('app-catalogues', { has: page.locator('ion-title', { hasText: 'RASC Finest NGC' }) });
+  for (const [season, count] of [
+    ['Autumn sky', '23'],
+    ['Winter sky', '18'],
+    ['Spring sky', '54'],
+    ['Summer sky', '22'],
+  ]) {
+    await expect(seasons.locator('[data-testid=list-link]', { hasText: season }).locator('ion-badge')).toHaveText(
+      count,
+    );
+  }
+  await page.goto('/tabs/lists');
+  await expect(listLink(page, 'Uncategorized')).toBeVisible();
+
+  // Each split catalogue has its own page of lists.
+  for (const [group, list, count] of [
+    ['RASC Deep-Sky Gems', 'Spring sky', '79'],
+    // The default location is on the equator, so the northern list: nine objects in November.
+    ['Hubble Night Sky Challenge', 'November', '9'],
+  ]) {
+    await page.goto('/tabs/lists/catalogues');
+    await page.locator('[data-testid=catalogue-group-link]', { hasText: group }).click();
+    const lists = page.locator('app-catalogues', { has: page.locator('ion-title', { hasText: group }) });
+    await expect(lists.locator('[data-testid=list-link]', { hasText: list }).locator('ion-badge')).toHaveText(count);
+  }
+  await page.goto('/tabs/lists');
   await expect(listLink(page, 'Uncategorized')).toBeVisible();
 
   // Something is always well up, by day or night: at least the brightest objects.
@@ -71,8 +130,8 @@ test('lists what is inside the reticle, following the telescope', async ({ page 
 });
 
 test('lists a catalogue in order, and searches inside it', async ({ page }) => {
-  await page.goto('/tabs/lists');
-  await listLink(page, 'Caldwell catalogue').click();
+  await page.goto('/tabs/lists/catalogues');
+  await listLink(page, 'Caldwell').click();
   const rows = page.locator('app-list app-target-list ion-item');
   await expect(rows.first().locator('[data-testid=designations]')).toHaveText('C1 · NGC 188');
 

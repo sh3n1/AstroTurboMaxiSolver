@@ -1,17 +1,28 @@
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
 
+import { AL_URBAN } from './al-urban';
 import { apparentMagnitude } from './alignment';
 import { AppState } from './app-state.service';
+import { ASSA_TOP_100 } from './assa-top-100';
 import { equatorialVector } from './astronomy';
+import { HERSCHEL_400, HERSCHEL_II } from './herschel';
+import type { Month } from './hubble-night-sky-challenge';
+import { HUBBLE_NIGHT_SKY_CHALLENGE } from './hubble-night-sky-challenge';
 import { LocalTimePipe } from './local-time.pipe';
+import { RASC_DEEP_SKY_GEMS } from './rasc-deep-sky-gems';
+import { RASC_EXPLORE_THE_UNIVERSE } from './rasc-explore-universe';
+import { RASC_FINEST_NGC } from './rasc-finest-ngc';
 import { insideReticle } from './reticle';
 import type { SkyItem } from './reticle';
+import { SAC_110 } from './sac-110';
 import { recommendationLimit } from './sky-quality';
-import type { FixedListId, TargetList } from './target-lists';
+import type { FixedListId, ListedTarget, TargetList } from './target-lists';
 import {
   FIXED_LISTS,
   UNCATEGORIZED_ID,
   catalogueTargets,
+  designationIndex,
+  listRows,
   exportFileName,
   exportLists,
   newListId,
@@ -39,7 +50,8 @@ export interface ListView {
   name: string;
   /** Fixed lists are made by the app. Uncategorized can't be renamed or deleted, only filled. */
   kind: 'fixed' | 'uncategorized' | 'custom';
-  targets: Target[];
+  /** Its rows. A catalogue can list one target twice, under two numbers: see ListedTarget. */
+  targets: ListedTarget[];
 }
 
 /** Loads the saved lists, or starts new ones from the old session plan. */
@@ -112,6 +124,48 @@ export class ListsService {
   private readonly messier = computed(() => catalogueTargets(this.state.targets(), 'M'));
   private readonly caldwell = computed(() => catalogueTargets(this.state.targets(), 'C'));
 
+  /** Every target by its designations, shared by the catalogue lists below. */
+  private readonly byDesignation = computed(() => designationIndex(this.state.targets()));
+
+  /** The Hubble Night Sky Challenge has a list for each hemisphere: the user's. */
+  private readonly hemisphere = computed(() => (this.state.settings().latitudeDeg < 0 ? 'south' : 'north'));
+
+  /** The observing programmes' lists, each by the designations it names. */
+  private readonly programmeLists = computed(() => {
+    const index = this.byDesignation();
+    const rows = (wanted: readonly string[]): ListedTarget[] => listRows(index, wanted);
+    const ngc = (numbers: readonly number[]): ListedTarget[] => rows(numbers.map((n) => `NGC ${n}`));
+    const hubble = (month: Month): ListedTarget[] => rows(HUBBLE_NIGHT_SKY_CHALLENGE[month][this.hemisphere()]);
+    return {
+      herschel400: ngc(HERSCHEL_400),
+      herschel2: ngc(HERSCHEL_II),
+      sac110: ngc(SAC_110),
+      'explore-universe': rows(RASC_EXPLORE_THE_UNIVERSE),
+      urban: rows(AL_URBAN),
+      assa100: rows(ASSA_TOP_100),
+      'rasc-autumn': rows(RASC_FINEST_NGC.autumn),
+      'rasc-winter': rows(RASC_FINEST_NGC.winter),
+      'rasc-spring': rows(RASC_FINEST_NGC.spring),
+      'rasc-summer': rows(RASC_FINEST_NGC.summer),
+      'gems-autumn': rows(RASC_DEEP_SKY_GEMS.autumn),
+      'gems-winter': rows(RASC_DEEP_SKY_GEMS.winter),
+      'gems-spring': rows(RASC_DEEP_SKY_GEMS.spring),
+      'gems-summer': rows(RASC_DEEP_SKY_GEMS.summer),
+      'hubble-january': hubble('january'),
+      'hubble-february': hubble('february'),
+      'hubble-march': hubble('march'),
+      'hubble-april': hubble('april'),
+      'hubble-may': hubble('may'),
+      'hubble-june': hubble('june'),
+      'hubble-july': hubble('july'),
+      'hubble-august': hubble('august'),
+      'hubble-september': hubble('september'),
+      'hubble-october': hubble('october'),
+      'hubble-november': hubble('november'),
+      'hubble-december': hubble('december'),
+    } satisfies Record<Exclude<FixedListId, 'now' | 'reticle' | 'messier' | 'caldwell'>, ListedTarget[]>;
+  });
+
   /**
    * "Best right now", or while planning the time it is for: "Best at 23:30" today,
    * "Best Tue 23:30" in the coming week, or "Best 14 Nov 23:30" further away.
@@ -128,11 +182,12 @@ export class ListsService {
 
   /** The app's own lists, which can't be changed. */
   readonly fixedLists = computed<ListView[]>(() => {
-    const targets: Record<FixedListId, Target[]> = {
+    const targets: Record<FixedListId, ListedTarget[]> = {
       now: this.bestNow(),
       reticle: this.inReticle(),
       messier: this.messier(),
       caldwell: this.caldwell(),
+      ...this.programmeLists(),
     };
     return FIXED_LISTS.map(({ id, name }) => ({
       id,

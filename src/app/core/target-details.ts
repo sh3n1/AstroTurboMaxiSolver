@@ -20,6 +20,10 @@ const TYPE_NAMES: Record<string, string> = {
   GPair: 'Galaxy pair',
   GTrpl: 'Galaxy triplet',
   GGroup: 'Galaxy group',
+  DrkN: 'Dark nebula',
+  // Not OpenNGC's codes: for the app's own objects, in extra-targets.ts.
+  Ast: 'Asterism',
+  QSO: 'Quasar',
 };
 
 /**
@@ -81,6 +85,16 @@ export function sizeText(target: Pick<Target, 'sizeArcmin' | 'minorArcmin'>): st
   if (!sizeArcmin) return null;
   if (!minorArcmin || minorArcmin === sizeArcmin) return `${arcminText(sizeArcmin)} across`;
   return `${arcminText(sizeArcmin)} × ${arcminText(minorArcmin)}`;
+}
+
+/**
+ * How an object fits the eyepiece's field, from its size and the field's, both in
+ * arcminutes: in a word for the details' chip, and the share of the field it spans.
+ */
+export function eyepieceFit(sizeArcmin: number, fieldArcmin: number): { word: string; share: number } {
+  const share = sizeArcmin / fieldArcmin;
+  const word = share >= 1 ? 'Overfills' : share >= 0.4 ? 'Fills' : share >= 0.05 ? 'Fits' : 'Tiny';
+  return { word, share };
 }
 
 /** The angle between two catalogue positions, in degrees. */

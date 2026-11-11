@@ -21,6 +21,7 @@ import type { ConstellationRow } from './constellations';
 import type { DoubleRow } from './double-stars';
 import type { Equipment, TelescopeType } from './equipment';
 import { EQUIPMENT_KEYS, rememberEquipment } from './equipment';
+import { EXTRA_TARGETS } from './extra-targets';
 import { MINOR_PLANETS, minorPlanet } from './minor-planets';
 import { telescopeLimit } from './sky-quality';
 import type { Target, TargetKind } from './targets';
@@ -192,7 +193,9 @@ export class AppState {
    */
   private readonly catalogWithCaldwell = computed(() => {
     const caldwell = this.caldwell();
-    return caldwell ? [...joinCaldwell(this.catalog(), caldwell), ...caldwell.extraTargets] : this.catalog();
+    const base = caldwell ? [...joinCaldwell(this.catalog(), caldwell), ...caldwell.extraTargets] : this.catalog();
+    // Plus the few objects no catalogue file has, such as NGC 206.
+    return [...base, ...EXTRA_TARGETS];
   });
   readonly selectedTarget = computed(() => this.targets().find((t) => t.id === this.selectedTargetId()) ?? null);
 

@@ -57,6 +57,19 @@ export function onDay(time: Date, day: string): Date {
 export type SkyShade = 'day' | 'civil' | 'nautical' | 'astronomical' | 'night';
 
 /**
+ * The sky's colour for each shade, on the time control's ruler and the details' Tonight
+ * chart: a clear blue day, darkening step by step into night, so each part of the evening
+ * is easy to tell apart at a glance.
+ */
+export const SKY_SHADE_COLOURS: Record<SkyShade, string> = {
+  day: '#4f78b8',
+  civil: '#3b4f86',
+  nautical: '#283563',
+  astronomical: '#182040',
+  night: '#0a0e1a',
+};
+
+/**
  * The sky's shade for the Sun's height: day while it is up, then the three twilights,
  * each 6° deeper, and full darkness once it is 18° down, when faint galaxies show.
  */
