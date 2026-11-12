@@ -7,6 +7,7 @@ import {
   arrowUpOutline,
   bookmark,
   bookmarkOutline,
+  checkmarkCircle,
   ellipseOutline,
   eyeOffOutline,
   shapesOutline,
@@ -20,6 +21,7 @@ import { compassPoint, compassShort } from './astronomy';
 import { BookmarkSheetComponent } from './bookmark-sheet.component';
 import { ListsService } from './lists.service';
 import { LocalTimePipe } from './local-time.pipe';
+import { ObservingLogService } from './observing-log.service';
 import { SensorService } from './sensor.service';
 import { iconDataUrl, targetIcon } from './target-icons';
 import type { ListedTarget } from './target-lists';
@@ -56,6 +58,28 @@ const GOOD_ALTITUDE_DEG = 30;
       color: var(--af-muted);
       font-size: 26px;
     }
+    /* The kind's icon, with room for the seen tick at its corner. */
+    .icon-wrap {
+      position: relative;
+      display: inline-flex;
+      margin-inline-end: 16px;
+      border-radius: 50%;
+    }
+    .icon-wrap > ion-icon:first-child {
+      font-size: 24px;
+    }
+    .icon-wrap.tried {
+      box-shadow: 0 0 0 2px var(--ion-color-warning);
+    }
+    .tick {
+      position: absolute;
+      right: -7px;
+      bottom: -5px;
+      font-size: 15px;
+      color: var(--ion-color-success);
+      background: var(--ion-item-background, var(--ion-background-color));
+      border-radius: 50%;
+    }
     /* A rise time, in the same quieter colour, with a small up arrow before it. */
     .rises {
       display: inline-flex;
@@ -74,16 +98,30 @@ const GOOD_ALTITUDE_DEG = 30;
         @let altDeg = position.altDeg;
         <ion-item button detail="false" (click)="aimAt(target)">
           @let icon = customIcon(target);
-          <!-- Galaxies, nebulae, planets and the Moon have AstroFinder's own icons. -->
-          <ion-icon
+          @let seen = log.states().get(target.id);
+          <!-- Galaxies, nebulae, planets and the Moon have AstroFinder's own icons. A green tick
+               marks a target seen, an amber ring one looked for but not seen yet. -->
+          <span
             slot="start"
-            color="medium"
-            aria-hidden="true"
-            data-testid="target-icon"
-            [attr.data-icon]="icon ? 'custom' : kindIcons[target.kind]"
-            [name]="icon ? undefined : kindIcons[target.kind]"
-            [src]="icon ?? undefined"
-          ></ion-icon>
+            class="icon-wrap"
+            [class.seen]="seen === 'seen'"
+            [class.tried]="seen === 'tried'"
+            [attr.role]="seen ? 'img' : null"
+            [attr.aria-label]="seen === 'seen' ? 'Seen' : seen === 'tried' ? 'Not seen yet' : null"
+            [attr.data-seen]="seen ?? null"
+          >
+            <ion-icon
+              color="medium"
+              aria-hidden="true"
+              data-testid="target-icon"
+              [attr.data-icon]="icon ? 'custom' : kindIcons[target.kind]"
+              [name]="icon ? undefined : kindIcons[target.kind]"
+              [src]="icon ?? undefined"
+            ></ion-icon>
+            @if (seen === 'seen') {
+              <ion-icon class="tick" name="checkmark-circle" aria-hidden="true"></ion-icon>
+            }
+          </span>
           <ion-label>
             <!-- Every catalogue number: Messier, then Caldwell, then NGC and IC. -->
             <h2 data-testid="designations">{{ rowDesignations(target) }}</h2>
@@ -154,11 +192,13 @@ export class TargetListComponent {
   private readonly sensors = inject(SensorService);
   private readonly modals = inject(ModalController);
   protected readonly lists = inject(ListsService);
+  protected readonly log = inject(ObservingLogService);
 
   constructor() {
     addIcons({
       bookmark,
       bookmarkOutline,
+      checkmarkCircle,
       ellipseOutline,
       eyeOffOutline,
       shapesOutline,
