@@ -10,20 +10,20 @@
  */
 
 /* Core CSS required for Ionic components to work properly */
-@import "@ionic/angular/css/core.css";
+@import '@ionic/angular/css/core.css';
 
 /* Basic CSS for apps built with Ionic */
-@import "@ionic/angular/css/normalize.css";
-@import "@ionic/angular/css/structure.css";
-@import "@ionic/angular/css/typography.css";
-@import "@ionic/angular/css/display.css";
+@import '@ionic/angular/css/normalize.css';
+@import '@ionic/angular/css/structure.css';
+@import '@ionic/angular/css/typography.css';
+@import '@ionic/angular/css/display.css';
 
 /* Optional CSS utils that can be commented out */
-@import "@ionic/angular/css/padding.css";
-@import "@ionic/angular/css/float-elements.css";
-@import "@ionic/angular/css/text-alignment.css";
-@import "@ionic/angular/css/text-transformation.css";
-@import "@ionic/angular/css/flex-utils.css";
+@import '@ionic/angular/css/padding.css';
+@import '@ionic/angular/css/float-elements.css';
+@import '@ionic/angular/css/text-alignment.css';
+@import '@ionic/angular/css/text-transformation.css';
+@import '@ionic/angular/css/flex-utils.css';
 
 /**
  * Ionic Dark Mode
@@ -167,6 +167,72 @@ ion-toast.af-toast {
   --color: var(--af-text);
   --border-radius: 12px;
   font-size: calc(16px * var(--af-scale, 1));
+}
+
+/*
+ * Dialogs, menus and sheets: a lighter surface than the page, a pale edge all round and
+ * a darker veil behind, so their borders never mix with the rows underneath. Ionic's own
+ * are the page's colour with no edge, which on this dark theme makes them hard to pick out.
+ */
+/* With :root in front, these win over Ionic's own rules, which are set by class. */
+:root ion-alert,
+:root ion-action-sheet,
+:root ion-popover,
+:root ion-modal {
+  --af-raised: #1b2338;
+  --af-raised-edge: rgb(255 255 255 / 22%);
+  --backdrop-opacity: 0.65;
+}
+:root ion-alert,
+:root ion-action-sheet,
+:root ion-popover {
+  --background: var(--af-raised);
+  --button-background: var(--af-raised);
+}
+ion-alert .alert-wrapper {
+  border: 1px solid var(--af-raised-edge);
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgb(0 0 0 / 70%);
+}
+/* The box to type in: its own darker field with an edge, instead of a bare line. */
+ion-alert .alert-input.sc-ion-alert-md,
+ion-alert .alert-input.sc-ion-alert-ios {
+  padding: 10px 12px;
+  border: 1px solid var(--af-raised-edge);
+  border-radius: 8px;
+  background: #0d1220;
+  color: var(--af-text);
+  font-size: calc(16px * var(--af-scale, 1));
+}
+ion-alert .alert-input.sc-ion-alert-md:focus,
+ion-alert .alert-input.sc-ion-alert-ios:focus {
+  border-color: var(--ion-color-primary);
+}
+ion-action-sheet .action-sheet-group {
+  border: 1px solid var(--af-raised-edge);
+}
+/* Android's menu is one block of two groups: the edge goes round the pair. */
+ion-action-sheet .action-sheet-group.sc-ion-action-sheet-md:first-child {
+  border-bottom: 0;
+  border-radius: 14px 14px 0 0;
+}
+ion-action-sheet .action-sheet-group.sc-ion-action-sheet-md:last-child {
+  border-top: 0;
+}
+ion-popover::part(content) {
+  border: 1px solid var(--af-raised-edge);
+}
+/* Sheets from the bottom: the same surface, with the edge along their top. */
+:root ion-modal.modal-sheet {
+  --background: var(--af-raised);
+  --ion-background-color: var(--af-raised);
+  --ion-toolbar-background: var(--af-raised);
+  --ion-item-background: var(--af-raised);
+}
+ion-modal.modal-sheet::part(content) {
+  border: 1px solid var(--af-raised-edge);
+  border-bottom: 0;
+  box-shadow: 0 -8px 32px rgb(0 0 0 / 60%);
 }
 
 /*

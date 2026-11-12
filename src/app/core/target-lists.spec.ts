@@ -18,14 +18,14 @@ function target(id: string, aliases = ''): Target {
 }
 
 describe('bookmark lists', () => {
-  it('starts with Uncategorized, holding the old session plan', () => {
+  it('starts with Saved for later, holding the old session plan', () => {
     expect(startingLists(['M31', 'M42'])).toEqual([
-      { id: UNCATEGORIZED_ID, name: 'Uncategorized', targetIds: ['M31', 'M42'] },
+      { id: UNCATEGORIZED_ID, name: 'Saved for later', targetIds: ['M31', 'M42'] },
     ]);
   });
 
   it('keeps list names unique, ignoring case', () => {
-    expect(uniqueName('Galaxies', ['Uncategorized'])).toBe('Galaxies');
+    expect(uniqueName('Galaxies', ['Saved for later'])).toBe('Galaxies');
     expect(uniqueName('galaxies', ['Galaxies'])).toBe('galaxies (2)');
     expect(uniqueName('Galaxies', ['Galaxies', 'Galaxies (2)'])).toBe('Galaxies (3)');
     expect(uniqueName('  ', [])).toBe('New list');

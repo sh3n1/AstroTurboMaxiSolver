@@ -31,7 +31,7 @@ test('logs a target as seen, with a note, and shows it in the log and the catalo
   // The note saves a moment after typing stops.
   await page.waitForTimeout(500);
   await sheet.locator('[data-testid=log-sheet-close]').click();
-  await expect(page.locator('ion-modal')).toHaveCount(0);
+  await expect(sheet).toHaveCount(0);
 
   // The log has it, under tonight, with the note.
   await page.goto('/tabs/lists');
@@ -49,10 +49,19 @@ test('logs a target as seen, with a note, and shows it in the log and the catalo
   await expect(page.locator('[data-testid=list-seen-count]')).toHaveText('1 of 110 seen');
   const rows = page.locator('app-list app-target-list ion-item');
   await expect(rows.filter({ hasText: 'M31' }).locator('[data-seen=seen]')).toHaveCount(1);
-  await page.locator('[data-testid=list-seen-filter] ion-segment-button', { hasText: 'Seen' }).click();
+  await page.locator('app-list [data-testid=list-filter]').click();
+  const filters = page.locator('[data-testid=list-seen-filters] ion-chip');
+  await filters.filter({ hasText: 'Seen' }).click();
   await expect(rows).toHaveCount(1);
-  await page.locator('[data-testid=list-seen-filter] ion-segment-button', { hasText: 'To see' }).click();
-  await expect(rows).toHaveCount(109);
+  await filters.filter({ hasText: 'To see' }).click();
+  await expect(page.locator('app-list [data-testid=list-rows]')).toHaveAttribute('data-total', '109');
+  await page.locator('[data-testid=filters-close]').click();
+
+  // The Catalogues page shows the progress on Messier's badge.
+  await page.goto('/tabs/lists/catalogues');
+  await expect(page.locator('[data-testid=list-link]', { hasText: 'Messier' }).locator('ion-badge')).toHaveText(
+    '1/110',
+  );
 });
 
 test('undoes a sighting from the toast', async ({ page }) => {

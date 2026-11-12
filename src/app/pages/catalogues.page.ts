@@ -17,12 +17,15 @@ import { addIcons } from 'ionicons';
 import { bookOutline, calendarOutline, flowerOutline, leafOutline, snowOutline, sunnyOutline } from 'ionicons/icons';
 
 import { isIconUrl } from '../core/app-icons';
+import { AppState } from '../core/app-state.service';
+import { currentFirst } from '../core/list-order';
 import { ListsService } from '../core/lists.service';
+import { ObservingLogService } from '../core/observing-log.service';
 import type { FixedListSection } from '../core/target-lists';
 import { CATALOGUE_GROUPS, fixedListEntries } from '../core/target-lists';
 
 /**
- * The Catalogues page, opened from the Bookmarks tab's collections: Messier, Caldwell,
+ * The Catalogues page, opened from the Lists tab: Messier, Caldwell,
  * Herschel 400, Herschel II and the SAC 110 Best NGC, each opening its own list, then the
  * RASC Finest NGC, which opens a page of its four seasons. That page is this one again,
  * set by the route's data.
@@ -42,7 +45,7 @@ import { CATALOGUE_GROUPS, fixedListEntries } from '../core/target-lists';
     IonTitle,
     IonToolbar,
   ],
-  // The same rows as the Bookmarks tab.
+  // The same rows as the Lists tab.
   styles: `
     ion-item > ion-icon[slot='start'] {
       color: var(--ion-color-primary);
@@ -78,7 +81,8 @@ import { CATALOGUE_GROUPS, fixedListEntries } from '../core/target-lists';
                 <p>{{ entry.description }}</p>
               }
             </ion-label>
-            <ion-badge slot="end" color="medium">{{ entry.list.targets.length }}</ion-badge>
+            <!-- How many are seen, once any is: "12/110". -->
+            <ion-badge slot="end" color="medium">{{ log.progressLabel(entry.list.targets) }}</ion-badge>
           </ion-item>
         }
         <!-- Catalogues split into several lists, each opening its own page of them. -->
@@ -97,6 +101,8 @@ import { CATALOGUE_GROUPS, fixedListEntries } from '../core/target-lists';
 })
 export class CataloguesPage {
   private readonly lists = inject(ListsService);
+  private readonly state = inject(AppState);
+  protected readonly log = inject(ObservingLogService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
@@ -108,7 +114,14 @@ export class CataloguesPage {
   protected readonly title: string = this.group?.name ?? 'Catalogues';
   protected readonly back = this.group ? '/tabs/lists/catalogues' : '/tabs/lists';
 
-  protected readonly catalogues = computed(() => fixedListEntries(this.lists.fixedLists(), this.section));
+  /**
+   * The lists, in the catalogue's order. A catalogue split by season or month starts at
+   * the current one, for the time on show, since that is the one to observe now.
+   */
+  protected readonly catalogues = computed(() => {
+    const entries = fixedListEntries(this.lists.fixedLists(), this.section);
+    return this.group ? currentFirst(entries, this.state.now()) : entries;
+  });
   /** Split catalogues, only on the Catalogues page itself. */
   protected readonly groups = this.group ? [] : CATALOGUE_GROUPS;
 

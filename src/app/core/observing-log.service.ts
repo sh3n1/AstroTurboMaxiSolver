@@ -70,6 +70,16 @@ export class ObservingLogService {
     return this.tonightByTarget().get(targetId);
   }
 
+  /**
+   * A list's badge: how many rows it has, and once any is seen, how many of them:
+   * "110", then "12/110".
+   */
+  progressLabel(rows: readonly { id: string }[]): string {
+    const states = this.states();
+    const seen = rows.filter((row) => states.get(row.id) === 'seen').length;
+    return seen > 0 ? `${seen}/${rows.length}` : `${rows.length}`;
+  }
+
   /** How many times the target has been seen in all, failed tries left out. */
   timesSeen(targetId: string): number {
     return timesSeen(this.entries(), targetId);

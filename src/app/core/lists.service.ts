@@ -20,6 +20,7 @@ import type { FixedListId, ListedTarget, TargetList } from './target-lists';
 import {
   FIXED_LISTS,
   UNCATEGORIZED_ID,
+  UNCATEGORIZED_NAME,
   catalogueTargets,
   designationIndex,
   listRows,
@@ -33,7 +34,7 @@ import {
 import type { Target } from './targets';
 
 const LISTS_KEY = 'astrofinder.lists';
-/** Where the old session plan kept its bookmarks. They move into Uncategorized. */
+/** Where the old session plan kept its bookmarks. They move into Saved for later. */
 const OLD_PLAN_KEY = 'astrofinder.plan';
 
 // The best right now: objects well up in the sky at this moment, brightest first.
@@ -48,7 +49,7 @@ const WEEKDAY = new Intl.DateTimeFormat(undefined, { weekday: 'short' });
 export interface ListView {
   id: string;
   name: string;
-  /** Fixed lists are made by the app. Uncategorized can't be renamed or deleted, only filled. */
+  /** Fixed lists are made by the app. Saved for later can't be renamed or deleted, only filled. */
   kind: 'fixed' | 'uncategorized' | 'custom';
   /** Its rows. A catalogue can list one target twice, under two numbers: see ListedTarget. */
   targets: ListedTarget[];
@@ -59,8 +60,11 @@ function loadLists(): TargetList[] {
   try {
     const stored = localStorage.getItem(LISTS_KEY);
     if (stored) {
-      const lists = JSON.parse(stored) as TargetList[];
-      // Uncategorized must always exist, even if the saved data lost it.
+      // The first list was once called Uncategorized: it always takes its current name.
+      const lists = (JSON.parse(stored) as TargetList[]).map((l) =>
+        l.id === UNCATEGORIZED_ID ? { ...l, name: UNCATEGORIZED_NAME } : l,
+      );
+      // It must always exist, even if the saved data lost it.
       return lists.some((l) => l.id === UNCATEGORIZED_ID) ? lists : [...startingLists(), ...lists];
     }
     const oldPlan = localStorage.getItem(OLD_PLAN_KEY);
@@ -76,7 +80,7 @@ function loadLists(): TargetList[] {
 export class ListsService {
   private readonly state = inject(AppState);
 
-  /** The lists the user can edit, Uncategorized first. */
+  /** The lists the user can edit, Saved for later first. */
   readonly editableLists = signal<TargetList[]>(loadLists());
 
   // Stars are mainly useful for alignment, so they are left out. The brightest first,
@@ -239,6 +243,16 @@ export class ListsService {
     this.update(listId, (ids) => (ids.includes(targetId) ? ids.filter((i) => i !== targetId) : [...ids, targetId]));
   }
 
+  /** A list's target ids as saved, in order, to put back after a change is undone. */
+  targetIds(listId: string): string[] {
+    return [...(this.editableLists().find((l) => l.id === listId)?.targetIds ?? [])];
+  }
+
+  /** Sets a list's targets, in order: for reordering by hand, and for undoing a removal. */
+  setTargets(listId: string, targetIds: readonly string[]): void {
+    this.update(listId, () => [...targetIds]);
+  }
+
   /** Makes a new, empty list and returns its id. Names are kept unique. */
   create(name: string): string {
     const id = newListId();
@@ -246,7 +260,7 @@ export class ListsService {
     return id;
   }
 
-  /** Renames one of the user's lists. Uncategorized always keeps its name. */
+  /** Renames one of the user's lists. Saved for later always keeps its name. */
   rename(listId: string, name: string): void {
     if (listId === UNCATEGORIZED_ID) return;
     const others = this.editableLists().filter((l) => l.id !== listId);
@@ -257,7 +271,7 @@ export class ListsService {
     this.editableLists.update((lists) => lists.map((l) => (l.id === listId ? { ...l, name: unique } : l)));
   }
 
-  /** Deletes one of the user's lists. Uncategorized always stays. */
+  /** Deletes one of the user's lists. Saved for later always stays. */
   delete(listId: string): void {
     if (listId === UNCATEGORIZED_ID) return;
     this.editableLists.update((lists) => lists.filter((l) => l.id !== listId));
@@ -277,19 +291,21 @@ export class ListsService {
   }
 
   /**
-   * Shares a list with the phone's share sheet, or saves it as a file where sharing
-   * isn't available. Returns what happened, for a message to the user.
+   * Shares a list with the phone's share sheet, to send by chat, mail or any other app.
+   * It never saves a file by itself: that is "Save as a file" in the list's menu. It goes
+   * as a text file, since share sheets refuse JSON files, and importing reads it the same.
+   * Where files can't be shared, it goes as plain text, and where nothing can, the text
+   * is copied, to paste wherever the user likes. Returns what happened, for a message.
    */
-  async share(list: ListView): Promise<'shared' | 'saved' | 'cancelled'> {
-    const text = exportLists([{ name: list.name, targetIds: list.targets.map((t) => t.id) }]);
-    const fileName = exportFileName(list.name);
-    const file = new File([text], fileName, { type: 'application/json' });
+  async share(list: ListView): Promise<'shared' | 'copied' | 'cancelled' | 'unavailable'> {
+    // A target listed twice, under two numbers, is shared once.
+    const text = exportLists([{ name: list.name, targetIds: [...new Set(list.targets.map((t) => t.id))] }]);
+    const file = new File([text], exportFileName(list.name).replace(/\.json$/, '.txt'), { type: 'text/plain' });
     try {
       if (navigator.canShare?.({ files: [file] })) {
         await navigator.share({ files: [file], title: list.name });
         return 'shared';
       }
-      // Some browsers can share text but not this kind of file. Importing accepts it pasted.
       if (navigator.share) {
         await navigator.share({ title: list.name, text });
         return 'shared';
@@ -298,8 +314,13 @@ export class ListsService {
       // Closing the share sheet isn't a failure.
       if (error instanceof DOMException && error.name === 'AbortError') return 'cancelled';
     }
-    this.download(text, fileName);
-    return 'saved';
+    try {
+      await navigator.clipboard.writeText(text);
+      return 'copied';
+    } catch {
+      // No share sheet and no clipboard: only saving a file is left, from the menu.
+      return 'unavailable';
+    }
   }
 
   /** Saves every list the user made as one file, for a backup or another phone. */

@@ -57,7 +57,7 @@ import { TimeControlComponent } from '../core/time-control.component';
         </ion-tab-button>
         <ion-tab-button tab="lists">
           <ion-icon name="bookmarks-outline" aria-hidden="true"></ion-icon>
-          <ion-label>Bookmarks</ion-label>
+          <ion-label>Lists</ion-label>
         </ion-tab-button>
         <ion-tab-button tab="settings">
           <ion-icon name="settings-outline" aria-hidden="true"></ion-icon>

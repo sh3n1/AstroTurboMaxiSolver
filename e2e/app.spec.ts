@@ -1,4 +1,13 @@
+import type { Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
+
+/** Chooses a type in the Targets tab's filter sheet, then closes the sheet. */
+async function filterTargetsByType(page: Page, type: string | RegExp): Promise<void> {
+  await page.locator('app-targets [data-testid=list-filter]').click();
+  await page.locator('[data-testid=list-type-filters] ion-chip', { hasText: type }).click();
+  await page.locator('[data-testid=filters-close]').click();
+  await expect(page.locator('[data-testid=list-filters]')).toHaveCount(0);
+}
 
 test('visits the app root url', async ({ page }) => {
   await page.goto('/');
@@ -315,17 +324,19 @@ test('asks for alignment again after the mount changes', async ({ page }) => {
 
 test('filters targets by type', async ({ page }) => {
   await page.goto('/tabs/targets');
-  await page.locator('app-targets ion-chip', { hasText: 'Galaxy' }).click();
+  await filterTargetsByType(page, 'Galaxy');
+  // A long list shows its first part, and more once its end comes into view.
   await expect(page.locator('app-targets ion-item')).toHaveCount(40);
-  await expect(page.locator('[data-testid=more-results]')).toContainText('40 of');
+  await expect(page.locator('app-targets [data-testid=list-rows]')).not.toHaveAttribute('data-total', '40');
   await expect(page.locator('app-targets ion-item', { hasText: 'Vega' })).toHaveCount(0);
+  await page.locator('app-targets ion-item').last().scrollIntoViewIfNeeded();
+  await expect(page.locator('app-targets ion-item')).toHaveCount(80);
 });
 
 test('lists all 88 constellations, and finds one by its abbreviation', async ({ page }) => {
   await page.goto('/tabs/targets');
-  await page.locator('app-targets ion-chip', { hasText: 'Constellation' }).click();
-  await expect(page.locator('app-targets ion-item')).toHaveCount(88);
-  await expect(page.locator('[data-testid=more-results]')).toHaveCount(0);
+  await filterTargetsByType(page, 'Constellation');
+  await expect(page.locator('app-targets [data-testid=list-rows]')).toHaveAttribute('data-total', '88');
   await page.locator('app-targets ion-searchbar input').fill('Ori');
   await expect(page.locator('app-targets ion-item').first()).toContainText('Orion');
   // Aiming at it shows it on the sky map with the crosshair, like any target.
@@ -418,7 +429,7 @@ test('shows when a target below the horizon will rise', async ({ page }) => {
 
 test('lists the Moon, planets, dwarf planets and bright asteroids', async ({ page }) => {
   await page.goto('/tabs/targets');
-  await page.locator('app-targets ion-chip', { hasText: 'Solar system' }).click();
+  await filterTargetsByType(page, 'Solar system');
   const rows = page.locator('app-targets ion-item');
   // The Moon, seven planets, Pluto, Ceres, Vesta, Pallas and Juno.
   await expect(rows).toHaveCount(13);
@@ -434,14 +445,14 @@ test('lists the Moon, planets, dwarf planets and bright asteroids', async ({ pag
 
 test('shows its own icons for galaxies and nebulae', async ({ page }) => {
   await page.goto('/tabs/targets');
-  await page.locator('app-targets ion-chip', { hasText: 'Nebula' }).click();
+  await filterTargetsByType(page, 'Nebula');
   await expect(page.locator('app-targets [data-testid=target-icon]').first()).toHaveAttribute('data-icon', 'custom');
-  await page.locator('app-targets ion-chip', { hasText: 'Galaxy' }).click();
+  await filterTargetsByType(page, 'Galaxy');
   await expect(page.locator('app-targets [data-testid=target-icon]').first()).toHaveAttribute('data-icon', 'custom');
   // Exactly "Star", not "Double star". Plain stars have the standard star; named stars that
   // are also doubles, such as Albireo, the double star icon. Which comes first depends on
   // the sky at the time, so this only checks that plain stars show theirs.
-  await page.locator('app-targets ion-chip', { hasText: /^\s*Star\s*$/ }).click();
+  await filterTargetsByType(page, /^\s*Star\s*$/);
   await expect(page.locator('app-targets [data-testid=target-icon][data-icon=star-outline]').first()).toBeVisible();
 });
 
