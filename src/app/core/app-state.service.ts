@@ -219,6 +219,8 @@ export class AppState {
   /** The real time, refreshed each minute and each second. */
   private readonly realMinute = signal(new Date());
   private readonly realSecond = signal(new Date());
+  /** The real time, refreshed each minute, even while planning. For the observing log. */
+  readonly realNow = this.realMinute.asReadonly();
 
   /**
    * The time the app shows, refreshed each minute, so positions keep up with the sky:

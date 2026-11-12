@@ -129,6 +129,26 @@ test('lists what is inside the reticle, following the telescope', async ({ page 
   await expect(page.locator('ion-action-sheet')).not.toContainText('Rename');
 });
 
+test('asks for a name when making an editable copy of a catalogue', async ({ page }) => {
+  await page.goto('/tabs/lists/messier');
+  await page.locator('[data-testid=list-actions]').click();
+  await page.locator('ion-action-sheet button', { hasText: 'Make an editable copy' }).click();
+
+  // The name box offers the original's name, to keep or change.
+  const name = page.locator('ion-alert [data-testid=copy-name]');
+  await expect(name).toHaveValue('Messier');
+  await name.fill('My Messier marathon');
+  await page.locator('ion-alert button', { hasText: 'Copy' }).click();
+
+  // The copy opens under its new name, with every object, and is listed as the user's own.
+  // The page it came from may still be leaving, so look in the copy's own page.
+  const copy = page.locator('app-list', { has: page.locator('ion-title', { hasText: 'My Messier marathon' }) });
+  await expect(copy).toBeVisible();
+  await expect(copy.locator('app-target-list ion-item')).toHaveCount(110);
+  await page.goto('/tabs/lists');
+  await expect(listLink(page, 'My Messier marathon')).toBeVisible();
+});
+
 test('lists a catalogue in order, and searches inside it', async ({ page }) => {
   await page.goto('/tabs/lists/catalogues');
   await listLink(page, 'Caldwell').click();

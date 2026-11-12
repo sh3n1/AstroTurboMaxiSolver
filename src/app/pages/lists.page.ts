@@ -25,6 +25,7 @@ import {
   documentTextOutline,
   folderOpenOutline,
   folderOutline,
+  journalOutline,
   libraryOutline,
   ribbonOutline,
   saveOutline,
@@ -33,6 +34,7 @@ import {
 
 import { isIconUrl } from '../core/app-icons';
 import { ListsService } from '../core/lists.service';
+import { ObservingLogService } from '../core/observing-log.service';
 import { fixedListEntries } from '../core/target-lists';
 
 /**
@@ -110,6 +112,14 @@ import { fixedListEntries } from '../core/target-lists';
             <h2>Catalogues</h2>
           </ion-label>
         </ion-item>
+        <!-- Everything seen, night by night. -->
+        <ion-item button detail="true" data-testid="log-link" (click)="openLog()">
+          <ion-icon slot="start" aria-hidden="true" name="journal-outline"></ion-icon>
+          <ion-label>
+            <h2>Observing log</h2>
+          </ion-label>
+          <ion-badge slot="end" color="medium">{{ log.entries().length }}</ion-badge>
+        </ion-item>
       </ion-list>
 
       <!-- The user's lists. Uncategorized is always first and can't be deleted. -->
@@ -148,6 +158,7 @@ import { fixedListEntries } from '../core/target-lists';
 })
 export class ListsPage {
   protected readonly lists = inject(ListsService);
+  protected readonly log = inject(ObservingLogService);
   /** The collections that change with the sky and the telescope. */
   protected readonly collections = computed(() => fixedListEntries(this.lists.fixedLists(), 'collections'));
   private readonly router = inject(Router);
@@ -163,6 +174,7 @@ export class ListsPage {
       documentTextOutline,
       folderOpenOutline,
       folderOutline,
+      journalOutline,
       libraryOutline,
       ribbonOutline,
       saveOutline,
@@ -178,6 +190,10 @@ export class ListsPage {
 
   protected openCatalogues(): void {
     void this.router.navigateByUrl('/tabs/lists/catalogues');
+  }
+
+  protected openLog(): void {
+    void this.router.navigateByUrl('/tabs/lists/log');
   }
 
   protected async newList(): Promise<void> {

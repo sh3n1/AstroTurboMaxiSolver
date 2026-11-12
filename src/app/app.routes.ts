@@ -17,6 +17,7 @@ export const routes: Routes = [
         path: 'lists/catalogues/:group',
         loadComponent: () => import('./pages/catalogues.page').then((m) => m.CataloguesPage),
       },
+      { path: 'lists/log', loadComponent: () => import('./pages/log.page').then((m) => m.LogPage) },
       { path: 'lists/:id', loadComponent: () => import('./pages/list.page').then((m) => m.ListPage) },
       // The Bookmarks tab replaced the session plan.
       { path: 'plan', redirectTo: 'lists', pathMatch: 'full' },

@@ -12,11 +12,14 @@ import {
   IonRange,
   IonSelect,
   IonSelectOption,
+  ModalController,
   ToastController,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
   add,
+  eye,
+  eyeOutline,
   compassOutline,
   close,
   contractOutline,
@@ -67,6 +70,9 @@ import { equipmentLabel, sameEquipment } from '../core/equipment';
 import { FullscreenService } from '../core/fullscreen.service';
 import { LiveSolverService } from '../core/live-solver.service';
 import { LocalTimePipe } from '../core/local-time.pipe';
+import { LogEntrySheetComponent } from '../core/log-entry-sheet.component';
+import { ordinal } from '../core/observing-log';
+import { ObservingLogService } from '../core/observing-log.service';
 import { RETICLE_RINGS_DEG, chevronSpacingPx, guideAngleDeg, pulseOpacity } from '../core/reticle';
 import { SensorService } from '../core/sensor.service';
 import { SoundService } from '../core/sound.service';
@@ -125,6 +131,8 @@ const STAR_CELL_DEG = 4;
 const OFF_SCREEN_MARGIN_PX = 200;
 /** How long a toast message stays, long enough to read at arm's length. */
 const TOAST_MS = 3500;
+/** The seen toast has buttons, so it stays longer. */
+const SEEN_TOAST_MS = 6000;
 const DEFAULT_FIELD_DEG = 20; // Close enough to read the stars and match a finder's view
 const MIN_FIELD_DEG = 5;
 const MAX_FIELD_DEG = 120;
@@ -469,6 +477,10 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
       display: flex;
       align-items: center;
     }
+    /* Seen tonight: the eye fills in, in the green that means done and on target. */
+    .bar-buttons .seen {
+      --color: var(--ion-color-success);
+    }
     /* Each part of a line wraps as a whole, never in the middle, like "below the horizon". */
     .keep {
       white-space: nowrap;
@@ -763,6 +775,21 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
                   </div>
                 </div>
                 <div class="bar-buttons">
+                  <!-- Logs the target as seen, filled in green once it is. Tapped again, opens the note. -->
+                  <ion-button
+                    fill="clear"
+                    size="small"
+                    data-testid="mark-seen"
+                    [class.seen]="!!seenTonight()"
+                    [attr.aria-label]="seenTonight() ? 'Seen: open the note' : 'Mark as seen'"
+                    (click)="markSeen(target)"
+                  >
+                    <ion-icon
+                      slot="icon-only"
+                      aria-hidden="true"
+                      [name]="seenTonight() ? 'eye' : 'eye-outline'"
+                    ></ion-icon>
+                  </ion-button>
                   <!-- Turns the map to the target: a frame closing in on it. -->
                   <ion-button
                     fill="clear"
@@ -815,6 +842,13 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   private readonly sound = inject(SoundService);
   private readonly router = inject(Router);
   private readonly toasts = inject(ToastController);
+  private readonly modals = inject(ModalController);
+  private readonly log = inject(ObservingLogService);
+  /** Tonight's log entry for the selected target, which fills in the seen button. */
+  protected readonly seenTonight = computed(() => {
+    const target = this.state.selectedTarget();
+    return target ? this.log.tonightEntry(target.id) : undefined;
+  });
   /** The newest plate solve already given a toast, so each attempt gets at most one. */
   private lastToastedSolveId = this.liveSolver.log()[0]?.id ?? 0;
   /** When the alignment shown last was made, or undefined before the first check. */
@@ -961,6 +995,8 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   constructor() {
     addIcons({
       add,
+      eye,
+      eyeOutline,
       compassOutline,
       close,
       contractOutline,
@@ -1092,6 +1128,44 @@ export class SkyPage implements AfterViewInit, OnDestroy {
 
   protected openAlignment(): void {
     void this.router.navigateByUrl('/align');
+  }
+
+  /**
+   * Logs the target as seen now, with a toast to undo it or add a note. If it is already
+   * logged tonight, opens that entry's note instead, so a second tap never logs it twice.
+   */
+  protected async markSeen(target: Target): Promise<void> {
+    const logged = this.seenTonight();
+    if (logged) {
+      await this.openLogEntry(logged.id);
+      return;
+    }
+    const entry = this.log.log(target);
+    const times = this.log.timesSeen(target.id);
+    const toast = await this.toasts.create({
+      message: times > 1 ? `Seen · ${ordinal(times)} time` : 'Seen · first time',
+      // Longer than other toasts, to leave time to tap Note.
+      duration: SEEN_TOAST_MS,
+      position: 'top',
+      cssClass: 'af-toast',
+      htmlAttributes: { 'data-testid': 'seen-toast' },
+      buttons: [
+        { text: 'Undo', handler: () => this.log.remove(entry.id) },
+        { text: 'Note', handler: () => void this.openLogEntry(entry.id) },
+      ],
+    });
+    await toast.present();
+  }
+
+  /** Opens a log entry's note sheet. */
+  private async openLogEntry(entryId: string): Promise<void> {
+    const sheet = await this.modals.create({
+      component: LogEntrySheetComponent,
+      componentProps: { entryId },
+      breakpoints: [0, 0.75, 1],
+      initialBreakpoint: 0.75,
+    });
+    await sheet.present();
   }
 
   protected clearTarget(): void {
