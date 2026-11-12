@@ -11,6 +11,8 @@ import {
   nightKey,
   ordinal,
   parseLogJson,
+  countLabel,
+  seenCounts,
   seenStates,
   timesSeen,
 } from './observing-log';
@@ -77,6 +79,32 @@ describe('seenStates and timesSeen', () => {
     expect(states.get('M 42')).toBeUndefined();
     expect(timesSeen(entries, 'M 31')).toBe(1);
     expect(timesSeen(entries, 'M 33')).toBe(0);
+  });
+
+  it('counts the sightings of every target in one pass, leaving failed tries out', () => {
+    const entries = [
+      entry('M 31', new Date(2026, 10, 12, 21, 0)),
+      entry('M 31', new Date(2026, 10, 13, 21, 0), 0),
+      entry('M 31', new Date(2026, 10, 14, 21, 0), 4),
+      entry('M 33', new Date(2026, 10, 12, 21, 0), 0),
+      entry('M 42', new Date(2026, 10, 12, 22, 0), 1),
+    ];
+    const counts = seenCounts(entries);
+    expect(counts.get('M 31')).toBe(2);
+    expect(counts.get('M 42')).toBe(1);
+    // Tried but never seen, or never logged: no count at all.
+    expect(counts.has('M 33')).toBe(false);
+    expect(counts.has('M 57')).toBe(false);
+    // The same answer as asking target by target.
+    for (const id of ['M 31', 'M 33', 'M 42']) expect(counts.get(id) ?? 0).toBe(timesSeen(entries, id));
+  });
+
+  it('writes a count no wider than two digits for a small badge', () => {
+    expect(countLabel(2)).toBe('2');
+    expect(countLabel(99)).toBe('99');
+    // Three digits or more: a placeholder, so the badge stays at most two characters wide.
+    expect(countLabel(100)).toBe('+');
+    expect(countLabel(1234)).toBe('+');
   });
 });
 

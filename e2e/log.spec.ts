@@ -15,11 +15,13 @@ test('logs a target as seen, with a note, and shows it in the log and the catalo
   await selectTarget(page, 'M31');
   const seen = page.locator('[data-testid=mark-seen]');
   await expect(seen.locator('ion-icon')).toHaveAttribute('name', 'eye-outline');
+  await expect(page.getByTestId('mark-seen-wrap').getByTestId('seen-count')).toHaveCount(0);
 
   // One tap logs it, and the eye fills in.
   await seen.click();
   await expect(page.locator('[data-testid=seen-toast]')).toContainText('Seen · first time');
   await expect(seen.locator('ion-icon')).toHaveAttribute('name', 'eye');
+  await expect(page.getByTestId('mark-seen-wrap').getByTestId('seen-count')).toHaveCount(0);
 
   // Tapping again opens the note instead of logging it twice.
   await seen.click();
@@ -73,4 +75,54 @@ test('undoes a sighting from the toast', async ({ page }) => {
   await expect(page.locator('[data-testid=mark-seen] ion-icon')).toHaveAttribute('name', 'eye-outline');
   await page.goto('/tabs/lists/log');
   await expect(page.locator('[data-testid=log-empty]')).toBeVisible();
+});
+
+test('shows all-time observation counts on the sky and lists, excluding failed tries', async ({ page }) => {
+  await selectTarget(page, 'M31');
+  await page.getByTestId('mark-seen').click();
+  await expect(page.getByTestId('mark-seen').locator('ion-icon')).toHaveAttribute('name', 'eye');
+  await page.evaluate(() => {
+    const entries = JSON.parse(localStorage.getItem('astrofinder.log')!);
+    const entry = entries[0];
+    localStorage.setItem(
+      'astrofinder.log',
+      JSON.stringify([
+        entry,
+        { ...entry, id: 'previous-observation', time: '2020-01-01T22:00:00.000Z' },
+        { ...entry, id: 'failed-observation', time: '2020-01-02T22:00:00.000Z', rating: 0 },
+      ]),
+    );
+  });
+  await selectTarget(page, 'M31');
+  await expect(page.getByTestId('mark-seen-wrap').getByTestId('seen-count')).toHaveText('2');
+  await expect(page.getByTestId('mark-seen').getByRole('button')).toHaveAccessibleName(
+    'Seen: open the note, seen 2 times',
+  );
+
+  await page.goto('/tabs/targets');
+  await page.locator('app-targets ion-searchbar input').fill('M31');
+  const targetRow = page.locator('app-targets ion-item').filter({ hasText: 'M31' }).first();
+  await expect(targetRow.getByTestId('seen-count')).toHaveText('2');
+  await expect(targetRow.locator('[data-seen=seen]')).toHaveAccessibleName('Seen 2 times');
+  await expect(targetRow.locator('ion-icon[name=checkmark-circle]')).toHaveCount(0);
+
+  await targetRow.click();
+  await page.getByTestId('mark-seen').click();
+  const entryModal = page.locator('ion-modal').filter({ has: page.locator('app-log-entry-sheet') });
+  await expect(entryModal).toBeVisible();
+  // Delete is below the fold at the sheet's first height: open it fully, as a drag up
+  // would. The sheet ignores that while it is still opening, so ask until it has slid up.
+  const deleteEntry = page.getByTestId('log-delete');
+  await expect(async () => {
+    await entryModal.evaluate((modal) =>
+      (modal as HTMLElement & { setCurrentBreakpoint: (value: number) => Promise<void> }).setCurrentBreakpoint(1),
+    );
+    await expect(deleteEntry).toBeInViewport({ ratio: 1, timeout: 1000 });
+  }).toPass();
+  await deleteEntry.click();
+  await expect(page.getByTestId('mark-seen-wrap').getByTestId('seen-count')).toHaveCount(0);
+  await expect(page.getByTestId('mark-seen').locator('ion-icon')).toHaveAttribute('name', 'eye-outline');
+  await page.getByRole('tab', { name: 'Targets', exact: true }).click();
+  await expect(targetRow.getByTestId('seen-count')).toHaveCount(0);
+  await expect(targetRow.locator('ion-icon[name=checkmark-circle]')).toHaveCount(1);
 });

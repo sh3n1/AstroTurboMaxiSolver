@@ -5,10 +5,12 @@ import type { Horizontal, Vector3 } from './astronomy';
 import { apparentAxes, horizontalVector, localToEquatorial, equatorialVector, separationDeg } from './astronomy';
 import type { Quaternion } from './attitude';
 import { attitudeFromImageAxes } from './attitude';
-import type { CaptureMode, CapturePlan, CaptureSettings, OpenCamera } from './camera';
+import type { CaptureMode, CapturePlan, CaptureSettings, CapturedFrame, OpenCamera } from './camera';
 import {
   FOCAL_SHARE_OF_LONG_SIDE,
   planCapture,
+  highestIso,
+  startingIso,
   longestExposureSeconds,
   applyCameraSettings,
   averageLevel,
@@ -74,6 +76,13 @@ const MAX_FOCAL_FACTOR = 1.3;
 const LOG_LENGTH = 20;
 /** The camera must move at least this far before another automatic attempt. */
 const SAME_POSITION_DEG = 1;
+/**
+ * When one long exposure finds no match, this many are averaged for a second try.
+ * Measured in a city sky: single frames at 1/3 s solved about half the time, six averaged
+ * every time. Averaging doesn't show fainter stars, but it clears the noise that the star
+ * finder takes for stars, which confuses the matching. It takes longer, so it comes second.
+ */
+const FALLBACK_STACK_FRAMES = 6;
 
 /**
  * Plate solves automatically whenever the sensors are on and the phone is still, then
@@ -187,7 +196,7 @@ export class LiveSolverService {
     this.state.plateSolving.set(true);
     // Where the sensors say the camera points, before any correction.
     const before = this.state.cameraPointing();
-    const entry = { trigger: 'auto' as const, startedAt: Date.now(), iso: this.iso };
+    const entry = { trigger: 'auto' as const, startedAt: Date.now(), iso: this.iso, frames: this.plan.frames };
     try {
       const camera = await this.ensureCamera();
       const frame = await captureStack(camera.video, this.captureSettings());
@@ -208,11 +217,20 @@ export class LiveSolverService {
         return;
       }
 
-      // The worker takes the pixels, so keep a copy if this attempt will be reported.
-      const kept = this.reporting() ? frame.pixels.slice() : null;
-      const { response, inputs } = await this.solve(frame.pixels, frame.width, frame.height);
+      const { response, inputs, kept, frames } = await this.solveWithFallback(camera, frame, true);
+      entry.frames = frames;
       const report = (outcome: 'solved' | 'failed', message: string): void =>
-        this.report({ trigger: 'auto', outcome, message, startedAt: entry.startedAt, before, kept, inputs, response });
+        this.report({
+          trigger: 'auto',
+          outcome,
+          message,
+          startedAt: entry.startedAt,
+          before,
+          kept,
+          inputs,
+          response,
+          frames,
+        });
       if (response.solution && this.status() === 'solving') {
         const rotation = this.state.realSkyRotation();
         const [x, y, z] = apparentAxes(rotation, response.solution.axes);
@@ -278,6 +296,8 @@ export class LiveSolverService {
     starCount?: number;
     matched?: number;
     sensorErrorDeg?: number | null;
+    /** How many frames were averaged, if not the plan's usual number. */
+    frames?: number;
   }): void {
     const newest: SolveLogEntry = {
       id: ++this.logCount,
@@ -288,7 +308,7 @@ export class LiveSolverService {
       starCount: entry.starCount ?? 0,
       matched: entry.matched ?? 0,
       iso: entry.iso,
-      frames: this.plan.frames,
+      frames: entry.frames ?? this.plan.frames,
       durationMs: Date.now() - entry.startedAt,
       sensorErrorDeg: entry.sensorErrorDeg ?? null,
     };
@@ -332,16 +352,22 @@ export class LiveSolverService {
         await new Promise((resolve) => setTimeout(resolve, SETTLE_MS));
         frame = await captureStack(camera.video, this.captureSettings());
       }
-      const entry = { trigger: 'alignment' as const, startedAt, iso: this.iso };
+      const entry = { trigger: 'alignment' as const, startedAt, iso: this.iso, frames: this.plan.frames };
       if (averageLevel(frame.pixels) > MAX_SKY_LEVEL) {
         this.record({ ...entry, outcome: 'failed', message: 'Too bright to see stars' });
         return { ok: false, reason: 'Too bright for the camera. Keep lights out of view.' };
       }
 
-      const kept = this.reporting() ? frame.pixels.slice() : null;
-      const { response, inputs } = await this.solve(frame.pixels, frame.width, frame.height, SOLVE_NOW_TIME_LIMIT_MS);
+      // The user holds the telescope still on purpose, so no need to ask the sensors.
+      const { response, inputs, kept, frames } = await this.solveWithFallback(
+        camera,
+        frame,
+        false,
+        SOLVE_NOW_TIME_LIMIT_MS,
+      );
+      entry.frames = frames;
       const report = (outcome: 'solved' | 'failed', message: string): void =>
-        this.report({ trigger: 'alignment', outcome, message, startedAt, before, kept, inputs, response });
+        this.report({ trigger: 'alignment', outcome, message, startedAt, before, kept, inputs, response, frames });
       if (!response.solution) {
         this.record({
           ...entry,
@@ -418,6 +444,8 @@ export class LiveSolverService {
     kept: Float32Array | null;
     inputs: SolveInputs;
     response: SolveResponse;
+    /** How many frames the reported picture averages. */
+    frames: number;
   }): void {
     if (!attempt.kept) return;
     const report = buildSolveReport(
@@ -429,7 +457,7 @@ export class LiveSolverService {
         camera: {
           exposureSeconds: this.plan.frameSeconds,
           iso: this.iso,
-          frames: this.plan.frames,
+          frames: attempt.frames,
           manual: this.plan.manual,
         },
         settings: { ...this.state.settings() },
@@ -474,6 +502,13 @@ export class LiveSolverService {
         (await applyCameraSettings(camera.track, { exposureSeconds: longest, iso: this.iso, frames: 1 }));
       const frameRate = camera.track.getSettings?.().frameRate;
       this.plan = planCapture(mode, manual ? longest : null, frameRate);
+      // Stacked short frames need all the brightness the camera has: see startingIso.
+      // Otherwise it keeps the current ISO, which may have been lowered for a bright sky.
+      const iso = startingIso(this.plan, highestIso(camera.track), this.iso);
+      if (iso !== this.iso) {
+        this.iso = iso;
+        await applyCameraSettings(camera.track, this.captureSettings());
+      }
       this.cameraMode = mode;
       await new Promise((resolve) => setTimeout(resolve, SETTLE_MS));
       this.camera = camera;
@@ -481,6 +516,36 @@ export class LiveSolverService {
     } finally {
       this.opening = false;
     }
+  }
+
+  /**
+   * Solves a frame. If one long exposure found no match, takes several at the same
+   * settings, averages them and tries once more: see FALLBACK_STACK_FRAMES. Not when the
+   * plan already stacks, nor when Settings forces single exposures for testing. For an
+   * automatic attempt the phone must still be still, or the stack would be smeared.
+   * Returns the pixels to report, if reporting, and how many frames the answer came from.
+   */
+  private async solveWithFallback(
+    camera: OpenCamera,
+    frame: CapturedFrame,
+    mustStayStill: boolean,
+    timeLimitMs?: number,
+  ): Promise<{ response: SolveResponse; inputs: SolveInputs; kept: Float32Array | null; frames: number }> {
+    // The worker takes the pixels, so keep a copy if this attempt will be reported.
+    let kept = this.reporting() ? frame.pixels.slice() : null;
+    let frames = this.plan.frames;
+    let { response, inputs } = await this.solve(frame.pixels, frame.width, frame.height, timeLimitMs);
+
+    const canStack = this.plan.manual && this.plan.frames === 1 && this.cameraMode === 'normal';
+    if (response.solution || !canStack || (mustStayStill && !this.sensors.isStill())) {
+      return { response, inputs, kept, frames };
+    }
+    const stack = await captureStack(camera.video, { ...this.captureSettings(), frames: FALLBACK_STACK_FRAMES });
+    if (mustStayStill && !this.sensors.isStill()) return { response, inputs, kept, frames };
+    frames = FALLBACK_STACK_FRAMES;
+    kept = this.reporting() ? stack.pixels.slice() : null;
+    ({ response, inputs } = await this.solve(stack.pixels, stack.width, stack.height, timeLimitMs));
+    return { response, inputs, kept, frames };
   }
 
   /** The settings for the next picture, from the plan and the current ISO. */

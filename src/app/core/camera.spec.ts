@@ -1,6 +1,22 @@
 import { describe, expect, it } from 'vitest';
 
-import { planCapture } from './camera';
+import { planCapture, startingIso } from './camera';
+
+describe('startingIso', () => {
+  it('uses the highest ISO for stacked short manual frames', () => {
+    expect(startingIso(planCapture('normal', 1 / 15, 30), 96_000, 3200)).toBe(96_000);
+  });
+
+  it('keeps the standard ISO for one long exposure, or automatic exposure', () => {
+    expect(startingIso(planCapture('normal', 1 / 3, 30), 96_000, 3200)).toBe(3200);
+    expect(startingIso(planCapture('normal', null, 30), 96_000, 3200)).toBe(3200);
+  });
+
+  it('keeps the standard ISO when the camera does not say its highest, or it is lower', () => {
+    expect(startingIso(planCapture('normal', 1 / 15, 30), null, 3200)).toBe(3200);
+    expect(startingIso(planCapture('normal', 1 / 15, 30), 1600, 3200)).toBe(3200);
+  });
+});
 
 describe('planCapture', () => {
   it('takes one long exposure when the phone allows one', () => {

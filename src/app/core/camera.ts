@@ -53,6 +53,19 @@ export function planCapture(mode: CaptureMode, manualSeconds: number | null, fra
   return { frames, frameSeconds, manual };
 }
 
+/**
+ * The ISO to start from. Short manual frames that are stacked use the camera's highest
+ * ISO: measured in a city sky, frames at 1/15 s and ISO 3200 were so dark that faint stars
+ * were rounded away inside each one, and stacking them added nothing. At the highest ISO
+ * (96,000 on an Honor Magic5 Pro) they survive, and 6 frames solved 4 times in 5. If that
+ * makes the sky too bright, the solver lowers the ISO as usual. Everything else starts
+ * from the standard ISO. `highest` is null when the camera doesn't say.
+ */
+export function startingIso(plan: CapturePlan, highest: number | null, standard: number): number {
+  const shortStack = plan.manual && plan.frames > 1;
+  return shortStack && highest ? Math.max(highest, standard) : standard;
+}
+
 export interface CaptureSettings {
   exposureSeconds: number;
   iso: number;
@@ -68,6 +81,7 @@ interface RangeCapability {
 type CameraTrackCapabilities = MediaTrackCapabilities & {
   exposureMode?: string[];
   exposureTime?: RangeCapability;
+  exposureCompensation?: RangeCapability;
   iso?: RangeCapability;
   focusMode?: string[];
   focusDistance?: RangeCapability;
@@ -133,6 +147,30 @@ export async function applyCameraSettings(track: MediaStreamTrack, settings: Cap
   }
 }
 
+/** The highest ISO the camera offers, or null if the browser doesn't say. */
+export function highestIso(track: MediaStreamTrack): number | null {
+  return (track.getCapabilities?.() as CameraTrackCapabilities | undefined)?.iso?.max ?? null;
+}
+
+/**
+ * Keeps the exposure automatic but asks for the brightest picture the phone allows,
+ * through exposure compensation. On a phone without manual exposure this is the only way
+ * to make each short frame brighter, so faint stars aren't rounded away before stacking.
+ * Returns the compensation set, or null if the camera doesn't offer it.
+ */
+export async function brightenAutoExposure(track: MediaStreamTrack): Promise<number | null> {
+  const range = (track.getCapabilities?.() as CameraTrackCapabilities | undefined)?.exposureCompensation;
+  if (range?.max === undefined) return null;
+  try {
+    await track.applyConstraints({
+      advanced: [{ exposureMode: 'continuous', exposureCompensation: range.max } as MediaTrackConstraintSet],
+    });
+    return range.max;
+  } catch {
+    return null;
+  }
+}
+
 /** Waits for the next new video frame, where the browser can report one. */
 function nextFrame(video: HTMLVideoElement, fallbackMs: number): Promise<void> {
   const timeout = wait(Math.max(fallbackMs, 50) + FRAME_TIMEOUT_MS);
@@ -140,11 +178,27 @@ function nextFrame(video: HTMLVideoElement, fallbackMs: number): Promise<void> {
   return Promise.race([new Promise<void>((resolve) => video.requestVideoFrameCallback(() => resolve())), timeout]);
 }
 
-/** Captures and averages frames into greyscale. Averaging raises faint stars above the noise. */
+/** A captured picture in greyscale, from 0 to 255. */
+export interface CapturedFrame {
+  pixels: Float32Array;
+  width: number;
+  height: number;
+  /**
+   * The stack part way through, when asked for: the average of its first few frames, for
+   * each count asked. The sky test compares them, to see how many frames are worth taking.
+   */
+  partial?: { frames: number; pixels: Float32Array }[];
+}
+
+/**
+ * Captures and averages frames into greyscale. Averaging raises faint stars above the noise.
+ * `partialAt` lists frame counts, below the total, at which to keep the average so far.
+ */
 export async function captureStack(
   video: HTMLVideoElement,
   settings: CaptureSettings,
-): Promise<{ pixels: Float32Array; width: number; height: number }> {
+  partialAt: readonly number[] = [],
+): Promise<CapturedFrame> {
   const [width, height] = [video.videoWidth, video.videoHeight];
   const canvas = document.createElement('canvas');
   canvas.width = width;
@@ -153,6 +207,7 @@ export async function captureStack(
   if (!ctx || !width || !height) throw new Error('The camera gave no picture.');
 
   const pixels = new Float32Array(width * height);
+  const partial: { frames: number; pixels: Float32Array }[] = [];
   for (let frame = 0; frame < settings.frames; frame++) {
     await nextFrame(video, settings.exposureSeconds * 1000);
     ctx.drawImage(video, 0, 0, width, height);
@@ -160,9 +215,14 @@ export async function captureStack(
     for (let i = 0; i < pixels.length; i++) {
       pixels[i] += (data[i * 4] + data[i * 4 + 1] + data[i * 4 + 2]) / 3;
     }
+    // The sum so far, divided by its count, is the stack as it would be if it stopped here.
+    const count = frame + 1;
+    if (count < settings.frames && partialAt.includes(count)) {
+      partial.push({ frames: count, pixels: pixels.map((value) => value / count) });
+    }
   }
   for (let i = 0; i < pixels.length; i++) pixels[i] /= settings.frames;
-  return { pixels, width, height };
+  return { pixels, width, height, partial };
 }
 
 /** Average brightness of a greyscale image, from 0 to 255. */

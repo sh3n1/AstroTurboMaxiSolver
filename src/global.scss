@@ -161,6 +161,41 @@ html.night ion-note {
   color: var(--af-text) !important;
 }
 
+/*
+ * How many times a target has been seen, once it is more than one. It is the seen tick
+ * with a number for the check: a small filled circle in the green that means seen, on the
+ * icon's bottom right corner, the same on the sky map's eye and on the lists' icons. Its
+ * dark edge, in the colour behind it, keeps it apart from the icon, as the tick's does.
+ * Each place sets the corner, and the edge's colour through --af-count-edge.
+ */
+.af-count {
+  position: absolute;
+  box-sizing: border-box;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  border: 1.5px solid var(--af-count-edge, var(--ion-background-color));
+  border-radius: 999px;
+  background: var(--ion-color-success);
+  color: var(--ion-color-success-contrast);
+  /* The smallest text the app allows, as the tick is small too. */
+  font-size: 13px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 15px;
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+}
+/*
+ * At night every colour becomes red by its brightness, and the green would turn a dull
+ * dark red. White becomes full-strength red, so the badge stays bright, its number black.
+ */
+html.night .af-count {
+  background: #ffffff;
+  color: #000000;
+}
+
 /* Toasts on the sky map: large, plain text, readable at arm's length and in red night mode. */
 ion-toast.af-toast {
   --background: #1b2338;
