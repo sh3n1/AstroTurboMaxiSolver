@@ -4,17 +4,17 @@ import { IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
   colorPaletteOutline,
-  contrastOutline,
   ellipseOutline,
-  ellipsisHorizontalOutline,
-  globeOutline,
+  gridOutline,
   pricetagOutline,
   resizeOutline,
+  shapesOutline,
   sparklesOutline,
   starOutline,
   sunnyOutline,
 } from 'ionicons/icons';
 
+import { APP_ICONS } from './app-icons';
 import { AppState } from './app-state.service';
 import { compassShort, formatDec, formatRa, magnification, sunAltitudeDeg, trueFieldDeg } from './astronomy';
 import type { BodyFacts } from './body-facts';
@@ -33,7 +33,7 @@ import {
   sizeText,
   starColourName,
 } from './target-details';
-import { iconDataUrl, targetIcon } from './target-icons';
+import { iconDataUrl, phaseIcon, targetIcon } from './target-icons';
 import type { Target, TargetKind } from './targets';
 import { tonight, tonightChart } from './tonight';
 
@@ -45,7 +45,7 @@ const CHART_HORIZON = 50;
 
 /** Standard icons for the kinds without one of AstroFinder's own, as in the lists. */
 const KIND_ICONS: Partial<Record<TargetKind, string>> = {
-  Other: 'ellipsis-horizontal-outline',
+  Other: 'shapes-outline',
   'Open cluster': 'sparkles-outline',
   'Globular cluster': 'ellipse-outline',
   Star: 'star-outline',
@@ -67,7 +67,7 @@ const KIND_ICONS: Partial<Record<TargetKind, string>> = {
       flex-direction: column;
       gap: 6px;
       padding: 6px 8px 2px 0;
-      border-top: 1px solid #232a3d;
+      border-top: 1px solid var(--ion-border-color);
       font-size: calc(13px * var(--af-scale, 1));
     }
     .chips {
@@ -84,7 +84,7 @@ const KIND_ICONS: Partial<Record<TargetKind, string>> = {
       align-items: center;
       gap: 4px;
       padding: 1px 8px 1px 5px;
-      border: 1px solid #2a3350;
+      border: 1px solid var(--ion-border-color);
       border-radius: 12px;
       color: var(--af-text);
       line-height: 1.5;
@@ -107,10 +107,10 @@ const KIND_ICONS: Partial<Record<TargetKind, string>> = {
     }
     /* The same amber as the app's other warnings. */
     .warn {
-      color: #ffb454;
+      color: var(--ion-color-warning);
     }
     .tonight {
-      border: 1px solid #2a3350;
+      border: 1px solid var(--ion-border-color);
       border-radius: 10px;
       padding: 3px 8px 0;
     }
@@ -148,21 +148,12 @@ const KIND_ICONS: Partial<Record<TargetKind, string>> = {
       </span>
       @if (constellation(); as name) {
         <span class="chip" data-testid="details-constellation">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            aria-hidden="true"
-          >
-            <path d="M4 18l6-8 5 4 5-9" />
-          </svg>
+          <ion-icon [src]="appIcons.constellation" aria-hidden="true"></ion-icon>
           {{ name }}
         </span>
       }
       @if (magnitudeText(); as mag) {
-        <span class="chip"><ion-icon name="star-outline" aria-hidden="true"></ion-icon>{{ mag }}</span>
+        <span class="chip"><ion-icon [src]="appIcons.magnitude" aria-hidden="true"></ion-icon>{{ mag }}</span>
       }
       @if (facts) {
         <span class="chip"
@@ -312,7 +303,7 @@ const KIND_ICONS: Partial<Record<TargetKind, string>> = {
               [attr.cx]="double.split.splits ? 33 : 5"
               cy="10"
               r="5"
-              [attr.fill]="double.split.splits ? 'var(--ion-color-success)' : '#ffb454'"
+              [attr.fill]="double.split.splits ? 'var(--ion-color-success)' : 'var(--ion-color-warning)'"
             />
           </svg>
           <span [class.good]="double.split.splits" [class.warn]="!double.split.splits">{{ double.split.short }}</span>
@@ -331,8 +322,8 @@ const KIND_ICONS: Partial<Record<TargetKind, string>> = {
           <span class="keep">{{ lightTimeText(facts.lightSeconds) }}</span>
         </span>
         <span class="chip"
-          ><ion-icon name="contrast-outline" aria-hidden="true"></ion-icon
-          >{{ facts.litFraction * 100 | number: '1.0-0' }}% lit</span
+          ><ion-icon [src]="litIcon()" aria-hidden="true"></ion-icon>{{ facts.litFraction * 100 | number: '1.0-0' }}%
+          lit</span
         >
         @if (facts.moon; as moon) {
           <span class="chip" data-testid="details-moon-phase">
@@ -364,7 +355,7 @@ const KIND_ICONS: Partial<Record<TargetKind, string>> = {
               y1="22"
               [attr.x2]="where().arrowX"
               [attr.y2]="where().arrowY"
-              stroke="#a9cbff"
+              stroke="var(--af-guidance)"
               stroke-width="4"
               stroke-linecap="round"
             />
@@ -377,7 +368,7 @@ const KIND_ICONS: Partial<Record<TargetKind, string>> = {
     <!-- The rest, quieter: where it is in coordinates, and other names. -->
     <div class="chips">
       <span class="chip quiet">
-        <ion-icon name="globe-outline" aria-hidden="true"></ion-icon>
+        <ion-icon name="grid-outline" aria-hidden="true"></ion-icon>
         <span class="keep">RA {{ formatRa(target.raDeg) }}</span> ·
         <span class="keep">Dec {{ formatDec(target.decDeg) }}</span>
       </span>
@@ -405,6 +396,7 @@ export class TargetDetailsComponent {
 
   private readonly state = inject(AppState);
 
+  protected readonly appIcons = APP_ICONS;
   protected readonly chartWidth = CHART_WIDTH;
   protected readonly shadeColours = SKY_SHADE_COLOURS;
   protected readonly kindIcons = KIND_ICONS;
@@ -419,12 +411,11 @@ export class TargetDetailsComponent {
   constructor() {
     addIcons({
       colorPaletteOutline,
-      contrastOutline,
       ellipseOutline,
-      ellipsisHorizontalOutline,
-      globeOutline,
+      gridOutline,
       pricetagOutline,
       resizeOutline,
+      shapesOutline,
       sparklesOutline,
       starOutline,
       sunnyOutline,
@@ -446,6 +437,8 @@ export class TargetDetailsComponent {
   });
 
   protected readonly type = computed(() => objectTypeText(this.target()));
+  /** A disc lit as much as the body is, for the "% lit" chip. */
+  protected readonly litIcon = computed(() => iconDataUrl(phaseIcon(this.facts()?.litFraction ?? 1, true)));
   /** AstroFinder's own icon for the target, as in the lists, or null for a standard one. */
   protected readonly typeIcon = computed(() => {
     const paths = targetIcon(this.target());

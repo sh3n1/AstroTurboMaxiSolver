@@ -7,9 +7,9 @@ import {
   arrowUpOutline,
   bookmark,
   bookmarkOutline,
-  ellipsisHorizontalOutline,
   ellipseOutline,
   eyeOffOutline,
+  shapesOutline,
   sparklesOutline,
   starOutline,
 } from 'ionicons/icons';
@@ -34,7 +34,7 @@ const KIND_ICONS: Record<
   >,
   string
 > = {
-  Other: 'ellipsis-horizontal-outline',
+  Other: 'shapes-outline',
   'Open cluster': 'sparkles-outline',
   'Globular cluster': 'ellipse-outline',
   Star: 'star-outline',
@@ -161,8 +161,8 @@ export class TargetListComponent {
       bookmarkOutline,
       ellipseOutline,
       eyeOffOutline,
+      shapesOutline,
       arrowUpOutline,
-      ellipsisHorizontalOutline,
       sparklesOutline,
       starOutline,
     });

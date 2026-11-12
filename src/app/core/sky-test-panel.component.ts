@@ -35,11 +35,11 @@ const COUNTDOWN_SECONDS = 5;
       font-size: calc(15px * var(--af-scale, 1));
     }
     .solved {
-      color: #6fcf9f;
+      color: var(--ion-color-success);
       font-weight: bold;
     }
     .unsolved {
-      color: #ffb454;
+      color: var(--ion-color-warning);
     }
     .result img {
       display: block;

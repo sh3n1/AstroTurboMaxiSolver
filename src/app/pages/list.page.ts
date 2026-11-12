@@ -59,14 +59,14 @@ import { exportFileName, exportLists } from '../core/target-lists';
   styles: `
     /* The clock is amber while another time is on show, as on the sky map. */
     ion-button.warn {
-      --color: #ffb454;
+      --color: var(--ion-color-warning);
     }
   `,
   template: `
     <ion-header>
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-back-button defaultHref="/tabs/lists" text=""></ion-back-button>
+          <ion-back-button defaultHref="/tabs/lists" text="" aria-label="Back"></ion-back-button>
         </ion-buttons>
         <ion-title data-testid="list-title">{{ list()?.name ?? 'List' }}</ion-title>
         @if (list(); as current) {

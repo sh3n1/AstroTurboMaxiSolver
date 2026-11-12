@@ -22,16 +22,16 @@ import { addIcons } from 'ionicons';
 import {
   add,
   bookmarkOutline,
-  cloudDownloadOutline,
-  cloudUploadOutline,
   documentTextOutline,
+  folderOpenOutline,
   folderOutline,
   libraryOutline,
-  locateOutline,
-  moonOutline,
-  sparklesOutline,
+  ribbonOutline,
+  saveOutline,
+  swapVerticalOutline,
 } from 'ionicons/icons';
 
+import { isIconUrl } from '../core/app-icons';
 import { ListsService } from '../core/lists.service';
 import { fixedListEntries } from '../core/target-lists';
 
@@ -57,14 +57,6 @@ import { fixedListEntries } from '../core/target-lists';
     IonToolbar,
   ],
   styles: `
-    ion-list-header {
-      color: var(--af-muted);
-      font-size: calc(14px * var(--af-scale, 1));
-      font-weight: 700;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      min-height: 32px;
-    }
     ion-item > ion-icon[slot='start'] {
       color: var(--ion-color-primary);
       margin-inline-end: 16px;
@@ -82,7 +74,7 @@ import { fixedListEntries } from '../core/target-lists';
         <ion-title>Bookmarks</ion-title>
         <ion-buttons slot="end">
           <ion-button aria-label="Import or export lists" data-testid="lists-transfer" (click)="transfer()">
-            <ion-icon slot="icon-only" name="cloud-download-outline" aria-hidden="true"></ion-icon>
+            <ion-icon slot="icon-only" name="swap-vertical-outline" aria-hidden="true"></ion-icon>
           </ion-button>
           <ion-button aria-label="New list" data-testid="new-list" (click)="newList()">
             <ion-icon slot="icon-only" name="add" aria-hidden="true"></ion-icon>
@@ -97,7 +89,12 @@ import { fixedListEntries } from '../core/target-lists';
         <ion-list-header>Collections</ion-list-header>
         @for (entry of collections(); track entry.list.id) {
           <ion-item button detail="true" data-testid="list-link" (click)="open(entry.list.id)">
-            <ion-icon slot="start" aria-hidden="true" [name]="entry.icon"></ion-icon>
+            <ion-icon
+              slot="start"
+              aria-hidden="true"
+              [name]="isIconUrl(entry.icon) ? undefined : entry.icon"
+              [src]="isIconUrl(entry.icon) ? entry.icon : undefined"
+            ></ion-icon>
             <ion-label>
               <h2>{{ entry.list.name }}</h2>
               @if (entry.description) {
@@ -163,16 +160,17 @@ export class ListsPage {
     addIcons({
       add,
       bookmarkOutline,
-      cloudDownloadOutline,
-      cloudUploadOutline,
       documentTextOutline,
+      folderOpenOutline,
       folderOutline,
       libraryOutline,
-      locateOutline,
-      moonOutline,
-      sparklesOutline,
+      ribbonOutline,
+      saveOutline,
+      swapVerticalOutline,
     });
   }
+
+  protected readonly isIconUrl = isIconUrl;
 
   protected open(id: string): void {
     void this.router.navigateByUrl(`/tabs/lists/${id}`);
@@ -201,11 +199,11 @@ export class ListsPage {
       buttons: [
         {
           text: 'Import a list file',
-          icon: 'cloud-download-outline',
+          icon: 'folder-open-outline',
           handler: () => this.fileInput().nativeElement.click(),
         },
         { text: 'Import pasted text', icon: 'document-text-outline', handler: () => void this.importPasted() },
-        { text: 'Export all my lists', icon: 'cloud-upload-outline', handler: () => this.lists.exportAll() },
+        { text: 'Export all my lists', icon: 'save-outline', handler: () => this.lists.exportAll() },
         { text: 'Cancel', role: 'cancel' },
       ],
     });

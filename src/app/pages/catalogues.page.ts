@@ -14,15 +14,9 @@ import {
   IonToolbar,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import {
-  calendarOutline,
-  flowerOutline,
-  leafOutline,
-  snowOutline,
-  sparklesOutline,
-  sunnyOutline,
-} from 'ionicons/icons';
+import { bookOutline, calendarOutline, flowerOutline, leafOutline, snowOutline, sunnyOutline } from 'ionicons/icons';
 
+import { isIconUrl } from '../core/app-icons';
 import { ListsService } from '../core/lists.service';
 import type { FixedListSection } from '../core/target-lists';
 import { CATALOGUE_GROUPS, fixedListEntries } from '../core/target-lists';
@@ -62,7 +56,7 @@ import { CATALOGUE_GROUPS, fixedListEntries } from '../core/target-lists';
     <ion-header>
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-back-button [defaultHref]="back" text=""></ion-back-button>
+          <ion-back-button [defaultHref]="back" text="" aria-label="Back"></ion-back-button>
         </ion-buttons>
         <ion-title>{{ title }}</ion-title>
       </ion-toolbar>
@@ -72,7 +66,12 @@ import { CATALOGUE_GROUPS, fixedListEntries } from '../core/target-lists';
       <ion-list inset="true">
         @for (entry of catalogues(); track entry.list.id) {
           <ion-item button detail="true" data-testid="list-link" (click)="open(entry.list.id)">
-            <ion-icon slot="start" aria-hidden="true" [name]="entry.icon"></ion-icon>
+            <ion-icon
+              slot="start"
+              aria-hidden="true"
+              [name]="isIconUrl(entry.icon) ? undefined : entry.icon"
+              [src]="isIconUrl(entry.icon) ? entry.icon : undefined"
+            ></ion-icon>
             <ion-label>
               <h2>{{ entry.list.name }}</h2>
               @if (entry.description) {
@@ -114,8 +113,10 @@ export class CataloguesPage {
   protected readonly groups = this.group ? [] : CATALOGUE_GROUPS;
 
   constructor() {
-    addIcons({ calendarOutline, flowerOutline, leafOutline, snowOutline, sparklesOutline, sunnyOutline });
+    addIcons({ bookOutline, calendarOutline, flowerOutline, leafOutline, snowOutline, sunnyOutline });
   }
+
+  protected readonly isIconUrl = isIconUrl;
 
   protected openGroup(id: string): void {
     void this.router.navigateByUrl(`/tabs/lists/catalogues/${id}`);
