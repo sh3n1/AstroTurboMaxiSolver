@@ -58,6 +58,18 @@ html.night body {
   --af-scale: 1.2;
   --af-text: #e8ebf5;
   --af-muted: #a8b0c6;
+  /* Guidance towards the target: directions and arrows. A lighter blue than the accent. */
+  --af-guidance: #a9cbff;
+}
+
+/* Section headers, the same on every page: small, bold capitals in the quieter colour. */
+ion-list-header {
+  color: var(--af-muted);
+  font-size: calc(14px * var(--af-scale, 1)) !important;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  min-height: 32px;
 }
 
 ion-label h2 {

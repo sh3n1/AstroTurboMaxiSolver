@@ -86,7 +86,7 @@ const PREVIEW_CAMERA_ERROR: Horizontal = { altDeg: 2, azDeg: 3 };
     }
     .showing-other-time ion-icon {
       font-size: 24px;
-      color: #ffb454;
+      color: var(--ion-color-warning);
     }
     /* Words as written, not in Ionic's capitals. Outlines thick enough to see at night. */
     ion-button {
@@ -125,7 +125,7 @@ const PREVIEW_CAMERA_ERROR: Horizontal = { altDeg: 2, azDeg: 3 };
       font-size: calc(17px * var(--af-scale));
     }
     .warn-text {
-      color: #ffb454;
+      color: var(--ion-color-warning);
     }
     /*
      * The big round button: a filled disc inside one thin ring, like the reticle's rings.
@@ -152,10 +152,10 @@ const PREVIEW_CAMERA_ERROR: Horizontal = { altDeg: 2, azDeg: 3 };
       animation: turn 6s linear infinite;
     }
     .big-round-ring.failed {
-      --ring: #ffb454;
+      --ring: var(--ion-color-warning);
     }
     .big-round-ring.done {
-      --ring: #6fcf9f;
+      --ring: var(--ion-color-success);
     }
     @keyframes turn {
       to {
@@ -189,7 +189,7 @@ const PREVIEW_CAMERA_ERROR: Horizontal = { altDeg: 2, azDeg: 3 };
       transform: scale(0.96);
     }
     .big-round.done {
-      --background: #6fcf9f;
+      --background: var(--ion-color-success);
       --background-activated: #5bb98b;
     }
     /* While solving it can't be pressed: a dim disc, the words in full-strength text. */
@@ -244,10 +244,10 @@ const PREVIEW_CAMERA_ERROR: Horizontal = { altDeg: 2, azDeg: 3 };
       margin: -8px -8px -8px 0;
     }
     .good {
-      color: #6fcf9f;
+      color: var(--ion-color-success);
     }
     .warn {
-      color: #ffb454;
+      color: var(--ion-color-warning);
     }
   `,
   template: `

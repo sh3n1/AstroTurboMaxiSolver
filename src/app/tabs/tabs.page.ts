@@ -2,7 +2,7 @@ import type { OnDestroy } from '@angular/core';
 import { Component, ElementRef, effect, signal, viewChild } from '@angular/core';
 import { IonIcon, IonLabel, IonTabBar, IonTabButton, IonTabs } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { bookmarksOutline, planetOutline, searchOutline, settingsOutline } from 'ionicons/icons';
+import { bookmarksOutline, mapOutline, searchOutline, settingsOutline } from 'ionicons/icons';
 
 import { TimeControlComponent } from '../core/time-control.component';
 
@@ -48,7 +48,7 @@ import { TimeControlComponent } from '../core/time-control.component';
       <app-time-control #timeControl></app-time-control>
       <ion-tab-bar slot="bottom">
         <ion-tab-button tab="sky">
-          <ion-icon name="planet-outline" aria-hidden="true"></ion-icon>
+          <ion-icon name="map-outline" aria-hidden="true"></ion-icon>
           <ion-label>Sky</ion-label>
         </ion-tab-button>
         <ion-tab-button tab="targets">
@@ -79,7 +79,7 @@ export class TabsPage implements OnDestroy {
   );
 
   constructor() {
-    addIcons({ bookmarksOutline, planetOutline, searchOutline, settingsOutline });
+    addIcons({ bookmarksOutline, mapOutline, searchOutline, settingsOutline });
     effect(() => {
       const element = this.timeControl()?.nativeElement;
       if (element) this.resizes.observe(element);

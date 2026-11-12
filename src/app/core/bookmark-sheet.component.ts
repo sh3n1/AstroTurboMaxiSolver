@@ -15,7 +15,7 @@ import {
   ModalController,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { addCircleOutline } from 'ionicons/icons';
+import { add, close } from 'ionicons/icons';
 
 import { designationText } from './designations';
 import { ListsService } from './lists.service';
@@ -54,7 +54,9 @@ import type { Target } from './targets';
       <ion-toolbar>
         <ion-title>Save {{ title() }}</ion-title>
         <ion-buttons slot="end">
-          <ion-button data-testid="bookmark-done" (click)="close()">Done</ion-button>
+          <ion-button data-testid="bookmark-done" aria-label="Close" (click)="close()">
+            <ion-icon slot="icon-only" name="close" aria-hidden="true"></ion-icon>
+          </ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
@@ -73,7 +75,7 @@ import type { Target } from './targets';
           </ion-item>
         }
         <ion-item button detail="false" class="new-list" data-testid="bookmark-new-list" (click)="newList()">
-          <ion-icon slot="start" name="add-circle-outline" aria-hidden="true"></ion-icon>
+          <ion-icon slot="start" name="add" aria-hidden="true"></ion-icon>
           <ion-label>New list</ion-label>
         </ion-item>
       </ion-list>
@@ -89,7 +91,7 @@ export class BookmarkSheetComponent {
   private readonly alerts = inject(AlertController);
 
   constructor() {
-    addIcons({ addCircleOutline });
+    addIcons({ add, close });
   }
 
   protected title(): string {

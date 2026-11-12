@@ -29,7 +29,7 @@ export const ICON_DASH = [1.5, 2];
 export const DISC_RADIUS = 7;
 
 /** A circle as path data, since SVG paths have no circle command. */
-function circle(cx: number, cy: number, r: number): string {
+export function circle(cx: number, cy: number, r: number): string {
   return `M${cx - r} ${cy}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0Z`;
 }
 
@@ -96,7 +96,7 @@ function constellation(): IconPath[] {
   const figure = [stars.slice(0, 5), [stars[3], stars[5]]].map((points) => ({ d: polyline(points) }));
   return [...figure, ...stars.map(([x, y]) => ({ d: circle(x, y, 1.3), fill: true }))];
 }
-const CONSTELLATION = constellation();
+export const CONSTELLATION = constellation();
 
 /**
  * Saturn: a smaller disc inside tilted rings. The far half of the rings is hidden

@@ -24,10 +24,10 @@ import { addIcons } from 'ionicons';
 import {
   apertureOutline,
   bluetoothOutline,
+  cameraOutline,
   chatbubbleEllipsesOutline,
   chevronDown,
   chevronUp,
-  contrastOutline,
   desktopOutline,
   flaskOutline,
   globeOutline,
@@ -35,16 +35,16 @@ import {
   listOutline,
   locateOutline,
   locationOutline,
+  lockOpenOutline,
   moonOutline,
   navigateOutline,
   openOutline,
   phonePortraitOutline,
-  scanOutline,
   volumeLowOutline,
-  sunnyOutline,
   textOutline,
 } from 'ionicons/icons';
 
+import { APP_ICONS } from '../core/app-icons';
 import { AppState } from '../core/app-state.service';
 import type { Settings } from '../core/app-state.service';
 import { formatLocation } from '../core/astronomy';
@@ -86,14 +86,6 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
   ],
   styles: `
     /* Section titles: small, bold and spaced, so the sections are easy to tell apart. */
-    ion-list-header {
-      color: var(--af-muted);
-      font-size: calc(14px * var(--af-scale, 1));
-      font-weight: 700;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      min-height: 32px;
-    }
     ion-list {
       margin-bottom: 4px;
     }
@@ -158,10 +150,10 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
       font-size: 23px;
     }
     .good {
-      color: #6fcf9f;
+      color: var(--ion-color-success);
     }
     .warn {
-      color: #ffb454;
+      color: var(--ion-color-warning);
     }
     /* Green has little red in it, so at night it would turn dark red. Full-strength there. */
     :host-context(html.night) .good {
@@ -222,7 +214,7 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
           </div>
         </ion-item>
         <ion-item lines="none">
-          <ion-icon slot="start" name="contrast-outline" aria-hidden="true"></ion-icon>
+          <ion-icon slot="start" [src]="appIcons.skyDarkness" aria-hidden="true"></ion-icon>
           <ion-select
             label="Sky darkness"
             interface="popover"
@@ -267,7 +259,7 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
           </ion-label>
         </ion-item>
         <ion-item>
-          <ion-icon slot="start" name="scan-outline" aria-hidden="true"></ion-icon>
+          <ion-icon slot="start" name="camera-outline" aria-hidden="true"></ion-icon>
           <ion-toggle
             data-testid="auto-solve"
             [checked]="settings().autoSolve"
@@ -335,7 +327,7 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
           </ion-toggle>
         </ion-item>
         <ion-item>
-          <ion-icon slot="start" name="sunny-outline" aria-hidden="true"></ion-icon>
+          <ion-icon slot="start" name="lock-open-outline" aria-hidden="true"></ion-icon>
           <ion-toggle
             data-testid="keep-screen-on"
             [helperText]="screenWake.supported ? '' : 'Not supported in this browser'"
@@ -549,6 +541,7 @@ export class SettingsPage {
   protected readonly showSolveLog = signal(false);
   /** Sending solves needs the dev server's proxy, so it is only offered in development. */
   protected readonly devMode = isDevMode();
+  protected readonly appIcons = APP_ICONS;
   protected readonly gpsMessage = signal('');
   protected readonly bortleClasses = BORTLE_CLASSES;
 
@@ -562,10 +555,10 @@ export class SettingsPage {
     addIcons({
       apertureOutline,
       bluetoothOutline,
+      cameraOutline,
       chatbubbleEllipsesOutline,
       chevronDown,
       chevronUp,
-      contrastOutline,
       desktopOutline,
       flaskOutline,
       globeOutline,
@@ -573,13 +566,12 @@ export class SettingsPage {
       listOutline,
       locateOutline,
       locationOutline,
+      lockOpenOutline,
       moonOutline,
       navigateOutline,
       openOutline,
       phonePortraitOutline,
-      scanOutline,
       volumeLowOutline,
-      sunnyOutline,
       textOutline,
     });
   }

@@ -1,6 +1,7 @@
 // Bookmark lists: the user's own lists of targets, and how they are saved, exported
 // and imported. Plain functions, so they can be tested without the app around them.
 
+import { APP_ICONS } from './app-icons';
 import { designations } from './designations';
 import type { Target } from './targets';
 
@@ -21,43 +22,43 @@ export const UNCATEGORIZED_ID = 'uncategorized';
  * into its own page of lists, such as the RASC Finest NGC by season.
  */
 export const FIXED_LISTS = [
-  { id: 'now', name: 'Best right now', icon: 'moon-outline', description: '', section: 'collections' },
-  { id: 'reticle', name: 'In the reticle', icon: 'locate-outline', description: '', section: 'collections' },
-  { id: 'messier', name: 'Messier', icon: 'sparkles-outline', description: 'M1 to M110', section: 'catalogues' },
-  { id: 'caldwell', name: 'Caldwell', icon: 'sparkles-outline', description: 'C1 to C109', section: 'catalogues' },
+  { id: 'now', name: 'Best right now', icon: 'ribbon-outline', description: '', section: 'collections' },
+  { id: 'reticle', name: 'In the reticle', icon: APP_ICONS.reticle, description: '', section: 'collections' },
+  { id: 'messier', name: 'Messier', icon: 'book-outline', description: 'M1 to M110', section: 'catalogues' },
+  { id: 'caldwell', name: 'Caldwell', icon: 'book-outline', description: 'C1 to C109', section: 'catalogues' },
   {
     id: 'herschel400',
     name: 'Herschel 400',
-    icon: 'sparkles-outline',
+    icon: 'book-outline',
     description: 'Ancient City Astronomy Club',
     section: 'catalogues',
   },
   {
     id: 'herschel2',
     name: 'Herschel II',
-    icon: 'sparkles-outline',
+    icon: 'book-outline',
     description: 'Rose City Astronomers',
     section: 'catalogues',
   },
   {
     id: 'sac110',
     name: 'SAC 110 Best NGC',
-    icon: 'sparkles-outline',
+    icon: 'book-outline',
     description: 'Saguaro Astronomy Club',
     section: 'catalogues',
   },
   {
     id: 'explore-universe',
     name: 'Explore the Universe',
-    icon: 'sparkles-outline',
+    icon: 'book-outline',
     description: 'Royal Astronomical Society of Canada',
     section: 'catalogues',
   },
-  { id: 'urban', name: 'Urban', icon: 'sparkles-outline', description: 'Astronomical League', section: 'catalogues' },
+  { id: 'urban', name: 'Urban', icon: 'book-outline', description: 'Astronomical League', section: 'catalogues' },
   {
     id: 'assa100',
     name: 'ASSA Top-100',
-    icon: 'sparkles-outline',
+    icon: 'book-outline',
     description: 'Astronomical Society of Southern Africa',
     section: 'catalogues',
   },
@@ -95,14 +96,14 @@ export const CATALOGUE_GROUPS = [
     id: 'rasc',
     name: 'RASC Finest NGC',
     description: 'Royal Astronomical Society of Canada',
-    icon: 'sparkles-outline',
+    icon: 'book-outline',
     section: 'rasc',
   },
   {
     id: 'gems',
     name: 'RASC Deep-Sky Gems',
     description: 'David H. Levy',
-    icon: 'sparkles-outline',
+    icon: 'book-outline',
     section: 'gems',
   },
   {

@@ -17,18 +17,17 @@ import {
 import { addIcons } from 'ionicons';
 import {
   add,
-  closeCircle,
   compassOutline,
+  close,
   contractOutline,
   expandOutline,
-  eyeOutline,
   informationCircle,
   informationCircleOutline,
   locateOutline,
   mapOutline,
+  arrowUndoOutline,
   radioButtonOffOutline,
   moonOutline,
-  refreshOutline,
   remove,
   scanOutline,
   timeOutline,
@@ -36,6 +35,7 @@ import {
   locationOutline,
 } from 'ionicons/icons';
 
+import { APP_ICONS, isIconUrl } from '../core/app-icons';
 import { AppState } from '../core/app-state.service';
 import type { Settings } from '../core/app-state.service';
 import type { Horizontal, Vector3 } from '../core/astronomy';
@@ -86,7 +86,7 @@ const NEXT_VIEW: Record<ViewMode, ViewMode> = { sky: 'eyepiece', eyepiece: 'ring
 /** The button shows the view it switches to: its icon, and its name for screen readers. */
 const VIEW_BUTTONS: Record<ViewMode, { icon: string; label: string }> = {
   sky: { icon: 'map-outline', label: 'Sky map' },
-  eyepiece: { icon: 'eye-outline', label: 'Eyepiece view' },
+  eyepiece: { icon: APP_ICONS.eyepiece, label: 'Eyepiece view' },
   ring: { icon: 'radio-button-off-outline', label: 'Sky map with the eyepiece field' },
 };
 type Point = { x: number; y: number };
@@ -312,10 +312,10 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
     }
     /* A status button's colour says the state at a glance. */
     .controls ion-fab-button.warn {
-      --color: #ffb454;
+      --color: var(--ion-color-warning);
     }
     .controls ion-fab-button.good {
-      --color: #6fcf9f;
+      --color: var(--ion-color-success);
     }
     /*
      * At night every colour becomes red by its brightness, so the green of a button that
@@ -343,7 +343,7 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
       padding: 6px 10px;
       border-radius: 10px;
       background: rgb(10 14 28 / 92%);
-      color: #ffb454;
+      color: var(--ion-color-warning);
       font-size: calc(15px * var(--af-scale, 1));
       text-align: center;
       pointer-events: none;
@@ -423,7 +423,7 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
       font: inherit;
       font-size: calc(14px * var(--af-scale, 1));
       text-align: left;
-      border: 1px solid #ffb454;
+      border: 1px solid var(--ion-color-warning);
       display: flex;
       align-items: center;
       gap: 6px;
@@ -431,7 +431,7 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
     .readout.location.unset ion-icon {
       flex: none;
       font-size: 20px;
-      color: #ffb454;
+      color: var(--ion-color-warning);
     }
     .zoom {
       margin-left: auto;
@@ -478,7 +478,7 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
       font-size: calc(14px * var(--af-scale, 1));
     }
     .directions {
-      color: #a9cbff;
+      color: var(--af-guidance);
       font-size: calc(15px * var(--af-scale, 1));
     }
   `,
@@ -536,7 +536,11 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
           </ion-fab-button>
           <!-- Steps through the sky map, the eyepiece view and the eyepiece ring, showing the view it switches to. -->
           <ion-fab-button size="small" data-testid="view-mode" [attr.data-mode]="mode()" (click)="mode.set(nextView())">
-            <ion-icon [name]="viewButtons[nextView()].icon" aria-hidden="true"></ion-icon>
+            <ion-icon
+              aria-hidden="true"
+              [name]="isIconUrl(viewButtons[nextView()].icon) ? undefined : viewButtons[nextView()].icon"
+              [src]="isIconUrl(viewButtons[nextView()].icon) ? viewButtons[nextView()].icon : undefined"
+            ></ion-icon>
             <span class="visually-hidden">{{ viewButtons[nextView()].label }}</span>
           </ion-fab-button>
           <!--
@@ -653,7 +657,7 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
                   [disabled]="isAutoStarLimit()"
                   (click)="resetStarLimit()"
                 >
-                  <ion-icon slot="icon-only" name="refresh-outline" aria-hidden="true"></ion-icon>
+                  <ion-icon slot="icon-only" name="arrow-undo-outline" aria-hidden="true"></ion-icon>
                   <span class="visually-hidden">Reset to my sky</span>
                 </ion-button>
               </div>
@@ -785,7 +789,7 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
                     ></ion-icon>
                   </ion-button>
                   <ion-button fill="clear" size="small" aria-label="Clear target" (click)="clearTarget()">
-                    <ion-icon slot="icon-only" name="close-circle"></ion-icon>
+                    <ion-icon slot="icon-only" name="close" aria-hidden="true"></ion-icon>
                   </ion-button>
                 </div>
               </div>
@@ -827,6 +831,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   protected readonly stars = signal<Star[]>([]);
   protected readonly constellations = signal<Constellation[]>([]);
   protected readonly showDetails = signal(false);
+  protected readonly isIconUrl = isIconUrl;
   /** AstroFinder's own icon for the selected target, or null for kinds without one. */
   protected readonly targetIconUrl = computed(() => {
     const target = this.state.selectedTarget();
@@ -956,18 +961,17 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   constructor() {
     addIcons({
       add,
-      closeCircle,
       compassOutline,
+      close,
       contractOutline,
       expandOutline,
-      eyeOutline,
       informationCircle,
       informationCircleOutline,
       locateOutline,
       mapOutline,
+      arrowUndoOutline,
       radioButtonOffOutline,
       moonOutline,
-      refreshOutline,
       remove,
       scanOutline,
       timeOutline,

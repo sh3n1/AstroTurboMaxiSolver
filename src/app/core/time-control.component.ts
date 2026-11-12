@@ -2,17 +2,9 @@ import type { ElementRef } from '@angular/core';
 import { Component, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { IonButton, IonDatetime, IonIcon, IonModal } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import {
-  chevronBack,
-  chevronDown,
-  chevronForward,
-  close,
-  cloud,
-  cloudOutline,
-  sparklesOutline,
-  timeOutline,
-} from 'ionicons/icons';
+import { chevronBack, chevronDown, chevronForward, close, cloud, cloudOutline, timeOutline } from 'ionicons/icons';
 
+import { APP_ICONS } from './app-icons';
 import { AppState } from './app-state.service';
 import { sunAltitudeDeg } from './astronomy';
 import type { SeeingQuality } from './forecast';
@@ -111,7 +103,7 @@ const SEEING_COLOURS: Record<SeeingQuality, string> = {
     .band-text ion-icon {
       flex: none;
       font-size: 24px;
-      color: #ffb454;
+      color: var(--ion-color-warning);
     }
     .row {
       display: flex;
@@ -269,7 +261,7 @@ const SEEING_COLOURS: Record<SeeingQuality, string> = {
             <ion-icon name="cloud-outline" aria-hidden="true"></ion-icon>
           </div>
           <div class="row-label" [style.top.px]="rulerHeight() + rowHeight()" [style.height.px]="rowHeight() - 1">
-            <ion-icon name="sparkles-outline" aria-hidden="true"></ion-icon>
+            <ion-icon [src]="appIcons.seeing" aria-hidden="true"></ion-icon>
           </div>
         }
       </div>
@@ -293,7 +285,14 @@ const SEEING_COLOURS: Record<SeeingQuality, string> = {
             ></ion-datetime>
             <div class="day-picker-actions">
               <ion-button fill="clear" data-testid="day-picker-today" (click)="pickToday()">Today</ion-button>
-              <ion-button fill="clear" data-testid="day-picker-close" (click)="pickingDay.set(false)">Close</ion-button>
+              <ion-button
+                fill="clear"
+                data-testid="day-picker-close"
+                aria-label="Close"
+                (click)="pickingDay.set(false)"
+              >
+                <ion-icon slot="icon-only" name="close" aria-hidden="true"></ion-icon>
+              </ion-button>
             </div>
           </div>
         </ng-template>
@@ -305,11 +304,8 @@ const SEEING_COLOURS: Record<SeeingQuality, string> = {
           <ion-icon name="time-outline" aria-hidden="true"></ion-icon>
           <span>Showing {{ shown() | localTime: 'date' }} · {{ shown() | localTime }}</span>
         </button>
-        <!-- The cross goes back to the real time, and the band goes with it. -->
-        <ion-button fill="clear" data-testid="band-now" (click)="backToNow()">
-          <ion-icon slot="icon-only" name="close" aria-hidden="true"></ion-icon>
-          <span class="visually-hidden">Back to now</span>
-        </ion-button>
+        <!-- "Now" goes back to the real time, as on the time control, and the band goes with it. -->
+        <ion-button fill="clear" data-testid="band-now" aria-label="Back to now" (click)="backToNow()">Now</ion-button>
       </div>
     }
   `,
@@ -322,6 +318,7 @@ export class TimeControlComponent {
   /** The time on show: the chosen one, or now. */
   protected readonly shown = computed(() => this.state.plannedTime() ?? this.state.now());
   protected readonly pickingDay = signal(false);
+  protected readonly appIcons = APP_ICONS;
   protected readonly earliest = computed(() => new Date(this.state.now().getTime() - PLANNING_RANGE_MS));
   protected readonly latest = computed(() => new Date(this.state.now().getTime() + PLANNING_RANGE_MS));
   protected readonly isoDay = isoDay;
@@ -355,7 +352,6 @@ export class TimeControlComponent {
       close,
       cloud,
       cloudOutline,
-      sparklesOutline,
       timeOutline,
     });
     // Redraws the ruler when the time, the place, the text size or the forecast changes, or it opens.
