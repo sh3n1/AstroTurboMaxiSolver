@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
   IonBackButton,
@@ -32,6 +32,9 @@ import { CATALOGUE_GROUPS, fixedListEntries } from '../core/target-lists';
  */
 @Component({
   selector: 'app-catalogues',
+  // Everything shown comes from signals, so the page is checked only when one changes,
+  // not each time the sky map behind it updates.
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     IonBackButton,
     IonBadge,
@@ -66,7 +69,8 @@ import { CATALOGUE_GROUPS, fixedListEntries } from '../core/target-lists';
     </ion-header>
 
     <ion-content>
-      <ion-list inset="true">
+      <!-- The rows go in two columns on a phone on its side: see .af-columns in global.scss. -->
+      <ion-list inset="true" class="af-columns">
         @for (entry of catalogues(); track entry.list.id) {
           <ion-item button detail="true" data-testid="list-link" (click)="open(entry.list.id)">
             <ion-icon

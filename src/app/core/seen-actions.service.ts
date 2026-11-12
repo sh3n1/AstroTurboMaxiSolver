@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { ModalController, ToastController } from '@ionic/angular';
 
+import { listToastPlace } from './list-toast';
 import { LogEntrySheetComponent } from './log-entry-sheet.component';
 import { ordinal } from './observing-log';
 import { ObservingLogService } from './observing-log.service';
@@ -20,7 +21,11 @@ export class SeenActionsService {
   private readonly toasts = inject(ToastController);
   private readonly modals = inject(ModalController);
 
-  async markSeen(target: Target): Promise<void> {
+  /**
+   * `from` says where it was tapped. Over the map the message goes at the top, clear of
+   * the target's box. On a list it goes at the bottom, clear of the header's buttons.
+   */
+  async markSeen(target: Target, from: 'map' | 'list' = 'map'): Promise<void> {
     const logged = this.log.tonightEntry(target.id);
     if (logged) {
       await this.openEntry(logged.id);
@@ -31,7 +36,7 @@ export class SeenActionsService {
     const toast = await this.toasts.create({
       message: times > 1 ? `Seen · ${ordinal(times)} time` : 'Seen · first time',
       duration: SEEN_TOAST_MS,
-      position: 'top',
+      ...(from === 'list' ? listToastPlace() : { position: 'top' as const }),
       cssClass: 'af-toast',
       htmlAttributes: { 'data-testid': 'seen-toast' },
       buttons: [

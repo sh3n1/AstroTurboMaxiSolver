@@ -326,11 +326,11 @@ test('filters targets by type', async ({ page }) => {
   await page.goto('/tabs/targets');
   await filterTargetsByType(page, 'Galaxy');
   // A long list shows its first part, and more once its end comes into view.
-  await expect(page.locator('app-targets ion-item')).toHaveCount(40);
-  await expect(page.locator('app-targets [data-testid=list-rows]')).not.toHaveAttribute('data-total', '40');
+  await expect(page.locator('app-targets ion-item')).toHaveCount(24);
+  await expect(page.locator('app-targets [data-testid=list-rows]')).not.toHaveAttribute('data-total', '24');
   await expect(page.locator('app-targets ion-item', { hasText: 'Vega' })).toHaveCount(0);
   await page.locator('app-targets ion-item').last().scrollIntoViewIfNeeded();
-  await expect(page.locator('app-targets ion-item')).toHaveCount(80);
+  await expect(page.locator('app-targets ion-item')).toHaveCount(48);
 });
 
 test('lists all 88 constellations, and finds one by its abbreviation', async ({ page }) => {
@@ -661,4 +661,61 @@ test('turns the shutter sound for plate solves on and off in Settings', async ({
   await expect(toggle).toHaveClass(/toggle-checked/);
   await page.reload();
   await expect(page.locator('[data-testid=solve-sound]')).toHaveClass(/toggle-checked/);
+});
+
+test('lays out for a phone on its side: a tab rail, and map buttons that never overlap', async ({ page }) => {
+  await page.setViewportSize({ width: 860, height: 380 });
+  await page.goto('/');
+  const box = async (selector: string) => (await page.locator(selector).boundingBox())!;
+
+  // The tab bar is a rail down the left side, the full height of the screen.
+  const rail = await box('ion-tab-bar');
+  expect(rail.x).toBe(0);
+  expect(rail.height).toBeGreaterThan(370);
+  expect(rail.width).toBeLessThan(120);
+  await expect(page.getByRole('tab', { name: 'Settings' })).toBeVisible();
+
+  // The map keeps the whole screen, running under the rail, and its boxes start beside the rail.
+  const map = await box('app-sky canvas');
+  expect(map.x).toBe(0);
+  expect(map.width).toBe(860);
+  expect(map.height).toBeGreaterThan(370);
+  expect((await box('[data-testid=pointing]')).x).toBeGreaterThanOrEqual(rail.width);
+
+  // In the eyepiece view, the panel and the buttons leave the circle's place clear.
+  await page.locator('[data-testid=view-mode]').click();
+  const panel = await box('[data-testid=eyepiece-panel]');
+  expect(panel.x).toBeGreaterThanOrEqual(rail.width);
+  expect(panel.x + panel.width).toBeLessThan(860 / 2 + 40);
+  // Every round button takes its tap there. The location's row once lay across them.
+  for (const id of ['sensor-toggle', 'view-mode', 'open-time', 'alignment-status', 'night-toggle']) {
+    const onTop = await page.evaluate((testid) => {
+      const button = document.querySelector(`[data-testid=${testid}]`)!;
+      const { x, y, width, height } = button.getBoundingClientRect();
+      return button.contains(document.elementFromPoint(x + width / 2, y + height / 2));
+    }, id);
+    expect(onTop, id).toBe(true);
+  }
+  await page.locator('[data-testid=view-mode]').click();
+  await page.locator('[data-testid=view-mode]').click();
+
+  // Zoom lies beside the column of round buttons, not under it, and all are on screen.
+  const zoomOut = await box('[data-testid=zoom-out]');
+  const night = await box('[data-testid=night-toggle]');
+  expect(zoomOut.x + zoomOut.width).toBeLessThanOrEqual(night.x + 1);
+  expect(night.y + night.height).toBeLessThanOrEqual(380);
+
+  // With the time control open the map is shorter, and the buttons still all fit on it.
+  await page.locator('[data-testid=open-time]').click();
+  await expect(page.locator('[data-testid=time-ruler]')).toBeVisible();
+  const ruler = await box('[data-testid=time-ruler]');
+  for (const id of ['sensor-toggle', 'view-mode', 'open-time', 'alignment-status', 'night-toggle', 'zoom-in']) {
+    const button = await box(`[data-testid=${id}]`);
+    expect(button.y, id).toBeGreaterThanOrEqual(0);
+    expect(button.y + button.height, id).toBeLessThanOrEqual(ruler.y + 1);
+    expect(button.x + button.width, id).toBeLessThanOrEqual(860);
+  }
+  // The ruler shares its line with the day and the buttons.
+  const now = await box('[data-testid=time-now]');
+  expect(ruler.x).toBeGreaterThan(now.x);
 });

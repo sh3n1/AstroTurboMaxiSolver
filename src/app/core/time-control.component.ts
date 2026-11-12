@@ -197,6 +197,33 @@ const SEEING_COLOURS: Record<SeeingQuality, string> = {
       clip-path: inset(50%);
       white-space: nowrap;
     }
+    /*
+     * A phone on its side: the buttons and the ruler share one line, the ruler taking the
+     * width that is left, so the control costs the short screen half the height.
+     */
+    @media (orientation: landscape) and (max-height: 520px) {
+      :host {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .row {
+        flex: none;
+        padding: 0 2px;
+      }
+      .when {
+        flex: none;
+        min-width: 96px;
+      }
+      .ruler {
+        flex: 1;
+        min-width: 0;
+      }
+      .band,
+      .forecast-status {
+        flex: 1 0 100%;
+      }
+    }
   `,
   template: `
     @if (state.timeControlOpen()) {
@@ -355,11 +382,23 @@ export class TimeControlComponent {
       timeOutline,
     });
     // Redraws the ruler when the time, the place, the text size or the forecast changes, or it opens.
+    effect((onCleanup) => {
+      const canvas = this.ruler()?.nativeElement;
+      if (!canvas) return;
+      // The ruler's width changes when the phone is turned, so it is drawn again to fit.
+      const resizes = new ResizeObserver(() => this.rulerWidth.set(canvas.clientWidth));
+      resizes.observe(canvas);
+      onCleanup(() => resizes.disconnect());
+    });
     effect(() => {
       const canvas = this.ruler()?.nativeElement;
+      this.rulerWidth();
       if (canvas) this.drawRuler(canvas, this.shown());
     });
   }
+
+  /** The ruler's width on screen. Read by the drawing, so a new width draws it again. */
+  private readonly rulerWidth = signal(0);
 
   /** Chooses a time, rounded to the step and kept within a year of now. */
   private choose(time: number): void {

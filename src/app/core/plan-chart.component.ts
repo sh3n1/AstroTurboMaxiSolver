@@ -1,10 +1,11 @@
-import { Component, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 
 import { AppState } from './app-state.service';
 import { sunAltitudeDeg } from './astronomy';
 import { designations } from './designations';
 import { LocalTimePipe } from './local-time.pipe';
 import { SKY_SHADE_COLOURS } from './planning-time';
+import { sideways } from './sideways';
 import type { Target } from './targets';
 import { tonight, tonightChart } from './tonight';
 
@@ -13,6 +14,11 @@ const TIME = new LocalTimePipe();
 // The chart's size, in its own units: it stretches to the page's width. Taller than the
 // details' chart, since several lines share it.
 const CHART_WIDTH = 336;
+/**
+ * On a phone on its side the chart is drawn twice as wide for the same height, so it fills
+ * the screen's width and the night's hours spread out, instead of growing taller with it.
+ */
+const SIDEWAYS_CHART_WIDTH = 720;
 const CHART_TOP = 8;
 const CHART_HORIZON = 112;
 const CHART_HEIGHT = 136;
@@ -41,6 +47,9 @@ interface PlanLine {
  */
 @Component({
   selector: 'app-plan-chart',
+  // Everything shown comes from signals, so the page is checked only when one changes,
+  // not each time the sky map behind it updates.
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
     :host {
       display: block;
@@ -89,7 +98,7 @@ interface PlanLine {
   template: `
     @let chart = plan();
     <svg
-      [attr.viewBox]="'0 0 ' + chartWidth + ' ' + chartHeight"
+      [attr.viewBox]="'0 0 ' + chartWidth() + ' ' + chartHeight"
       role="img"
       data-testid="plan-chart"
       [attr.aria-label]="chart.label"
@@ -106,7 +115,7 @@ interface PlanLine {
       <line
         x1="0"
         [attr.y1]="chart.goodY"
-        [attr.x2]="chartWidth"
+        [attr.x2]="chartWidth()"
         [attr.y2]="chart.goodY"
         stroke="var(--af-muted)"
         stroke-dasharray="3 4"
@@ -115,13 +124,13 @@ interface PlanLine {
       <line
         x1="0"
         [attr.y1]="horizon"
-        [attr.x2]="chartWidth"
+        [attr.x2]="chartWidth()"
         [attr.y2]="horizon"
         stroke="var(--af-muted)"
         opacity="0.6"
       />
       <text
-        [attr.x]="chartWidth - 4"
+        [attr.x]="chartWidth() - 4"
         [attr.y]="chart.goodY - 3"
         text-anchor="end"
         font-size="13"
@@ -154,7 +163,7 @@ interface PlanLine {
             <text
               [attr.x]="peak.x"
               [attr.y]="peak.y - 5"
-              [attr.text-anchor]="peak.x < 30 ? 'start' : peak.x > chartWidth - 30 ? 'end' : 'middle'"
+              [attr.text-anchor]="peak.x < 30 ? 'start' : peak.x > chartWidth() - 30 ? 'end' : 'middle'"
               font-size="12"
               font-weight="700"
               [attr.fill]="line.colour"
@@ -214,7 +223,7 @@ export class PlanChartComponent {
 
   private readonly state = inject(AppState);
 
-  protected readonly chartWidth = CHART_WIDTH;
+  protected readonly chartWidth = computed(() => (sideways() ? SIDEWAYS_CHART_WIDTH : CHART_WIDTH));
   protected readonly chartHeight = CHART_HEIGHT;
   protected readonly horizon = CHART_HORIZON;
   protected readonly shadeColours = SKY_SHADE_COLOURS;
@@ -232,6 +241,7 @@ export class PlanChartComponent {
    */
   protected readonly plan = computed(() => {
     const now = this.state.now();
+    const width = this.chartWidth();
     const { latitudeDeg, longitudeDeg } = this.state.settings();
     // Each target once, even if a catalogue lists it under two numbers.
     const unique = [...new Map(this.targets().map((t) => [t.id, t])).values()];
@@ -241,7 +251,7 @@ export class PlanChartComponent {
     let base: ReturnType<typeof tonightChart> | null = null;
     const lines: PlanLine[] = shown.map((target, i) => {
       const night = tonight((time) => this.state.positionAt(target, time).altDeg, sunAt, now);
-      const chart = tonightChart(night, now, CHART_WIDTH, CHART_TOP, CHART_HORIZON);
+      const chart = tonightChart(night, now, width, CHART_TOP, CHART_HORIZON);
       base ??= chart;
       return {
         target,
@@ -259,7 +269,7 @@ export class PlanChartComponent {
     base ??= tonightChart(
       tonight(() => -90, sunAt, now),
       now,
-      CHART_WIDTH,
+      width,
       CHART_TOP,
       CHART_HORIZON,
     );

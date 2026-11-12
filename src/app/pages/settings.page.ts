@@ -171,363 +171,369 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
     </ion-header>
 
     <ion-content>
-      <!-- Where the observer is, which everything on the sky depends on. -->
-      <ion-list inset="true">
-        <ion-list-header>Location and sky</ion-list-header>
-        <ion-item data-testid="location-status">
-          <ion-icon slot="start" name="location-outline" aria-hidden="true"></ion-icon>
-          <ion-label class="ion-text-wrap">
-            <h2>Your location</h2>
-            <p [class.warn]="!settings().locationSet">{{ gpsMessage() || locationText() }}</p>
-          </ion-label>
-          <ion-button slot="end" size="small" data-testid="use-gps" (click)="useGps()">
-            <ion-icon slot="start" name="navigate-outline" aria-hidden="true"></ion-icon>
-            GPS
-          </ion-button>
-        </ion-item>
-        <!-- Typing the location instead: both numbers side by side, in degrees. -->
-        <ion-item>
-          <ion-icon slot="start" name="globe-outline" aria-hidden="true"></ion-icon>
-          <div class="coordinates">
-            <ion-input
-              label="Latitude"
-              labelPlacement="stacked"
-              type="number"
-              inputmode="decimal"
-              placeholder="40.42"
-              helperText="North is +"
-              data-testid="latitude"
-              [value]="settings().locationSet ? settings().latitudeDeg : null"
-              (ionChange)="setNumber('latitudeDeg', $event, -90, 90)"
-            ></ion-input>
-            <ion-input
-              label="Longitude"
-              labelPlacement="stacked"
-              type="number"
-              inputmode="decimal"
-              placeholder="-3.70"
-              helperText="East is +"
-              data-testid="longitude"
-              [value]="settings().locationSet ? settings().longitudeDeg : null"
-              (ionChange)="setNumber('longitudeDeg', $event, -180, 180)"
-            ></ion-input>
-          </div>
-        </ion-item>
-        <ion-item lines="none">
-          <ion-icon slot="start" [src]="appIcons.skyDarkness" aria-hidden="true"></ion-icon>
-          <ion-select
-            label="Sky darkness"
-            interface="popover"
-            data-testid="bortle"
-            [value]="settings().bortle"
-            (ionChange)="state.updateSettings({ bortle: $any($event).detail.value })"
-          >
-            @for (option of bortleClasses; track option.value) {
-              <ion-select-option [value]="option.value">{{ option.label }}</ion-select-option>
-            }
-          </ion-select>
-        </ion-item>
-      </ion-list>
-      <p class="section-note">Bortle: 1 dark site · 5 suburbs · 9 city centre</p>
+      <!-- The sections go in two columns on a phone on its side: see .af-columns in global.scss. -->
+      <div class="af-columns">
+        <!-- Where the observer is, which everything on the sky depends on. Its note stays with it. -->
+        <div>
+          <ion-list inset="true">
+            <ion-list-header>Location and sky</ion-list-header>
+            <ion-item data-testid="location-status">
+              <ion-icon slot="start" name="location-outline" aria-hidden="true"></ion-icon>
+              <ion-label class="ion-text-wrap">
+                <h2>Your location</h2>
+                <p [class.warn]="!settings().locationSet">{{ gpsMessage() || locationText() }}</p>
+              </ion-label>
+              <ion-button slot="end" size="small" data-testid="use-gps" (click)="useGps()">
+                <ion-icon slot="start" name="navigate-outline" aria-hidden="true"></ion-icon>
+                GPS
+              </ion-button>
+            </ion-item>
+            <!-- Typing the location instead: both numbers side by side, in degrees. -->
+            <ion-item>
+              <ion-icon slot="start" name="globe-outline" aria-hidden="true"></ion-icon>
+              <div class="coordinates">
+                <ion-input
+                  label="Latitude"
+                  labelPlacement="stacked"
+                  type="number"
+                  inputmode="decimal"
+                  placeholder="40.42"
+                  helperText="North is +"
+                  data-testid="latitude"
+                  [value]="settings().locationSet ? settings().latitudeDeg : null"
+                  (ionChange)="setNumber('latitudeDeg', $event, -90, 90)"
+                ></ion-input>
+                <ion-input
+                  label="Longitude"
+                  labelPlacement="stacked"
+                  type="number"
+                  inputmode="decimal"
+                  placeholder="-3.70"
+                  helperText="East is +"
+                  data-testid="longitude"
+                  [value]="settings().locationSet ? settings().longitudeDeg : null"
+                  (ionChange)="setNumber('longitudeDeg', $event, -180, 180)"
+                ></ion-input>
+              </div>
+            </ion-item>
+            <ion-item lines="none">
+              <ion-icon slot="start" [src]="appIcons.skyDarkness" aria-hidden="true"></ion-icon>
+              <ion-select
+                label="Sky darkness"
+                interface="popover"
+                data-testid="bortle"
+                [value]="settings().bortle"
+                (ionChange)="state.updateSettings({ bortle: $any($event).detail.value })"
+              >
+                @for (option of bortleClasses; track option.value) {
+                  <ion-select-option [value]="option.value">{{ option.label }}</ion-select-option>
+                }
+              </ion-select>
+            </ion-item>
+          </ion-list>
+          <p class="section-note">Bortle: 1 dark site · 5 suburbs · 9 city centre</p>
+        </div>
 
-      <!-- How the phone sits on the telescope, and how it finds where it points. -->
-      <ion-list inset="true">
-        <ion-list-header>Telescope and alignment</ion-list-header>
-        <ion-item>
-          <ion-icon slot="start" name="phone-portrait-outline" aria-hidden="true"></ion-icon>
-          <ion-select
-            label="Phone mount"
-            interface="popover"
-            data-testid="mount"
-            [value]="settings().mount"
-            (ionChange)="state.updateSettings({ mount: $any($event).detail.value })"
-          >
-            <ion-select-option value="direct">Camera at the sky</ion-select-option>
-            <ion-select-option value="clip-on">Camera with small telescope</ion-select-option>
-            <ion-select-option value="mirror">Parallel with mirror</ion-select-option>
-          </ion-select>
-        </ion-item>
-        <ion-item button detail="true" data-testid="open-alignment" (click)="openAlignment()">
-          <ion-icon slot="start" name="locate-outline" aria-hidden="true"></ion-icon>
-          <ion-label class="ion-text-wrap">
-            <h2>Telescope alignment</h2>
-            @if (state.alignment(); as alignment) {
-              <p class="good">Aligned on {{ alignment.starId }}</p>
-            } @else {
-              <p class="warn">Not aligned</p>
-            }
-          </ion-label>
-        </ion-item>
-        <ion-item>
-          <ion-icon slot="start" name="camera-outline" aria-hidden="true"></ion-icon>
-          <ion-toggle
-            data-testid="auto-solve"
-            [checked]="settings().autoSolve"
-            (ionChange)="state.updateSettings({ autoSolve: $any($event).detail.checked })"
-          >
-            Plate solve when still
-          </ion-toggle>
-        </ion-item>
-        <ion-item>
-          <ion-icon slot="start" name="volume-low-outline" aria-hidden="true"></ion-icon>
-          <ion-toggle
-            data-testid="solve-sound"
-            [checked]="settings().solveSound"
-            (ionChange)="setSolveSound($any($event).detail.checked)"
-          >
-            Shutter sound on solve
-          </ion-toggle>
-        </ion-item>
-        <!-- A Bluetooth camera shutter remote, to align without reaching for the phone. -->
-        <ion-item>
-          <ion-icon slot="start" name="bluetooth-outline" aria-hidden="true"></ion-icon>
-          <ion-toggle
-            data-testid="shutter-aligns"
-            [checked]="settings().shutterAligns"
-            (ionChange)="state.updateSettings({ shutterAligns: $any($event).detail.checked })"
-          >
-            Shutter remote aligns
-          </ion-toggle>
-        </ion-item>
-      </ion-list>
-
-      <!-- How the app looks. -->
-      <ion-list inset="true">
-        <ion-list-header>Display</ion-list-header>
-        <ion-item>
-          <ion-icon slot="start" name="text-outline" aria-hidden="true"></ion-icon>
-          <div class="text-size">
-            <ion-label id="text-size-label">Text size</ion-label>
-            <ion-segment
-              aria-labelledby="text-size-label"
-              data-testid="text-size"
-              [value]="settings().textSize"
-              (ionChange)="state.updateSettings({ textSize: $any($event).detail.value })"
-            >
-              <ion-segment-button value="standard" aria-label="Standard">
-                <ion-label class="sample-standard">Aa</ion-label>
-              </ion-segment-button>
-              <ion-segment-button value="large" aria-label="Large">
-                <ion-label class="sample-large">Aa</ion-label>
-              </ion-segment-button>
-              <ion-segment-button value="extra-large" aria-label="Extra large">
-                <ion-label class="sample-extra-large">Aa</ion-label>
-              </ion-segment-button>
-            </ion-segment>
-          </div>
-        </ion-item>
-        <ion-item>
-          <ion-icon slot="start" name="moon-outline" aria-hidden="true"></ion-icon>
-          <ion-toggle
-            data-testid="night-mode"
-            [checked]="settings().nightMode"
-            (ionChange)="state.updateSettings({ nightMode: $any($event).detail.checked })"
-          >
-            Red night mode
-          </ion-toggle>
-        </ion-item>
-        <ion-item>
-          <ion-icon slot="start" name="lock-open-outline" aria-hidden="true"></ion-icon>
-          <ion-toggle
-            data-testid="keep-screen-on"
-            [helperText]="screenWake.supported ? '' : 'Not supported in this browser'"
-            [disabled]="!screenWake.supported"
-            [checked]="settings().keepScreenOn && screenWake.supported"
-            (ionChange)="state.updateSettings({ keepScreenOn: $any($event).detail.checked })"
-          >
-            Keep screen on
-          </ion-toggle>
-        </ion-item>
-        <ion-item lines="none">
-          <ion-icon slot="start" name="grid-outline" aria-hidden="true"></ion-icon>
-          <ion-toggle
-            data-testid="show-equatorial"
-            [checked]="settings().showEquatorial"
-            (ionChange)="state.updateSettings({ showEquatorial: $any($event).detail.checked })"
-          >
-            Show RA and Dec
-          </ion-toggle>
-        </ion-item>
-      </ion-list>
-
-      <!-- For checking the app on a real phone and a real sky. -->
-      <ion-list inset="true">
-        <ion-list-header>Testing tools</ion-list-header>
-        <ion-item button detail="true" data-testid="open-device-test" (click)="openDeviceTest()">
-          <ion-icon slot="start" name="flask-outline" aria-hidden="true"></ion-icon>
-          <ion-label class="ion-text-wrap">
-            <h2>Device test</h2>
-            <p>Camera, sensors and plate solving</p>
-          </ion-label>
-        </ion-item>
-        <ion-item>
-          <ion-icon slot="start" name="chatbubble-ellipses-outline" aria-hidden="true"></ion-icon>
-          <ion-toggle
-            data-testid="success-toast"
-            helperText="Failures always show one."
-            [checked]="settings().solveSuccessToast"
-            (ionChange)="state.updateSettings({ solveSuccessToast: $any($event).detail.checked })"
-          >
-            Toast on successful solves
-          </ion-toggle>
-        </ion-item>
-        @if (devMode) {
+        <!-- How the phone sits on the telescope, and how it finds where it points. -->
+        <ion-list inset="true">
+          <ion-list-header>Telescope and alignment</ion-list-header>
           <ion-item>
-            <ion-icon slot="start" name="desktop-outline" aria-hidden="true"></ion-icon>
-            <ion-toggle
-              data-testid="send-solves"
-              [checked]="settings().sendSolves"
-              (ionChange)="state.updateSettings({ sendSolves: $any($event).detail.checked })"
+            <ion-icon slot="start" name="phone-portrait-outline" aria-hidden="true"></ion-icon>
+            <ion-select
+              label="Phone mount"
+              interface="popover"
+              data-testid="mount"
+              [value]="settings().mount"
+              (ionChange)="state.updateSettings({ mount: $any($event).detail.value })"
             >
-              Send solves to this PC
+              <ion-select-option value="direct">Camera at the sky</ion-select-option>
+              <ion-select-option value="clip-on">Camera with small telescope</ion-select-option>
+              <ion-select-option value="mirror">Parallel with mirror</ion-select-option>
+            </ion-select>
+          </ion-item>
+          <ion-item button detail="true" data-testid="open-alignment" (click)="openAlignment()">
+            <ion-icon slot="start" name="locate-outline" aria-hidden="true"></ion-icon>
+            <ion-label class="ion-text-wrap">
+              <h2>Telescope alignment</h2>
+              @if (state.alignment(); as alignment) {
+                <p class="good">Aligned on {{ alignment.starId }}</p>
+              } @else {
+                <p class="warn">Not aligned</p>
+              }
+            </ion-label>
+          </ion-item>
+          <ion-item>
+            <ion-icon slot="start" name="camera-outline" aria-hidden="true"></ion-icon>
+            <ion-toggle
+              data-testid="auto-solve"
+              [checked]="settings().autoSolve"
+              (ionChange)="state.updateSettings({ autoSolve: $any($event).detail.checked })"
+            >
+              Plate solve when still
             </ion-toggle>
           </ion-item>
           <ion-item>
-            <ion-icon slot="start" name="aperture-outline" aria-hidden="true"></ion-icon>
-            <ion-select
-              label="Camera capture"
-              interface="popover"
-              data-testid="capture-mode"
-              [value]="settings().captureMode"
-              (ionChange)="state.updateSettings({ captureMode: $any($event).detail.value })"
+            <ion-icon slot="start" name="volume-low-outline" aria-hidden="true"></ion-icon>
+            <ion-toggle
+              data-testid="solve-sound"
+              [checked]="settings().solveSound"
+              (ionChange)="setSolveSound($any($event).detail.checked)"
             >
-              <ion-select-option value="normal">Normal</ion-select-option>
-              <ion-select-option value="exposure">Force long exposure</ion-select-option>
-              <ion-select-option value="stack">Force stacking</ion-select-option>
-            </ion-select>
+              Shutter sound on solve
+            </ion-toggle>
           </ion-item>
-        }
-        <ion-item
-          button
-          detail="false"
-          data-testid="open-solve-log"
-          [attr.aria-expanded]="showSolveLog()"
-          (click)="showSolveLog.set(!showSolveLog())"
-        >
-          <ion-icon slot="start" name="list-outline" aria-hidden="true"></ion-icon>
-          <ion-label>Plate solving log</ion-label>
-          <ion-badge slot="end" color="medium">{{ liveSolver.log().length }}</ion-badge>
-          <ion-icon slot="end" aria-hidden="true" [name]="showSolveLog() ? 'chevron-up' : 'chevron-down'"></ion-icon>
-        </ion-item>
-        @if (showSolveLog()) {
-          <!-- The latest attempts in this session, newest first, for checking on a real sky. -->
-          @for (entry of liveSolver.log(); track entry.id) {
-            <ion-item data-testid="solve-log-entry">
-              <ion-label class="ion-text-wrap">
-                <h3 [class.good]="entry.outcome === 'solved'">{{ entry.message }}</h3>
-                <p>
-                  {{ entry.at | localTime: 'time-seconds' }} ·
-                  {{ entry.trigger === 'auto' ? 'Automatic' : 'Alignment' }} ·
-                  {{ entry.durationMs / 1000 | number: '1.1-1' }} s · ISO {{ entry.iso }}
-                  @if (entry.frames > 1) {
-                    · {{ entry.frames }} frames
-                  }
-                  @if (entry.starCount > 0) {
-                    · {{ entry.starCount }} stars found
-                  }
-                  @if (entry.sensorErrorDeg !== null) {
-                    · sensors were {{ entry.sensorErrorDeg | number: '1.1-1' }}° off
-                  }
-                </p>
-              </ion-label>
+          <!-- A Bluetooth camera shutter remote, to align without reaching for the phone. -->
+          <ion-item>
+            <ion-icon slot="start" name="bluetooth-outline" aria-hidden="true"></ion-icon>
+            <ion-toggle
+              data-testid="shutter-aligns"
+              [checked]="settings().shutterAligns"
+              (ionChange)="state.updateSettings({ shutterAligns: $any($event).detail.checked })"
+            >
+              Shutter remote aligns
+            </ion-toggle>
+          </ion-item>
+        </ion-list>
+
+        <!-- How the app looks. -->
+        <ion-list inset="true">
+          <ion-list-header>Display</ion-list-header>
+          <ion-item>
+            <ion-icon slot="start" name="text-outline" aria-hidden="true"></ion-icon>
+            <div class="text-size">
+              <ion-label id="text-size-label">Text size</ion-label>
+              <ion-segment
+                aria-labelledby="text-size-label"
+                data-testid="text-size"
+                [value]="settings().textSize"
+                (ionChange)="state.updateSettings({ textSize: $any($event).detail.value })"
+              >
+                <ion-segment-button value="standard" aria-label="Standard">
+                  <ion-label class="sample-standard">Aa</ion-label>
+                </ion-segment-button>
+                <ion-segment-button value="large" aria-label="Large">
+                  <ion-label class="sample-large">Aa</ion-label>
+                </ion-segment-button>
+                <ion-segment-button value="extra-large" aria-label="Extra large">
+                  <ion-label class="sample-extra-large">Aa</ion-label>
+                </ion-segment-button>
+              </ion-segment>
+            </div>
+          </ion-item>
+          <ion-item>
+            <ion-icon slot="start" name="moon-outline" aria-hidden="true"></ion-icon>
+            <ion-toggle
+              data-testid="night-mode"
+              [checked]="settings().nightMode"
+              (ionChange)="state.updateSettings({ nightMode: $any($event).detail.checked })"
+            >
+              Red night mode
+            </ion-toggle>
+          </ion-item>
+          <ion-item>
+            <ion-icon slot="start" name="lock-open-outline" aria-hidden="true"></ion-icon>
+            <ion-toggle
+              data-testid="keep-screen-on"
+              [helperText]="screenWake.supported ? '' : 'Not supported in this browser'"
+              [disabled]="!screenWake.supported"
+              [checked]="settings().keepScreenOn && screenWake.supported"
+              (ionChange)="state.updateSettings({ keepScreenOn: $any($event).detail.checked })"
+            >
+              Keep screen on
+            </ion-toggle>
+          </ion-item>
+          <ion-item lines="none">
+            <ion-icon slot="start" name="grid-outline" aria-hidden="true"></ion-icon>
+            <ion-toggle
+              data-testid="show-equatorial"
+              [checked]="settings().showEquatorial"
+              (ionChange)="state.updateSettings({ showEquatorial: $any($event).detail.checked })"
+            >
+              Show RA and Dec
+            </ion-toggle>
+          </ion-item>
+        </ion-list>
+
+        <!-- For checking the app on a real phone and a real sky. -->
+        <ion-list inset="true">
+          <ion-list-header>Testing tools</ion-list-header>
+          <ion-item button detail="true" data-testid="open-device-test" (click)="openDeviceTest()">
+            <ion-icon slot="start" name="flask-outline" aria-hidden="true"></ion-icon>
+            <ion-label class="ion-text-wrap">
+              <h2>Device test</h2>
+              <p>Camera, sensors and plate solving</p>
+            </ion-label>
+          </ion-item>
+          <ion-item>
+            <ion-icon slot="start" name="chatbubble-ellipses-outline" aria-hidden="true"></ion-icon>
+            <ion-toggle
+              data-testid="success-toast"
+              helperText="Failures always show one."
+              [checked]="settings().solveSuccessToast"
+              (ionChange)="state.updateSettings({ solveSuccessToast: $any($event).detail.checked })"
+            >
+              Toast on successful solves
+            </ion-toggle>
+          </ion-item>
+          @if (devMode) {
+            <ion-item>
+              <ion-icon slot="start" name="desktop-outline" aria-hidden="true"></ion-icon>
+              <ion-toggle
+                data-testid="send-solves"
+                [checked]="settings().sendSolves"
+                (ionChange)="state.updateSettings({ sendSolves: $any($event).detail.checked })"
+              >
+                Send solves to this PC
+              </ion-toggle>
             </ion-item>
-          } @empty {
-            <ion-item data-testid="solve-log-empty">
-              <ion-label class="ion-text-wrap">
-                <p>No plate solves yet. Turn sensors on and hold the phone still.</p>
-              </ion-label>
+            <ion-item>
+              <ion-icon slot="start" name="aperture-outline" aria-hidden="true"></ion-icon>
+              <ion-select
+                label="Camera capture"
+                interface="popover"
+                data-testid="capture-mode"
+                [value]="settings().captureMode"
+                (ionChange)="state.updateSettings({ captureMode: $any($event).detail.value })"
+              >
+                <ion-select-option value="normal">Normal</ion-select-option>
+                <ion-select-option value="exposure">Force long exposure</ion-select-option>
+                <ion-select-option value="stack">Force stacking</ion-select-option>
+              </ion-select>
             </ion-item>
           }
-        }
-      </ion-list>
+          <ion-item
+            button
+            detail="false"
+            data-testid="open-solve-log"
+            [attr.aria-expanded]="showSolveLog()"
+            (click)="showSolveLog.set(!showSolveLog())"
+          >
+            <ion-icon slot="start" name="list-outline" aria-hidden="true"></ion-icon>
+            <ion-label>Plate solving log</ion-label>
+            <ion-badge slot="end" color="medium">{{ liveSolver.log().length }}</ion-badge>
+            <ion-icon slot="end" aria-hidden="true" [name]="showSolveLog() ? 'chevron-up' : 'chevron-down'"></ion-icon>
+          </ion-item>
+          @if (showSolveLog()) {
+            <!-- The latest attempts in this session, newest first, for checking on a real sky. -->
+            @for (entry of liveSolver.log(); track entry.id) {
+              <ion-item data-testid="solve-log-entry">
+                <ion-label class="ion-text-wrap">
+                  <h3 [class.good]="entry.outcome === 'solved'">{{ entry.message }}</h3>
+                  <p>
+                    {{ entry.at | localTime: 'time-seconds' }} ·
+                    {{ entry.trigger === 'auto' ? 'Automatic' : 'Alignment' }} ·
+                    {{ entry.durationMs / 1000 | number: '1.1-1' }} s · ISO {{ entry.iso }}
+                    @if (entry.frames > 1) {
+                      · {{ entry.frames }} frames
+                    }
+                    @if (entry.starCount > 0) {
+                      · {{ entry.starCount }} stars found
+                    }
+                    @if (entry.sensorErrorDeg !== null) {
+                      · sensors were {{ entry.sensorErrorDeg | number: '1.1-1' }}° off
+                    }
+                  </p>
+                </ion-label>
+              </ion-item>
+            } @empty {
+              <ion-item data-testid="solve-log-empty">
+                <ion-label class="ion-text-wrap">
+                  <p>No plate solves yet. Turn sensors on and hold the phone still.</p>
+                </ion-label>
+              </ion-item>
+            }
+          }
+        </ion-list>
 
-      <!-- The licences of the data require these credits. -->
-      <ion-list inset="true">
-        <ion-list-header>Data credits</ion-list-header>
-        <ion-item
-          data-testid="credit-openngc"
-          href="https://github.com/mattiaverga/OpenNGC"
-          target="_blank"
-          rel="noopener"
-          detail="false"
-        >
-          <ion-label class="ion-text-wrap credit">
-            NGC and IC objects from OpenNGC by Mattia Verga, CC BY-SA 4.0. Converted and filtered for this app.
-          </ion-label>
-          <ion-icon slot="end" name="open-outline" aria-hidden="true"></ion-icon>
-        </ion-item>
-        <ion-item>
-          <ion-label class="ion-text-wrap credit"
-            >Stars, star names and constellation lines from XHIP and the IAU, via d3-celestial.</ion-label
+        <!-- The licences of the data require these credits. -->
+        <ion-list inset="true">
+          <ion-list-header>Data credits</ion-list-header>
+          <ion-item
+            data-testid="credit-openngc"
+            href="https://github.com/mattiaverga/OpenNGC"
+            target="_blank"
+            rel="noopener"
+            detail="false"
           >
-        </ion-item>
-        <ion-item>
-          <ion-label class="ion-text-wrap credit">Messier data by H. Frommert, seds.org, via d3-celestial.</ion-label>
-        </ion-item>
-        <ion-item>
-          <ion-label class="ion-text-wrap credit">Caldwell catalogue compiled by Sir Patrick Moore.</ion-label>
-        </ion-item>
-        <ion-item>
-          <ion-label class="ion-text-wrap credit">
-            Herschel 400 selected by the Ancient City Astronomy Club, Herschel II by the Rose City Astronomers, as
-            observed in the Astronomical League's programmes.
-          </ion-label>
-        </ion-item>
-        <ion-item>
-          <ion-label class="ion-text-wrap credit">
-            110 Best NGC Objects by A. J. Crayon and Steve Coe, Saguaro Astronomy Club.
-          </ion-label>
-        </ion-item>
-        <ion-item>
-          <ion-label class="ion-text-wrap credit">
-            Finest NGC list by Alan Dyer, Royal Astronomical Society of Canada.
-          </ion-label>
-        </ion-item>
-        <ion-item>
-          <ion-label class="ion-text-wrap credit">
-            Deep-Sky Gems by David H. Levy and Explore the Universe, Royal Astronomical Society of Canada.
-          </ion-label>
-        </ion-item>
-        <ion-item>
-          <ion-label class="ion-text-wrap credit">
-            Urban Observing Program, Astronomical League. Top-100 Deepsky Objects, Astronomical Society of Southern
-            Africa.
-          </ion-label>
-        </ion-item>
-        <ion-item>
-          <ion-label class="ion-text-wrap credit">
-            Monthly lists from NASA's Hubble Night Sky Challenge. NASA does not endorse this app.
-          </ion-label>
-        </ion-item>
-        <ion-item>
-          <ion-label class="ion-text-wrap credit" data-testid="credit-wds"
-            >Double stars from the Washington Double Star Catalog, maintained at the U.S. Naval Observatory.</ion-label
-          >
-        </ion-item>
-        <!-- Open-Meteo's data is CC BY 4.0, which asks for this credit. -->
-        <ion-item>
-          <ion-label class="ion-text-wrap credit" data-testid="credit-open-meteo"
-            >Weather forecast by Open-Meteo.com, CC BY 4.0, from NOAA's GFS model. Seeing worked out with the AXP model
-            of Trinquet and Vernin.</ion-label
-          >
-        </ion-item>
-        <ion-item>
-          <ion-label class="ion-text-wrap credit"
-            >Compass correction from the World Magnetic Model, NOAA and the British Geological Survey, via geomagnetism
-            by Natural Atlas, Apache License 2.0.</ion-label
-          >
-        </ion-item>
-        <ion-item>
-          <ion-label class="ion-text-wrap credit"
-            >Planets, Pluto, Moon and sky positions by Astronomy Engine, Don Cross.</ion-label
-          >
-        </ion-item>
-        <ion-item lines="none" data-testid="credit-jpl">
-          <ion-label class="ion-text-wrap credit"
-            >Orbits of Ceres, Vesta, Pallas and Juno from the NASA/JPL Small-Body Database.</ion-label
-          >
-        </ion-item>
-      </ion-list>
+            <ion-label class="ion-text-wrap credit">
+              NGC and IC objects from OpenNGC by Mattia Verga, CC BY-SA 4.0. Converted and filtered for this app.
+            </ion-label>
+            <ion-icon slot="end" name="open-outline" aria-hidden="true"></ion-icon>
+          </ion-item>
+          <ion-item>
+            <ion-label class="ion-text-wrap credit"
+              >Stars, star names and constellation lines from XHIP and the IAU, via d3-celestial.</ion-label
+            >
+          </ion-item>
+          <ion-item>
+            <ion-label class="ion-text-wrap credit">Messier data by H. Frommert, seds.org, via d3-celestial.</ion-label>
+          </ion-item>
+          <ion-item>
+            <ion-label class="ion-text-wrap credit">Caldwell catalogue compiled by Sir Patrick Moore.</ion-label>
+          </ion-item>
+          <ion-item>
+            <ion-label class="ion-text-wrap credit">
+              Herschel 400 selected by the Ancient City Astronomy Club, Herschel II by the Rose City Astronomers, as
+              observed in the Astronomical League's programmes.
+            </ion-label>
+          </ion-item>
+          <ion-item>
+            <ion-label class="ion-text-wrap credit">
+              110 Best NGC Objects by A. J. Crayon and Steve Coe, Saguaro Astronomy Club.
+            </ion-label>
+          </ion-item>
+          <ion-item>
+            <ion-label class="ion-text-wrap credit">
+              Finest NGC list by Alan Dyer, Royal Astronomical Society of Canada.
+            </ion-label>
+          </ion-item>
+          <ion-item>
+            <ion-label class="ion-text-wrap credit">
+              Deep-Sky Gems by David H. Levy and Explore the Universe, Royal Astronomical Society of Canada.
+            </ion-label>
+          </ion-item>
+          <ion-item>
+            <ion-label class="ion-text-wrap credit">
+              Urban Observing Program, Astronomical League. Top-100 Deepsky Objects, Astronomical Society of Southern
+              Africa.
+            </ion-label>
+          </ion-item>
+          <ion-item>
+            <ion-label class="ion-text-wrap credit">
+              Monthly lists from NASA's Hubble Night Sky Challenge. NASA does not endorse this app.
+            </ion-label>
+          </ion-item>
+          <ion-item>
+            <ion-label class="ion-text-wrap credit" data-testid="credit-wds"
+              >Double stars from the Washington Double Star Catalog, maintained at the U.S. Naval
+              Observatory.</ion-label
+            >
+          </ion-item>
+          <!-- Open-Meteo's data is CC BY 4.0, which asks for this credit. -->
+          <ion-item>
+            <ion-label class="ion-text-wrap credit" data-testid="credit-open-meteo"
+              >Weather forecast by Open-Meteo.com, CC BY 4.0, from NOAA's GFS model. Seeing worked out with the AXP
+              model of Trinquet and Vernin.</ion-label
+            >
+          </ion-item>
+          <ion-item>
+            <ion-label class="ion-text-wrap credit"
+              >Compass correction from the World Magnetic Model, NOAA and the British Geological Survey, via
+              geomagnetism by Natural Atlas, Apache License 2.0.</ion-label
+            >
+          </ion-item>
+          <ion-item>
+            <ion-label class="ion-text-wrap credit"
+              >Planets, Pluto, Moon and sky positions by Astronomy Engine, Don Cross.</ion-label
+            >
+          </ion-item>
+          <ion-item lines="none" data-testid="credit-jpl">
+            <ion-label class="ion-text-wrap credit"
+              >Orbits of Ceres, Vesta, Pallas and Juno from the NASA/JPL Small-Body Database.</ion-label
+            >
+          </ion-item>
+        </ion-list>
+      </div>
     </ion-content>
   `,
 })

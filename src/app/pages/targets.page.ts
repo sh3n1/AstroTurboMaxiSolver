@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { IonButton, IonButtons, IonContent, IonHeader, IonIcon, IonText, IonTitle, IonToolbar } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { timeOutline } from 'ionicons/icons';
@@ -15,6 +15,9 @@ import { ListViewService } from '../core/list-view.service';
  */
 @Component({
   selector: 'app-targets',
+  // Everything shown comes from signals, so the page is checked only when one changes,
+  // not each time the sky map behind it updates.
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     IonButton,
     IonButtons,
@@ -35,7 +38,7 @@ import { ListViewService } from '../core/list-view.service';
     }
   `,
   template: `
-    <ion-header>
+    <ion-header class="list-header">
       <ion-toolbar>
         <ion-title>Targets</ion-title>
         <ion-buttons slot="end">

@@ -1,5 +1,5 @@
 import type { ElementRef } from '@angular/core';
-import { Component, computed, inject, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import {
   ActionSheetController,
@@ -44,6 +44,9 @@ import { fixedListEntries } from '../core/target-lists';
  */
 @Component({
   selector: 'app-lists',
+  // Everything shown comes from signals, so the page is checked only when one changes,
+  // not each time the sky map behind it updates.
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     IonBadge,
     IonButton,
@@ -86,67 +89,70 @@ import { fixedListEntries } from '../core/target-lists';
     </ion-header>
 
     <ion-content>
-      <!-- The lists that follow the sky and the telescope. -->
-      <ion-list inset="true">
-        <ion-list-header>Tonight</ion-list-header>
-        @for (entry of collections(); track entry.list.id) {
-          <ion-item button detail="true" data-testid="list-link" (click)="open(entry.list.id)">
-            <ion-icon
-              slot="start"
-              aria-hidden="true"
-              [name]="isIconUrl(entry.icon) ? undefined : entry.icon"
-              [src]="isIconUrl(entry.icon) ? entry.icon : undefined"
-            ></ion-icon>
-            <ion-label>
-              <h2>{{ entry.list.name }}</h2>
-              @if (entry.description) {
-                <p>{{ entry.description }}</p>
-              }
-            </ion-label>
-            <ion-badge slot="end" color="medium">{{ entry.list.targets.length }}</ion-badge>
-          </ion-item>
-        }
-      </ion-list>
+      <!-- The sections go in two columns on a phone on its side: see .af-columns in global.scss. -->
+      <div class="af-columns">
+        <!-- The lists that follow the sky and the telescope. -->
+        <ion-list inset="true">
+          <ion-list-header>Tonight</ion-list-header>
+          @for (entry of collections(); track entry.list.id) {
+            <ion-item button detail="true" data-testid="list-link" (click)="open(entry.list.id)">
+              <ion-icon
+                slot="start"
+                aria-hidden="true"
+                [name]="isIconUrl(entry.icon) ? undefined : entry.icon"
+                [src]="isIconUrl(entry.icon) ? entry.icon : undefined"
+              ></ion-icon>
+              <ion-label>
+                <h2>{{ entry.list.name }}</h2>
+                @if (entry.description) {
+                  <p>{{ entry.description }}</p>
+                }
+              </ion-label>
+              <ion-badge slot="end" color="medium">{{ entry.list.targets.length }}</ion-badge>
+            </ion-item>
+          }
+        </ion-list>
 
-      <!-- The user's lists. Saved for later is always first and can't be deleted. -->
-      <ion-list inset="true">
-        <ion-list-header>My lists</ion-list-header>
-        @for (list of lists.userLists(); track list.id) {
-          <ion-item button detail="true" data-testid="list-link" (click)="open(list.id)">
-            <ion-icon
-              slot="start"
-              aria-hidden="true"
-              [name]="list.kind === 'uncategorized' ? 'bookmark-outline' : 'folder-outline'"
-            ></ion-icon>
-            <ion-label>
-              <h2>{{ list.name }}</h2>
-            </ion-label>
-            <!-- How many are seen, once any is: "3/12". -->
-            <ion-badge slot="end" color="medium">{{ log.progressLabel(list.targets) }}</ion-badge>
+        <!-- The user's lists. Saved for later is always first and can't be deleted. -->
+        <ion-list inset="true">
+          <ion-list-header>My lists</ion-list-header>
+          @for (list of lists.userLists(); track list.id) {
+            <ion-item button detail="true" data-testid="list-link" (click)="open(list.id)">
+              <ion-icon
+                slot="start"
+                aria-hidden="true"
+                [name]="list.kind === 'uncategorized' ? 'bookmark-outline' : 'folder-outline'"
+              ></ion-icon>
+              <ion-label>
+                <h2>{{ list.name }}</h2>
+              </ion-label>
+              <!-- How many are seen, once any is: "3/12". -->
+              <ion-badge slot="end" color="medium">{{ log.progressLabel(list.targets) }}</ion-badge>
+            </ion-item>
+          }
+          <ion-item button detail="false" data-testid="new-list-item" (click)="newList()">
+            <ion-icon slot="start" name="add" aria-hidden="true"></ion-icon>
+            <ion-label>New list</ion-label>
           </ion-item>
-        }
-        <ion-item button detail="false" data-testid="new-list-item" (click)="newList()">
-          <ion-icon slot="start" name="add" aria-hidden="true"></ion-icon>
-          <ion-label>New list</ion-label>
-        </ion-item>
-      </ion-list>
+        </ion-list>
 
-      <!-- The app's catalogues, on their own page, and everything seen, night by night. -->
-      <ion-list inset="true">
-        <ion-item button detail="true" data-testid="catalogues-link" (click)="openCatalogues()">
-          <ion-icon slot="start" aria-hidden="true" name="library-outline"></ion-icon>
-          <ion-label>
-            <h2>Catalogues</h2>
-          </ion-label>
-        </ion-item>
-        <ion-item button detail="true" data-testid="log-link" (click)="openLog()">
-          <ion-icon slot="start" aria-hidden="true" name="journal-outline"></ion-icon>
-          <ion-label>
-            <h2>Observing log</h2>
-          </ion-label>
-          <ion-badge slot="end" color="medium">{{ log.entries().length }}</ion-badge>
-        </ion-item>
-      </ion-list>
+        <!-- The app's catalogues, on their own page, and everything seen, night by night. -->
+        <ion-list inset="true">
+          <ion-item button detail="true" data-testid="catalogues-link" (click)="openCatalogues()">
+            <ion-icon slot="start" aria-hidden="true" name="library-outline"></ion-icon>
+            <ion-label>
+              <h2>Catalogues</h2>
+            </ion-label>
+          </ion-item>
+          <ion-item button detail="true" data-testid="log-link" (click)="openLog()">
+            <ion-icon slot="start" aria-hidden="true" name="journal-outline"></ion-icon>
+            <ion-label>
+              <h2>Observing log</h2>
+            </ion-label>
+            <ion-badge slot="end" color="medium">{{ log.entries().length }}</ion-badge>
+          </ion-item>
+        </ion-list>
+      </div>
 
       <!-- Opened by the Import action, to pick a list file on the phone. -->
       <input

@@ -1,5 +1,5 @@
 import { DecimalPipe } from '@angular/common';
-import { Component, inject, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
 import { Router } from '@angular/router';
 import {
   IonBadge,
@@ -58,6 +58,21 @@ const KIND_ICONS: Record<
   Star: 'star-outline',
 };
 
+/** A row as the list draws it: its target, with everything about it worked out in advance. */
+interface Row {
+  target: ListedTarget;
+  /** Tells rows apart, since a catalogue can list one target under two numbers. */
+  key: string;
+  position: Horizontal;
+  rise: Date | null;
+  /** AstroFinder's own icon as an image, or null to use a standard one. */
+  icon: string | null;
+  designations: string;
+  seen: 'seen' | 'tried' | undefined;
+  note: string | undefined;
+  bookmarked: boolean;
+}
+
 /** Rise times kept at once. Lists show at most a few hundred targets. */
 const MAX_CACHED_RISES = 2000;
 
@@ -71,6 +86,9 @@ const GOOD_ALTITUDE_DEG = 30;
  */
 @Component({
   selector: 'app-target-list',
+  // Checked only when its rows change. A list stays alive behind the sky map, which
+  // updates many times a second, and must not redo its rows each time the map does.
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     DecimalPipe,
     LocalTimePipe,
@@ -119,6 +137,16 @@ const GOOD_ALTITUDE_DEG = 30;
       color: var(--ion-color-primary);
       font-variant-numeric: tabular-nums;
     }
+    /*
+     * A phone on its side shows few rows, each with room to spare: two columns, read
+     * across. Not while reordering, when rows are dragged up and down one column.
+     */
+    @media (orientation: landscape) and (max-height: 520px) {
+      ion-reorder-group.columns {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      }
+    }
     /* A rise time, in the same quieter colour, with a small up arrow before it. */
     .rises {
       display: inline-flex;
@@ -132,14 +160,15 @@ const GOOD_ALTITUDE_DEG = 30;
   `,
   template: `
     <ion-list>
-      <ion-reorder-group [disabled]="!reorder()" (ionReorderEnd)="onReorder($any($event))">
-        @for (target of targets(); track target.id + (target.listedAs ?? '')) {
-          @let position = positionOf(target);
+      <ion-reorder-group [class.columns]="!reorder()" [disabled]="!reorder()" (ionReorderEnd)="onReorder($any($event))">
+        @for (row of rows(); track row.key) {
+          @let target = row.target;
+          @let position = row.position;
           @let altDeg = position.altDeg;
           <ion-item-sliding #sliding [disabled]="reorder()">
             <ion-item button detail="false" (click)="aimAt(target)">
-              @let icon = customIcon(target);
-              @let seen = log.states().get(target.id);
+              @let icon = row.icon;
+              @let seen = row.seen;
               <!-- Galaxies, nebulae, planets and the Moon have AstroFinder's own icons. A green tick
                marks a target seen, an amber ring one looked for but not seen yet. -->
               <span
@@ -165,7 +194,7 @@ const GOOD_ALTITUDE_DEG = 30;
               </span>
               <ion-label>
                 <!-- Every catalogue number: Messier, then Caldwell, then NGC and IC. -->
-                <h2 data-testid="designations">{{ rowDesignations(target) }}</h2>
+                <h2 data-testid="designations">{{ row.designations }}</h2>
                 <!-- Magnitude only where it is known. Constellations, and some objects, have none. -->
                 <p>
                   {{ target.name }}
@@ -174,7 +203,7 @@ const GOOD_ALTITUDE_DEG = 30;
                   }
                 </p>
                 <!-- A few words about the order the list is in, such as its best time tonight. -->
-                @if (notes()?.get(target.id); as note) {
+                @if (row.note; as note) {
                   <p class="note" data-testid="row-note">{{ note }}</p>
                 }
               </ion-label>
@@ -187,7 +216,7 @@ const GOOD_ALTITUDE_DEG = 30;
                   [attr.aria-label]="(altDeg | number: '1.0-0') + '° up, to the ' + compassPoint(position.azDeg)"
                   >{{ altDeg | number: '1.0-0' }}° {{ compassShort(position.azDeg) }}</ion-badge
                 >
-              } @else if (riseOf(target); as rise) {
+              } @else if (row.rise; as rise) {
                 <!-- Below the horizon now, but up within a day: when it rises. -->
                 <span
                   slot="end"
@@ -218,10 +247,7 @@ const GOOD_ALTITUDE_DEG = 30;
                   [attr.aria-label]="'Save to a list: ' + target.id"
                   (click)="chooseLists($event, target)"
                 >
-                  <ion-icon
-                    slot="icon-only"
-                    [name]="lists.isBookmarked(target.id) ? 'bookmark' : 'bookmark-outline'"
-                  ></ion-icon>
+                  <ion-icon slot="icon-only" [name]="row.bookmarked ? 'bookmark' : 'bookmark-outline'"></ion-icon>
                 </ion-button>
               }
             </ion-item>
@@ -298,7 +324,7 @@ export class TargetListComponent {
    * When a target below the horizon rises, within a day of the list's time. Kept per
    * time, since the list asks again on every update and the search for planets is slow.
    */
-  protected riseOf(target: Target): Date | null {
+  private riseOf(target: Target): Date | null {
     const from = this.at() ?? this.state.now();
     const { latitudeDeg, longitudeDeg } = this.state.settings();
     const key = `${target.id}|${from.getTime()}|${latitudeDeg}|${longitudeDeg}`;
@@ -310,29 +336,44 @@ export class TargetListComponent {
   }
   private readonly riseTimes = new Map<string, Date | null>();
 
-  /** Where the target is in the sky, now or at the list's chosen time. */
-  protected positionOf(target: Target): Horizontal {
-    const at = this.at();
+  /**
+   * Everything each row shows, worked out once whenever the rows, the minute, the log or
+   * the bookmarks change. The template only reads it, so drawing the list again costs
+   * nothing: positions and icons are slow to work out for every row on every update.
+   */
+  protected readonly rows = computed<Row[]>(() => {
     // Heights in a list only need the minute clock, which saves re-drawing it every second.
-    return this.state.positionAt(target, at ?? this.state.now());
-  }
+    const time = this.at() ?? this.state.now();
+    const seen = this.log.states();
+    const notes = this.notes();
+    const bookmarked = new Set(this.lists.editableLists().flatMap((list) => list.targetIds));
+    return this.targets().map((target) => {
+      const position = this.state.positionAt(target, time);
+      const icon = targetIcon(target);
+      return {
+        target,
+        key: target.id + (target.listedAs ?? ''),
+        position,
+        // Only a target below the horizon has a rise time to show.
+        rise: position.altDeg > 0 ? null : this.riseOf(target),
+        icon: icon ? iconDataUrl(icon) : null,
+        designations: rowDesignations(target),
+        seen: seen.get(target.id),
+        note: notes?.get(target.id),
+        bookmarked: bookmarked.has(target.id),
+      };
+    });
+  });
 
   protected readonly compassPoint = compassPoint;
   protected readonly compassShort = compassShort;
 
-  protected readonly rowDesignations = rowDesignations;
   protected readonly kindIcons: Partial<Record<TargetKind, string>> = KIND_ICONS;
-
-  /** AstroFinder's own icon as an image, or null to use a standard one. */
-  protected customIcon(target: Target): string | null {
-    const paths = targetIcon(target);
-    return paths ? iconDataUrl(paths) : null;
-  }
 
   /** Logs the row's target as seen, as the sky map's eye button does, and closes the row. */
   protected markSeen(sliding: IonItemSliding, target: Target): void {
     void sliding.close();
-    void this.seenActions.markSeen(target);
+    void this.seenActions.markSeen(target, 'list');
   }
 
   protected removeRow(sliding: IonItemSliding, target: ListedTarget): void {

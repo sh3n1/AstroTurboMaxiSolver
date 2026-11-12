@@ -1,6 +1,7 @@
-import { Component, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { IonInfiniteScroll, IonInfiniteScrollContent, IonItemDivider, IonLabel, ToastController } from '@ionic/angular';
 
+import { listToastPlace } from './list-toast';
 import { ListViewService } from './list-view.service';
 import { ListsService } from './lists.service';
 import { PlanChartComponent } from './plan-chart.component';
@@ -17,6 +18,9 @@ const UNDO_TOAST_MS = 5000;
  */
 @Component({
   selector: 'app-list-rows',
+  // Everything shown comes from signals, so the page is checked only when one changes,
+  // not each time the sky map behind it updates.
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     IonInfiniteScroll,
     IonInfiniteScrollContent,
@@ -93,7 +97,7 @@ export class ListRowsComponent {
     const toast = await this.toasts.create({
       message: `Removed ${target.id}`,
       duration: UNDO_TOAST_MS,
-      position: 'top',
+      ...listToastPlace(),
       cssClass: 'af-toast',
       htmlAttributes: { 'data-testid': 'removed-toast' },
       buttons: [{ text: 'Undo', handler: () => this.lists.setTargets(listId, before) }],

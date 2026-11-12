@@ -35,8 +35,12 @@ export type TypeFilter = (typeof TYPE_FILTERS)[number];
 /** Which rows to show by the observing log: all, those still to see, or those seen. */
 export type SeenFilter = 'all' | 'todo' | 'seen';
 
-/** How many rows a list shows at first, and how many more each time the user reaches its end. */
-export const PAGE_SIZE = 40;
+/**
+ * How many rows a list shows at first, and how many more each time the user reaches its
+ * end. Each row is a dozen components, which a phone is slow to build, and two dozen rows
+ * already fill the screen more than twice over.
+ */
+export const PAGE_SIZE = 24;
 
 export function matchesType(target: Pick<Target, 'kind' | 'body' | 'double'>, filter: TypeFilter): boolean {
   if (filter === 'All') return true;
