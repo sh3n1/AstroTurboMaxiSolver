@@ -48,6 +48,8 @@ test('logs a target as seen, with a note, and shows it in the log and the catalo
   await page.goto('/tabs/lists/messier');
   await expect(page.locator('[data-testid=list-seen-count]')).toHaveText('1 of 110 seen');
   const rows = page.locator('app-list app-target-list ion-item');
+  // M31 is further down than the first rows a list shows, so scroll for more.
+  await rows.last().scrollIntoViewIfNeeded();
   await expect(rows.filter({ hasText: 'M31' }).locator('[data-seen=seen]')).toHaveCount(1);
   await page.locator('app-list [data-testid=list-filter]').click();
   const filters = page.locator('[data-testid=list-seen-filters] ion-chip');

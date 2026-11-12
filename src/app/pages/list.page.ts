@@ -1,5 +1,5 @@
 import { DecimalPipe } from '@angular/common';
-import { Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
@@ -46,6 +46,9 @@ import { exportFileName, exportLists } from '../core/target-lists';
  */
 @Component({
   selector: 'app-list',
+  // Everything shown comes from signals, so the page is checked only when one changes,
+  // not each time the sky map behind it updates.
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     DecimalPipe,
     IonBackButton,
@@ -91,7 +94,7 @@ import { exportFileName, exportLists } from '../core/target-lists';
     }
   `,
   template: `
-    <ion-header>
+    <ion-header class="list-header">
       <ion-toolbar>
         <ion-buttons slot="start">
           <ion-back-button defaultHref="/tabs/lists" text="" aria-label="Back"></ion-back-button>

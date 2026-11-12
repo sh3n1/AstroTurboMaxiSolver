@@ -215,6 +215,11 @@ export class AppState {
   readonly planning = computed(() => this.plannedTime() !== null);
   /** Whether the time control is open for changing the time, on whichever tab. */
   readonly timeControlOpen = signal(false);
+  /**
+   * Whether the sky map is the tab on show. The map and the live plate solver stay alive
+   * behind the other tabs, and rest while it is hidden: see the sky page and the solver.
+   */
+  readonly mapOnShow = signal(true);
 
   /** The real time, refreshed each minute and each second. */
   private readonly realMinute = signal(new Date());

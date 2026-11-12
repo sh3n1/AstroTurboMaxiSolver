@@ -73,11 +73,14 @@ import { ObservingLogService } from '../core/observing-log.service';
 import { RETICLE_RINGS_DEG, chevronSpacingPx, guideAngleDeg, pulseOpacity } from '../core/reticle';
 import { SeenActionsService } from '../core/seen-actions.service';
 import { SensorService } from '../core/sensor.service';
+import { sideways } from '../core/sideways';
 import { SoundService } from '../core/sound.service';
 import { TargetDetailsComponent } from '../core/target-details.component';
 import type { IconPath } from '../core/target-icons';
 import { DISC_RADIUS, ICON_DASH, ICON_GRID, iconDataUrl, phaseIcon, targetIcon } from '../core/target-icons';
 import type { Target } from '../core/targets';
+import type { ClearSpan } from '../core/view-layout';
+import { EYEPIECE_VIEW_SCALE, viewLayout } from '../core/view-layout';
 import { EYEPIECE_SMOOTHING_MS, SKY_MAP_SMOOTHING_MS, smoothPointing, smoothingFactor } from '../core/view-smoothing';
 
 /**
@@ -120,13 +123,12 @@ interface Box {
 /** The slider's range for the faintest stars shown. */
 const MIN_STAR_LIMIT = 2;
 const MAX_STAR_LIMIT = 13;
-/** The eyepiece view shows this much more sky than its circle, and sits this high up. */
-const EYEPIECE_VIEW_SCALE = 1.6;
-const EYEPIECE_CENTRE_SHARE = 0.34;
 /** Size of the grid cells that let the eyepiece view find nearby stars quickly. */
 const STAR_CELL_DEG = 4;
 /** Objects this far beyond the screen edge are skipped, though their size circle could reach in. */
 const OFF_SCREEN_MARGIN_PX = 200;
+/** The gap kept between the eyepiece's circle and what lies beside it, on a phone on its side. */
+const CLEAR_MARGIN_PX = 10;
 /** How long a toast message stays, long enough to read at arm's length. */
 const TOAST_MS = 3500;
 const DEFAULT_FIELD_DEG = 20; // Close enough to read the stars and match a finder's view
@@ -406,13 +408,17 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
     .dock > * {
       pointer-events: auto;
     }
-    /* A row along the bottom: location on the left, zoom on the right. */
-    .corner {
+    /*
+     * A row along the bottom: location on the left, zoom on the right. Only what is in it
+     * takes taps. Named with the dock, to win over the dock's own rule above: the bare row
+     * once took every tap across its width, and so covered the round buttons beside it.
+     */
+    .dock > .corner {
       display: flex;
       align-items: flex-end;
       pointer-events: none;
     }
-    .corner > * {
+    .dock > .corner > * {
       pointer-events: auto;
     }
     /* Shares the pointing readout's look, but sits in the row instead of the top corner. */
@@ -488,6 +494,94 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
     .directions {
       color: var(--af-guidance);
       font-size: calc(15px * var(--af-scale, 1));
+    }
+    /*
+     * A phone on its side: the map is wide and short. The tab bar is a rail at the left
+     * then, so nothing lies under the map's boxes.
+     */
+    @media (orientation: landscape) and (max-height: 520px) {
+      /*
+       * The round buttons fill the right edge from the top, and start a second column
+       * beside the first when the screen is too short for all of them in one.
+       */
+      .controls {
+        top: calc(4px + var(--ion-safe-area-top, 0px));
+        bottom: 4px;
+        right: calc(4px + var(--ion-safe-area-right, 0px));
+        display: grid;
+        grid-auto-flow: column;
+        grid-template-rows: repeat(auto-fill, 48px);
+        direction: rtl;
+        /* Only the buttons take taps: the map can be dragged between and under them. */
+        pointer-events: none;
+      }
+      .controls ion-fab-button {
+        pointer-events: auto;
+      }
+      /* The map runs under the tab rail, so what sits at the left starts beside the rail. */
+      .readout {
+        left: calc(10px + var(--af-rail-width, 0px));
+      }
+      /* Never taller than the map: the box of the target shrinks and scrolls inside itself. */
+      .dock {
+        left: calc(10px + var(--af-rail-width, 0px));
+        right: calc(10px + var(--ion-safe-area-right, 0px));
+        bottom: 8px;
+        max-height: calc(100vh - 16px - var(--af-time-control-height, 0px));
+        align-items: flex-start;
+      }
+      .corner {
+        align-self: stretch;
+      }
+      /* Zoom lies in a row at the bottom, beside the column of buttons instead of under it. */
+      .zoom {
+        position: absolute;
+        right: 48px;
+        bottom: 0;
+        flex-direction: row;
+        margin: 0;
+      }
+      /*
+       * The boxes keep to the bottom left corner, narrow enough to leave the reticle in
+       * the middle of the map clear at the usual zoom.
+       */
+      .bar,
+      .eyepiece-panel,
+      .message {
+        box-sizing: border-box;
+        width: min(40%, 280px);
+        flex-shrink: 0;
+      }
+      .bar,
+      .eyepiece-panel {
+        flex-shrink: 1;
+        min-height: 0;
+        overflow-y: auto;
+      }
+      /* With little width, the target's buttons go on their own line under its name. */
+      .bar-row {
+        flex-wrap: wrap;
+      }
+      /* The name shrinks and wraps inside its own space, so the icon stays beside it. */
+      .bar-text {
+        flex: 1 1 0;
+      }
+      .bar-buttons {
+        flex: 1 0 100%;
+        justify-content: space-between;
+      }
+      /* Open, the details need more room for their chart, and may lie over the reticle. */
+      .bar.detailed,
+      .eyepiece-panel {
+        width: min(46%, 360px);
+      }
+      /* That is room enough for the buttons beside the name, which leaves more for the details. */
+      .bar.detailed .bar-row {
+        flex-wrap: nowrap;
+      }
+      .bar.detailed .bar-buttons {
+        flex: none;
+      }
     }
   `,
   template: `
@@ -754,7 +848,7 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
           }
 
           @if (state.selectedTarget(); as target) {
-            <div class="bar" data-testid="target-bar">
+            <div class="bar" data-testid="target-bar" [class.detailed]="showDetails()">
               <div class="bar-row">
                 <!-- The target's own icon, as in the lists. -->
                 @if (targetIconUrl(); as icon) {
@@ -980,6 +1074,9 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   private shownPointing: Horizontal | null = null;
   private lastFrameTime = 0;
   private viewCentreY = 0;
+  /** The view's centre across the screen, and the pixels its field of view spans: see viewLayout. */
+  private viewCentreX = 0;
+  private viewSpanPx = 0;
   private baseStarsLoaded: Promise<void> = Promise.resolve();
   private deepStarsRequested = false;
 
@@ -1027,7 +1124,12 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       if (newest.trigger !== 'auto') return;
       const { solveSuccessToast: showSuccess, solveSound } = untracked(() => this.state.settings());
       if (newest.outcome === 'solved' && solveSound) this.sound.shutter();
-      if (newest.outcome === 'failed' || (newest.outcome === 'solved' && showSuccess)) {
+      // Only over the map. On another tab the message would cover that page's header,
+      // and its buttons with it, each time the phone lay still.
+      if (
+        untracked(() => this.state.mapOnShow()) &&
+        (newest.outcome === 'failed' || (newest.outcome === 'solved' && showSuccess))
+      ) {
         void this.toast(newest.message, 'solve-toast');
       }
     });
@@ -1200,7 +1302,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   private drag(event: PointerEvent): void {
     if (!this.dragStart || this.state.sensorsActive()) return; // The sensors are steering
     const { x: flipX, y: flipY } = this.imageFlip();
-    const degPerPixel = this.viewField() / Math.max(this.canvasRef().nativeElement.clientWidth, 1);
+    const degPerPixel = this.viewField() / Math.max(this.viewSpanPx || this.canvasRef().nativeElement.clientWidth, 1);
     const altDeg = this.dragStart.altDeg + flipY * (event.clientY - this.dragStart.y) * degPerPixel;
     const clampedAlt = Math.max(MIN_ALTITUDE_DEG, Math.min(MAX_ALTITUDE_DEG, altDeg));
     // A sideways drag covers more azimuth high in the sky, where its circles are smaller.
@@ -1330,13 +1432,49 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   }
 
   /** Draws at most once per screen refresh, however many changes arrive. */
+  /**
+   * The Sky tab came into view: draw the sky as it is now. The page stays alive behind
+   * the other tabs, where it draws nothing and shows no plate-solve messages, and the
+   * live solver rests, so they take nothing from the list the user is reading.
+   */
+  ionViewDidEnter(): void {
+    this.state.mapOnShow.set(true);
+    this.queueDraw();
+  }
+
+  /** Another tab is taking over. */
+  ionViewWillLeave(): void {
+    this.state.mapOnShow.set(false);
+  }
+
   private queueDraw(): void {
-    if (this.drawQueued) return;
+    if (!this.state.mapOnShow() || this.drawQueued) return;
     this.drawQueued = true;
     requestAnimationFrame(() => {
       this.drawQueued = false;
       this.draw();
     });
+  }
+
+  /**
+   * With the phone on its side, the part of the map's width that nothing covers: from the
+   * tab rail, or the eyepiece's panel, to the column of round buttons. Measured from what
+   * is on screen, so it follows a notch, the text size and the panel's own width. With the
+   * phone upright there is none to measure, as the boxes sit below the view instead.
+   */
+  private clearSpan(canvas: HTMLCanvasElement, isEyepiece: boolean): ClearSpan | undefined {
+    const stage = canvas.parentElement;
+    if (!sideways() || !stage) return undefined;
+    const origin = canvas.getBoundingClientRect().left;
+    const edge = (selector: string, side: 'left' | 'right'): number | undefined => {
+      const box = stage.querySelector(selector)?.getBoundingClientRect();
+      return box && box.width > 0 ? box[side] - origin : undefined;
+    };
+    // The dock starts where the rail ends. In the eyepiece view its panel reaches further.
+    const left = (isEyepiece ? edge('.eyepiece-panel', 'right') : undefined) ?? edge('.dock', 'left');
+    const right = edge('.controls', 'left');
+    if (left === undefined || right === undefined) return undefined;
+    return { left: left + CLEAR_MARGIN_PX, right: right - CLEAR_MARGIN_PX };
   }
 
   private draw(): void {
@@ -1362,22 +1500,25 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     const isEyepiece = this.mode() === 'eyepiece';
     // The sky as it is at this very frame, so it turns smoothly rather than in steps.
     this.frameRotation = this.state.rotationAt(this.state.frameTime());
-    this.queueSkyTurn(width);
     const basis = viewBasis(this.steadyPointing(isEyepiece));
-    const centreY = isEyepiece ? height * EYEPIECE_CENTRE_SHARE : height / 2;
+    // The eyepiece's circle fits the screen whichever way up the phone is held.
+    const { centreX, centreY, spanPx } = viewLayout(width, height, isEyepiece, this.clearSpan(canvas, isEyepiece));
+    this.viewCentreX = centreX;
     this.viewCentreY = centreY;
+    this.viewSpanPx = spanPx;
+    this.queueSkyTurn(spanPx);
     const flip = this.imageFlip();
     // Only the sky map turns with the phone. The eyepiece follows the telescope instead.
     const rollDeg = isEyepiece ? 0 : this.state.viewRollDeg();
 
-    // Pixels per projected unit, so the chosen field fits the screen's width.
-    const scale = width / 2 / stereographicRadius(this.viewField() / 2);
+    // Pixels per projected unit, so the chosen field fits the span laid out for it.
+    const scale = spanPx / 2 / stereographicRadius(this.viewField() / 2);
     const project: Project = (v) => {
       const view = toViewCoordinates(basis, v);
       if (view[2] < -0.2) return null; // Too far behind the viewer to draw
       const flat = stereographic(view);
       const { x, y } = rotateInView(flat.x, flat.y, rollDeg);
-      return { x: width / 2 + flip.x * x * scale, y: centreY - flip.y * y * scale };
+      return { x: centreX + flip.x * x * scale, y: centreY - flip.y * y * scale };
     };
 
     if (!isEyepiece) {
@@ -1778,7 +1919,8 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     height: number,
     scale: number,
   ): void {
-    const cx = width / 2;
+    // The view's centre, which sits right of the screen's middle on a phone on its side.
+    const cx = this.viewCentreX || width / 2;
     const cy = height / 2;
     const color = this.isOnTarget() ? COLOR.onTarget : COLOR.reticle;
     // While plate solving, the reticle fades in and out, and keeps redrawing itself to do so.
@@ -1873,7 +2015,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     canvas.dataset['guideAngle'] = String(Math.round((angle * 180) / Math.PI));
 
     const radius = stereographicRadius(this.eyepieceField() / 2) * scale + 8;
-    this.drawChevrons(ctx, width / 2 + Math.sin(angle) * radius, centreY - Math.cos(angle) * radius, angle);
+    this.drawChevrons(ctx, this.viewCentreX + Math.sin(angle) * radius, centreY - Math.cos(angle) * radius, angle);
   }
 
   /** A trail of chevrons that brightens towards the target, so the eye follows it outwards. */
@@ -1911,12 +2053,12 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     ctx.fillStyle = '#000000';
     ctx.beginPath();
     ctx.rect(0, 0, width, height);
-    ctx.arc(width / 2, centreY, radius, 0, 2 * Math.PI, true);
+    ctx.arc(this.viewCentreX, centreY, radius, 0, 2 * Math.PI, true);
     ctx.fill();
     ctx.strokeStyle = '#3a4158';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.arc(width / 2, centreY, radius, 0, 2 * Math.PI);
+    ctx.arc(this.viewCentreX, centreY, radius, 0, 2 * Math.PI);
     ctx.stroke();
   }
 }

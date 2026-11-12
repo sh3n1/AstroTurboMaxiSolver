@@ -1,4 +1,4 @@
-import { Component, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { ActionSheetController, IonButton, IonChip, IonIcon, IonModal, IonSearchbar } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { analyticsOutline, close, filterOutline, funnelOutline } from 'ionicons/icons';
@@ -15,6 +15,9 @@ import { ListViewService } from './list-view.service';
  */
 @Component({
   selector: 'app-list-tools',
+  // Everything shown comes from signals, so the page is checked only when one changes,
+  // not each time the sky map behind it updates.
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [IonButton, IonChip, IonIcon, IonModal, IonSearchbar],
   styles: `
     .bar {
@@ -58,6 +61,9 @@ import { ListViewService } from './list-view.service';
     .sheet {
       padding: 4px 16px calc(16px + env(safe-area-inset-bottom));
       color: var(--af-text);
+      /* On a short screen, such as a phone on its side, the choices scroll inside the sheet. */
+      max-height: calc(100vh - 24px);
+      overflow-y: auto;
     }
     .sheet-title {
       display: flex;

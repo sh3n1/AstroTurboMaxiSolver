@@ -38,6 +38,92 @@ import { TimeControlComponent } from '../core/time-control.component';
       --background: rgb(13 18 32 / 90%);
       --border: none;
     }
+    /*
+     * A phone on its side is wide and short, so height is what matters. The tab bar turns
+     * into a rail down the left side, and the time control lies along the bottom of what
+     * is left. Nothing floats over the map then, which keeps its full height.
+     */
+    @media (orientation: landscape) and (max-height: 520px) {
+      ion-tabs {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1fr) auto;
+        /* The rail's width, with the room a notch or camera hole takes at the left edge. */
+        --af-rail-width: calc(88px + var(--ion-safe-area-left, 0px));
+      }
+      ion-tabs.over-map {
+        --af-tab-bar-height: 0px;
+      }
+      /*
+       * The rail already keeps clear of a notch at the left, so the pages beside it must
+       * not leave that margin again: every row and toolbar would lose it a second time.
+       */
+      ion-tabs ::ng-deep .tabs-inner,
+      app-time-control {
+        --ion-safe-area-left: 0px;
+      }
+      /*
+       * On the Sky tab the map runs the full width, under the rail and beside any notch,
+       * so no dark band is lost at the left. The rail floats over it: only its icons and
+       * names, on a shade that fades into the map. The sky page keeps its boxes clear of
+       * the rail, and centres the reticle in what is left.
+       */
+      ion-tabs.over-map ::ng-deep .tabs-inner {
+        grid-column: 1 / span 2;
+        grid-row: 1;
+      }
+      ion-tabs.over-map ion-tab-bar {
+        position: relative;
+        z-index: 10;
+        --background: transparent;
+        background: linear-gradient(to right, rgb(5 7 15 / 92%) 35%, rgb(5 7 15 / 0%));
+        border-right: none;
+      }
+      /* Outlined, like the map's own labels, so stars behind a name don't mix with it. */
+      ion-tabs.over-map ion-tab-button {
+        text-shadow:
+          0 0 3px #05070f,
+          0 0 3px #05070f,
+          0 0 6px #05070f;
+      }
+      ion-tab-bar {
+        position: static;
+        --background: #0d1220;
+        border-right: 1px solid var(--ion-tab-bar-border-color);
+      }
+      ion-tab-bar,
+      ion-tabs.over-map ion-tab-bar {
+        grid-column: 1;
+        grid-row: 1 / span 2;
+        flex-direction: column;
+        justify-content: center;
+        /* Ionic sizes the bar by its content, so the notch's margin is added as padding. */
+        width: 88px;
+        height: 100%;
+        padding: 0 0 0 var(--ion-safe-area-left, 0px);
+        --border: none;
+      }
+      ion-tab-button {
+        flex: 0 0 auto;
+        width: 100%;
+        max-width: none;
+        height: 60px;
+        /* No side padding, so "Settings" fits the rail in full. */
+        --padding-start: 0;
+        --padding-end: 0;
+      }
+      app-time-control,
+      ion-tabs.over-map app-time-control {
+        position: static;
+        grid-column: 2;
+        grid-row: 2;
+      }
+      /* Under the map it runs the full width too, its buttons starting clear of the rail. */
+      ion-tabs.over-map app-time-control {
+        grid-column: 1 / span 2;
+        padding-left: var(--af-rail-width);
+      }
+    }
   `,
   template: `
     <ion-tabs
@@ -46,7 +132,7 @@ import { TimeControlComponent } from '../core/time-control.component';
       (ionTabsDidChange)="tab.set($event.tab)"
     >
       <app-time-control #timeControl></app-time-control>
-      <ion-tab-bar slot="bottom">
+      <ion-tab-bar slot="bottom" id="af-tab-bar">
         <ion-tab-button tab="sky">
           <ion-icon name="map-outline" aria-hidden="true"></ion-icon>
           <ion-label>Sky</ion-label>

@@ -133,37 +133,42 @@ const NIGHT_DATE_YEAR = new Intl.DateTimeFormat(undefined, {
           <strong>{{ totals().objects }}</strong> {{ totals().objects === 1 ? 'object' : 'objects' }} seen ·
           <strong>{{ totals().nights }}</strong> {{ totals().nights === 1 ? 'night' : 'nights' }}
         </p>
-        @for (night of nights(); track night.key) {
-          <ion-list inset="true" data-testid="log-night">
-            <ion-list-header>
-              <ion-label class="night-header">
-                {{ nightDate(night) }}
-                <span class="night-conditions">{{ nightConditions(night) }}</span>
-              </ion-label>
-            </ion-list-header>
-            @for (entry of night.entries; track entry.id) {
-              <ion-item button detail="false" data-testid="log-entry" (click)="openEntry(entry)">
-                <ion-label>
-                  <h2>{{ entry.targetId }}</h2>
-                  <p>
-                    <span class="time">{{ entry.time | localTime }}</span> · {{ entry.targetName }}
-                    @if (entry.tags.length > 0) {
-                      · {{ entry.tags.join(', ') }}
-                    }
-                  </p>
-                  @if (entry.note) {
-                    <p class="note">{{ entry.note }}</p>
-                  }
+        <!-- The nights go in two columns on a phone on its side: see .af-columns in global.scss. -->
+        <div class="af-columns">
+          @for (night of nights(); track night.key) {
+            <ion-list inset="true" data-testid="log-night">
+              <ion-list-header>
+                <ion-label class="night-header">
+                  {{ nightDate(night) }}
+                  <span class="night-conditions">{{ nightConditions(night) }}</span>
                 </ion-label>
-                <ion-badge slot="end" [color]="seen(entry) ? 'success' : 'warning'">{{ ratingLabel(entry) }}</ion-badge>
-              </ion-item>
-            }
-          </ion-list>
-        } @empty {
-          <ion-text color="medium">
-            <p class="ion-padding">Nothing in the log matches your search.</p>
-          </ion-text>
-        }
+              </ion-list-header>
+              @for (entry of night.entries; track entry.id) {
+                <ion-item button detail="false" data-testid="log-entry" (click)="openEntry(entry)">
+                  <ion-label>
+                    <h2>{{ entry.targetId }}</h2>
+                    <p>
+                      <span class="time">{{ entry.time | localTime }}</span> · {{ entry.targetName }}
+                      @if (entry.tags.length > 0) {
+                        · {{ entry.tags.join(', ') }}
+                      }
+                    </p>
+                    @if (entry.note) {
+                      <p class="note">{{ entry.note }}</p>
+                    }
+                  </ion-label>
+                  <ion-badge slot="end" [color]="seen(entry) ? 'success' : 'warning'">{{
+                    ratingLabel(entry)
+                  }}</ion-badge>
+                </ion-item>
+              }
+            </ion-list>
+          } @empty {
+            <ion-text color="medium">
+              <p class="ion-padding">Nothing in the log matches your search.</p>
+            </ion-text>
+          }
+        </div>
       }
 
       <!-- Opened by Import, to pick a log backup on the phone. -->

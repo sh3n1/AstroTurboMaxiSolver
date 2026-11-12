@@ -117,29 +117,56 @@ export class LiveSolverService {
     // Run only while the sensors are on, automatic solving is allowed, and the camera
     // looks straight at the sky. Mirror and clip-on mounts need their own geometry first.
     // Not while planning: the camera sees the real sky, not the one at the chosen time.
+    // Not while another tab is on show either: a solve only corrects the map, and the
+    // camera and the solving would slow the page the user is on and drain the battery.
     effect(() => {
-      const shouldRun =
+      const allowed =
         this.state.sensorsActive() &&
         this.state.settings().autoSolve &&
         this.state.settings().mount === 'direct' &&
         !this.state.planning();
-      if (shouldRun) this.start();
+      if (allowed && this.state.mapOnShow()) this.start();
+      else if (allowed) this.rest();
       else this.stop();
     });
   }
 
   private start(): void {
     if (this.timer) return;
-    this.status.set('waiting');
-    this.nextAttemptAt = 0;
+    // Back from a rest, it carries on where it was: the same pause, the same last place.
+    if (!this.resting) {
+      this.status.set('waiting');
+      this.nextAttemptAt = 0;
+    }
+    this.resting = false;
     this.timer = setInterval(() => void this.tick(), CHECK_INTERVAL_MS);
+  }
+
+  /**
+   * Rests while the map is hidden behind another tab: no new attempts, and the camera is
+   * freed. An attempt already under way finishes first, so it isn't logged as a failure
+   * for being cut short. It remembers where it last tried, so coming back to the map in
+   * the same place doesn't try, and say so, all over again.
+   */
+  private rest(): void {
+    if (!this.timer) return;
+    clearInterval(this.timer);
+    this.timer = undefined;
+    this.resting = true;
+    if (this.status() !== 'solving') this.freeCamera();
+  }
+  private resting = false;
+
+  private freeCamera(): void {
+    closeCamera(this.camera);
+    this.camera = null;
   }
 
   private stop(): void {
     clearInterval(this.timer);
     this.timer = undefined;
-    closeCamera(this.camera);
-    this.camera = null;
+    this.resting = false;
+    this.freeCamera();
     this.status.set('off');
     this.state.plateSolving.set(false);
     // A fresh start always gets a first attempt, wherever the phone points.
@@ -230,12 +257,15 @@ export class LiveSolverService {
     this.state.plateSolving.set(false);
     this.nextAttemptAt = Date.now() + pauseMs;
     if (this.status() === 'solving') this.status.set('waiting');
+    // The map was hidden meanwhile: the camera was only kept for this attempt.
+    if (this.resting) this.freeCamera();
   }
 
   private finish(solved: boolean, pauseMs: number): void {
     this.state.plateSolving.set(false);
     this.nextAttemptAt = Date.now() + pauseMs;
     if (this.status() === 'solving') this.status.set(solved ? 'solved' : 'failed');
+    if (this.resting) this.freeCamera();
   }
 
   /** Adds an attempt to the top of the log, dropping the oldest once it is full. */

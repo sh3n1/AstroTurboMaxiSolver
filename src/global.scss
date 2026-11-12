@@ -283,3 +283,50 @@ ion-modal.day-picker-modal::part(content) {
   text-transform: none;
   font-weight: 600;
 }
+
+/*
+ * A phone on its side is wide and short. The list pages put their title and their tools
+ * on one line instead of two, leaving the height for the rows.
+ */
+@media (orientation: landscape) and (max-height: 520px) {
+  ion-header.list-header {
+    display: flex;
+    background: var(--ion-toolbar-background);
+  }
+  ion-header.list-header > ion-toolbar:first-child {
+    flex: 0 1 46%;
+    min-width: 0;
+  }
+  ion-header.list-header > ion-toolbar:last-child {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  /*
+   * Pages of sections, such as Settings, put them in two columns, each section kept
+   * whole. A list with the class itself puts its rows in two columns instead.
+   */
+  .af-columns {
+    column-count: 2;
+    column-gap: 0;
+  }
+  .af-columns > *,
+  ion-list.af-columns > ion-item {
+    break-inside: avoid;
+  }
+  /* Both columns start level: the space above the sections is the page's, not each section's. */
+  div.af-columns {
+    padding-top: 16px;
+  }
+  div.af-columns ion-list.list-inset {
+    margin-top: 0;
+  }
+  /* Sheets from the bottom keep to a readable width in the middle, not the whole screen's. */
+  :root ion-modal.modal-sheet {
+    --width: min(100%, 640px);
+  }
+  /* The calendar is taller than the screen then, so it scrolls inside its card. */
+  .day-picker-card {
+    max-height: calc(100vh - 16px);
+    overflow-y: auto;
+  }
+}
