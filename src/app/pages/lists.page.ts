@@ -38,9 +38,9 @@ import { ObservingLogService } from '../core/observing-log.service';
 import { fixedListEntries } from '../core/target-lists';
 
 /**
- * The Bookmarks tab: the app's own collections (Best right now, In the reticle, and the
- * Catalogues page), then the user's lists, which they can make,
- * import and export.
+ * The Lists tab: tonight's collections first (Best right now and In the reticle), then
+ * the user's own lists, which they can make, import and export, then the catalogues and
+ * the observing log.
  */
 @Component({
   selector: 'app-lists',
@@ -73,7 +73,7 @@ import { fixedListEntries } from '../core/target-lists';
   template: `
     <ion-header>
       <ion-toolbar>
-        <ion-title>Bookmarks</ion-title>
+        <ion-title>Lists</ion-title>
         <ion-buttons slot="end">
           <ion-button aria-label="Import or export lists" data-testid="lists-transfer" (click)="transfer()">
             <ion-icon slot="icon-only" name="swap-vertical-outline" aria-hidden="true"></ion-icon>
@@ -86,9 +86,9 @@ import { fixedListEntries } from '../core/target-lists';
     </ion-header>
 
     <ion-content>
-      <!-- The app's own lists, which always stay as they are. The catalogues have their own page. -->
+      <!-- The lists that follow the sky and the telescope. -->
       <ion-list inset="true">
-        <ion-list-header>Collections</ion-list-header>
+        <ion-list-header>Tonight</ion-list-header>
         @for (entry of collections(); track entry.list.id) {
           <ion-item button detail="true" data-testid="list-link" (click)="open(entry.list.id)">
             <ion-icon
@@ -106,23 +106,9 @@ import { fixedListEntries } from '../core/target-lists';
             <ion-badge slot="end" color="medium">{{ entry.list.targets.length }}</ion-badge>
           </ion-item>
         }
-        <ion-item button detail="true" data-testid="catalogues-link" (click)="openCatalogues()">
-          <ion-icon slot="start" aria-hidden="true" name="library-outline"></ion-icon>
-          <ion-label>
-            <h2>Catalogues</h2>
-          </ion-label>
-        </ion-item>
-        <!-- Everything seen, night by night. -->
-        <ion-item button detail="true" data-testid="log-link" (click)="openLog()">
-          <ion-icon slot="start" aria-hidden="true" name="journal-outline"></ion-icon>
-          <ion-label>
-            <h2>Observing log</h2>
-          </ion-label>
-          <ion-badge slot="end" color="medium">{{ log.entries().length }}</ion-badge>
-        </ion-item>
       </ion-list>
 
-      <!-- The user's lists. Uncategorized is always first and can't be deleted. -->
+      <!-- The user's lists. Saved for later is always first and can't be deleted. -->
       <ion-list inset="true">
         <ion-list-header>My lists</ion-list-header>
         @for (list of lists.userLists(); track list.id) {
@@ -135,12 +121,30 @@ import { fixedListEntries } from '../core/target-lists';
             <ion-label>
               <h2>{{ list.name }}</h2>
             </ion-label>
-            <ion-badge slot="end" color="medium">{{ list.targets.length }}</ion-badge>
+            <!-- How many are seen, once any is: "3/12". -->
+            <ion-badge slot="end" color="medium">{{ log.progressLabel(list.targets) }}</ion-badge>
           </ion-item>
         }
         <ion-item button detail="false" data-testid="new-list-item" (click)="newList()">
           <ion-icon slot="start" name="add" aria-hidden="true"></ion-icon>
           <ion-label>New list</ion-label>
+        </ion-item>
+      </ion-list>
+
+      <!-- The app's catalogues, on their own page, and everything seen, night by night. -->
+      <ion-list inset="true">
+        <ion-item button detail="true" data-testid="catalogues-link" (click)="openCatalogues()">
+          <ion-icon slot="start" aria-hidden="true" name="library-outline"></ion-icon>
+          <ion-label>
+            <h2>Catalogues</h2>
+          </ion-label>
+        </ion-item>
+        <ion-item button detail="true" data-testid="log-link" (click)="openLog()">
+          <ion-icon slot="start" aria-hidden="true" name="journal-outline"></ion-icon>
+          <ion-label>
+            <h2>Observing log</h2>
+          </ion-label>
+          <ion-badge slot="end" color="medium">{{ log.entries().length }}</ion-badge>
         </ion-item>
       </ion-list>
 

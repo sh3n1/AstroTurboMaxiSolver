@@ -1,7 +1,20 @@
 import { DecimalPipe } from '@angular/common';
-import { Component, inject, input } from '@angular/core';
+import { Component, inject, input, output } from '@angular/core';
 import { Router } from '@angular/router';
-import { IonBadge, IonButton, IonIcon, IonItem, IonLabel, IonList, ModalController } from '@ionic/angular';
+import {
+  IonBadge,
+  IonButton,
+  IonIcon,
+  IonItem,
+  IonItemOption,
+  IonItemOptions,
+  IonItemSliding,
+  IonLabel,
+  IonList,
+  IonReorder,
+  IonReorderGroup,
+  ModalController,
+} from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
   arrowUpOutline,
@@ -9,10 +22,12 @@ import {
   bookmarkOutline,
   checkmarkCircle,
   ellipseOutline,
+  eye,
   eyeOffOutline,
   shapesOutline,
   sparklesOutline,
   starOutline,
+  trashOutline,
 } from 'ionicons/icons';
 
 import { AppState } from './app-state.service';
@@ -22,6 +37,7 @@ import { BookmarkSheetComponent } from './bookmark-sheet.component';
 import { ListsService } from './lists.service';
 import { LocalTimePipe } from './local-time.pipe';
 import { ObservingLogService } from './observing-log.service';
+import { SeenActionsService } from './seen-actions.service';
 import { SensorService } from './sensor.service';
 import { iconDataUrl, targetIcon } from './target-icons';
 import type { ListedTarget } from './target-lists';
@@ -48,10 +64,28 @@ const MAX_CACHED_RISES = 2000;
 // Below this altitude, targets are dimmed by the atmosphere and hidden by buildings.
 const GOOD_ALTITUDE_DEG = 30;
 
-/** A list of targets, used by both the Targets and Plan tabs. */
+/**
+ * The rows of a list of targets, the same on the Targets tab and on every list. A tap
+ * aims at the target. Swiping a row to the left uncovers its actions: mark it seen, and
+ * on the user's own lists, remove it. While reordering, each row has a handle to drag by.
+ */
 @Component({
   selector: 'app-target-list',
-  imports: [DecimalPipe, LocalTimePipe, IonBadge, IonButton, IonIcon, IonItem, IonLabel, IonList],
+  imports: [
+    DecimalPipe,
+    LocalTimePipe,
+    IonBadge,
+    IonButton,
+    IonIcon,
+    IonItem,
+    IonItemOption,
+    IonItemOptions,
+    IonItemSliding,
+    IonLabel,
+    IonList,
+    IonReorder,
+    IonReorderGroup,
+  ],
   styles: `
     /* Sits where the height badge would be, in the quieter text colour. */
     .below-horizon {
@@ -80,6 +114,11 @@ const GOOD_ALTITUDE_DEG = 30;
       background: var(--ion-item-background, var(--ion-background-color));
       border-radius: 50%;
     }
+    /* What the order is about, such as the best time tonight: the app's blue, to stand out. */
+    .note {
+      color: var(--ion-color-primary);
+      font-variant-numeric: tabular-nums;
+    }
     /* A rise time, in the same quieter colour, with a small up arrow before it. */
     .rises {
       display: inline-flex;
@@ -93,90 +132,123 @@ const GOOD_ALTITUDE_DEG = 30;
   `,
   template: `
     <ion-list>
-      @for (target of targets(); track target.id + (target.listedAs ?? '')) {
-        @let position = positionOf(target);
-        @let altDeg = position.altDeg;
-        <ion-item button detail="false" (click)="aimAt(target)">
-          @let icon = customIcon(target);
-          @let seen = log.states().get(target.id);
-          <!-- Galaxies, nebulae, planets and the Moon have AstroFinder's own icons. A green tick
+      <ion-reorder-group [disabled]="!reorder()" (ionReorderEnd)="onReorder($any($event))">
+        @for (target of targets(); track target.id + (target.listedAs ?? '')) {
+          @let position = positionOf(target);
+          @let altDeg = position.altDeg;
+          <ion-item-sliding #sliding [disabled]="reorder()">
+            <ion-item button detail="false" (click)="aimAt(target)">
+              @let icon = customIcon(target);
+              @let seen = log.states().get(target.id);
+              <!-- Galaxies, nebulae, planets and the Moon have AstroFinder's own icons. A green tick
                marks a target seen, an amber ring one looked for but not seen yet. -->
-          <span
-            slot="start"
-            class="icon-wrap"
-            [class.seen]="seen === 'seen'"
-            [class.tried]="seen === 'tried'"
-            [attr.role]="seen ? 'img' : null"
-            [attr.aria-label]="seen === 'seen' ? 'Seen' : seen === 'tried' ? 'Not seen yet' : null"
-            [attr.data-seen]="seen ?? null"
-          >
-            <ion-icon
-              color="medium"
-              aria-hidden="true"
-              data-testid="target-icon"
-              [attr.data-icon]="icon ? 'custom' : kindIcons[target.kind]"
-              [name]="icon ? undefined : kindIcons[target.kind]"
-              [src]="icon ?? undefined"
-            ></ion-icon>
-            @if (seen === 'seen') {
-              <ion-icon class="tick" name="checkmark-circle" aria-hidden="true"></ion-icon>
-            }
-          </span>
-          <ion-label>
-            <!-- Every catalogue number: Messier, then Caldwell, then NGC and IC. -->
-            <h2 data-testid="designations">{{ rowDesignations(target) }}</h2>
-            <!-- Magnitude only where it is known. Constellations, and some objects, have none. -->
-            <p>
-              {{ target.name }}
-              @if (target.mag < 90) {
-                · mag {{ target.mag | number: '1.1-1' }}
+              <span
+                slot="start"
+                class="icon-wrap"
+                [class.seen]="seen === 'seen'"
+                [class.tried]="seen === 'tried'"
+                [attr.role]="seen ? 'img' : null"
+                [attr.aria-label]="seen === 'seen' ? 'Seen' : seen === 'tried' ? 'Not seen yet' : null"
+                [attr.data-seen]="seen ?? null"
+              >
+                <ion-icon
+                  color="medium"
+                  aria-hidden="true"
+                  data-testid="target-icon"
+                  [attr.data-icon]="icon ? 'custom' : kindIcons[target.kind]"
+                  [name]="icon ? undefined : kindIcons[target.kind]"
+                  [src]="icon ?? undefined"
+                ></ion-icon>
+                @if (seen === 'seen') {
+                  <ion-icon class="tick" name="checkmark-circle" aria-hidden="true"></ion-icon>
+                }
+              </span>
+              <ion-label>
+                <!-- Every catalogue number: Messier, then Caldwell, then NGC and IC. -->
+                <h2 data-testid="designations">{{ rowDesignations(target) }}</h2>
+                <!-- Magnitude only where it is known. Constellations, and some objects, have none. -->
+                <p>
+                  {{ target.name }}
+                  @if (target.mag < 90) {
+                    · mag {{ target.mag | number: '1.1-1' }}
+                  }
+                </p>
+                <!-- A few words about the order the list is in, such as its best time tonight. -->
+                @if (notes()?.get(target.id); as note) {
+                  <p class="note" data-testid="row-note">{{ note }}</p>
+                }
+              </ion-label>
+              @if (altDeg > 0) {
+                <!-- How high, and which way to face: "42° SE". -->
+                <ion-badge
+                  slot="end"
+                  data-testid="sky-position"
+                  [color]="altDeg >= goodAltitude ? 'success' : 'warning'"
+                  [attr.aria-label]="(altDeg | number: '1.0-0') + '° up, to the ' + compassPoint(position.azDeg)"
+                  >{{ altDeg | number: '1.0-0' }}° {{ compassShort(position.azDeg) }}</ion-badge
+                >
+              } @else if (riseOf(target); as rise) {
+                <!-- Below the horizon now, but up within a day: when it rises. -->
+                <span
+                  slot="end"
+                  class="rises"
+                  role="img"
+                  data-testid="rises-at"
+                  [attr.aria-label]="'Below the horizon, rises at ' + (rise | localTime)"
+                  ><ion-icon name="arrow-up-outline" aria-hidden="true"></ion-icon>{{ rise | localTime }}</span
+                >
+              } @else {
+                <!-- Not up within a day: a crossed-out eye instead of a height. -->
+                <ion-icon
+                  slot="end"
+                  class="below-horizon"
+                  name="eye-off-outline"
+                  role="img"
+                  aria-label="Below the horizon"
+                  data-testid="below-horizon"
+                ></ion-icon>
               }
-            </p>
-          </ion-label>
-          @if (altDeg > 0) {
-            <!-- How high, and which way to face: "42° SE". -->
-            <ion-badge
-              slot="end"
-              data-testid="sky-position"
-              [color]="altDeg >= goodAltitude ? 'success' : 'warning'"
-              [attr.aria-label]="(altDeg | number: '1.0-0') + '° up, to the ' + compassPoint(position.azDeg)"
-              >{{ altDeg | number: '1.0-0' }}° {{ compassShort(position.azDeg) }}</ion-badge
-            >
-          } @else if (riseOf(target); as rise) {
-            <!-- Below the horizon now, but up within a day: when it rises. -->
-            <span
-              slot="end"
-              class="rises"
-              role="img"
-              data-testid="rises-at"
-              [attr.aria-label]="'Below the horizon, rises at ' + (rise | localTime)"
-              ><ion-icon name="arrow-up-outline" aria-hidden="true"></ion-icon>{{ rise | localTime }}</span
-            >
-          } @else {
-            <!-- Not up within a day: a crossed-out eye instead of a height. -->
-            <ion-icon
-              slot="end"
-              class="below-horizon"
-              name="eye-off-outline"
-              role="img"
-              aria-label="Below the horizon"
-              data-testid="below-horizon"
-            ></ion-icon>
-          }
-          <ion-button
-            slot="end"
-            fill="clear"
-            data-testid="bookmark"
-            [attr.aria-label]="'Save to a list: ' + target.id"
-            (click)="chooseLists($event, target)"
-          >
-            <ion-icon
-              slot="icon-only"
-              [name]="lists.isBookmarked(target.id) ? 'bookmark' : 'bookmark-outline'"
-            ></ion-icon>
-          </ion-button>
-        </ion-item>
-      }
+              @if (reorder()) {
+                <ion-reorder slot="end" data-testid="reorder-handle"></ion-reorder>
+              } @else {
+                <ion-button
+                  slot="end"
+                  fill="clear"
+                  data-testid="bookmark"
+                  [attr.aria-label]="'Save to a list: ' + target.id"
+                  (click)="chooseLists($event, target)"
+                >
+                  <ion-icon
+                    slot="icon-only"
+                    [name]="lists.isBookmarked(target.id) ? 'bookmark' : 'bookmark-outline'"
+                  ></ion-icon>
+                </ion-button>
+              }
+            </ion-item>
+            <!-- Uncovered by swiping the row to the left, away from the edge that goes back. -->
+            <ion-item-options side="end">
+              <ion-item-option
+                color="success"
+                data-testid="swipe-seen"
+                [attr.aria-label]="'Mark as seen: ' + target.id"
+                (click)="markSeen(sliding, target)"
+              >
+                <ion-icon slot="icon-only" name="eye" aria-hidden="true"></ion-icon>
+              </ion-item-option>
+              @if (removable()) {
+                <ion-item-option
+                  color="danger"
+                  data-testid="swipe-remove"
+                  [attr.aria-label]="'Remove from this list: ' + target.id"
+                  (click)="removeRow(sliding, target)"
+                >
+                  <ion-icon slot="icon-only" name="trash-outline" aria-hidden="true"></ion-icon>
+                </ion-item-option>
+              }
+            </ion-item-options>
+          </ion-item-sliding>
+        }
+      </ion-reorder-group>
     </ion-list>
   `,
 })
@@ -185,6 +257,17 @@ export class TargetListComponent {
   readonly targets = input.required<readonly ListedTarget[]>();
   /** The time altitudes are shown for. Defaults to right now. */
   readonly at = input<Date | null>(null);
+  /** A few words under some rows, by target id, about the order the list is in. */
+  readonly notes = input<ReadonlyMap<string, string> | null>(null);
+  /** Whether rows can be removed, as on the user's own lists. */
+  readonly removable = input(false);
+  /** Whether rows show a handle to drag them by, into another order. */
+  readonly reorder = input(false);
+
+  /** A row's Remove action was tapped. */
+  readonly remove = output<ListedTarget>();
+  /** A row was dragged from one place to another, counted from the top. */
+  readonly moved = output<{ from: number; to: number }>();
 
   protected readonly state = inject(AppState);
   protected readonly goodAltitude = GOOD_ALTITUDE_DEG;
@@ -193,6 +276,7 @@ export class TargetListComponent {
   private readonly modals = inject(ModalController);
   protected readonly lists = inject(ListsService);
   protected readonly log = inject(ObservingLogService);
+  private readonly seenActions = inject(SeenActionsService);
 
   constructor() {
     addIcons({
@@ -200,11 +284,13 @@ export class TargetListComponent {
       bookmarkOutline,
       checkmarkCircle,
       ellipseOutline,
+      eye,
       eyeOffOutline,
       shapesOutline,
       arrowUpOutline,
       sparklesOutline,
       starOutline,
+      trashOutline,
     });
   }
 
@@ -241,6 +327,25 @@ export class TargetListComponent {
   protected customIcon(target: Target): string | null {
     const paths = targetIcon(target);
     return paths ? iconDataUrl(paths) : null;
+  }
+
+  /** Logs the row's target as seen, as the sky map's eye button does, and closes the row. */
+  protected markSeen(sliding: IonItemSliding, target: Target): void {
+    void sliding.close();
+    void this.seenActions.markSeen(target);
+  }
+
+  protected removeRow(sliding: IonItemSliding, target: ListedTarget): void {
+    void sliding.close();
+    this.remove.emit(target);
+  }
+
+  /** A row was dropped in a new place. The list itself is changed by whoever owns it. */
+  protected onReorder(event: CustomEvent<{ from: number; to: number; complete: (data?: boolean) => void }>): void {
+    const { from, to, complete } = event.detail;
+    // The rows are drawn again from the saved list, so the dragged copy is put back first.
+    complete(false);
+    if (from !== to) this.moved.emit({ from, to });
   }
 
   /** Opens a sheet to choose which of the user's lists the target is in. */

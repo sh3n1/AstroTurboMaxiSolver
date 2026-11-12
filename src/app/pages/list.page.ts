@@ -1,5 +1,5 @@
 import { DecimalPipe } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
@@ -13,9 +13,6 @@ import {
   IonContent,
   IonHeader,
   IonIcon,
-  IonSearchbar,
-  IonSegment,
-  IonSegmentButton,
   IonText,
   IonTitle,
   IonToolbar,
@@ -26,6 +23,7 @@ import {
   copyOutline,
   createOutline,
   ellipsisVertical,
+  reorderThreeOutline,
   saveOutline,
   shareSocialOutline,
   timeOutline,
@@ -34,14 +32,18 @@ import {
 import { map } from 'rxjs';
 
 import { AppState } from '../core/app-state.service';
+import { ListRowsComponent } from '../core/list-rows.component';
+import { ListToolsComponent } from '../core/list-tools.component';
+import { ListViewService } from '../core/list-view.service';
 import { ListsService } from '../core/lists.service';
 import { ObservingLogService } from '../core/observing-log.service';
-import { PlanChartComponent } from '../core/plan-chart.component';
-import { normalizeSearch, targetSearchText } from '../core/search';
-import { TargetListComponent } from '../core/target-list.component';
 import { exportFileName, exportLists } from '../core/target-lists';
 
-/** One bookmark list, with a search, and for the user's own lists, rename and delete. */
+/**
+ * One list of targets: a catalogue, a collection or one of the user's own. It has the same
+ * tools, orders, filters and rows as the Targets tab. The user's own lists can also be
+ * renamed, deleted and put in order by hand, and their rows removed.
+ */
 @Component({
   selector: 'app-list',
   imports: [
@@ -54,15 +56,13 @@ import { exportFileName, exportLists } from '../core/target-lists';
     IonContent,
     IonHeader,
     IonIcon,
-    IonSearchbar,
-    IonSegment,
-    IonSegmentButton,
     IonText,
     IonTitle,
     IonToolbar,
-    TargetListComponent,
-    PlanChartComponent,
+    ListRowsComponent,
+    ListToolsComponent,
   ],
+  providers: [ListViewService],
   styles: `
     /* The clock is amber while another time is on show, as on the sky map. */
     ion-button.warn {
@@ -74,7 +74,7 @@ import { exportFileName, exportLists } from '../core/target-lists';
       flex-wrap: wrap;
       align-items: center;
       gap: 8px 12px;
-      padding: 12px 16px 4px;
+      padding: 12px 16px 8px;
       font-size: calc(16px * var(--af-scale, 1));
     }
     .progress svg {
@@ -89,9 +89,6 @@ import { exportFileName, exportLists } from '../core/target-lists';
     .progress .done {
       stroke: var(--ion-color-success);
     }
-    .progress ion-segment {
-      flex: 1 1 220px;
-    }
   `,
   template: `
     <ion-header>
@@ -102,8 +99,11 @@ import { exportFileName, exportLists } from '../core/target-lists';
         <ion-title data-testid="list-title">{{ list()?.name ?? 'List' }}</ion-title>
         @if (list(); as current) {
           <ion-buttons slot="end">
-            @if (current.id === 'now') {
-              <!-- Opens the time control: the list follows the time as it changes. -->
+            @if (view.editing()) {
+              <!-- Reordering by hand: the rows have handles until this is tapped. -->
+              <ion-button data-testid="reorder-done" (click)="view.editing.set(false)">Done</ion-button>
+            } @else {
+              <!-- Opens the time control: the heights and the order follow the time chosen. -->
               <ion-button
                 aria-label="Change the time"
                 data-testid="list-change-time"
@@ -112,24 +112,21 @@ import { exportFileName, exportLists } from '../core/target-lists';
               >
                 <ion-icon slot="icon-only" name="time-outline" aria-hidden="true"></ion-icon>
               </ion-button>
+              <ion-button aria-label="Share" data-testid="share-list" (click)="share()">
+                <ion-icon slot="icon-only" name="share-social-outline" aria-hidden="true"></ion-icon>
+              </ion-button>
+              <ion-button aria-label="More actions" data-testid="list-actions" (click)="actions()">
+                <ion-icon slot="icon-only" name="ellipsis-vertical" aria-hidden="true"></ion-icon>
+              </ion-button>
             }
-            <ion-button aria-label="Share" data-testid="share-list" (click)="share()">
-              <ion-icon slot="icon-only" name="share-social-outline" aria-hidden="true"></ion-icon>
-            </ion-button>
-            <ion-button aria-label="More actions" data-testid="list-actions" (click)="actions()">
-              <ion-icon slot="icon-only" name="ellipsis-vertical" aria-hidden="true"></ion-icon>
-            </ion-button>
           </ion-buttons>
         }
       </ion-toolbar>
-      <ion-toolbar>
-        <ion-searchbar
-          placeholder="Search this list"
-          data-testid="list-search"
-          [debounce]="100"
-          (ionInput)="query.set($any($event).detail.value ?? '')"
-        ></ion-searchbar>
-      </ion-toolbar>
+      @if (!view.editing()) {
+        <ion-toolbar>
+          <app-list-tools></app-list-tools>
+        </ion-toolbar>
+      }
     </ion-header>
 
     <ion-content>
@@ -146,12 +143,7 @@ import { exportFileName, exportLists } from '../core/target-lists';
           </ion-card>
         }
 
-        <!-- The user's own lists: each target's height through tonight, on one chart. -->
-        @if (current.kind !== 'fixed' && current.targets.length > 0) {
-          <app-plan-chart [targets]="current.targets"></app-plan-chart>
-        }
-
-        @if (showProgress()) {
+        @if (showProgress() && !view.editing()) {
           <div class="progress" data-testid="list-progress">
             <svg viewBox="0 0 40 40" aria-hidden="true">
               <circle class="track" cx="20" cy="20" r="16" fill="none" stroke-width="4" />
@@ -169,30 +161,23 @@ import { exportFileName, exportLists } from '../core/target-lists';
             <span data-testid="list-seen-count"
               ><strong>{{ progress().seen }}</strong> of {{ progress().total }} seen</span
             >
-            <ion-segment
-              aria-label="Show"
-              data-testid="list-seen-filter"
-              [value]="seenFilter()"
-              (ionChange)="seenFilter.set($any($event).detail.value)"
-            >
-              <ion-segment-button value="all">All</ion-segment-button>
-              <ion-segment-button value="todo">To see</ion-segment-button>
-              <ion-segment-button value="seen">Seen</ion-segment-button>
-            </ion-segment>
           </div>
         }
 
-        @if (shown().length > 0) {
-          <app-target-list [targets]="shown()"></app-target-list>
-        } @else {
+        <app-list-rows [ownListId]="current.kind === 'fixed' ? null : current.id">
           <ion-text color="medium">
             <p class="ion-padding" data-testid="list-empty">
-              @if (query()) {
+              @if (view.query()) {
                 Nothing in this list matches your search.
-              } @else if (seenFilter() === 'seen' && showProgress()) {
-                Nothing seen in this list yet.
-              } @else if (seenFilter() === 'todo' && showProgress()) {
-                All seen. Well done!
+              } @else if (current.targets.length > 0) {
+                <!-- The list has targets, so the filters are what hide them. -->
+                @if (view.seen() === 'seen') {
+                  Nothing seen in this list yet.
+                } @else if (view.seen() === 'todo' && view.activeFilters().length === 1) {
+                  All seen. Well done!
+                } @else {
+                  Nothing in this list passes the filters.
+                }
               } @else if (current.id === 'reticle') {
                 Nothing is inside the aiming rings. Move the telescope, or the map, to fill this list.
               } @else if (current.kind === 'fixed') {
@@ -202,7 +187,7 @@ import { exportFileName, exportLists } from '../core/target-lists';
               }
             </p>
           </ion-text>
-        }
+        </app-list-rows>
       } @else {
         <p class="ion-padding">This list no longer exists.</p>
       }
@@ -219,10 +204,8 @@ export class ListPage {
   private readonly toasts = inject(ToastController);
 
   private readonly log = inject(ObservingLogService);
-
-  protected readonly query = signal('');
-  /** Which rows to show by the observing log: all, those still to see, or those seen. */
-  protected readonly seenFilter = signal<'all' | 'todo' | 'seen'>('all');
+  /** This page's own search, order and filters, shared with its tools and rows. */
+  protected readonly view = inject(ListViewService);
 
   private readonly id = toSignal(this.route.paramMap.pipe(map((params) => params.get('id') ?? '')), {
     initialValue: '',
@@ -259,41 +242,50 @@ export class ListPage {
     return `${(total ? seen / total : 0) * circumference} ${circumference}`;
   });
 
-  /** The list's targets that match the search and the seen filter, in the list's own order. */
-  protected readonly shown = computed(() => {
-    const targets = this.list()?.targets ?? [];
-    const term = normalizeSearch(this.query());
-    const filter = this.showProgress() ? this.seenFilter() : 'all';
-    const states = this.log.states();
-    return targets.filter(
-      (t) =>
-        (!term || targetSearchText(t).includes(term)) &&
-        (filter === 'all' || (states.get(t.id) === 'seen') === (filter === 'seen')),
-    );
-  });
-
   constructor() {
     addIcons({
       copyOutline,
       createOutline,
       ellipsisVertical,
+      reorderThreeOutline,
       saveOutline,
       shareSocialOutline,
       timeOutline,
       trashOutline,
     });
+    this.view.configure({
+      key: () => this.id(),
+      rows: () => this.list()?.targets ?? [],
+      ownOrder: () => {
+        const list = this.list();
+        if (list?.id === 'now') return 'Best first';
+        if (list?.id === 'reticle') return 'Nearest the centre';
+        return list?.kind === 'fixed' ? 'Catalogue order' : 'My order';
+      },
+      // Inside the reticle, the list's own order is already the nearest first.
+      withoutSorts: () => (this.id() === 'reticle' ? ['nearest'] : []),
+      // The user's own lists are plans for a night, so their chart starts open.
+      chartOpen: () => !!this.list() && this.list()?.kind !== 'fixed',
+    });
+  }
+
+  /** Reordering ends when the page is left, so coming back shows the list as usual. */
+  ionViewWillLeave(): void {
+    this.view.editing.set(false);
   }
 
   protected async share(): Promise<void> {
     const list = this.list();
     if (!list) return;
     const result = await this.lists.share(list);
-    if (result === 'saved') void this.toast('Saved as a file in your downloads');
+    // Without a share sheet, the list is copied as text, which "Import pasted text" reads.
+    if (result === 'copied') void this.toast('No share sheet here. Copied as text to paste.');
+    if (result === 'unavailable') void this.toast('Sharing isn’t available here. Use Save as a file.');
   }
 
   /**
    * What can be done with this list. The app's own lists can only be shared or copied.
-   * Uncategorized keeps its name and can't be deleted: only what's in it changes.
+   * Saved for later keeps its name and can't be deleted: only what's in it changes.
    */
   protected async actions(): Promise<void> {
     const list = this.list();
@@ -303,6 +295,9 @@ export class ListPage {
     ];
     if (list.kind === 'fixed') {
       buttons.push({ text: 'Make an editable copy', icon: 'copy-outline', handler: () => void this.copy() });
+    }
+    if (list.kind !== 'fixed' && list.targets.length > 1) {
+      buttons.push({ text: 'Reorder', icon: 'reorder-three-outline', handler: () => this.view.editing.set(true) });
     }
     if (list.kind === 'custom') {
       buttons.push({ text: 'Rename', icon: 'create-outline', handler: () => void this.rename() });

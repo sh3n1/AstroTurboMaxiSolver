@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 
-/** The row for a list on the Bookmarks tab. */
+/** The row for a list on the Lists tab. */
 const listLink = (page: Page, name: string) => page.locator('[data-testid=list-link]', { hasText: name });
 
 /** Searches the Targets tab and opens the bookmark sheet for the first result. */
@@ -16,7 +16,7 @@ async function bookmarkFromTargets(page: Page, search: string): Promise<void> {
 test('shows the Best right now collection, and the Messier and Caldwell catalogues', async ({ page }) => {
   await page.goto('/tabs/lists');
   await expect(listLink(page, 'Best right now')).toBeVisible();
-  await expect(listLink(page, 'Uncategorized')).toBeVisible();
+  await expect(listLink(page, 'Saved for later')).toBeVisible();
 
   // The catalogues have their own page.
   await page.locator('[data-testid=catalogues-link]').click();
@@ -64,7 +64,7 @@ test('shows the Best right now collection, and the Messier and Caldwell catalogu
     );
   }
   await page.goto('/tabs/lists');
-  await expect(listLink(page, 'Uncategorized')).toBeVisible();
+  await expect(listLink(page, 'Saved for later')).toBeVisible();
 
   // Each split catalogue has its own page of lists.
   for (const [group, list, count] of [
@@ -78,7 +78,7 @@ test('shows the Best right now collection, and the Messier and Caldwell catalogu
     await expect(lists.locator('[data-testid=list-link]', { hasText: list }).locator('ion-badge')).toHaveText(count);
   }
   await page.goto('/tabs/lists');
-  await expect(listLink(page, 'Uncategorized')).toBeVisible();
+  await expect(listLink(page, 'Saved for later')).toBeVisible();
 
   // Something is always well up, by day or night: at least the brightest objects.
   await listLink(page, 'Best right now').click();
@@ -144,7 +144,7 @@ test('asks for a name when making an editable copy of a catalogue', async ({ pag
   // The page it came from may still be leaving, so look in the copy's own page.
   const copy = page.locator('app-list', { has: page.locator('ion-title', { hasText: 'My Messier marathon' }) });
   await expect(copy).toBeVisible();
-  await expect(copy.locator('app-target-list ion-item')).toHaveCount(110);
+  await expect(copy.locator('[data-testid=list-rows]')).toHaveAttribute('data-total', '110');
   await page.goto('/tabs/lists');
   await expect(listLink(page, 'My Messier marathon')).toBeVisible();
 });
@@ -160,9 +160,9 @@ test('lists a catalogue in order, and searches inside it', async ({ page }) => {
   await expect(rows.first()).toContainText('C20 · NGC 7000');
 });
 
-test('saves a bookmark to Uncategorized, or to a new list', async ({ page }) => {
+test('saves a bookmark to Saved for later, or to a new list', async ({ page }) => {
   await bookmarkFromTargets(page, 'Vega');
-  await page.locator('ion-modal [data-testid=bookmark-list]', { hasText: 'Uncategorized' }).click();
+  await page.locator('ion-modal [data-testid=bookmark-list]', { hasText: 'Saved for later' }).click();
   await page.locator('[data-testid=bookmark-done]').click();
   await expect(page.locator('app-targets [data-testid=bookmark] ion-icon').first()).toHaveAttribute('name', 'bookmark');
 
@@ -179,10 +179,10 @@ test('saves a bookmark to Uncategorized, or to a new list', async ({ page }) => 
   );
   await page.locator('[data-testid=bookmark-done]').click();
 
-  await page.getByRole('tab', { name: 'Bookmarks' }).click();
-  await expect(listLink(page, 'Uncategorized').locator('ion-badge')).toHaveText('1');
+  await page.getByRole('tab', { name: 'Lists' }).click();
+  await expect(listLink(page, 'Saved for later').locator('ion-badge')).toHaveText('1');
   await expect(listLink(page, 'Autumn').locator('ion-badge')).toHaveText('1');
-  await listLink(page, 'Uncategorized').click();
+  await listLink(page, 'Saved for later').click();
   await expect(page.locator('app-list app-target-list ion-item')).toContainText('Vega');
 });
 
@@ -193,7 +193,7 @@ test('keeps the bookmarks of the old session plan', async ({ page }) => {
     }
   });
   await page.goto('/tabs/plan');
-  await expect(listLink(page, 'Uncategorized').locator('ion-badge')).toHaveText('1');
+  await expect(listLink(page, 'Saved for later').locator('ion-badge')).toHaveText('1');
 });
 
 test('imports a list file, and refuses one that is not a list', async ({ page }) => {
@@ -214,7 +214,7 @@ test('imports a list file, and refuses one that is not a list', async ({ page })
   );
 });
 
-test('renames and deletes a list, but never renames or deletes Uncategorized', async ({ page }) => {
+test('renames and deletes a list, but never renames or deletes Saved for later', async ({ page }) => {
   await page.goto('/tabs/lists');
   await page.locator('[data-testid=new-list]').click();
   await page.locator('ion-alert input').fill('Doubles');
@@ -235,10 +235,129 @@ test('renames and deletes a list, but never renames or deletes Uncategorized', a
   await page.locator('ion-alert button', { hasText: 'Delete' }).click();
   await expect(listLink(page, 'Double stars')).toHaveCount(0);
 
-  // Uncategorized offers neither rename nor delete.
-  await listLink(page, 'Uncategorized').click();
+  // Saved for later offers neither rename nor delete.
+  await listLink(page, 'Saved for later').click();
   await page.locator('[data-testid=list-actions]').click();
   await expect(page.locator('ion-action-sheet button', { hasText: 'Save as a file' })).toBeVisible();
   await expect(page.locator('ion-action-sheet button', { hasText: 'Rename' })).toHaveCount(0);
   await expect(page.locator('ion-action-sheet button', { hasText: 'Delete list' })).toHaveCount(0);
+});
+
+/** Chooses an order from the list's sort menu. */
+async function chooseOrder(page: Page, name: string): Promise<void> {
+  await page.locator('app-list [data-testid=list-sort]').click();
+  await page.locator('ion-action-sheet button', { hasText: name }).click();
+  await expect(page.locator('ion-action-sheet')).toHaveCount(0, { timeout: 15_000 });
+}
+
+test('orders and filters a catalogue like any list, and remembers the order', async ({ page }) => {
+  await page.goto('/tabs/lists/messier');
+  const rows = page.locator('app-list [data-testid=list-rows]');
+  const items = page.locator('app-list app-target-list ion-item');
+  await expect(rows).toHaveAttribute('data-sort', 'list');
+  await expect(items.first().locator('[data-testid=designations]')).toContainText('M1');
+  await expect(page.locator('[data-testid=list-section]')).toHaveCount(0);
+
+  // By height, the rows go under headings that match what each row shows.
+  await chooseOrder(page, 'Highest now');
+  await expect(rows).toHaveAttribute('data-sort', 'highest');
+  await expect(page.locator('[data-testid=list-section]').first()).toHaveText(/Up now|Rises later/);
+
+  // By best time, each row says when that is.
+  await chooseOrder(page, 'Best time tonight');
+  await expect(page.locator('[data-testid=list-section]').first()).toHaveText('Tonight');
+  await expect(items.first().locator('[data-testid=row-note]')).toContainText(/best \d+:\d\d/);
+
+  // The filter sheet is the Targets tab's, here too. Closed, a filter in use stays on show as a chip.
+  await page.locator('app-list [data-testid=list-filter]').click();
+  await page.locator('[data-testid=list-type-filters] ion-chip', { hasText: 'Galaxy' }).click();
+  await expect(rows).toHaveAttribute('data-total', '40');
+  await page.locator('[data-testid=filters-close]').click();
+  await expect(page.locator('[data-testid=list-filters]')).toHaveCount(0);
+  const active = page.locator('app-list [data-testid=list-active-filters] ion-chip');
+  await expect(active).toHaveText(/Galaxy/);
+  await active.click();
+  await expect(rows).toHaveAttribute('data-total', '110');
+
+  // The chart of tonight opens on any list.
+  await expect(page.locator('app-list [data-testid=plan-chart]')).toHaveCount(0);
+  await page.locator('app-list [data-testid=list-chart-toggle]').click();
+  await expect(page.locator('app-list [data-testid=plan-line]')).toHaveCount(8);
+
+  // The order chosen for this list is kept.
+  await page.reload();
+  await expect(page.locator('app-list [data-testid=list-rows]')).toHaveAttribute('data-sort', 'best-time');
+});
+
+test('removes a row from an own list by its swipe action, with undo, and reorders the list', async ({ page }) => {
+  await page.goto('/tabs/lists');
+  const list = { format: 'astrofinder-lists', version: 1, lists: [{ name: 'Night', targets: ['M13', 'M57', 'M31'] }] };
+  await page.locator('[data-testid=import-file]').setInputFiles({
+    name: 'night.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify(list)),
+  });
+  await listLink(page, 'Night').click();
+  const names = page.locator('app-list [data-testid=designations]');
+  await expect(names).toHaveText([/^M13/, /^M57/, /^M31/]);
+  // The user's own lists open with the chart of tonight.
+  await expect(page.locator('app-list [data-testid=plan-line]')).toHaveCount(3);
+
+  // Swiping is slow to drive, so the row's actions are opened directly.
+  const openActions = (index: number) =>
+    page
+      .locator('app-list ion-item-sliding')
+      .nth(index)
+      .evaluate((row) => (row as unknown as { open: (side: string) => Promise<void> }).open('end'));
+  await openActions(1);
+  await page.locator('app-list ion-item-sliding').nth(1).locator('[data-testid=swipe-remove]').click();
+  await expect(names).toHaveText([/^M13/, /^M31/]);
+  // Undo puts it back where it was.
+  await page.locator('[data-testid=removed-toast]').getByRole('button', { name: 'Undo' }).click();
+  await expect(names).toHaveText([/^M13/, /^M57/, /^M31/]);
+
+  // The other action marks the target seen, as the sky map's eye does.
+  await openActions(0);
+  await page.locator('app-list ion-item-sliding').nth(0).locator('[data-testid=swipe-seen]').click();
+  await expect(page.locator('[data-testid=seen-toast]')).toContainText('Seen · first time');
+  await expect(page.locator('[data-testid=list-seen-count]')).toHaveText('1 of 3 seen');
+
+  // Reordering gives each row a handle. Dragging is slow to drive, so the drop is sent directly.
+  await page.locator('[data-testid=list-actions]').click();
+  await page.locator('ion-action-sheet button', { hasText: 'Reorder' }).click();
+  await expect(page.locator('app-list [data-testid=reorder-handle]')).toHaveCount(3);
+  await page
+    .locator('app-list ion-reorder-group')
+    .evaluate((group) =>
+      group.dispatchEvent(new CustomEvent('ionReorderEnd', { detail: { from: 2, to: 0, complete: () => undefined } })),
+    );
+  await expect(names).toHaveText([/^M31/, /^M13/, /^M57/]);
+  await page.locator('[data-testid=reorder-done]').click();
+  await expect(page.locator('app-list [data-testid=reorder-handle]')).toHaveCount(0);
+  await page.reload();
+  await expect(page.locator('app-list [data-testid=designations]')).toHaveText([/^M31/, /^M13/, /^M57/]);
+});
+
+test('shares a list through the share sheet as a text file, and never downloads it', async ({ page }) => {
+  // A stand-in share sheet that records what it is given, and refuses JSON files as real ones do.
+  await page.addInitScript(() => {
+    const shared: { name: string; type: string }[] = [];
+    Object.assign(window, { sharedFiles: shared });
+    Object.assign(navigator, {
+      canShare: (data: { files?: File[] }) => !!data.files?.every((file) => file.type === 'text/plain'),
+      share: (data: { files?: File[] }) => {
+        shared.push(...(data.files ?? []).map(({ name, type }) => ({ name, type })));
+        return Promise.resolve();
+      },
+    });
+  });
+  let downloads = 0;
+  page.on('download', () => downloads++);
+
+  await page.goto('/tabs/lists/messier');
+  await page.locator('[data-testid=share-list]').click();
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { sharedFiles: unknown[] }).sharedFiles))
+    .toEqual([{ name: 'astrofinder-messier.txt', type: 'text/plain' }]);
+  expect(downloads).toBe(0);
 });

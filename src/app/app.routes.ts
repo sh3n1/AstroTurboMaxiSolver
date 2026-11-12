@@ -19,7 +19,7 @@ export const routes: Routes = [
       },
       { path: 'lists/log', loadComponent: () => import('./pages/log.page').then((m) => m.LogPage) },
       { path: 'lists/:id', loadComponent: () => import('./pages/list.page').then((m) => m.ListPage) },
-      // The Bookmarks tab replaced the session plan.
+      // The Lists tab replaced the session plan.
       { path: 'plan', redirectTo: 'lists', pathMatch: 'full' },
       { path: 'settings', loadComponent: () => import('./pages/settings.page').then((m) => m.SettingsPage) },
       { path: '', redirectTo: 'sky', pathMatch: 'full' },

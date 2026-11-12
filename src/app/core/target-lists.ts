@@ -14,10 +14,12 @@ export interface TargetList {
 
 /** The list every bookmark goes to unless the user picks another. It can't be deleted. */
 export const UNCATEGORIZED_ID = 'uncategorized';
+/** Its name, which the user can't change: where a bookmark waits until it is sorted or seen. */
+export const UNCATEGORIZED_NAME = 'Saved for later';
 
 /**
  * The lists the app makes itself. They can't be edited or deleted. A description only
- * where the name needs one. Each belongs to a section: the Bookmarks tab's collections,
+ * where the name needs one. Each belongs to a section: the Lists tab's collections,
  * which change with the sky and the telescope, the Catalogues page, or a catalogue split
  * into its own page of lists, such as the RASC Finest NGC by season.
  */
@@ -141,7 +143,7 @@ const EXPORT_VERSION = 1;
 
 /** The lists a new user starts with, taking over the bookmarks of the old session plan. */
 export function startingLists(oldPlanIds: readonly string[] = []): TargetList[] {
-  return [{ id: UNCATEGORIZED_ID, name: 'Uncategorized', targetIds: [...oldPlanIds] }];
+  return [{ id: UNCATEGORIZED_ID, name: UNCATEGORIZED_NAME, targetIds: [...oldPlanIds] }];
 }
 
 /** A new, unique id for a list. */
