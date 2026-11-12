@@ -36,6 +36,7 @@ import { compassPoint, compassShort } from './astronomy';
 import { BookmarkSheetComponent } from './bookmark-sheet.component';
 import { ListsService } from './lists.service';
 import { LocalTimePipe } from './local-time.pipe';
+import { countLabel } from './observing-log';
 import { ObservingLogService } from './observing-log.service';
 import { SeenActionsService } from './seen-actions.service';
 import { SensorService } from './sensor.service';
@@ -69,6 +70,8 @@ interface Row {
   icon: string | null;
   designations: string;
   seen: 'seen' | 'tried' | undefined;
+  /** How many times it has been seen, on any night, failed tries left out. */
+  seenCount: number;
   note: string | undefined;
   bookmarked: boolean;
 }
@@ -132,6 +135,23 @@ const GOOD_ALTITUDE_DEG = 30;
       background: var(--ion-item-background, var(--ion-background-color));
       border-radius: 50%;
     }
+    /*
+     * At night every colour becomes red by its brightness, and the green tick would turn a
+     * dull dark red. White becomes full-strength red, like the count beside it.
+     */
+    :host-context(html.night) .tick {
+      color: #ffffff;
+    }
+    /* Seen more than once: the count takes the tick's place, at the same corner. */
+    /*
+     * Where the tick sits, on the icon's bottom right corner, its right edge in the same
+     * place: a second digit grows back over the icon, never into the target's name.
+     */
+    .icon-wrap .af-count {
+      right: -8px;
+      bottom: -6px;
+      --af-count-edge: var(--ion-item-background, var(--ion-background-color));
+    }
     /* What the order is about, such as the best time tonight: the app's blue, to stand out. */
     .note {
       color: var(--ion-color-primary);
@@ -170,14 +190,23 @@ const GOOD_ALTITUDE_DEG = 30;
               @let icon = row.icon;
               @let seen = row.seen;
               <!-- Galaxies, nebulae, planets and the Moon have AstroFinder's own icons. A green tick
-               marks a target seen, an amber ring one looked for but not seen yet. -->
+               marks a target seen, or how many times once it is more than one, and an amber
+               ring one looked for but not seen yet. -->
               <span
                 slot="start"
                 class="icon-wrap"
                 [class.seen]="seen === 'seen'"
                 [class.tried]="seen === 'tried'"
                 [attr.role]="seen ? 'img' : null"
-                [attr.aria-label]="seen === 'seen' ? 'Seen' : seen === 'tried' ? 'Not seen yet' : null"
+                [attr.aria-label]="
+                  row.seenCount > 1
+                    ? 'Seen ' + row.seenCount + ' times'
+                    : seen === 'seen'
+                      ? 'Seen'
+                      : seen === 'tried'
+                        ? 'Not seen yet'
+                        : null
+                "
                 [attr.data-seen]="seen ?? null"
               >
                 <ion-icon
@@ -188,7 +217,11 @@ const GOOD_ALTITUDE_DEG = 30;
                   [name]="icon ? undefined : kindIcons[target.kind]"
                   [src]="icon ?? undefined"
                 ></ion-icon>
-                @if (seen === 'seen') {
+                @if (row.seenCount > 1) {
+                  <span class="af-count" data-testid="seen-count" aria-hidden="true">{{
+                    countLabel(row.seenCount)
+                  }}</span>
+                } @else if (seen === 'seen') {
                   <ion-icon class="tick" name="checkmark-circle" aria-hidden="true"></ion-icon>
                 }
               </span>
@@ -345,6 +378,7 @@ export class TargetListComponent {
     // Heights in a list only need the minute clock, which saves re-drawing it every second.
     const time = this.at() ?? this.state.now();
     const seen = this.log.states();
+    const counts = this.log.counts();
     const notes = this.notes();
     const bookmarked = new Set(this.lists.editableLists().flatMap((list) => list.targetIds));
     return this.targets().map((target) => {
@@ -359,12 +393,14 @@ export class TargetListComponent {
         icon: icon ? iconDataUrl(icon) : null,
         designations: rowDesignations(target),
         seen: seen.get(target.id),
+        seenCount: counts.get(target.id) ?? 0,
         note: notes?.get(target.id),
         bookmarked: bookmarked.has(target.id),
       };
     });
   });
 
+  protected readonly countLabel = countLabel;
   protected readonly compassPoint = compassPoint;
   protected readonly compassShort = compassShort;
 

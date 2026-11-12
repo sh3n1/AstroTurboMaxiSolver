@@ -69,6 +69,7 @@ import { equipmentLabel, sameEquipment } from '../core/equipment';
 import { FullscreenService } from '../core/fullscreen.service';
 import { LiveSolverService } from '../core/live-solver.service';
 import { LocalTimePipe } from '../core/local-time.pipe';
+import { countLabel } from '../core/observing-log';
 import { ObservingLogService } from '../core/observing-log.service';
 import { RETICLE_RINGS_DEG, chevronSpacingPx, guideAngleDeg, pulseOpacity } from '../core/reticle';
 import { SeenActionsService } from '../core/seen-actions.service';
@@ -483,6 +484,24 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
     .bar-buttons .seen {
       --color: var(--ion-color-success);
     }
+    /* At night the green would turn a dull dark red: white turns full-strength red instead. */
+    :host-context(html.night) .bar-buttons .seen {
+      --color: #ffffff;
+    }
+    /*
+     * The eye's count sits on the eye's bottom right corner, as in the lists, so the button
+     * keeps the same size and the target's name keeps its room beside it. It lies outside
+     * the button, which would clip it, and lets taps through to the button underneath.
+     */
+    .eye {
+      position: relative;
+      display: inline-flex;
+    }
+    .eye .af-count {
+      left: calc(50% + 6px);
+      top: calc(50% + 1px);
+      --af-count-edge: #0a0e1c;
+    }
     /* Each part of a line wraps as a whole, never in the middle, like "below the horizon". */
     .keep {
       white-space: nowrap;
@@ -866,20 +885,31 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
                 </div>
                 <div class="bar-buttons">
                   <!-- Logs the target as seen, filled in green once it is. Tapped again, opens the note. -->
-                  <ion-button
-                    fill="clear"
-                    size="small"
-                    data-testid="mark-seen"
-                    [class.seen]="!!seenTonight()"
-                    [attr.aria-label]="seenTonight() ? 'Seen: open the note' : 'Mark as seen'"
-                    (click)="markSeen(target)"
-                  >
-                    <ion-icon
-                      slot="icon-only"
-                      aria-hidden="true"
-                      [name]="seenTonight() ? 'eye' : 'eye-outline'"
-                    ></ion-icon>
-                  </ion-button>
+                  <span class="eye" data-testid="mark-seen-wrap">
+                    <ion-button
+                      fill="clear"
+                      size="small"
+                      data-testid="mark-seen"
+                      [class.seen]="!!seenTonight()"
+                      [attr.aria-label]="
+                        (seenTonight() ? 'Seen: open the note' : 'Mark as seen') +
+                        (seenCount() > 1 ? ', seen ' + seenCount() + ' times' : '')
+                      "
+                      (click)="markSeen(target)"
+                    >
+                      <ion-icon
+                        slot="icon-only"
+                        aria-hidden="true"
+                        [name]="seenTonight() ? 'eye' : 'eye-outline'"
+                      ></ion-icon>
+                    </ion-button>
+                    <!-- Seen more than once, on any night: how many times, on the eye's corner. -->
+                    @if (seenCount() > 1) {
+                      <span class="af-count" data-testid="seen-count" aria-hidden="true">{{
+                        countLabel(seenCount())
+                      }}</span>
+                    }
+                  </span>
                   <!-- Turns the map to the target: a frame closing in on it. -->
                   <ion-button
                     fill="clear"
@@ -934,6 +964,12 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   private readonly toasts = inject(ToastController);
   private readonly seenActions = inject(SeenActionsService);
   private readonly log = inject(ObservingLogService);
+  /** How many times the selected target has been seen, on any night, failed tries left out. */
+  protected readonly seenCount = computed(() => {
+    const target = this.state.selectedTarget();
+    return target ? this.log.timesSeen(target.id) : 0;
+  });
+  protected readonly countLabel = countLabel;
   /** Tonight's log entry for the selected target, which fills in the seen button. */
   protected readonly seenTonight = computed(() => {
     const target = this.state.selectedTarget();

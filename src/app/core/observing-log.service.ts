@@ -13,7 +13,7 @@ import {
   nightKey,
   parseLogJson,
   seenStates,
-  timesSeen,
+  seenCounts,
 } from './observing-log';
 import type { Target } from './targets';
 
@@ -42,6 +42,9 @@ export class ObservingLogService {
 
   /** Each target's progress: seen, or tried but not seen yet. For ticks in the lists. */
   readonly states = computed(() => seenStates(this.entries()));
+
+  /** How many times each target has been seen, for the counts on the eye and in the lists. */
+  readonly counts = computed(() => seenCounts(this.entries()));
 
   /** Tonight's entries by target, the newest for each. For the seen button and its chip. */
   private readonly tonightByTarget = computed(() => {
@@ -82,7 +85,7 @@ export class ObservingLogService {
 
   /** How many times the target has been seen in all, failed tries left out. */
   timesSeen(targetId: string): number {
-    return timesSeen(this.entries(), targetId);
+    return this.counts().get(targetId) ?? 0;
   }
 
   /**

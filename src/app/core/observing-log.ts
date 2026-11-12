@@ -138,6 +138,28 @@ export function timesSeen(entries: readonly LogEntry[], targetId: string): numbe
   return entries.filter((e) => e.targetId === targetId && wasSeen(e)).length;
 }
 
+/**
+ * How many times each target has been seen, failed tries left out, in one pass over the
+ * log. A list asks for every row at once, which one scan per row would make slow.
+ */
+export function seenCounts(entries: readonly LogEntry[]): ReadonlyMap<string, number> {
+  const counts = new Map<string, number>();
+  for (const entry of entries) {
+    if (wasSeen(entry)) counts.set(entry.targetId, (counts.get(entry.targetId) ?? 0) + 1);
+  }
+  return counts;
+}
+
+/** The most a count badge spells out: two digits, so the badge is never wider than that. */
+const MAX_COUNT_SHOWN = 99;
+/** What the badge shows past that: "many". Screen readers still hear the real number. */
+const MANY = '+';
+
+/** A count as its small badge shows it: "2", "37", or "+" for three digits or more. */
+export function countLabel(count: number): string {
+  return count > MAX_COUNT_SHOWN ? MANY : String(count);
+}
+
 /** "1st", "2nd", "3rd", "11th", "22nd": for "Seen 23:41 · 3rd time". */
 export function ordinal(n: number): string {
   const lastTwo = n % 100;
