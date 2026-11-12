@@ -9,7 +9,9 @@ import {
   FOCAL_SHARE_OF_LONG_SIDE,
   applyCameraSettings,
   averageLevel,
+  brightenAutoExposure,
   captureStack,
+  highestIso,
   planCapture,
 } from './camera';
 import type { DepthBin } from './plate-solver';
@@ -27,18 +29,48 @@ interface CaptureStep {
    * video's speed, and the exposure and ISO above are only placeholders.
    */
   automatic?: boolean;
+  /** Automatic, but asking the phone for its brightest picture, through exposure compensation. */
+  brightened?: boolean;
+  /** Uses the camera's highest ISO, whatever `iso` says, which is then only a fallback. */
+  highestIso?: boolean;
 }
 
+/*
+ * Stacking is the fallback for phones that can't expose long on the web. Measured in a
+ * city sky, stacking dark short frames added nothing: faint stars are rounded away inside
+ * each frame before averaging. So the fallback steps try to make each frame brighter.
+ */
 export const SKY_TEST_STEPS: readonly CaptureStep[] = [
   // First, while the camera is still automatic: how phones without manual exposure do.
-  { exposureSeconds: 1 / 30, iso: 0, frames: 12, automatic: true },
+  // The short stacks take 24 frames, and PARTIAL_STACKS shows how many were worth it.
+  { exposureSeconds: 1 / 30, iso: 0, frames: 24, automatic: true },
+  // The same, with the phone asked for its brightest picture.
+  { exposureSeconds: 1 / 30, iso: 0, frames: 24, automatic: true, brightened: true },
   { exposureSeconds: 1 / 8, iso: 1600, frames: 1 },
-  // Short exposures stacked, as on phones that cap manual exposure below 1/8 s.
-  { exposureSeconds: 1 / 15, iso: 3200, frames: 8 },
+  // Short exposures stacked, as on phones that cap manual exposure below 1/8 s, as bright as they go.
+  { exposureSeconds: 1 / 15, iso: 6400, frames: 24, highestIso: true },
   { exposureSeconds: 1 / 3, iso: 1600, frames: 1 },
   { exposureSeconds: 1 / 3, iso: 3200, frames: 6 },
   { exposureSeconds: 1 / 3, iso: 6400, frames: 6 },
 ];
+
+/**
+ * A stack is also measured part way through, after this many frames, where it has more.
+ * One frame shows what stacking adds at all, and the others where adding more stops paying.
+ */
+const PARTIAL_STACKS = [1, 6, 12];
+
+/**
+ * Below this sky level in the first, automatic step, with hardly any stars, the camera
+ * sees almost no light. Measured: about 5 with the lens covered, 11 to 14 in a city sky.
+ */
+const COVERED_SKY_LEVEL = 8;
+const COVERED_MAX_STARS = 2;
+
+/** Whether a step's frame looks like the lens is covered: almost no light and no stars. */
+export function looksCovered(step: Pick<StepReport, 'background' | 'starCount' | 'error' | 'skipped'>): boolean {
+  return !step.error && !step.skipped && step.background < COVERED_SKY_LEVEL && step.starCount <= COVERED_MAX_STARS;
+}
 
 const SETTLE_MS = 1000; // Lets the camera apply new settings before capturing
 const FRAME_TIMEOUT_MS = 3000;
@@ -66,10 +98,27 @@ export interface SolveReport {
   depth: DepthBin[];
 }
 
+/**
+ * A stack measured part way through: its first few frames averaged. Stacking is the
+ * fallback for phones that can't expose long on the web, so this shows what each extra
+ * frame adds, at exactly the same settings. Its depth is measured against the full
+ * stack's solution, so it is there even when the part alone doesn't solve.
+ */
+export interface PartialStackReport {
+  frames: number;
+  background: number;
+  noise: number;
+  starCount: number;
+  solve: { raDeg: number; decDeg: number; matched: number; checked: number } | null;
+  depth: DepthBin[] | null;
+}
+
 export interface StepReport {
   requested: CaptureStep;
-  /** What the camera reports it really used. */
-  actual: { exposureSeconds: number | null; iso: number | null };
+  /** What the camera reports it really used, and the exposure compensation the app set. */
+  actual: { exposureSeconds: number | null; iso: number | null; exposureCompensation?: number | null };
+  /** Why the step wasn't captured, when the camera doesn't offer what it needs. */
+  skipped?: string;
   manualControl: boolean;
   width: number;
   height: number;
@@ -81,6 +130,8 @@ export interface StepReport {
   starCount: number;
   stars: { x: number; y: number; flux: number; snr: number; pixels: number }[];
   solve: SolveReport | null;
+  /** For a stack: the same stack part way through, fewest frames first. */
+  partial?: PartialStackReport[];
   /** A preview of the stacked frame, as a JPEG data URL. */
   image: string | null;
   /** How the preview's grey levels map back to the frame's, so it can be analysed later. */
@@ -165,7 +216,10 @@ export async function runSkyTest(options: SkyTestOptions): Promise<StepReport[]>
     const stars = catalogFromRows(options.starRows);
     for (const [index, step] of SKY_TEST_STEPS.entries()) {
       options.onProgress(`Step ${index + 1} of ${SKY_TEST_STEPS.length}: capturing. Keep the phone still…`);
-      reports.push(await runStep(track, video, step, stars, options));
+      const report = await runStep(track, video, step, stars, options);
+      reports.push(report);
+      // A covered lens would waste the rest of the test, so stop and say so.
+      if (index === 0 && looksCovered(report)) break;
     }
   } finally {
     // Always release the camera, whatever happened.
@@ -199,12 +253,25 @@ async function runStep(
 
   try {
     if (step.automatic) {
-      // Stack as many video frames as the sky map would, from the video's real speed.
-      const { frames, frameSeconds } = planCapture('stack', null, track.getSettings().frameRate);
-      step = { ...step, frames, exposureSeconds: frameSeconds };
+      if (step.brightened) {
+        const compensation = await brightenAutoExposure(track);
+        report.actual.exposureCompensation = compensation;
+        if (compensation === null) {
+          report.skipped = 'The camera has no exposure compensation';
+          return report;
+        }
+      }
+      // The video's real speed sets how long each frame is. The sky map stacks fewer frames
+      // than this step, and the partial stacks include its number.
+      const { frameSeconds } = planCapture('stack', null, track.getSettings().frameRate);
+      step = { ...step, exposureSeconds: frameSeconds };
       report.requested = { ...step, exposureSeconds: round(frameSeconds, 4) };
       await wait(SETTLE_MS);
     } else {
+      if (step.highestIso) {
+        step = { ...step, iso: highestIso(track) ?? step.iso };
+        report.requested = { ...step, exposureSeconds: round(step.exposureSeconds, 4) };
+      }
       report.manualControl = await applyCameraSettings(track, step);
       await wait(SETTLE_MS + step.exposureSeconds * 2000);
     }
@@ -222,11 +289,12 @@ async function runStep(
     }
     const settings = track.getSettings() as CameraTrackSettings;
     report.actual = {
+      ...report.actual,
       exposureSeconds: settings.exposureTime ? round(settings.exposureTime / EXPOSURE_UNITS_PER_SECOND, 4) : null,
       iso: settings.iso ?? null,
     };
 
-    const { pixels, width, height } = await captureStack(video, step);
+    const { pixels, width, height, partial } = await captureStack(video, step, PARTIAL_STACKS);
     report.width = width;
     report.height = height;
 
@@ -264,6 +332,29 @@ async function runStep(
     const started = performance.now();
     const solution = solveFrame(detection.stars, geometry, index);
     const milliseconds = Math.round(performance.now() - started);
+
+    // The same stack part way through: what fewer frames would have given.
+    if (partial?.length) {
+      report.partial = partial.map((part) => {
+        const found = detectStars(part.pixels, width, height);
+        const partSolution = solveFrame(found.stars, geometry, index);
+        // The full stack's solution is the better reference for depth, when there is one.
+        const reference = solution ?? partSolution;
+        return {
+          frames: part.frames,
+          background: round(found.background),
+          noise: round(found.noise),
+          starCount: found.stars.length,
+          solve: partSolution && {
+            raDeg: round(partSolution.raDeg, 3),
+            decDeg: round(partSolution.decDeg, 3),
+            matched: partSolution.matched,
+            checked: partSolution.checked,
+          },
+          depth: reference && measureDepth(reference, found.stars, geometry, stars),
+        };
+      });
+    }
 
     if (solution) {
       const sensor = options.sensorDirection();

@@ -7,7 +7,7 @@ import { equatorialVector, formatDec, formatRa, horizontalVector, unrefract } fr
 import type { Vector3 } from './astronomy';
 import { Beeper } from './beep';
 import type { StepReport } from './sky-test';
-import { runSkyTest } from './sky-test';
+import { SKY_TEST_STEPS, looksCovered, runSkyTest } from './sky-test';
 
 /** Time to put the phone down and aim it after tapping, so the tap doesn't shake the frames. */
 const COUNTDOWN_SECONDS = 5;
@@ -105,7 +105,7 @@ const COUNTDOWN_SECONDS = 5;
         <div class="result" data-testid="sky-test-step">
           <strong>
             @if (result.requested.automatic) {
-              {{ result.requested.frames }} × automatic
+              {{ result.requested.frames }} × automatic{{ result.requested.brightened ? ', brightest' : '' }}
             } @else {
               {{ result.requested.frames }} × {{ result.requested.exposureSeconds | number: '1.0-3' }} s, ISO
               {{ result.requested.iso }}
@@ -115,6 +115,8 @@ const COUNTDOWN_SECONDS = 5;
             <ion-text color="danger"
               ><p>{{ result.error }}</p></ion-text
             >
+          } @else if (result.skipped) {
+            <div data-testid="sky-test-skipped">Skipped: {{ result.skipped }}</div>
           } @else {
             <div>{{ result.starCount }} stars found</div>
             <div class="muted">
@@ -140,6 +142,12 @@ const COUNTDOWN_SECONDS = 5;
               </div>
             } @else {
               <div class="unsolved">Not solved</div>
+            }
+            <!-- The same stack part way through, to see what more frames add. -->
+            @for (part of result.partial ?? []; track part.frames) {
+              <div class="muted" data-testid="sky-test-partial">
+                After {{ part.frames }}: {{ part.starCount }} stars, {{ part.solve ? 'solved' : 'not solved' }}
+              </div>
             }
           }
           @if (result.image) {
@@ -171,9 +179,13 @@ export class SkyTestPanelComponent {
 
   protected readonly summary = computed(() => {
     const results = this.reports() ?? [];
+    // The test stops early when the first capture saw almost no light.
+    if (results.length === 1 && SKY_TEST_STEPS.length > 1 && looksCovered(results[0])) {
+      return 'The camera sees almost no light. Is the lens covered?';
+    }
     const solved = results.filter((result) => result.solve).length;
     if (solved > 0) return `Plate solved ${solved} of ${results.length} captures.`;
-    if (results.every((result) => result.tooBright)) return 'Too bright to see stars here.';
+    if (results.every((result) => result.tooBright || result.skipped)) return 'Too bright to see stars here.';
     const most = Math.max(0, ...results.map((result) => result.starCount));
     return `Not solved. The most stars in one capture was ${most}.`;
   });
