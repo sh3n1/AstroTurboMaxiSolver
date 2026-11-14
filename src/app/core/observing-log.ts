@@ -2,7 +2,8 @@
 // Pure data and helpers, with no Angular dependency, so it can be unit tested.
 
 import { equipmentLabel } from './equipment';
-import type { Equipment } from './equipment';
+import type { Equipment, KitSelection } from './equipment';
+import { newUuid } from './sync-record';
 
 /**
  * How well the target was seen, from 0 (looked for it but not seen) to 4 (great).
@@ -44,7 +45,13 @@ export interface LogConditions {
   /** How much of the Moon was lit, in percent, and how high it was. */
   moonLitPercent: number;
   moonAltDeg: number;
+  /** The equipment's numbers, kept as they were, even if the kit changes later. */
   equipment: Equipment;
+  /**
+   * Which kit items they were, to find observations by telescope or eyepiece. Missing on
+   * entries logged before it was recorded.
+   */
+  kitIds?: KitSelection;
 }
 
 /** One sighting, or a failed try, of one target. */
@@ -79,15 +86,15 @@ const FILE_VERSION = 1;
 /** Observing nights run from noon to noon, so a sighting at 2:00 counts for the evening before. */
 const NIGHT_START_HOUR = 12;
 
-/** A new entry's id: the time and a random part, unique enough on one phone. */
-export function newEntryId(now = Date.now()): string {
-  return `${now.toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+/** A new entry's id, unique across devices, so logs from two phones can be merged. */
+export function newEntryId(): string {
+  return newUuid();
 }
 
 /** A new entry for a target, rated "Good", with no tags or note yet. */
 export function newEntry(target: { id: string; name: string }, time: Date, conditions: LogConditions): LogEntry {
   return {
-    id: newEntryId(time.getTime()),
+    id: newEntryId(),
     targetId: target.id,
     targetName: target.name,
     time: time.toISOString(),

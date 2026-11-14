@@ -1,4 +1,4 @@
-import { Injectable, computed, effect, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal } from '@angular/core';
 
 import type { Horizontal, Vector3 } from './astronomy';
 import {
@@ -19,11 +19,24 @@ import type { CaptureMode } from './camera';
 import { constellationTargets } from './constellations';
 import type { ConstellationRow } from './constellations';
 import type { DoubleRow } from './double-stars';
-import type { Equipment, TelescopeType } from './equipment';
-import { EQUIPMENT_KEYS, rememberEquipment } from './equipment';
+import type { KitItem, KitKind, KitRecord, KitSelection } from './equipment';
+import {
+  DEFAULT_SELECTION,
+  activeEquipment,
+  equipmentPower,
+  equipmentTrueField,
+  isDefaultItem,
+  kitFromRecords,
+  newKitId,
+  resolveSelection,
+} from './equipment';
 import { EXTRA_TARGETS } from './extra-targets';
+import { LocalDb } from './local-db';
 import { MINOR_PLANETS, minorPlanet } from './minor-planets';
 import { telescopeLimit } from './sky-quality';
+import { settingsWithoutKit } from './storage-migration';
+import { contentOf } from './sync-record';
+import { SyncedStore } from './synced-store';
 import type { Target, TargetKind } from './targets';
 import { PHASED_BODIES, SOLAR_SYSTEM_BODIES } from './targets';
 
@@ -43,11 +56,11 @@ export interface Settings {
    * sky is worked out for a neutral place, and the sky map asks for the location.
    */
   locationSet: boolean;
-  telescopeType: TelescopeType;
-  telescopeFocalMm: number;
-  telescopeApertureMm: number;
-  eyepieceFocalMm: number;
-  eyepieceFieldDeg: number; // The eyepiece's apparent field of view
+  /**
+   * Which telescope, eyepiece, Barlow and filter are in use on this device, picked in the
+   * eyepiece view. The kit itself is in the database (AppState.kit), shared by the devices.
+   */
+  kitSelection: KitSelection;
   mount: MountType;
   nightMode: boolean;
   /** How large text is shown. */
@@ -72,8 +85,6 @@ export interface Settings {
   bortle: number;
   /** The faintest stars the eyepiece view shows, or null to work it out from the sky. */
   eyepieceStarLimit: number | null;
-  /** The latest telescope and eyepiece combinations, newest first. */
-  recentEquipment: Equipment[];
   /**
    * How the camera's real field of view compares with the estimate from its published
    * specs. Learnt from the first successful plate solve, so later solves start from it.
@@ -100,11 +111,7 @@ const DEFAULT_SETTINGS: Settings = {
   latitudeDeg: 0,
   longitudeDeg: 0,
   locationSet: false,
-  telescopeType: 'newtonian',
-  telescopeFocalMm: 650,
-  telescopeApertureMm: 130,
-  eyepieceFocalMm: 25,
-  eyepieceFieldDeg: 52,
+  kitSelection: DEFAULT_SELECTION,
   mount: 'direct',
   nightMode: false,
   // Larger than usual by default, because many observers are past forty.
@@ -124,7 +131,6 @@ const DEFAULT_SETTINGS: Settings = {
   // The middle of the scale, a suburban sky, until the user sets their own.
   bortle: 5,
   eyepieceStarLimit: null,
-  recentEquipment: [],
   cameraFocalFactor: 1,
 };
 
@@ -141,6 +147,14 @@ function load<T extends object>(key: string, fallback: T): T {
   } catch {
     return fallback;
   }
+}
+
+/**
+ * Loads the settings. Earlier versions kept the kit in them too: it stays there until the
+ * database has taken it (see LocalDb), and AppState then drops it.
+ */
+function loadSettings(): Settings {
+  return load(SETTINGS_KEY, DEFAULT_SETTINGS);
 }
 
 function save(key: string, value: unknown): void {
@@ -161,7 +175,39 @@ function bodyKind(body: string): TargetKind {
 /** Shared app state, kept in signals so every page updates automatically. */
 @Injectable({ providedIn: 'root' })
 export class AppState {
-  readonly settings = signal<Settings>(load(SETTINGS_KEY, DEFAULT_SETTINGS));
+  private readonly localDb = inject(LocalDb);
+
+  readonly settings = signal<Settings>(loadSettings());
+
+  /** The user's telescopes, eyepieces, Barlows and filters, one database record each. */
+  private readonly kitStore = new SyncedStore<KitRecord>(
+    this.localDb,
+    (db) => db.kit,
+    (old) => old.kit,
+  );
+
+  /**
+   * Resolves once the kit is read. The app waits for it before it starts. When the kit has
+   * just moved out of the settings, the selection takes the kit's new ids.
+   */
+  readonly kitReady = this.kitStore.load().then(() => {
+    const moved = this.localDb.movedKitSelection;
+    if (moved) this.settings.update((settings) => ({ ...settingsWithoutKit(settings), kitSelection: moved }));
+  });
+
+  /** The kit, in the order it was added, with a built-in telescope and eyepiece until the user adds one. */
+  readonly kit = computed(() =>
+    kitFromRecords([...this.kitStore.records()].sort((a, b) => a.createdAt - b.createdAt).map(contentOf)),
+  );
+
+  /** The ids of the items in use, each one sure to be in the kit. */
+  readonly equipmentIds = computed(() => resolveSelection(this.kit(), this.settings().kitSelection));
+  /** The telescope, eyepiece, and maybe Barlow and filter in use. */
+  readonly equipment = computed(() => activeEquipment(this.kit(), this.settings().kitSelection));
+  /** The magnification in use. */
+  readonly power = computed(() => equipmentPower(this.equipment()));
+  /** The width of sky the eyepiece shows, in degrees. */
+  readonly trueField = computed(() => equipmentTrueField(this.equipment()));
 
   /** True while the phone's sensors are steering the map instead of dragging. */
   readonly sensorsActive = signal(false);
@@ -295,7 +341,7 @@ export class AppState {
   readonly textScale = computed(() => TEXT_SCALE[this.settings().textSize] ?? TEXT_SCALE.large);
 
   /** The faintest stars the user's sky and telescope should show, as a starting point. */
-  readonly skyStarLimit = computed(() => telescopeLimit(this.settings().bortle, this.settings().telescopeApertureMm));
+  readonly skyStarLimit = computed(() => telescopeLimit(this.settings().bortle, this.equipment().telescopeApertureMm));
 
   /** The faintest stars the eyepiece view shows. */
   readonly starLimit = computed(() => this.settings().eyepieceStarLimit ?? this.skyStarLimit());
@@ -326,14 +372,7 @@ export class AppState {
     // A different mount puts the camera at a different angle to the telescope.
     const alignment = this.alignment();
     if (changes.mount && alignment && changes.mount !== alignment.mount) this.alignment.set(null);
-    this.settings.update((current) => {
-      const next = { ...current, ...changes };
-      // Remember both the old and new combinations, so switching back is one tap.
-      if (EQUIPMENT_KEYS.some((key) => key in changes && changes[key] !== current[key])) {
-        next.recentEquipment = rememberEquipment(rememberEquipment(current.recentEquipment, current), next);
-      }
-      return next;
-    });
+    this.settings.update((current) => ({ ...current, ...changes }));
   }
 
   /**
@@ -359,8 +398,55 @@ export class AppState {
     );
   }
 
-  applyEquipment(equipment: Equipment): void {
-    this.updateSettings({ ...equipment });
+  /** Picks what is in use: a telescope, an eyepiece, a Barlow or none, a filter or none. */
+  selectKit(changes: Partial<KitSelection>): void {
+    this.updateSettings({ kitSelection: { ...this.settings().kitSelection, ...changes } });
+  }
+
+  /**
+   * Adds an item to the kit, or changes the one with its id. A built-in default, once
+   * edited, becomes the user's own item. Adding another item next to a built-in default
+   * keeps the default too, as the user's own, so it doesn't vanish from the list.
+   */
+  saveKitItem(kind: KitKind, item: KitItem): void {
+    const shown = this.kit()[kind] as KitItem[];
+    const onlyDefault = shown.length === 1 && isDefaultItem(shown[0].id);
+    if (onlyDefault && shown[0].id !== item.id) this.makeOwn(kind, shown[0]);
+    if (isDefaultItem(item.id)) this.makeOwn(kind, item);
+    else this.kitStore.save([{ ...item, kind }]);
+  }
+
+  /** Saves a built-in default as the user's own item, with its own id, still in use if it was. */
+  private makeOwn(kind: KitKind, item: KitItem): void {
+    const id = newKitId();
+    this.kitStore.save([{ ...item, id, kind }]);
+    const selection = this.settings().kitSelection;
+    if (selection.telescopeId === item.id) this.selectKit({ telescopeId: id });
+    if (selection.eyepieceId === item.id) this.selectKit({ eyepieceId: id });
+  }
+
+  /**
+   * Removes an item from the kit. There is always a telescope and an eyepiece, so the last
+   * of either stays. One in use is replaced by the first left, or by none for a Barlow or
+   * filter. Returns whether it was removed.
+   */
+  removeKitItem(kind: KitKind, id: string): boolean {
+    const left = (this.kit()[kind] as KitItem[]).filter((i) => i.id !== id);
+    if (left.length === 0 && (kind === 'telescopes' || kind === 'eyepieces')) return false;
+    const selection = { ...this.settings().kitSelection };
+    if (kind === 'telescopes' && selection.telescopeId === id) selection.telescopeId = left[0].id;
+    if (kind === 'eyepieces' && selection.eyepieceId === id) selection.eyepieceId = left[0].id;
+    if (kind === 'modifiers' && selection.modifierId === id) selection.modifierId = null;
+    if (kind === 'filters' && selection.filterId === id) selection.filterId = null;
+    this.kitStore.remove([id]);
+    this.updateSettings({ kitSelection: selection });
+    return true;
+  }
+
+  /** Puts a removed item back, and what was in use before, for Undo. */
+  restoreKitItem(kind: KitKind, item: KitItem, selection: KitSelection): void {
+    this.kitStore.save([{ ...item, kind }]);
+    this.updateSettings({ kitSelection: selection });
   }
 
   /** Where a target is right now from the user's location, to the second. */

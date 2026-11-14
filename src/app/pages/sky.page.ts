@@ -2,18 +2,7 @@ import { DecimalPipe } from '@angular/common';
 import type { AfterViewInit, ElementRef, OnDestroy } from '@angular/core';
 import { Component, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
-import {
-  IonButton,
-  IonChip,
-  IonContent,
-  IonFabButton,
-  IonIcon,
-  IonInput,
-  IonRange,
-  IonSelect,
-  IonSelectOption,
-  ToastController,
-} from '@ionic/angular';
+import { IonButton, IonChip, IonContent, IonFabButton, IonIcon, IonRange, ToastController } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
   add,
@@ -35,11 +24,11 @@ import {
   timeOutline,
   eyeOffOutline,
   locationOutline,
+  settingsOutline,
 } from 'ionicons/icons';
 
 import { APP_ICONS, isIconUrl } from '../core/app-icons';
 import { AppState } from '../core/app-state.service';
-import type { Settings } from '../core/app-state.service';
 import type { Horizontal, Vector3 } from '../core/astronomy';
 import {
   toApparent,
@@ -51,21 +40,18 @@ import {
   formatRa,
   horizontalVector,
   normalize,
-  magnification,
   rotateInView,
   separationDeg,
   stereographic,
   stereographicRadius,
   toViewCoordinates,
-  trueFieldDeg,
   viewBasis,
 } from '../core/astronomy';
 import type { ConstellationRow } from '../core/constellations';
 import { designationText, designations } from '../core/designations';
 import type { ComponentStar } from '../core/double-stars';
 import { doubleComponents, withoutDoubleCopies } from '../core/double-stars';
-import type { Equipment } from '../core/equipment';
-import { equipmentLabel, sameEquipment } from '../core/equipment';
+import { equipmentLabel, eyepieceLabel, modifierLabel, telescopeLabel } from '../core/equipment';
 import { FullscreenService } from '../core/fullscreen.service';
 import { LiveSolverService } from '../core/live-solver.service';
 import { LocalTimePipe } from '../core/local-time.pipe';
@@ -266,10 +252,7 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
     IonContent,
     IonFabButton,
     IonIcon,
-    IonInput,
     IonRange,
-    IonSelect,
-    IonSelectOption,
     TargetDetailsComponent,
   ],
   styles: `
@@ -464,6 +447,10 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
       display: flex;
       align-items: center;
       gap: 4px;
+    }
+    /* A button at the row's right end, such as the star limit's reset. */
+    .bar-row .end {
+      margin-left: auto;
     }
     .bar-text {
       flex: 1 1 auto;
@@ -772,6 +759,7 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
                   }}{{ isAutoStarLimit() ? ', your sky' : '' }}
                 </span>
                 <ion-button
+                  class="end"
                   fill="clear"
                   size="small"
                   data-testid="reset-star-limit"
@@ -798,70 +786,94 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
                 data-testid="equipment-toggle"
                 (click)="showEquipment.set(!showEquipment())"
               >
-                {{ equipmentLabel(state.settings()) }} · {{ power() | number: '1.0-0' }}× ·
+                {{ equipmentLabel(state.equipment()) }} · {{ power() | number: '1.0-0' }}× ·
                 {{ eyepieceField() | number: '1.1-2' }}° {{ showEquipment() ? '▴' : '▾' }}
               </button>
-              @if (showEquipment()) {
-                <div class="fields" data-testid="equipment-form">
-                  <ion-select
-                    class="wide"
-                    label="Telescope type"
-                    labelPlacement="stacked"
-                    interface="popover"
-                    [value]="state.settings().telescopeType"
-                    (ionChange)="state.updateSettings({ telescopeType: $any($event).detail.value })"
-                  >
-                    <ion-select-option value="newtonian">Newtonian</ion-select-option>
-                    <ion-select-option value="refractor">Refractor with diagonal</ion-select-option>
-                    <ion-select-option value="cassegrain">Cassegrain with diagonal</ion-select-option>
-                  </ion-select>
-                  <ion-input
-                    label="Aperture (mm)"
-                    labelPlacement="stacked"
-                    type="number"
-                    data-testid="aperture"
-                    [value]="state.settings().telescopeApertureMm"
-                    (ionChange)="setEquipmentNumber('telescopeApertureMm', $event, 20, 2000)"
-                  ></ion-input>
-                  <ion-input
-                    label="Focal length (mm)"
-                    labelPlacement="stacked"
-                    type="number"
-                    data-testid="telescope-focal"
-                    [value]="state.settings().telescopeFocalMm"
-                    (ionChange)="setEquipmentNumber('telescopeFocalMm', $event, 50, 10000)"
-                  ></ion-input>
-                  <ion-input
-                    label="Eyepiece (mm)"
-                    labelPlacement="stacked"
-                    type="number"
-                    data-testid="eyepiece-focal"
-                    [value]="state.settings().eyepieceFocalMm"
-                    (ionChange)="setEquipmentNumber('eyepieceFocalMm', $event, 2, 60)"
-                  ></ion-input>
-                  <ion-input
-                    label="Eyepiece field (°)"
-                    labelPlacement="stacked"
-                    type="number"
-                    data-testid="eyepiece-field"
-                    [value]="state.settings().eyepieceFieldDeg"
-                    (ionChange)="setEquipmentNumber('eyepieceFieldDeg', $event, 20, 120)"
-                  ></ion-input>
-                </div>
-              }
-              @if (state.settings().recentEquipment.length > 0) {
-                <div class="recent">
-                  @for (item of state.settings().recentEquipment; track $index) {
+              <!-- The eyepieces always show, since changing eyepiece is what happens most at the
+                   telescope. The rest of the kit shows when opened. All of it is set in Settings. -->
+              @let kit = state.kit();
+              @let ids = state.equipmentIds();
+              @if (showEquipment() && kit.telescopes.length > 1) {
+                <div class="recent" role="radiogroup" aria-label="Telescope">
+                  @for (item of kit.telescopes; track item.id) {
                     <ion-chip
-                      data-testid="recent-equipment"
-                      [outline]="!isCurrentEquipment(item)"
-                      [color]="isCurrentEquipment(item) ? 'primary' : 'medium'"
-                      (click)="state.applyEquipment(item)"
+                      data-testid="pick-telescope"
+                      role="radio"
+                      [attr.aria-checked]="item.id === ids.telescopeId"
+                      [outline]="item.id !== ids.telescopeId"
+                      [color]="item.id === ids.telescopeId ? 'primary' : 'medium'"
+                      (click)="state.selectKit({ telescopeId: item.id })"
+                      >{{ telescopeLabel(item) }}</ion-chip
                     >
-                      {{ equipmentLabel(item) }}
-                    </ion-chip>
                   }
                 </div>
+              }
+              <div class="recent" role="radiogroup" aria-label="Eyepiece">
+                @for (item of kit.eyepieces; track item.id) {
+                  <ion-chip
+                    data-testid="pick-eyepiece"
+                    role="radio"
+                    [attr.aria-checked]="item.id === ids.eyepieceId"
+                    [outline]="item.id !== ids.eyepieceId"
+                    [color]="item.id === ids.eyepieceId ? 'primary' : 'medium'"
+                    (click)="state.selectKit({ eyepieceId: item.id })"
+                    >{{ eyepieceLabel(item) }}</ion-chip
+                  >
+                }
+              </div>
+              @if (showEquipment()) {
+                @if (kit.modifiers.length > 0) {
+                  <div class="recent" role="radiogroup" aria-label="Barlow or reducer">
+                    <ion-chip
+                      data-testid="pick-modifier"
+                      role="radio"
+                      [attr.aria-checked]="!ids.modifierId"
+                      [outline]="!!ids.modifierId"
+                      [color]="!ids.modifierId ? 'primary' : 'medium'"
+                      (click)="state.selectKit({ modifierId: null })"
+                      >No Barlow</ion-chip
+                    >
+                    @for (item of kit.modifiers; track item.id) {
+                      <ion-chip
+                        data-testid="pick-modifier"
+                        role="radio"
+                        [attr.aria-checked]="item.id === ids.modifierId"
+                        [outline]="item.id !== ids.modifierId"
+                        [color]="item.id === ids.modifierId ? 'primary' : 'medium'"
+                        (click)="state.selectKit({ modifierId: item.id })"
+                        >{{ modifierLabel(item) }}</ion-chip
+                      >
+                    }
+                  </div>
+                }
+                @if (kit.filters.length > 0) {
+                  <div class="recent" role="radiogroup" aria-label="Filter">
+                    <ion-chip
+                      data-testid="pick-filter"
+                      role="radio"
+                      [attr.aria-checked]="!ids.filterId"
+                      [outline]="!!ids.filterId"
+                      [color]="!ids.filterId ? 'primary' : 'medium'"
+                      (click)="state.selectKit({ filterId: null })"
+                      >No filter</ion-chip
+                    >
+                    @for (item of kit.filters; track item.id) {
+                      <ion-chip
+                        data-testid="pick-filter"
+                        role="radio"
+                        [attr.aria-checked]="item.id === ids.filterId"
+                        [outline]="item.id !== ids.filterId"
+                        [color]="item.id === ids.filterId ? 'primary' : 'medium'"
+                        (click)="state.selectKit({ filterId: item.id })"
+                        >{{ item.name }}</ion-chip
+                      >
+                    }
+                  </div>
+                }
+                <ion-button fill="clear" size="small" data-testid="edit-equipment" (click)="editEquipment()">
+                  <ion-icon slot="start" name="settings-outline" aria-hidden="true"></ion-icon>
+                  Edit equipment
+                </ion-button>
               }
             </div>
           }
@@ -884,23 +896,23 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
                   </div>
                 </div>
                 <div class="bar-buttons">
-                  <!-- Logs the target as seen, filled in green once it is. Tapped again, opens the note. -->
+                  <!-- Opens the target's observations, or a blank one. Filled in green once there is any. -->
                   <span class="eye" data-testid="mark-seen-wrap">
                     <ion-button
                       fill="clear"
                       size="small"
                       data-testid="mark-seen"
-                      [class.seen]="!!seenTonight()"
+                      [class.seen]="observed()"
                       [attr.aria-label]="
-                        (seenTonight() ? 'Seen: open the note' : 'Mark as seen') +
+                        (observed() ? 'Observations' : 'Log an observation') +
                         (seenCount() > 1 ? ', seen ' + seenCount() + ' times' : '')
                       "
-                      (click)="markSeen(target)"
+                      (click)="openLog(target)"
                     >
                       <ion-icon
                         slot="icon-only"
                         aria-hidden="true"
-                        [name]="seenTonight() ? 'eye' : 'eye-outline'"
+                        [name]="observed() ? 'eye' : 'eye-outline'"
                       ></ion-icon>
                     </ion-button>
                     <!-- Seen more than once, on any night: how many times, on the eye's corner. -->
@@ -970,10 +982,10 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     return target ? this.log.timesSeen(target.id) : 0;
   });
   protected readonly countLabel = countLabel;
-  /** Tonight's log entry for the selected target, which fills in the seen button. */
-  protected readonly seenTonight = computed(() => {
+  /** Whether the selected target has any observation, on any night, which fills in the eye. */
+  protected readonly observed = computed(() => {
     const target = this.state.selectedTarget();
-    return target ? this.log.tonightEntry(target.id) : undefined;
+    return !!target && this.log.states().has(target.id);
   });
   /** The newest plate solve already given a toast, so each attempt gets at most one. */
   private lastToastedSolveId = this.liveSolver.log()[0]?.id ?? 0;
@@ -1038,17 +1050,15 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     return grid;
   });
   protected readonly equipmentLabel = equipmentLabel;
+  protected readonly telescopeLabel = telescopeLabel;
+  protected readonly eyepieceLabel = eyepieceLabel;
+  protected readonly modifierLabel = modifierLabel;
   protected readonly minStarLimit = MIN_STAR_LIMIT;
   protected readonly maxStarLimit = MAX_STAR_LIMIT;
   protected readonly isAutoStarLimit = computed(() => this.state.settings().eyepieceStarLimit === null);
 
-  protected readonly power = computed(() =>
-    magnification(this.state.settings().telescopeFocalMm, this.state.settings().eyepieceFocalMm),
-  );
-  protected readonly eyepieceField = computed(() => {
-    const { telescopeFocalMm, eyepieceFocalMm, eyepieceFieldDeg } = this.state.settings();
-    return trueFieldDeg(telescopeFocalMm, eyepieceFocalMm, eyepieceFieldDeg);
-  });
+  protected readonly power = this.state.power;
+  protected readonly eyepieceField = this.state.trueField;
 
   /** Width of sky shown, in degrees. The eyepiece shows a little around its circle. */
   protected readonly viewField = computed(() =>
@@ -1142,6 +1152,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       timeOutline,
       eyeOffOutline,
       locationOutline,
+      settingsOutline,
     });
     this.baseStarsLoaded = this.loadStars();
     // The faint stars are a large file, so they only load once the eyepiece view opens.
@@ -1237,22 +1248,9 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     this.state.updateSettings({ eyepieceStarLimit: null });
   }
 
-  protected isCurrentEquipment(item: Equipment): boolean {
-    return sameEquipment(item, this.state.settings());
-  }
-
-  /** Saves a number, ignoring values that are empty or outside the sensible range. */
-  protected setEquipmentNumber(
-    key: keyof Pick<Settings, 'telescopeApertureMm' | 'telescopeFocalMm' | 'eyepieceFocalMm' | 'eyepieceFieldDeg'>,
-    event: Event,
-    min: number,
-    max: number,
-  ): void {
-    const raw = (event as CustomEvent<{ value?: string | null }>).detail.value;
-    const value = Number(raw);
-    if (raw !== '' && raw != null && Number.isFinite(value) && value >= min && value <= max) {
-      this.state.updateSettings({ [key]: value });
-    }
+  /** Opens Settings at the equipment, to add or change what the eyepiece view picks from. */
+  protected editEquipment(): void {
+    void this.router.navigate(['/tabs/settings'], { fragment: 'equipment' });
   }
 
   protected toggleSensors(): void {
@@ -1264,12 +1262,9 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     void this.router.navigateByUrl('/align');
   }
 
-  /**
-   * Logs the target as seen now, with a toast to undo it or add a note. If it is already
-   * logged tonight, opens that entry's note instead, so a second tap never logs it twice.
-   */
-  protected markSeen(target: Target): Promise<void> {
-    return this.seenActions.markSeen(target);
+  /** Opens the target's observations: the newest, or a blank form for the first. */
+  protected openLog(target: Target): Promise<void> {
+    return this.seenActions.openLog(target.id);
   }
 
   protected clearTarget(): void {
@@ -1357,7 +1352,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
    */
   private imageFlip(): Point {
     if (this.mode() !== 'eyepiece') return { x: 1, y: 1 };
-    return { x: -1, y: this.state.settings().telescopeType === 'newtonian' ? -1 : 1 };
+    return { x: -1, y: this.state.equipment().telescopeType === 'newtonian' ? -1 : 1 };
   }
 
   private async loadStars(): Promise<void> {
@@ -1544,8 +1539,9 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     this.viewSpanPx = spanPx;
     this.queueSkyTurn(spanPx);
     const flip = this.imageFlip();
-    // Only the sky map turns with the phone. The eyepiece follows the telescope instead.
-    const rollDeg = isEyepiece ? 0 : this.state.viewRollDeg();
+    // Both views turn with the phone, so the horizon stays level with the real one. With
+    // the phone fixed to the tube, its turn is the tube's, which turns the eyepiece's image.
+    const rollDeg = this.state.viewRollDeg();
 
     // Pixels per projected unit, so the chosen field fits the span laid out for it.
     const scale = spanPx / 2 / stereographicRadius(this.viewField() / 2);
@@ -2034,7 +2030,8 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   /**
    * In the eyepiece view, chevrons just outside the eyepiece circle show which way to move
    * the tube, until the target comes into the field. They ignore the image turn or mirror
-   * of the telescope on purpose: up always means raise the tube, like the bottom bar says.
+   * of the telescope on purpose, so they point the way to move the tube, like the bottom bar
+   * says. They turn with the phone, as the view does, so up stays towards the real sky.
    */
   private drawEyepieceGuide(ctx: CanvasRenderingContext2D, width: number, centreY: number, scale: number): void {
     const target = this.state.selectedTarget();
@@ -2047,7 +2044,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       return;
     }
     const [x, y] = toViewCoordinates(viewBasis(pointing), horizontalVector(position));
-    const angle = (guideAngleDeg(x, y, 1, 1, 0) * Math.PI) / 180;
+    const angle = (guideAngleDeg(x, y, 1, 1, this.state.viewRollDeg()) * Math.PI) / 180;
     canvas.dataset['guideAngle'] = String(Math.round((angle * 180) / Math.PI));
 
     const radius = stereographicRadius(this.eyepieceField() / 2) * scale + 8;

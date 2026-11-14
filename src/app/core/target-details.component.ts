@@ -16,7 +16,7 @@ import {
 
 import { APP_ICONS } from './app-icons';
 import { AppState } from './app-state.service';
-import { compassShort, formatDec, formatRa, magnification, sunAltitudeDeg, trueFieldDeg } from './astronomy';
+import { compassShort, formatDec, formatRa, sunAltitudeDeg } from './astronomy';
 import type { BodyFacts } from './body-facts';
 import { bodyFacts, discText, distanceText, lightTimeText } from './body-facts';
 import { designations } from './designations';
@@ -422,13 +422,8 @@ export class TargetDetailsComponent {
     });
   }
 
-  private readonly power = computed(() =>
-    magnification(this.state.settings().telescopeFocalMm, this.state.settings().eyepieceFocalMm),
-  );
-  private readonly fieldDeg = computed(() => {
-    const { telescopeFocalMm, eyepieceFocalMm, eyepieceFieldDeg } = this.state.settings();
-    return trueFieldDeg(telescopeFocalMm, eyepieceFocalMm, eyepieceFieldDeg);
-  });
+  private readonly power = this.state.power;
+  private readonly fieldDeg = this.state.trueField;
 
   /** For the Moon and planets: distance, disc, light. They change with the minute clock. */
   protected readonly facts = computed(() => {
@@ -525,7 +520,7 @@ export class TargetDetailsComponent {
     const target = this.target();
     const double = target.double;
     if (!double) return null;
-    const { telescopeApertureMm } = this.state.settings();
+    const { telescopeApertureMm } = this.state.equipment();
     const [mainBv, companionBv] = pairBv(double.spectral);
     // A named star's own colour index is better than one from its spectral type.
     const [main, companion] = [target.bv ?? mainBv, companionBv].map((value) =>

@@ -187,11 +187,7 @@ test('saves a bookmark to Saved for later, or to a new list', async ({ page }) =
 });
 
 test('keeps the bookmarks of the old session plan', async ({ page }) => {
-  await page.addInitScript(() => {
-    if (!localStorage.getItem('astrofinder.lists')) {
-      localStorage.setItem('astrofinder.plan', JSON.stringify({ ids: ['M42'] }));
-    }
-  });
+  await page.addInitScript(() => localStorage.setItem('astrofinder.plan', JSON.stringify({ ids: ['M42'] })));
   await page.goto('/tabs/plan');
   await expect(listLink(page, 'Saved for later').locator('ion-badge')).toHaveText('1');
 });

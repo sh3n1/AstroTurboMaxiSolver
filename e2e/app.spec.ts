@@ -507,17 +507,78 @@ test('sets star visibility and equipment in the eyepiece view', async ({ page })
   await page.locator('[data-testid=reset-star-limit]').click();
   await expect(label).toContainText('12.1');
 
-  // A bigger aperture shows fainter stars, and both combinations are remembered.
+  // The equipment is set in Settings: a bigger telescope, a shorter eyepiece and a Barlow.
   await page.locator('[data-testid=equipment-toggle]').click();
-  const aperture = page.locator('[data-testid=aperture] input:not([disabled])');
-  await aperture.fill('200');
-  await aperture.blur();
-  await expect(label).toContainText('13.1');
-  await expect(page.locator('[data-testid=recent-equipment]')).toHaveCount(2);
+  await page.getByTestId('edit-equipment').click();
+  const editor = page.locator('ion-modal app-equipment-editor');
+  const fill = async (field: string, value: string) => {
+    const input = editor.locator(`[data-testid=${field}] input`);
+    await input.fill(value);
+  };
+  await page.getByTestId('kit-add-telescopes').click();
+  await fill('kit-aperture', '200');
+  await fill('kit-focal', '1000');
+  await editor.getByTestId('kit-save').click();
+  await expect(editor).toHaveCount(0);
+  await page.getByTestId('kit-add-eyepieces').click();
+  // A number outside the sensible range is refused, with the reason.
+  await fill('kit-focal', '500');
+  await editor.getByTestId('kit-save').click();
+  await expect(editor.getByTestId('kit-error')).toContainText('2 to 60');
+  await fill('kit-focal', '10');
+  await editor.getByTestId('kit-save').click();
+  await page.getByTestId('kit-add-modifiers').click();
+  await editor.getByTestId('kit-save').click();
+  const items = page.getByTestId('kit-item');
+  await expect(items).toHaveCount(5);
+  await expect(items.filter({ hasText: '2× Barlow' })).toHaveCount(1);
 
-  // One tap returns to the earlier combination.
-  await page.locator('[data-testid=recent-equipment]', { hasText: '130/650' }).click();
+  // The eyepiece view picks from it. A bigger aperture shows fainter stars.
+  await page.getByRole('tab', { name: 'Sky', exact: true }).click();
+  const toggle = page.getByTestId('equipment-toggle');
+  await page.getByTestId('pick-telescope').filter({ hasText: '200/1000' }).click();
+  await expect(label).toContainText('13.1');
+  await page.getByTestId('pick-eyepiece').filter({ hasText: '10 mm' }).click();
+  await expect(toggle).toContainText('100×');
+  await page.getByTestId('pick-modifier').filter({ hasText: '2× Barlow' }).click();
+  await expect(toggle).toContainText('200/1000 · 10 mm · 2× Barlow · 200×');
+
+  // Deleting the telescope in use goes back to the first, and Undo brings it back.
+  await page.getByRole('tab', { name: 'Settings', exact: true }).click();
+  await page.getByRole('button', { name: 'Delete 200/1000' }).click();
+  await page.getByRole('tab', { name: 'Sky', exact: true }).click();
   await expect(label).toContainText('12.1');
+  await page.getByRole('tab', { name: 'Settings', exact: true }).click();
+  await page.getByTestId('kit-deleted-toast').getByRole('button', { name: 'Undo' }).click();
+  await page.getByRole('tab', { name: 'Sky', exact: true }).click();
+  await expect(label).toContainText('13.1');
+});
+
+test('turns the telescope and eyepieces saved before the kit existed into its first items', async ({ page }) => {
+  // Settings as an early version saved them, before the app first starts.
+  await page.addInitScript(() => {
+    if (sessionStorage.getItem('seeded')) return;
+    sessionStorage.setItem('seeded', '1');
+    const old = { telescopeType: 'refractor', telescopeFocalMm: 900, telescopeApertureMm: 102, eyepieceFieldDeg: 52 };
+    localStorage.setItem(
+      'astrofinder.settings',
+      JSON.stringify({ ...old, eyepieceFocalMm: 10, recentEquipment: [{ ...old, eyepieceFocalMm: 25 }] }),
+    );
+  });
+  await page.goto('/tabs/settings');
+  await expect(page.getByTestId('kit-item')).toHaveText([/102\/900/, /25 mm/, /10 mm/]);
+  await page.getByRole('tab', { name: 'Sky', exact: true }).click();
+  await page.locator('[data-testid=view-mode]').click();
+  await expect(page.getByTestId('equipment-toggle')).toContainText('102/900 · 10 mm · 90×');
+
+  // The kit is now in the database, and the settings keep only what is in use, by UUID.
+  const settings = await page.evaluate(() => JSON.parse(localStorage.getItem('astrofinder.settings')!));
+  expect(settings.kit).toBeUndefined();
+  expect(settings.telescopeFocalMm).toBeUndefined();
+  expect(settings.kitSelection.telescopeId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-/);
+  await page.reload();
+  await page.locator('[data-testid=view-mode]').click();
+  await expect(page.getByTestId('equipment-toggle')).toContainText('102/900 · 10 mm · 90×');
 });
 
 test('sets sky darkness in Settings, which changes the eyepiece view', async ({ page }) => {

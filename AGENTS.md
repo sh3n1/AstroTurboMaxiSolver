@@ -65,6 +65,7 @@ Before finishing a change, run: `npm run lint`, `npm run test:unit` and `npm run
 
 - Camera and motion sensor APIs need a secure context, so deployed builds must be served over HTTPS.
 - Offline behaviour: The app should be able to run offline
+- User data: the log, lists and equipment kit are in IndexedDB through Dexie, as sync-ready records with UUID ids, device id, timestamps, revision, hash and tombstones. Settings for this device stay in localStorage. Read `docs/local-data.md` before adding anything that is saved.
 - Star catalogue or index storage and size limits: TODO
 - Permission handling for camera, motion and location: TODO
 

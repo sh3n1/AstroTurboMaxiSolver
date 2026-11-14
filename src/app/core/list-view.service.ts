@@ -8,6 +8,7 @@ import { PAGE_SIZE, SORTS, SORT_LABELS, arrange, bestMatch, firstRows, matchesTy
 import { LocalTimePipe } from './local-time.pipe';
 import { ObservingLogService } from './observing-log.service';
 import { isExactDesignation, normalizeSearch, targetSearchText } from './search';
+import { listUuid } from './storage-migration';
 import type { ListedTarget } from './target-lists';
 import { TonightService } from './tonight.service';
 
@@ -40,9 +41,19 @@ export interface ActiveFilter {
   label: string;
 }
 
+/**
+ * The order chosen for each list, by the list's id. The user's lists had other ids before
+ * they were UUIDs, so those are turned into theirs. The app's own lists keep their names.
+ */
 function loadSorts(): Record<string, SortId> {
   try {
-    return JSON.parse(localStorage.getItem(SORTS_KEY) ?? '{}') as Record<string, SortId>;
+    const saved = JSON.parse(localStorage.getItem(SORTS_KEY) ?? '{}') as Record<string, SortId>;
+    return Object.fromEntries(
+      Object.entries(saved).map(([key, sort]) => [
+        key === 'uncategorized' || key.startsWith('list-') ? listUuid(key) : key,
+        sort,
+      ]),
+    );
   } catch {
     // Browser storage can be blocked or damaged. Every list then starts in its own order.
     return {};

@@ -28,7 +28,7 @@ export class SeenActionsService {
   async markSeen(target: Target, from: 'map' | 'list' = 'map'): Promise<void> {
     const logged = this.log.tonightEntry(target.id);
     if (logged) {
-      await this.openEntry(logged.id);
+      await this.openLog(target.id, logged.id);
       return;
     }
     const entry = this.log.log(target);
@@ -41,17 +41,20 @@ export class SeenActionsService {
       htmlAttributes: { 'data-testid': 'seen-toast' },
       buttons: [
         { text: 'Undo', handler: () => this.log.remove(entry.id) },
-        { text: 'Note', handler: () => void this.openEntry(entry.id) },
+        { text: 'Note', handler: () => void this.openLog(target.id, entry.id) },
       ],
     });
     await toast.present();
   }
 
-  /** Opens a log entry's note sheet. */
-  async openEntry(entryId: string): Promise<void> {
+  /**
+   * Opens a target's observations: on the entry given, else the newest, else a blank form
+   * for the first one.
+   */
+  async openLog(targetId: string, entryId?: string): Promise<void> {
     const sheet = await this.modals.create({
       component: LogEntrySheetComponent,
-      componentProps: { entryId },
+      componentProps: { targetId, entryId },
       breakpoints: [0, 0.75, 1],
       initialBreakpoint: 0.75,
     });

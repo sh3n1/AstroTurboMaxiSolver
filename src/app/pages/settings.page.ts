@@ -1,6 +1,6 @@
 import { DecimalPipe } from '@angular/common';
 import { Component, computed, inject, isDevMode, signal } from '@angular/core';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import {
   IonBadge,
   IonButton,
@@ -9,6 +9,7 @@ import {
   IonIcon,
   IonInput,
   IonItem,
+  IonItemDivider,
   IonLabel,
   IonList,
   IonListHeader,
@@ -19,15 +20,19 @@ import {
   IonTitle,
   IonToggle,
   IonToolbar,
+  ModalController,
+  ToastController,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
+  add,
   apertureOutline,
   bluetoothOutline,
   cameraOutline,
   chatbubbleEllipsesOutline,
   chevronDown,
   chevronUp,
+  createOutline,
   desktopOutline,
   flaskOutline,
   globeOutline,
@@ -42,12 +47,17 @@ import {
   phonePortraitOutline,
   volumeLowOutline,
   textOutline,
+  trashOutline,
 } from 'ionicons/icons';
 
 import { APP_ICONS } from '../core/app-icons';
 import { AppState } from '../core/app-state.service';
 import type { Settings } from '../core/app-state.service';
 import { formatLocation } from '../core/astronomy';
+import type { KitItem, KitKind } from '../core/equipment';
+import { kitItemDetail, kitItemLabel } from '../core/equipment';
+import { EquipmentEditorComponent } from '../core/equipment-editor.component';
+import { listToastPlace } from '../core/list-toast';
 import { LiveSolverService } from '../core/live-solver.service';
 import { LocalTimePipe } from '../core/local-time.pipe';
 import { ScreenWakeService } from '../core/screen-wake.service';
@@ -73,6 +83,7 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
     IonIcon,
     IonInput,
     IonItem,
+    IonItemDivider,
     IonLabel,
     IonList,
     IonListHeader,
@@ -233,6 +244,50 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
           </ion-list>
           <p class="section-note">Bortle: 1 dark site · 5 suburbs · 9 city centre</p>
         </div>
+
+        <!-- The user's equipment, which the eyepiece view picks from. -->
+        <ion-list inset="true" id="equipment" data-testid="equipment">
+          <ion-list-header>Equipment</ion-list-header>
+          @for (group of kitGroups; track group.kind) {
+            <ion-item-divider>{{ group.title }}</ion-item-divider>
+            @let items = kitItems(group.kind);
+            @for (item of items; track item.id) {
+              <ion-item data-testid="kit-item">
+                <ion-label class="ion-text-wrap">
+                  <h2>{{ itemLabel(group.kind, item) }}</h2>
+                  @if (itemDetail(group.kind, item); as detail) {
+                    <p>{{ detail }}</p>
+                  }
+                </ion-label>
+                <ion-button
+                  slot="end"
+                  fill="clear"
+                  data-testid="kit-edit"
+                  [attr.aria-label]="'Edit ' + itemLabel(group.kind, item)"
+                  (click)="editKit(group.kind, item)"
+                >
+                  <ion-icon slot="icon-only" name="create-outline" aria-hidden="true"></ion-icon>
+                </ion-button>
+                <!-- In plain sight. The last telescope or eyepiece stays: the views need one. -->
+                <ion-button
+                  slot="end"
+                  fill="clear"
+                  color="danger"
+                  data-testid="kit-delete"
+                  [attr.aria-label]="'Delete ' + itemLabel(group.kind, item)"
+                  [disabled]="group.required && items.length === 1"
+                  (click)="removeKit(group.kind, item)"
+                >
+                  <ion-icon slot="icon-only" name="trash-outline" aria-hidden="true"></ion-icon>
+                </ion-button>
+              </ion-item>
+            }
+            <ion-item button detail="false" [attr.data-testid]="'kit-add-' + group.kind" (click)="editKit(group.kind)">
+              <ion-icon slot="start" name="add" aria-hidden="true"></ion-icon>
+              <ion-label>Add</ion-label>
+            </ion-item>
+          }
+        </ion-list>
 
         <!-- How the phone sits on the telescope, and how it finds where it points. -->
         <ion-list inset="true">
@@ -527,6 +582,11 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
               >Planets, Pluto, Moon and sky positions by Astronomy Engine, Don Cross.</ion-label
             >
           </ion-item>
+          <ion-item>
+            <ion-label class="ion-text-wrap credit"
+              >Log and lists saved with Dexie.js, David Fahlander, Apache License 2.0.</ion-label
+            >
+          </ion-item>
           <ion-item lines="none" data-testid="credit-jpl">
             <ion-label class="ion-text-wrap credit"
               >Orbits of Ceres, Vesta, Pallas and Juno from the NASA/JPL Small-Body Database.</ion-label
@@ -550,6 +610,19 @@ export class SettingsPage {
   protected readonly appIcons = APP_ICONS;
   protected readonly gpsMessage = signal('');
   protected readonly bortleClasses = BORTLE_CLASSES;
+  private readonly route = inject(ActivatedRoute);
+  private readonly modals = inject(ModalController);
+  private readonly toasts = inject(ToastController);
+
+  /** The kinds of equipment, in the order a setup is put together. */
+  protected readonly kitGroups: readonly { kind: KitKind; title: string; required: boolean }[] = [
+    { kind: 'telescopes', title: 'Telescopes', required: true },
+    { kind: 'eyepieces', title: 'Eyepieces', required: true },
+    { kind: 'modifiers', title: 'Barlows and reducers', required: false },
+    { kind: 'filters', title: 'Filters', required: false },
+  ];
+  protected readonly itemLabel = kitItemLabel;
+  protected readonly itemDetail = kitItemDetail;
 
   /** The location in words, or a warning that the sky is shown for a neutral place. */
   protected readonly locationText = computed(() => {
@@ -557,8 +630,45 @@ export class SettingsPage {
     return locationSet ? formatLocation(latitudeDeg, longitudeDeg) : 'Not set. Use GPS or enter it below.';
   });
 
+  /** Opened from the eyepiece view's Edit equipment: scrolls to the equipment. */
+  ionViewDidEnter(): void {
+    if (this.route.snapshot.fragment === 'equipment') {
+      document.getElementById('equipment')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  protected kitItems(kind: KitKind): readonly KitItem[] {
+    return this.state.kit()[kind];
+  }
+
+  /** Adds an item, or changes one, in a sheet. Saved only when the sheet's tick is tapped. */
+  protected async editKit(kind: KitKind, item?: KitItem): Promise<void> {
+    const sheet = await this.modals.create({ component: EquipmentEditorComponent, componentProps: { kind, item } });
+    await sheet.present();
+    const { data, role } = await sheet.onWillDismiss<KitItem>();
+    if (role === 'save' && data) this.state.saveKitItem(kind, data);
+  }
+
+  /** Deletes an item at once, with Undo in the message, which puts the kit back as it was. */
+  protected async removeKit(kind: KitKind, item: KitItem): Promise<void> {
+    const { kitSelection } = this.settings();
+    if (!this.state.removeKitItem(kind, item.id)) return;
+    const toast = await this.toasts.create({
+      message: `Deleted ${kitItemLabel(kind, item)}`,
+      duration: 5000,
+      ...listToastPlace(),
+      cssClass: 'af-toast',
+      htmlAttributes: { 'data-testid': 'kit-deleted-toast' },
+      buttons: [{ text: 'Undo', handler: () => this.state.restoreKitItem(kind, item, kitSelection) }],
+    });
+    await toast.present();
+  }
+
   constructor() {
     addIcons({
+      add,
+      createOutline,
+      trashOutline,
       apertureOutline,
       bluetoothOutline,
       cameraOutline,

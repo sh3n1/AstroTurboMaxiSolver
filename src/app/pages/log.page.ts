@@ -17,7 +17,6 @@ import {
   IonText,
   IonTitle,
   IonToolbar,
-  ModalController,
   ToastController,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
@@ -25,11 +24,11 @@ import { folderOpenOutline, saveOutline, swapVerticalOutline } from 'ionicons/ic
 
 import { equipmentLabel } from '../core/equipment';
 import { LocalTimePipe } from '../core/local-time.pipe';
-import { LogEntrySheetComponent } from '../core/log-entry-sheet.component';
 import type { LogEntry, LogNight } from '../core/observing-log';
 import { RATINGS, entryMatches, groupByNight, logTotals, wasSeen } from '../core/observing-log';
 import { ObservingLogService } from '../core/observing-log.service';
 import { normalizeSearch } from '../core/search';
+import { SeenActionsService } from '../core/seen-actions.service';
 
 /** A night's date, short, in the phone's language: "Thu 12 Nov". */
 const NIGHT_DATE = new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
@@ -185,7 +184,7 @@ const NIGHT_DATE_YEAR = new Intl.DateTimeFormat(undefined, {
 })
 export class LogPage {
   protected readonly log = inject(ObservingLogService);
-  private readonly modals = inject(ModalController);
+  private readonly seenActions = inject(SeenActionsService);
   private readonly actionSheets = inject(ActionSheetController);
   private readonly toasts = inject(ToastController);
   private readonly fileInput = viewChild.required<ElementRef<HTMLInputElement>>('fileInput');
@@ -221,14 +220,9 @@ export class LogPage {
     return `Bortle ${first.bortle} · ${moon} · ${equipmentLabel(first.equipment)}`;
   }
 
-  protected async openEntry(entry: LogEntry): Promise<void> {
-    const sheet = await this.modals.create({
-      component: LogEntrySheetComponent,
-      componentProps: { entryId: entry.id },
-      breakpoints: [0, 0.75, 1],
-      initialBreakpoint: 0.75,
-    });
-    await sheet.present();
+  /** Opens the entry, among the target's other observations. */
+  protected openEntry(entry: LogEntry): Promise<void> {
+    return this.seenActions.openLog(entry.targetId, entry.id);
   }
 
   /** Export as a spreadsheet or a backup, or import a backup. */
