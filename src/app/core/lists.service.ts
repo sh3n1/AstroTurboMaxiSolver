@@ -1,4 +1,4 @@
-import { Injectable, computed, effect, inject, signal } from '@angular/core';
+import { Injectable, computed, inject } from '@angular/core';
 
 import { AL_URBAN } from './al-urban';
 import { apparentMagnitude } from './alignment';
@@ -8,6 +8,7 @@ import { equatorialVector } from './astronomy';
 import { HERSCHEL_400, HERSCHEL_II } from './herschel';
 import type { Month } from './hubble-night-sky-challenge';
 import { HUBBLE_NIGHT_SKY_CHALLENGE } from './hubble-night-sky-challenge';
+import { LocalDb } from './local-db';
 import { LocalTimePipe } from './local-time.pipe';
 import { RASC_DEEP_SKY_GEMS } from './rasc-deep-sky-gems';
 import { RASC_EXPLORE_THE_UNIVERSE } from './rasc-explore-universe';
@@ -16,7 +17,8 @@ import { insideReticle } from './reticle';
 import type { SkyItem } from './reticle';
 import { SAC_110 } from './sac-110';
 import { recommendationLimit } from './sky-quality';
-import type { FixedListId, ListedTarget, TargetList } from './target-lists';
+import { SyncedStore } from './synced-store';
+import type { FixedListId, ListItem, ListRecord, ListedTarget, TargetList } from './target-lists';
 import {
   FIXED_LISTS,
   UNCATEGORIZED_ID,
@@ -26,16 +28,12 @@ import {
   listRows,
   exportFileName,
   exportLists,
+  listItemId,
   newListId,
   parseImport,
-  startingLists,
   uniqueName,
 } from './target-lists';
 import type { Target } from './targets';
-
-const LISTS_KEY = 'astrofinder.lists';
-/** Where the old session plan kept its bookmarks. They move into Saved for later. */
-const OLD_PLAN_KEY = 'astrofinder.plan';
 
 // The best right now: objects well up in the sky at this moment, brightest first.
 const GOOD_ALTITUDE_DEG = 30;
@@ -55,33 +53,57 @@ export interface ListView {
   targets: ListedTarget[];
 }
 
-/** Loads the saved lists, or starts new ones from the old session plan. */
-function loadLists(): TargetList[] {
-  try {
-    const stored = localStorage.getItem(LISTS_KEY);
-    if (stored) {
-      // The first list was once called Uncategorized: it always takes its current name.
-      const lists = (JSON.parse(stored) as TargetList[]).map((l) =>
-        l.id === UNCATEGORIZED_ID ? { ...l, name: UNCATEGORIZED_NAME } : l,
-      );
-      // It must always exist, even if the saved data lost it.
-      return lists.some((l) => l.id === UNCATEGORIZED_ID) ? lists : [...startingLists(), ...lists];
-    }
-    const oldPlan = localStorage.getItem(OLD_PLAN_KEY);
-    return startingLists(oldPlan ? (JSON.parse(oldPlan) as { ids: string[] }).ids : []);
-  } catch {
-    // Browser storage can be blocked or damaged. The app still works, just without saving.
-    return startingLists();
-  }
-}
-
-/** The bookmark lists: the app's fixed ones, and the user's own, saved on this device. */
+/**
+ * The bookmark lists: the app's fixed ones, and the user's own, saved in the device's
+ * database. A list's name is one record, and each of its targets another.
+ */
 @Injectable({ providedIn: 'root' })
 export class ListsService {
   private readonly state = inject(AppState);
+  private readonly localDb = inject(LocalDb);
 
-  /** The lists the user can edit, Saved for later first. */
-  readonly editableLists = signal<TargetList[]>(loadLists());
+  private readonly listStore = new SyncedStore<ListRecord>(
+    this.localDb,
+    (db) => db.lists,
+    (old) => old.lists,
+  );
+  private readonly itemStore = new SyncedStore<ListItem>(
+    this.localDb,
+    (db) => db.listItems,
+    (old) => old.listItems,
+  );
+
+  /** Resolves once the saved lists are read. The app waits for it before it starts. */
+  readonly ready = Promise.all([this.listStore.load(), this.itemStore.load()]).then(() => {
+    // Saved for later must always exist, even if the saved data lost it.
+    if (!this.listStore.get(UNCATEGORIZED_ID))
+      this.listStore.save([{ id: UNCATEGORIZED_ID, name: UNCATEGORIZED_NAME }]);
+  });
+
+  /** Each list's items, in their order. */
+  private readonly itemsByList = computed(() => {
+    const byList = new Map<string, ListItem[]>();
+    for (const item of this.itemStore.items()) byList.set(item.listId, [...(byList.get(item.listId) ?? []), item]);
+    for (const items of byList.values()) items.sort((a, b) => a.position - b.position);
+    return byList;
+  });
+
+  /**
+   * The lists the user can edit, Saved for later first, then in the order they were made.
+   * Saved for later always takes its current name: it was once called Uncategorized.
+   */
+  readonly editableLists = computed<TargetList[]>(() => {
+    const itemsByList = this.itemsByList();
+    return [...this.listStore.records()]
+      .sort(
+        (a, b) => Number(b.id === UNCATEGORIZED_ID) - Number(a.id === UNCATEGORIZED_ID) || a.createdAt - b.createdAt,
+      )
+      .map(({ id, name }) => ({
+        id,
+        name: id === UNCATEGORIZED_ID ? UNCATEGORIZED_NAME : name,
+        targetIds: (itemsByList.get(id) ?? []).map((item) => item.targetId),
+      }));
+  });
 
   // Stars are mainly useful for alignment, so they are left out. The brightest first,
   // counting the dimming near the horizon, because faint objects are hard to see from a city.
@@ -89,8 +111,7 @@ export class ListsService {
   private readonly bestNow = computed(() => {
     const time = this.state.now();
     // As faint as the user's sky and telescope can show, so a dark site gets more.
-    const { bortle, telescopeApertureMm } = this.state.settings();
-    const limit = recommendationLimit(bortle, telescopeApertureMm);
+    const limit = recommendationLimit(this.state.settings().bortle, this.state.equipment().telescopeApertureMm);
     return this.state
       .targets()
       .filter((target) => target.kind !== 'Star' && target.mag <= limit)
@@ -212,16 +233,6 @@ export class ListsService {
     }));
   });
 
-  constructor() {
-    effect(() => {
-      try {
-        localStorage.setItem(LISTS_KEY, JSON.stringify(this.editableLists()));
-      } catch {
-        // Not saving is acceptable. The lists still work until the app closes.
-      }
-    });
-  }
-
   /** Any list, fixed or the user's, by id. */
   list(id: string): ListView | undefined {
     return [...this.fixedLists(), ...this.userLists()].find((l) => l.id === id);
@@ -238,9 +249,16 @@ export class ListsService {
       ?.targetIds.includes(targetId);
   }
 
-  /** Adds a target to a list, or takes it out if it is already there. */
+  /** Adds a target to the end of a list, or takes it out if it is already there. */
   toggle(listId: string, targetId: string): void {
-    this.update(listId, (ids) => (ids.includes(targetId) ? ids.filter((i) => i !== targetId) : [...ids, targetId]));
+    const items = this.itemsByList().get(listId) ?? [];
+    const id = listItemId(listId, targetId);
+    if (items.some((item) => item.id === id)) {
+      this.itemStore.remove([id]);
+    } else {
+      const position = Math.max(-1, ...items.map((item) => item.position)) + 1;
+      this.itemStore.save([{ id, listId, targetId, position }]);
+    }
   }
 
   /** A list's target ids as saved, in order, to put back after a change is undone. */
@@ -248,15 +266,24 @@ export class ListsService {
     return [...(this.editableLists().find((l) => l.id === listId)?.targetIds ?? [])];
   }
 
-  /** Sets a list's targets, in order: for reordering by hand, and for undoing a removal. */
+  /**
+   * Sets a list's targets, in order: for reordering by hand, and for undoing a removal.
+   * Only the targets that come, go or move are written.
+   */
   setTargets(listId: string, targetIds: readonly string[]): void {
-    this.update(listId, () => [...targetIds]);
+    const wanted = [...new Set(targetIds)];
+    const gone = (this.itemsByList().get(listId) ?? []).filter((item) => !wanted.includes(item.targetId));
+    this.itemStore.remove(gone.map((item) => item.id));
+    this.itemStore.save(
+      wanted.map((targetId, position) => ({ id: listItemId(listId, targetId), listId, targetId, position })),
+    );
   }
 
-  /** Makes a new, empty list and returns its id. Names are kept unique. */
-  create(name: string): string {
+  /** Makes a new list and returns its id. Names are kept unique. */
+  create(name: string, targetIds: readonly string[] = []): string {
     const id = newListId();
-    this.editableLists.update((lists) => [...lists, { id, name: this.freeName(name), targetIds: [] }]);
+    this.listStore.save([{ id, name: this.freeName(name) }]);
+    this.setTargets(id, targetIds);
     return id;
   }
 
@@ -268,13 +295,14 @@ export class ListsService {
       name,
       others.map((l) => l.name),
     );
-    this.editableLists.update((lists) => lists.map((l) => (l.id === listId ? { ...l, name: unique } : l)));
+    if (this.listStore.get(listId)) this.listStore.save([{ id: listId, name: unique }]);
   }
 
-  /** Deletes one of the user's lists. Saved for later always stays. */
+  /** Deletes one of the user's lists and its targets. Saved for later always stays. */
   delete(listId: string): void {
     if (listId === UNCATEGORIZED_ID) return;
-    this.editableLists.update((lists) => lists.filter((l) => l.id !== listId));
+    this.itemStore.remove((this.itemsByList().get(listId) ?? []).map((item) => item.id));
+    this.listStore.remove([listId]);
   }
 
   /**
@@ -283,10 +311,7 @@ export class ListsService {
    */
   import(text: string): number {
     const imported = parseImport(text);
-    for (const { name, targetIds } of imported) {
-      const id = newListId();
-      this.editableLists.update((lists) => [...lists, { id, name: this.freeName(name), targetIds }]);
-    }
+    for (const { name, targetIds } of imported) this.create(name, targetIds);
     return imported.length;
   }
 
@@ -337,12 +362,6 @@ export class ListsService {
     link.click();
     // Give the browser a moment to start the download before freeing the file.
     setTimeout(() => URL.revokeObjectURL(url), 10_000);
-  }
-
-  private update(listId: string, change: (ids: string[]) => string[]): void {
-    this.editableLists.update((lists) =>
-      lists.map((l) => (l.id === listId ? { ...l, targetIds: change(l.targetIds) } : l)),
-    );
   }
 
   private freeName(name: string): string {

@@ -3,6 +3,7 @@
 
 import { APP_ICONS } from './app-icons';
 import { designations } from './designations';
+import { nameUuid, newUuid } from './sync-record';
 import type { Target } from './targets';
 
 /** A list the user can edit. Targets are kept by id, such as "M31" or "NGC 7000". */
@@ -12,8 +13,36 @@ export interface TargetList {
   targetIds: string[];
 }
 
-/** The list every bookmark goes to unless the user picks another. It can't be deleted. */
-export const UNCATEGORIZED_ID = 'uncategorized';
+/**
+ * A list as saved on the device: its name only. Its targets are saved one record each
+ * (ListItem), so that a sync can merge two phones that bookmarked different targets in the
+ * same list, rather than one phone's whole list replacing the other's.
+ */
+export interface ListRecord {
+  id: string;
+  name: string;
+}
+
+/** One target in one list, as saved. */
+export interface ListItem {
+  /** Made from the list and the target (listItemId), so the same bookmark is one record on every device. */
+  id: string;
+  listId: string;
+  targetId: string;
+  /** Where it goes in the list: rows are shown from the smallest number up. Gaps don't matter. */
+  position: number;
+}
+
+/** The id of a target's place in a list. The same on every device, which a sync relies on. */
+export function listItemId(listId: string, targetId: string): string {
+  return nameUuid(`astrofinder/list-item/${listId}/${targetId}`);
+}
+
+/**
+ * The list every bookmark goes to unless the user picks another. It can't be deleted.
+ * Its id is made from a name, so it is the same list on every device.
+ */
+export const UNCATEGORIZED_ID = nameUuid('astrofinder/list/saved-for-later');
 /** Its name, which the user can't change: where a bookmark waits until it is sorted or seen. */
 export const UNCATEGORIZED_NAME = 'Saved for later';
 
@@ -146,9 +175,9 @@ export function startingLists(oldPlanIds: readonly string[] = []): TargetList[] 
   return [{ id: UNCATEGORIZED_ID, name: UNCATEGORIZED_NAME, targetIds: [...oldPlanIds] }];
 }
 
-/** A new, unique id for a list. */
+/** A new id for a list, unique across devices. */
 export function newListId(): string {
-  return `list-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+  return newUuid();
 }
 
 /** The name, or the name with a number after it if a list already has it: "Galaxies (2)". */

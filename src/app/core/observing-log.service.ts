@@ -1,9 +1,9 @@
-import { Injectable, computed, effect, inject, signal } from '@angular/core';
+import { Injectable, computed, inject } from '@angular/core';
 
 import { AppState } from './app-state.service';
 import { skyConditions } from './astronomy';
-import { pickEquipment } from './equipment';
-import type { LogEntry } from './observing-log';
+import { LocalDb } from './local-db';
+import type { LogConditions, LogEntry } from './observing-log';
 import {
   exportLogCsv,
   exportLogJson,
@@ -15,30 +15,30 @@ import {
   seenStates,
   seenCounts,
 } from './observing-log';
+import { logEntryUuid } from './storage-migration';
+import { SyncedStore } from './synced-store';
 import type { Target } from './targets';
 
-const LOG_KEY = 'astrofinder.log';
-
-/** Loads the saved log. Damaged or blocked storage gives an empty log, never an error. */
-function loadLog(): LogEntry[] {
-  try {
-    const stored = localStorage.getItem(LOG_KEY);
-    return stored ? (JSON.parse(stored) as LogEntry[]) : [];
-  } catch {
-    return [];
-  }
-}
-
 /**
- * The observing log, saved on this device. Each entry also records the sky and the
- * telescope at that moment, so the user only taps "seen", and adds a note if they like.
+ * The observing log, saved on this device in its database, one record per entry. Each
+ * entry also records the sky and the telescope at that moment, so the user only taps
+ * "seen", and adds a note if they like.
  */
 @Injectable({ providedIn: 'root' })
 export class ObservingLogService {
   private readonly state = inject(AppState);
 
-  /** Every entry, in the order logged. */
-  readonly entries = signal<LogEntry[]>(loadLog());
+  private readonly store = new SyncedStore<LogEntry>(
+    inject(LocalDb),
+    (db) => db.logEntries,
+    (old) => old.logEntries,
+  );
+
+  /** Resolves once the saved log is read. The app waits for it before it starts. */
+  readonly ready = this.store.load();
+
+  /** Every entry, oldest first. */
+  readonly entries = computed(() => [...this.store.items()].sort((a, b) => a.time.localeCompare(b.time)));
 
   /** Each target's progress: seen, or tried but not seen yet. For ticks in the lists. */
   readonly states = computed(() => seenStates(this.entries()));
@@ -57,16 +57,6 @@ export class ObservingLogService {
     }
     return byTarget;
   });
-
-  constructor() {
-    effect(() => {
-      try {
-        localStorage.setItem(LOG_KEY, JSON.stringify(this.entries()));
-      } catch {
-        // Not saving is acceptable here: the entries stay until the app closes.
-      }
-    });
-  }
 
   /** The target's newest entry tonight, or undefined if it hasn't been logged tonight. */
   tonightEntry(targetId: string): LogEntry | undefined {
@@ -94,42 +84,62 @@ export class ObservingLogService {
    */
   log(target: Target): LogEntry {
     const now = new Date();
+    const entry = newEntry(target, now, this.conditionsAt(target, now));
+    this.store.save([entry]);
+    return entry;
+  }
+
+  /**
+   * The sky and telescope for a target at a time, as an entry records them. A blank form
+   * shows them before anything is saved.
+   */
+  conditionsAt(target: Target, time: Date): LogConditions {
     const settings = this.state.settings();
     const { latitudeDeg, longitudeDeg, bortle } = settings;
-    const sky = skyConditions(now, latitudeDeg, longitudeDeg);
-    const entry = newEntry(target, now, {
+    const sky = skyConditions(time, latitudeDeg, longitudeDeg);
+    return {
       latitudeDeg,
       longitudeDeg,
-      altDeg: this.state.positionAt(target, now).altDeg,
+      altDeg: this.state.positionAt(target, time).altDeg,
       bortle,
       moonLitPercent: sky.moonIlluminatedPercent,
       moonAltDeg: sky.moonAltDeg,
-      equipment: pickEquipment(settings),
-    });
-    this.entries.update((entries) => [...entries, entry]);
-    void this.keepStorage();
-    return entry;
+      equipment: this.state.equipment(),
+      kitIds: this.state.equipmentIds(),
+    };
+  }
+
+  /** A target's entries, oldest first, as the note sheet pages through them. */
+  entriesFor(targetId: string): LogEntry[] {
+    return this.entries().filter((e) => e.targetId === targetId);
   }
 
   /** Changes an entry's rating, tags or note. */
   update(id: string, changes: Partial<Pick<LogEntry, 'rating' | 'tags' | 'note'>>): void {
-    this.entries.update((entries) => entries.map((e) => (e.id === id ? { ...e, ...changes } : e)));
+    const entry = this.store.get(id);
+    if (entry) this.store.save([{ ...entry, ...changes }]);
   }
 
+  /** Deletes an entry. It is kept marked deleted, so Undo can bring it back. */
   remove(id: string): void {
-    this.entries.update((entries) => entries.filter((e) => e.id !== id));
+    this.store.remove([id]);
   }
 
   /** Puts a removed entry back, for Undo. */
   restore(entry: LogEntry): void {
-    this.entries.update((entries) => mergeEntries(entries, [entry]));
+    this.store.save([entry]);
   }
 
-  /** Adds the entries in a backup file. Returns how many were new. Throws a readable error. */
+  /**
+   * Adds the entries in a backup file, skipping those the log already has, so importing
+   * twice is safe. Returns how many were new. Throws a readable error for a bad file.
+   */
   import(text: string): number {
-    const before = this.entries().length;
-    this.entries.update((entries) => mergeEntries(entries, parseLogJson(text)));
-    return this.entries().length - before;
+    // A backup made before ids were UUIDs gets the same UUIDs as the log got, so it still matches.
+    const imported = parseLogJson(text).map((entry) => ({ ...entry, id: logEntryUuid(entry.id) }));
+    const fresh = mergeEntries(this.entries(), imported).slice(this.entries().length);
+    this.store.save(fresh);
+    return fresh.length;
   }
 
   /** Saves the log as a spreadsheet file in the phone's downloads. */
@@ -150,17 +160,5 @@ export class ObservingLogService {
     link.click();
     // Give the browser a moment to start the download before freeing the file.
     setTimeout(() => URL.revokeObjectURL(url), 10_000);
-  }
-
-  /**
-   * Asks the browser not to clear the app's storage when the phone runs short of space,
-   * since a log is worth keeping. Browsers may say no, which changes nothing else.
-   */
-  private async keepStorage(): Promise<void> {
-    try {
-      if (!(await navigator.storage?.persisted?.())) await navigator.storage?.persist?.();
-    } catch {
-      // Not available in this browser.
-    }
   }
 }
