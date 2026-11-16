@@ -1,21 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { LogConditions, LogEntry } from './observing-log';
-import {
-  exportLogCsv,
-  exportLogJson,
-  groupByNight,
-  logTotals,
-  mergeEntries,
-  newEntry,
-  nightKey,
-  ordinal,
-  parseLogJson,
-  countLabel,
-  seenCounts,
-  seenStates,
-  timesSeen,
-} from './observing-log';
+import { appearanceChoices, carriedDetails, cleanDetails, countLabel, exportLogCsv, exportLogJson, groupByNight, logTotals, mergeEntries, newEntry, nightKey, ordinal, parseLogJson, seenCounts, seenStates, timesSeen } from './observing-log';
 
 const CONDITIONS: LogConditions = {
   latitudeDeg: 39.47,
@@ -165,8 +151,47 @@ describe('files', () => {
     expect(lines).toHaveLength(3);
     expect(lines[0]).toMatch(/^Night,Time,Target,Name,Rating/);
     expect(lines[1]).toBe(
-      '2026-11-12,21:00,M 31,Name of M 31,Not seen,Averted vision; Try a darker sky,,52,8,12,-20,130/650 · 25 mm,39.470,-0.376',
+      // The details' columns are empty when none were given.
+      '2026-11-12,21:00,M 31,Name of M 31,Not seen,Averted vision; Try a darker sky,,52,8,12,-20,130/650 · 25 mm,39.470,-0.376,,,,,,',
     );
     expect(lines[2]).toContain('2026-11-12,01:05,M 42,Name of M 42,Great,,"Trapezium, ""E"" star too"');
+  });
+
+  it('writes the details in their own CSV columns', () => {
+    const seen = entry('Albireo', new Date(2026, 10, 12, 22, 0), 4, {
+      details: {
+        seeing: 2,
+        faintestStar: 4.5,
+        sqm: 18.2,
+        appearance: ['equalBrightness'],
+        colourMain: 'orange',
+        colourCompanion: 'blue',
+      },
+    });
+    const row = exportLogCsv([seen]).trim().split(String.fromCharCode(13, 10))[1];
+    expect(row.endsWith(',2,4.5,18.2,Equal brightness,,orange and blue')).toBe(true);
+  });
+});
+
+describe('details', () => {
+  it("carries the night's seeing and sky readings to its next entry, not the object's details", () => {
+    const earlier = entry('M 31', new Date(2026, 10, 12, 21, 0), 3, {
+      details: { seeing: 2, sqm: 18.4, appearance: ['mottled'], sizeArcmin: 90 },
+    });
+    expect(carriedDetails([earlier], new Date(2026, 10, 13, 1, 0))).toEqual({ seeing: 2, sqm: 18.4 });
+    // The next night starts afresh.
+    expect(carriedDetails([earlier], new Date(2026, 10, 13, 21, 0))).toBeUndefined();
+  });
+
+  it('drops empty details, and gives nothing when none are left', () => {
+    expect(cleanDetails({ seeing: 3, sqm: undefined, appearance: [] })).toEqual({ seeing: 3 });
+    expect(cleanDetails({ appearance: [] })).toBeUndefined();
+  });
+
+  it('offers the appearance choices that fit the kind of object', () => {
+    expect(appearanceChoices('deepSky')).toEqual(['stellar', 'extended', 'resolved', 'mottled']);
+    expect(appearanceChoices('openCluster')).toContain('partlyUnresolved');
+    expect(appearanceChoices('double')).toEqual(['equalBrightness', 'niceSurrounding']);
+    expect(appearanceChoices('other')).toEqual([]);
   });
 });

@@ -32,6 +32,8 @@ stays in localStorage and is never synced.
 | Alignment | `astroturbomaxisolver.alignment` | Only valid for this phone in this mount. |
 | Sort order chosen per list | `astroturbomaxisolver.listSorts` | Keyed by list UUID, or by the app list's name. A view choice. |
 | Chart of tonight open or closed, on every list | `astroturbomaxisolver.listChart` | A view choice. |
+| Observing programmes whose card was read | `astroturbomaxisolver.programsRead` | A view choice: the card then shows folded. |
+| The observer's name for OAL log files | `astroturbomaxisolver.observer` | Filled in for the next export. Would join a synced profile if one is made. |
 | The list being observed through (playlist) | `astroturbomaxisolver.playlist` | Where this phone is in a list tonight, like the selected target. |
 | Weather forecast | `astroturbomaxisolver.forecast` | Throwaway cache. |
 

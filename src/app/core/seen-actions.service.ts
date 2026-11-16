@@ -57,6 +57,9 @@ export class SeenActionsService {
       componentProps: { targetId, entryId },
       breakpoints: [0, 0.75, 1],
       initialBreakpoint: 0.75,
+      // The form scrolls at any height, so "More details" can be reached without first
+      // dragging the sheet up. The sheet still grows and closes by its handle and header.
+      expandToScroll: false,
     });
     await sheet.present();
   }

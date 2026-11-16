@@ -421,3 +421,66 @@ test('plays a list on the sky map: next and previous, skipping what is below the
   await page.getByRole('button', { name: 'Clear target' }).click();
   await expect(page.getByTestId('target-bar')).toHaveCount(0);
 });
+
+test("shows an observing programme's card on its lists, open until read", async ({ page }) => {
+  await page.goto('/tabs/lists/urban');
+  const card = page.locator('app-list app-program-card');
+  // Open the first time: who runs it, what for, and a link to its own page in a new tab.
+  await expect(card.getByTestId('program-name')).toHaveText('Urban Observing Program');
+  const link = card.getByTestId('program-link');
+  await expect(link).toHaveAttribute('href', /^https:\/\/www\.astroleague\.org\//);
+  await expect(link).toHaveAttribute('target', '_blank');
+  // Folded, it stays folded, even after a reload.
+  await card.getByTestId('program-card-toggle').click();
+  await expect(card.getByTestId('program-card')).toHaveCount(0);
+  await page.reload();
+  await expect(card.getByTestId('program-name')).toHaveText('Urban Observing Program');
+  await expect(card.getByTestId('program-card')).toHaveCount(0);
+
+  // The seasons of a split catalogue share their programme's card, which the group page has too.
+  await page.goto('/tabs/lists/catalogues/rasc');
+  await expect(page.locator('app-catalogues app-program-card').getByTestId('program-card')).toBeVisible();
+  // Catalogues that aren't programmes have none.
+  await page.goto('/tabs/lists/messier');
+  await expect(page.locator('app-list app-program-card')).toHaveCount(0);
+});
+
+test('imports observing lists from SkySafari and from CSV files, saying what it left out', async ({ page }) => {
+  await page.goto('/tabs/lists');
+  const skylist = [
+    'SkySafariObservingListVersion=3.0',
+    'SkyObject=BeginObject',
+    '\tCommonName=Andromeda Galaxy',
+    '\tCatalogNumber=M 31',
+    '\tCatalogNumber=NGC 224',
+    'EndObject=SkyObject',
+    'SkyObject=BeginObject',
+    '\tCatalogNumber=LBN 487',
+    '\tCatalogNumber=NGC 7023',
+    'EndObject=SkyObject',
+    'SkyObject=BeginObject',
+    '\tCatalogNumber=PGC 99999999',
+    'EndObject=SkyObject',
+  ].join('\n');
+  await page.locator('[data-testid=import-file]').setInputFiles({
+    name: 'Autumn favourites.skylist',
+    mimeType: 'text/plain',
+    buffer: Buffer.from(skylist),
+  });
+  // The list is named after the file, and the one object the app doesn't know is named.
+  await expect(page.getByTestId('lists-toast')).toContainText('Imported 1 list. 1 not found: PGC 99999999');
+  await listLink(page, 'Autumn favourites').click();
+  const names = page.locator('app-list [data-testid=designations]');
+  await expect(names).toHaveText([/^M31/, /NGC 7023/]);
+
+  // A spreadsheet's CSV, with a header and other columns, imports the same way.
+  await page.locator('app-list ion-back-button').click();
+  await page.locator('[data-testid=import-file]').setInputFiles({
+    name: 'Doubles.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from('Object,Magnitude\nAlbireo,3.1\n"Messier 13",5.8\n'),
+  });
+  await expect(page.getByTestId('lists-toast').last()).toContainText('Imported 1 list');
+  await listLink(page, 'Doubles').click();
+  await expect(names).toHaveText([/Albireo/, /^M13/]);
+});
