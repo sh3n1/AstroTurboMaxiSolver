@@ -1,6 +1,6 @@
 # Star detection, centroiding and image filtering for urban phone-camera sky images
 
-Context: the current AstroFinder detector (TypeScript) uses a 32 px block-median background with bilinear blending, per-block MAD noise (floor 0.25), a 4-sigma threshold and 4-connected components. It then applies filters for elongation >3, broad flat patches, a local ring background check, flat-topped lights, glare masks, a size limit of 150 px and cluster rejection, and ranks by flux. Real tests found three problems: edge smears along the vignetting, quantization patches one grey level above the sky, and buildings or lit windows outranking stars.
+Context: the current AstroTurboMaxiSolver detector (TypeScript) uses a 32 px block-median background with bilinear blending, per-block MAD noise (floor 0.25), a 4-sigma threshold and 4-connected components. It then applies filters for elongation >3, broad flat patches, a local ring background check, flat-topped lights, glare masks, a size limit of 150 px and cluster rejection, and ranks by flux. Real tests found three problems: edge smears along the vignetting, quantization patches one grey level above the sky, and buildings or lit windows outranking stars.
 
 ## 1. Background estimation (SExtractor/SEP mesh, photutils Background2D, mesh size, sharp foreground edges)
 
@@ -20,13 +20,13 @@ The standard tools all work the same way. They build a coarse mesh with a sigma-
 - Siril's findstar uses the image median as background and noise from global image statistics, and its documentation admits that detection is less efficient in heavily vignetted corners — [Siril Dynamic PSF docs](https://siril.readthedocs.io/en/latest/Dynamic-PSF.html)
 
 ### Inferences
-- AstroFinder's 32 px block median is at the small end of SExtractor's 32 to 512 px range. On a 1080x1920 frame that gives about a 34x60 mesh. It lacks two things the reference tools have: sigma clipping with a mode estimate per cell, and a 3x3 median filter of the mesh. Without the mesh filter, one cell over a lit window or a building edge raises the local background, then bilinear blending smears it into neighbours. The result is halos and "edge smear" artefacts. Adding a 3x3 (or 5x5) median filter over the mesh is the cheapest fix with the best evidence behind it.
+- AstroTurboMaxiSolver's 32 px block median is at the small end of SExtractor's 32 to 512 px range. On a 1080x1920 frame that gives about a 34x60 mesh. It lacks two things the reference tools have: sigma clipping with a mode estimate per cell, and a 3x3 median filter of the mesh. Without the mesh filter, one cell over a lit window or a building edge raises the local background, then bilinear blending smears it into neighbours. The result is halos and "edge smear" artefacts. Adding a 3x3 (or 5x5) median filter over the mesh is the cheapest fix with the best evidence behind it.
 - Vignetting edge smears happen because bilinear interpolation between 32 px cells cannot follow a steep radial falloff near the corners. Two options:
   - (a) Divide out a smooth vignetting model, either a per-mount-profile flat or a fitted radial polynomial r², r⁴, before detection.
   - (b) Mark the corners where the gradient across one cell exceeds several σ as low-confidence or masked. The photutils `coverage_mask` concept is the template for this.
 - Quantization patches one grey level above sky come from the 8-bit staircase. With MAD on denoised 8-bit data, MAD is often 0, which is why the floor of 0.25 exists. A 0.25 DN noise floor makes a 4σ threshold equal 1 DN, so a step of one grey level passes. The floor should sit at or above the quantization noise of a uniform 1 DN step, 1/√12 ≈ 0.29 DN (standard result, not from a fetched source). In practice it should probably be at least 0.5 to 1 DN for denoised phone frames. Alternatively, require a minimum peak excess in DN, such as ≥3 DN above local background, as well as the σ test. cedar-detect does something similar: its 2σ/3σ noise terms are floored at absolute minimums of 2 and 3 DN ([algorithm.rs](https://raw.githubusercontent.com/smroid/cedar-detect/main/src/algorithm.rs)).
 - For sharp foreground edges such as rooftops and trees, the best evidence supports masking before background estimation. Detect large bright regions (buildings, terrace beams), dilate generously (photutils uses radius 10), and exclude them from the mesh statistics and from detection. A horizon mask from the IMU attitude (below altitude ≈ 5 to 10°) is a cheap extra mask.
-- An alternative for strong gradients is cedar-detect's approach: never build a global background, and judge each candidate against its own perimeter ring. AstroFinder already has a "local ring background check", and it could be promoted from a filter to the primary test.
+- An alternative for strong gradients is cedar-detect's approach: never build a global background, and judge each candidate against its own perimeter ring. AstroTurboMaxiSolver already has a "local ring background check", and it could be promoted from a filter to the primary test.
 
 ### Gaps
 - I couldn't find documented default `exclude_percentile` and `box_size` values for photutils on the fetched page.
@@ -35,7 +35,7 @@ The standard tools all work the same way. They build a coarse mesh with a sigma-
 ## 2. Detection: matched filtering, DoG/LoG, top-hat, local maxima versus thresholded components, deblending
 
 ### Takeaway
-Convolving with a PSF-sized kernel before thresholding is the theoretically optimal detector for point sources in white noise. SEP enables it by default with a 3x3 kernel. Production star-finders (cedar-detect, Siril, tetra3 with binary opening) also add a shape-specific gate that tests whether the peak is compact and surrounded by flat sky. That gate is what rejects extended light, and AstroFinder lacks it as a first-class step.
+Convolving with a PSF-sized kernel before thresholding is the theoretically optimal detector for point sources in white noise. SEP enables it by default with a 3x3 kernel. Production star-finders (cedar-detect, Siril, tetra3 with binary opening) also add a shape-specific gate that tests whether the peak is compact and surrounded by flat sky. That gate is what rejects extended light, and AstroTurboMaxiSolver lacks it as a first-class step.
 
 ### Cited Findings
 - Matched filtering, meaning convolution with the PSF, is the optimal detector for a known-shape signal in stationary white noise. A circular Gaussian is a good approximation to a stellar PSF near its centre — [Optimal Addition of Images for Detection and Photometry (astro-ph/9310031)](https://arxiv.org/pdf/astro-ph/9310031)
@@ -60,9 +60,9 @@ Convolving with a PSF-sized kernel before thresholding is the theoretically opti
 
 ### Inferences
 - **Matched filter.** With a 1080x1920 phone frame, star FWHM is likely about 2 to 4 px, depending on focus and denoising. Replace "threshold raw pixels at 4σ" with "convolve with a 3x3 or 5x5 Gaussian, σ ≈ FWHM/2.355, then threshold the filtered image against the filtered noise". The noise of the filtered image is σ·sqrt(Σk²)/Σk, not σ. This should gain roughly 1.2 to 2× in S/N for faint point sources, a few tenths of a magnitude. It also suppresses single-pixel and quantization speckle, because a one-grey-level step patch has low curvature. This is cheap in JS: a separable 1D convolution in two passes.
-- **Local-maximum (peak) detection on the filtered image** instead of connected components is more robust. Take pixels that are the maximum in a 5x5 or 7x7 window and exceed the threshold, then grow a small fixed window around each for centroiding. Lit windows and building edges then produce at most a few peaks rather than one huge component. Large components are what AstroFinder currently ranks by flux, which is how buildings outrank stars.
+- **Local-maximum (peak) detection on the filtered image** instead of connected components is more robust. Take pixels that are the maximum in a 5x5 or 7x7 window and exceed the threshold, then grow a small fixed window around each for centroiding. Lit windows and building edges then produce at most a few peaks rather than one huge component. Large components are what AstroTurboMaxiSolver currently ranks by flux, which is how buildings outrank stars.
 - **Compactness gate (cedar-detect / Siril style).** A strong discriminator is "peak minus mean of an annulus at 3 to 5 px must be significant, AND the annulus must be flat (its std ≈ sky noise)". Edges of buildings and window grids fail because their annulus is non-uniform. A DoG or LoG (difference of two Gaussians, e.g. σ1≈1, σ2≈3 px) implements a similar band-pass in one step and also rejects smooth gradients and vignetting. A white top-hat (opening with a disk bigger than a star, radius ~4 to 5 px, then subtract) removes structures wider than the disk and is a standard morphological alternative.
-- **Thresholds.** AstroFinder uses 4σ on raw pixels with a MAD that may be underestimated, so its effective significance is unclear. cedar-detect's typical sigma of 5 to 10 is higher, but on its gated statistic.
+- **Thresholds.** AstroTurboMaxiSolver uses 4σ on raw pixels with a MAD that may be underestimated, so its effective significance is unclear. cedar-detect's typical sigma of 5 to 10 is higher, but on its gated statistic.
 - **Deblending** is not needed for a finder. Stars close enough to blend on a phone frame are not useful for solving anyway. Simply reject blends: cluster rejection already does this.
 
 ### Gaps
@@ -92,7 +92,7 @@ None of them uses scene understanding. Urban foreground is best handled by maski
   - A local-contrast "grayscale iterative" preprocessing step reduced false star spots — [MDPI Appl. Sci. 14(20):9207](https://mdpi.com/2076-3417/14/20/9207)
   - Region labelling separates stars from Sun, Earth and Moon interference — [STELLA, DGLR 2011](https://www.fzt.haw-hamburg.de/pers/Scholz/dglr/dlrk2011/Papers/241260.pdf)
 
-### Inferences (recommended rejection order for AstroFinder)
+### Inferences (recommended rejection order for AstroTurboMaxiSolver)
 1. **Horizon/foreground mask from the IMU.** Using the current attitude and camera FOV, compute the altitude of each pixel row or column and mask everything below ~8 to 10° altitude, plus a margin. This is cheap and removes most buildings when aiming high. I found no source describing this for phone finders; it is standard practice in star-tracker Earth-limb exclusion.
 2. **Bright-region mask.** Flag connected regions above a high threshold (e.g. >30σ or within ~10 DN of saturation) with area > ~4× the typical star area, and dilate them by ~10 to 20 px. This follows photutils' dilated source mask. Exclude them from both background estimation and detection. This replaces the current glare masks with a more general rule. Lit windows (flat-topped, saturated, rectangular) and terrace beams (elongated) fall in here.
 3. **Shape gates** on remaining candidates:
@@ -112,7 +112,7 @@ None of them uses scene understanding. Urban foreground is best handled by maski
 ## 4. How existing tools handle this, and their licences
 
 ### Takeaway
-cedar-detect is the most relevant design because it is built for city-tolerant, fast star-finder use. Its licence is now FSL-1.1-MIT (source-available, not Apache-2.0), so AstroFinder should learn from its ideas rather than port its code. tetra3 and cedar-solve are Apache-2.0 and safe to port. SEP's C core is LGPLv3, Siril, ASTAP and PiFinder are GPL, and all of these are concept-only for a closed-source app.
+cedar-detect is the most relevant design because it is built for city-tolerant, fast star-finder use. Its licence is now FSL-1.1-MIT (source-available, not Apache-2.0), so AstroTurboMaxiSolver should learn from its ideas rather than port its code. tetra3 and cedar-solve are Apache-2.0 and safe to port. SEP's C core is LGPLv3, Siril, ASTAP and PiFinder are GPL, and all of these are concept-only for a closed-source app.
 
 ### Cited Findings
 - **cedar-detect:** LICENSE.md is **FSL-1.1-MIT** (Functional Source License, copyright 2025 Steven Rosenthal). It allows any purpose except a "competing use", meaning a commercial product that offers substantially similar functionality. It converts to MIT on the fifth anniversary of each release. This contradicts the task brief's assumption that it is Apache-2.0 — [cedar-detect LICENSE.md](https://github.com/smroid/cedar-detect/blob/main/LICENSE.md)
@@ -124,7 +124,7 @@ cedar-detect is the most relevant design because it is built for city-tolerant, 
 - **Siril:** Gaussian-smoothed local maxima, then elliptical Gaussian or Moffat fit with roundness and β checks — [Siril docs](https://siril.readthedocs.io/en/latest/Dynamic-PSF.html). Siril is GPL-3.0 (well known; licence not on the fetched page).
 
 ### Inferences
-- Port only from tetra3 or cedar-solve, which are Apache-2.0; keep the ESA and Tetra notices. Reimplement the cedar-detect ideas from the published description: the gate, the perimeter ring, hot-pixel classification, binning for detection with full-resolution centroiding, and the max_size = width/100 rule. Do not translate its code: FSL forbids competing commercial use and AstroFinder is closed source. A legal check is advisable if anything close to a port is planned.
+- Port only from tetra3 or cedar-solve, which are Apache-2.0; keep the ESA and Tetra notices. Reimplement the cedar-detect ideas from the published description: the gate, the perimeter ring, hot-pixel classification, binning for detection with full-resolution centroiding, and the max_size = width/100 rule. Do not translate its code: FSL forbids competing commercial use and AstroTurboMaxiSolver is closed source. A legal check is advisable if anything close to a port is planned.
 - The tetra3 defaults (sigma=2, filtsize=25 local mean, 3x3 binary opening, area 5 to 100) were tuned for clean, dark, raw sensor images. They are too permissive for urban phone frames without the extra gates above.
 
 ### Gaps
@@ -168,7 +168,7 @@ A proposed starting configuration, derived from the cited defaults and adapted t
 - tetra3: sigma 2, filtsize 25, area 5 to 100, 3x3 opening — [tetra3](https://raw.githubusercontent.com/esa/tetra3/master/tetra3/tetra3.py)
 - cedar-detect: sigma typically 5 to 10, noise floor 0.2 with absolute DN minimums of 2 and 3, max_size = width/100, hot-pixel neighbour ratio 0.5, centroid soft threshold of bg + 1σ — [cedar-detect](https://raw.githubusercontent.com/smroid/cedar-detect/main/src/algorithm.rs)
 
-### Inferences (recommended AstroFinder parameters)
+### Inferences (recommended AstroTurboMaxiSolver parameters)
 - **Pre-mask:**
   - IMU horizon mask below about 8° altitude.
   - Bright-region mask: pixels ≥ 240 DN, or components above 20σ with area > 40 px, dilated by 15 px. Exclude these from background and detection.
@@ -201,4 +201,4 @@ A proposed starting configuration, derived from the cited defaults and adapted t
 - **Stacking:** a Float32 accumulator of up to 6 frames registered by gyro or star shift, mean or 2.5σ-clipped mean. Detect on the stack and use single frames only for timing.
 
 ### Gaps
-- All the numbers above are untested on AstroFinder's frames. They should be tuned with the existing device-report pipeline (`npm run phone:reports`) by counting true and false detections against catalogue overlays from successful solves.
+- All the numbers above are untested on AstroTurboMaxiSolver's frames. They should be tuned with the existing device-report pipeline (`npm run phone:reports`) by counting true and false detections against catalogue overlays from successful solves.

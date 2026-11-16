@@ -18,7 +18,9 @@ async function secondPhone(browser: Browser, baseURL: string): Promise<{ context
 
 /** Both phones skip automatic solving, so the fake camera is only used when asked. */
 async function noAutoSolve(page: Page): Promise<void> {
-  await page.addInitScript(() => localStorage.setItem('astrofinder.settings', JSON.stringify({ autoSolve: false })));
+  await page.addInitScript(() =>
+    localStorage.setItem('astroturbomaxisolver.settings', JSON.stringify({ autoSolve: false })),
+  );
 }
 
 /** The code a phone shows as a QR code. */
@@ -86,6 +88,19 @@ test('links two phones: the screen follows the finder, and aligns through it', a
   await tapMore(screen, 'night-toggle');
   await expect(finder.locator('html')).not.toHaveClass(/night/);
 
+  // Full screen on the screen phone: the finder follows. Browsers usually want a tap on the
+  // finder itself before it may go full screen, and then its band asks for one.
+  const finderFullscreen = (): Promise<boolean> => finder.evaluate(() => document.fullscreenElement !== null);
+  const askTap = finder.getByTestId('finder-fullscreen');
+  await tapMore(screen, 'fullscreen-toggle');
+  await expect.poll(async () => (await finderFullscreen()) || (await askTap.isVisible())).toBe(true);
+  if (await askTap.isVisible()) await askTap.click();
+  await expect.poll(finderFullscreen).toBe(true);
+  await expect(askTap).toHaveCount(0);
+  // Leaving it needs no tap on the finder.
+  await tapMore(screen, 'fullscreen-toggle');
+  await expect.poll(finderFullscreen).toBe(false);
+
   // Alignment is done on the screen. The plate solve runs on the finder, whose fake camera
   // sees no stars, and the screen hears why.
   await tapMore(screen, 'alignment-status');
@@ -97,7 +112,9 @@ test('links two phones: the screen follows the finder, and aligns through it', a
   await screen.getByTestId('align-simulated').click();
   await expect(screen.getByTestId('alignment-result')).toBeVisible();
   await expect
-    .poll(() => finder.evaluate(() => JSON.parse(localStorage.getItem('astrofinder.alignment') ?? '{}').value?.method))
+    .poll(() =>
+      finder.evaluate(() => JSON.parse(localStorage.getItem('astroturbomaxisolver.alignment') ?? '{}').value?.method),
+    )
     .toBe('simulated');
   await screen.getByTestId('alignment-done').click();
 
@@ -115,5 +132,5 @@ test('refuses a code that is not a pairing code', async ({ page }) => {
   await page.goto('/remote');
   await page.getByTestId('remote-as-screen').click();
   await paste(page, 'https://example.com');
-  await expect(page.getByTestId('remote-error')).toHaveText("This isn't an AstroFinder pairing code");
+  await expect(page.getByTestId('remote-error')).toHaveText("This isn't an AstroTurboMaxiSolver pairing code");
 });

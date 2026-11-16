@@ -6,7 +6,7 @@ Guidance for coding agents working in this repository.
 
 ## Project
 
-AstroFinder is a smartphone telescope finder that combines plate solving with sensor fusion.
+AstroTurboMaxiSolver is a smartphone telescope finder that combines plate solving with sensor fusion.
 The mission is to reduce plate solving time by reducing it to our current sensor fussion coordiantes information, plus an offset, and gps location.
 So with sensor fussion + gps + plate solving we will have our location and a fast sky position.
 Features:

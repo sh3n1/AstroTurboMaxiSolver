@@ -4,7 +4,7 @@ import { AppState } from './app-state.service';
 import type { Forecast, OpenMeteoResponse } from './forecast';
 import { forecastIsFor, forecastUrl, parseForecast } from './forecast';
 
-const FORECAST_KEY = 'astrofinder.forecast';
+const FORECAST_KEY = 'astroturbomaxisolver.forecast';
 /**
  * A forecast is fetched again only once the kept one is this old, however often the
  * panel opens: the model itself only changes every few hours.

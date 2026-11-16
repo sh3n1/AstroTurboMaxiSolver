@@ -81,7 +81,7 @@ export interface LogNight {
 /** A target's progress in a catalogue: seen, tried but not seen yet, or neither. */
 export type SeenState = 'seen' | 'tried' | null;
 
-const FILE_FORMAT = 'astrofinder-log';
+const FILE_FORMAT = 'astroturbomaxisolver-log';
 const FILE_VERSION = 1;
 /** Observing nights run from noon to noon, so a sighting at 2:00 counts for the evening before. */
 const NIGHT_START_HOUR = 12;
@@ -270,11 +270,11 @@ export function parseLogJson(text: string): LogEntry[] {
   try {
     data = JSON.parse(text);
   } catch {
-    throw new Error("This isn't an AstroFinder log file");
+    throw new Error("This isn't an AstroTurboMaxiSolver log file");
   }
   const file = data as { format?: unknown; entries?: unknown };
   if (file?.format !== FILE_FORMAT || !Array.isArray(file.entries)) {
-    throw new Error("This isn't an AstroFinder log file");
+    throw new Error("This isn't an AstroTurboMaxiSolver log file");
   }
   if (!file.entries.every(isEntry)) throw new Error('The log file is damaged');
   return file.entries;
@@ -286,9 +286,9 @@ export function mergeEntries(current: readonly LogEntry[], imported: readonly Lo
   return [...current, ...imported.filter((e) => !ids.has(e.id))];
 }
 
-/** A file name for the log, with today's date: "astrofinder-log-2026-11-12.csv". */
+/** A file name for the log, with today's date: "astroturbomaxisolver-log-2026-11-12.csv". */
 export function logFileName(extension: 'csv' | 'json', today = new Date()): string {
   const month = String(today.getMonth() + 1).padStart(2, '0');
   const day = String(today.getDate()).padStart(2, '0');
-  return `astrofinder-log-${today.getFullYear()}-${month}-${day}.${extension}`;
+  return `astroturbomaxisolver-log-${today.getFullYear()}-${month}-${day}.${extension}`;
 }

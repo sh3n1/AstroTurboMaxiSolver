@@ -1105,7 +1105,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   protected readonly constellations = signal<Constellation[]>([]);
   protected readonly showDetails = signal(false);
   protected readonly isIconUrl = isIconUrl;
-  /** AstroFinder's own icon for the selected target, or null for kinds without one. */
+  /** AstroTurboMaxiSolver's own icon for the selected target, or null for kinds without one. */
   protected readonly targetIconUrl = computed(() => {
     const target = this.state.selectedTarget();
     const paths = target ? targetIcon(target) : null;
@@ -2086,7 +2086,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   }
 
   /**
-   * Draws one of AstroFinder's line icons centred on a point, sized so its disc has the
+   * Draws one of AstroTurboMaxiSolver's line icons centred on a point, sized so its disc has the
    * given radius, and turned by an angle in radians. A dark edge keeps it readable over
    * stars and lines, like the map's labels.
    */
@@ -2170,7 +2170,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   }
 
   /**
-   * AstroFinder's reticle: three rings at the sizes observers know from a Telrad finder.
+   * AstroTurboMaxiSolver's reticle: three rings at the sizes observers know from a Telrad finder.
    */
   private drawReticle(
     ctx: CanvasRenderingContext2D,

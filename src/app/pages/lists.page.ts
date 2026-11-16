@@ -293,8 +293,8 @@ export class ListsPage {
   private async importPasted(): Promise<void> {
     const alert = await this.alerts.create({
       header: 'Import pasted text',
-      message: 'Paste the text of a shared AstroFinder list.',
-      inputs: [{ name: 'text', type: 'textarea', placeholder: '{ "format": "astrofinder-lists", … }' }],
+      message: 'Paste the text of a shared AstroTurboMaxiSolver list.',
+      inputs: [{ name: 'text', type: 'textarea', placeholder: '{ "format": "astroturbomaxisolver-lists", … }' }],
       buttons: [
         { text: 'Cancel', role: 'cancel' },
         { text: 'Import', handler: ({ text }: { text: string }) => this.importText(text) },

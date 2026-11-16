@@ -255,7 +255,7 @@ export class LogPage {
     input.value = '';
     if (!file) return;
     try {
-      const count = this.log.import(await file.text());
+      const count = await this.log.import(await file.text());
       void this.toast(count === 1 ? 'Imported 1 entry' : `Imported ${count} entries`);
     } catch (error) {
       void this.toast(error instanceof Error ? error.message : 'Import failed');

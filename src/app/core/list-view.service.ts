@@ -13,9 +13,9 @@ import type { ListedTarget } from './target-lists';
 import { TonightService } from './tonight.service';
 
 /** Where each list's chosen order is remembered, by the list's key. */
-const SORTS_KEY = 'astrofinder.listSorts';
+const SORTS_KEY = 'astroturbomaxisolver.listSorts';
 /** Where the chart of tonight is remembered as open or closed, for every list alike. */
-const CHART_KEY = 'astrofinder.listChart';
+const CHART_KEY = 'astroturbomaxisolver.listChart';
 
 /**
  * Whether the chart of tonight is open: as it was last left, on whichever list, so each

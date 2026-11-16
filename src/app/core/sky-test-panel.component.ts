@@ -295,7 +295,7 @@ export class SkyTestPanelComponent {
     const url = URL.createObjectURL(new Blob([this.fullReport()], { type: 'application/json' }));
     const link = document.createElement('a');
     link.href = url;
-    link.download = `astrofinder-sky-test-${Date.now()}.json`;
+    link.download = `astroturbomaxisolver-sky-test-${Date.now()}.json`;
     link.click();
     URL.revokeObjectURL(url);
   }

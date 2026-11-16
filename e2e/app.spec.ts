@@ -384,7 +384,7 @@ test('shows how high a target is and which way to face', async ({ page }) => {
   // Polaris stays above the north pole of the sky: due north, as high as the latitude.
   await page.addInitScript(() =>
     localStorage.setItem(
-      'astrofinder.settings',
+      'astroturbomaxisolver.settings',
       JSON.stringify({ latitudeDeg: 40, longitudeDeg: 0, locationSet: true }),
     ),
   );
@@ -402,7 +402,7 @@ test('marks a target below the horizon with a crossed-out eye', async ({ page })
   // Near the North Pole, Canopus far in the southern sky never rises, at any time.
   await page.addInitScript(() =>
     localStorage.setItem(
-      'astrofinder.settings',
+      'astroturbomaxisolver.settings',
       JSON.stringify({ latitudeDeg: 85, longitudeDeg: 0, locationSet: true }),
     ),
   );
@@ -418,7 +418,7 @@ test('shows when a target below the horizon will rise', async ({ page }) => {
   await page.clock.install({ time: new Date('2026-11-07T12:00:00Z') });
   await page.addInitScript(() =>
     localStorage.setItem(
-      'astrofinder.settings',
+      'astroturbomaxisolver.settings',
       JSON.stringify({ latitudeDeg: 39.47, longitudeDeg: -0.38, locationSet: true }),
     ),
   );
@@ -441,7 +441,7 @@ test('lists the Moon, planets, dwarf planets and bright asteroids', async ({ pag
   await expect(rows.filter({ hasText: 'Pluto' })).toContainText('Dwarf planet');
   await expect(rows.filter({ hasText: 'Ceres' })).toContainText('Dwarf planet');
   await expect(rows.filter({ hasText: 'Vesta' })).toContainText('Asteroid');
-  // Each has AstroFinder's own icon, drawn as lines, and the Moon's shows its phase.
+  // Each has AstroTurboMaxiSolver's own icon, drawn as lines, and the Moon's shows its phase.
   await expect(rows.locator('[data-testid=target-icon][data-icon=custom]')).toHaveCount(13);
   await expect(rows.filter({ hasText: 'Moon' }).locator('[data-testid=target-icon] svg path')).not.toHaveCount(0);
 });
@@ -564,7 +564,7 @@ test('turns the telescope and eyepieces saved before the kit existed into its fi
     sessionStorage.setItem('seeded', '1');
     const old = { telescopeType: 'refractor', telescopeFocalMm: 900, telescopeApertureMm: 102, eyepieceFieldDeg: 52 };
     localStorage.setItem(
-      'astrofinder.settings',
+      'astroturbomaxisolver.settings',
       JSON.stringify({ ...old, eyepieceFocalMm: 10, recentEquipment: [{ ...old, eyepieceFocalMm: 25 }] }),
     );
   });
@@ -575,7 +575,7 @@ test('turns the telescope and eyepieces saved before the kit existed into its fi
   await expect(page.getByTestId('equipment-toggle')).toContainText('102/900 · 10 mm · 90×');
 
   // The kit is now in the database, and the settings keep only what is in use, by UUID.
-  const settings = await page.evaluate(() => JSON.parse(localStorage.getItem('astrofinder.settings')!));
+  const settings = await page.evaluate(() => JSON.parse(localStorage.getItem('astroturbomaxisolver.settings')!));
   expect(settings.kit).toBeUndefined();
   expect(settings.telescopeFocalMm).toBeUndefined();
   expect(settings.kitSelection.telescopeId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-/);

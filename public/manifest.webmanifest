@@ -1,6 +1,6 @@
 {
-  "name": "AstroFinder",
-  "short_name": "AstroFinder",
+  "name": "AstroTurboMaxiSolver",
+  "short_name": "AstroTurboMaxiSolver",
   "description": "Smartphone telescope finder using plate solving and sensor fusion",
   "display": "fullscreen",
   "scope": "./",

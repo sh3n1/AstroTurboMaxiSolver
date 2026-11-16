@@ -147,7 +147,7 @@ Guides assign objects to the month in which they are well placed in the evening,
 ## Public-domain or permissive data for monthly lists, versus computing from RA and latitude, and recommended app structure
 
 ### Takeaway
-I found no CC0 or CC-BY dataset that defines month-to-object lists, apart from deepskycorner.ch (CC BY 4.0 website, computed for the equator by default) and NASA's Hubble challenge (likely public domain, but only about 9 objects per month). Computing the month assignment from each object's RA and Dec, the observer's latitude and longitude, and a darkness-based evening window is legally clean, more accurate, and fits what AstroFinder already computes. It is the better approach.
+I found no CC0 or CC-BY dataset that defines month-to-object lists, apart from deepskycorner.ch (CC BY 4.0 website, computed for the equator by default) and NASA's Hubble challenge (likely public domain, but only about 9 objects per month). Computing the month assignment from each object's RA and Dec, the observer's latitude and longitude, and a darkness-based evening window is legally clean, more accurate, and fits what AstroTurboMaxiSolver already computes. It is the better approach.
 
 ### Cited Findings
 - deepskycorner.ch content is under CC BY 4.0 unless otherwise noted. Its lists are computed by a rule: ≥5° altitude during astronomical night at a set latitude. — [Deep Sky Corner](https://deepskycorner.ch/objects.en.php/month/1)
@@ -156,8 +156,8 @@ I found no CC0 or CC-BY dataset that defines month-to-object lists, apart from d
 - In-The-Sky.org content is © Dominic Ford, and redistribution requires credit. The full terms are unverified. — [About In-The-Sky.org](https://in-the-sky.org/about.php)
 - The month rule: the meridian RA advances about 2h per month at a fixed clock time. — [PhysicsForums](https://www.physicsforums.com/threads/how-can-i-estimate-local-sidereal-time-in-my-head.636728); [IGN SkyAtlas](https://www.ign.es/web/resources/acercaDe/libDigPub/SkyAtlas2023_eng.pdf)
 
-### Inferences (recommendation for AstroFinder)
-- **Compute; don't copy.** For each catalogue object, AstroFinder already has J2000 RA/Dec, and astronomy-engine gives sidereal time and horizon coordinates. A suggested definition: an object is "in month M" if, on the 15th of M at the observer's location, its altitude at the **start of astronomical darkness** (Sun at −18°) or at 21:00 clock time, whichever is later, is ≥ a threshold, and it is within about ±2h of hour angle of the meridian.
+### Inferences (recommendation for AstroTurboMaxiSolver)
+- **Compute; don't copy.** For each catalogue object, AstroTurboMaxiSolver already has J2000 RA/Dec, and astronomy-engine gives sidereal time and horizon coordinates. A suggested definition: an object is "in month M" if, on the 15th of M at the observer's location, its altitude at the **start of astronomical darkness** (Sun at −18°) or at 21:00 clock time, whichever is later, is ≥ a threshold, and it is within about ±2h of hour angle of the meridian.
   - The threshold would be about 30° by default, or about 20° for bright objects.
   - The hour-angle condition favours objects "best placed" rather than merely up.
   - A simpler variant is to assign each object to the month in which it transits nearest the start of darkness.

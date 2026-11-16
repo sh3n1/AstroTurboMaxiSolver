@@ -145,11 +145,11 @@ describe('files', () => {
   });
 
   it('refuses other files with a message for the user', () => {
-    expect(() => parseLogJson('not json')).toThrow("This isn't an AstroFinder log file");
-    expect(() => parseLogJson('{"format":"astrofinder-lists","lists":[]}')).toThrow(
-      "This isn't an AstroFinder log file",
+    expect(() => parseLogJson('not json')).toThrow("This isn't an AstroTurboMaxiSolver log file");
+    expect(() => parseLogJson('{"format":"astroturbomaxisolver-lists","lists":[]}')).toThrow(
+      "This isn't an AstroTurboMaxiSolver log file",
     );
-    expect(() => parseLogJson('{"format":"astrofinder-log","entries":[{"id":1}]}')).toThrow('damaged');
+    expect(() => parseLogJson('{"format":"astroturbomaxisolver-log","entries":[{"id":1}]}')).toThrow('damaged');
   });
 
   it('skips entries it already has when importing', () => {

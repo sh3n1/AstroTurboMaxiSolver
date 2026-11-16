@@ -36,21 +36,21 @@ describe('bookmark lists', () => {
     expect(parseImport(text)).toEqual([{ name: 'Spring', targetIds: ['M81', 'M82'] }]);
   });
 
-  it('refuses files that are not AstroFinder lists, with a clear message', () => {
-    expect(() => parseImport('not json')).toThrow("This isn't an AstroFinder list file");
-    expect(() => parseImport('{"lists": []}')).toThrow("This isn't an AstroFinder list file");
-    expect(() => parseImport('{"format": "astrofinder-lists", "lists": [{"name": 3}]}')).toThrow('damaged');
+  it('refuses files that are not AstroTurboMaxiSolver lists, with a clear message', () => {
+    expect(() => parseImport('not json')).toThrow("This isn't an AstroTurboMaxiSolver list file");
+    expect(() => parseImport('{"lists": []}')).toThrow("This isn't an AstroTurboMaxiSolver list file");
+    expect(() => parseImport('{"format": "astroturbomaxisolver-lists", "lists": [{"name": 3}]}')).toThrow('damaged');
   });
 
   it('drops repeated and non-text target ids from an import', () => {
-    const text = '{"format": "astrofinder-lists", "lists": [{"name": "A", "targets": ["M1", 5, "M1", "M2"]}]}';
+    const text = '{"format": "astroturbomaxisolver-lists", "lists": [{"name": "A", "targets": ["M1", 5, "M1", "M2"]}]}';
     expect(parseImport(text)).toEqual([{ name: 'A', targetIds: ['M1', 'M2'] }]);
   });
 
   it('names export files after the list, safely', () => {
-    expect(exportFileName('Galaxias de primavera')).toBe('astrofinder-galaxias-de-primavera.json');
-    expect(exportFileName('Nébulas!')).toBe('astrofinder-nebulas.json');
-    expect(exportFileName('★')).toBe('astrofinder-list.json');
+    expect(exportFileName('Galaxias de primavera')).toBe('astroturbomaxisolver-galaxias-de-primavera.json');
+    expect(exportFileName('Nébulas!')).toBe('astroturbomaxisolver-nebulas.json');
+    expect(exportFileName('★')).toBe('astroturbomaxisolver-list.json');
   });
 
   it('puts catalogue lists in number order, finding Caldwell numbers among other names', () => {
