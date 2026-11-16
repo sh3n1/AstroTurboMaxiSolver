@@ -1,6 +1,8 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 
+import { openPage } from './navigation';
+
 /** A log entry for M31 as a backup file holds it. */
 function backupEntry(id: string, time: string, rating: number): object {
   const equipment = {
@@ -187,7 +189,7 @@ test('shows all-time observation counts on the sky and lists, excluding failed t
   await expect(page.getByTestId('mark-seen-wrap').getByTestId('seen-count')).toHaveCount(0);
   // The older observations remain, so the eye stays filled in, with no count for one sighting.
   await expect(page.getByTestId('mark-seen').locator('ion-icon')).toHaveAttribute('name', 'eye');
-  await page.getByRole('tab', { name: 'Targets', exact: true }).click();
+  await openPage(page, 'Search');
   await expect(targetRow.getByTestId('seen-count')).toHaveCount(0);
   await expect(targetRow.locator('ion-icon[name=checkmark-circle]')).toHaveCount(1);
 });

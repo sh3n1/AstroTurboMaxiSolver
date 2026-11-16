@@ -21,6 +21,7 @@ import {
 import { addIcons } from 'ionicons';
 import {
   add,
+  arrowBack,
   bookmarkOutline,
   documentTextOutline,
   folderOpenOutline,
@@ -29,6 +30,7 @@ import {
   libraryOutline,
   ribbonOutline,
   saveOutline,
+  searchOutline,
   swapVerticalOutline,
 } from 'ionicons/icons';
 
@@ -38,9 +40,10 @@ import { ObservingLogService } from '../core/observing-log.service';
 import { fixedListEntries } from '../core/target-lists';
 
 /**
- * The Lists tab: tonight's collections first (Best right now and In the reticle), then
- * the user's own lists, which they can make, import and export, then the catalogues and
- * the observing log.
+ * Lists, opened from the sky map: a search of every target first, then tonight's
+ * collections (Best right now and In the reticle), then the user's own lists, which they
+ * can make, import and export, then the catalogues and the observing log. Tapping a target
+ * in any of them plays that list on the map, from that target.
  */
 @Component({
   selector: 'app-lists',
@@ -72,10 +75,38 @@ import { fixedListEntries } from '../core/target-lists';
     .hidden-input {
       display: none;
     }
+    /* Looks like a search field, and opens the search, where the typing happens. */
+    .search {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-sizing: border-box;
+      width: calc(100% - 32px);
+      margin: 12px 16px 0;
+      min-height: 48px;
+      padding: 0 14px;
+      border: 1px solid #232a3d;
+      border-radius: 12px;
+      background: #0d1220;
+      color: var(--af-muted);
+      font: inherit;
+      font-size: calc(16px * var(--af-scale, 1));
+      text-align: start;
+    }
+    .search ion-icon {
+      flex: none;
+      font-size: 22px;
+      color: var(--ion-color-primary);
+    }
   `,
   template: `
     <ion-header>
       <ion-toolbar>
+        <ion-buttons slot="start">
+          <ion-button aria-label="Back to the map" data-testid="back-to-map" (click)="backToMap()">
+            <ion-icon slot="icon-only" name="arrow-back" aria-hidden="true"></ion-icon>
+          </ion-button>
+        </ion-buttons>
         <ion-title>Lists</ion-title>
         <ion-buttons slot="end">
           <ion-button aria-label="Import or export lists" data-testid="lists-transfer" (click)="transfer()">
@@ -89,6 +120,10 @@ import { fixedListEntries } from '../core/target-lists';
     </ion-header>
 
     <ion-content>
+      <button type="button" class="search" data-testid="search-all" (click)="openSearch()">
+        <ion-icon name="search-outline" aria-hidden="true"></ion-icon>
+        Search all targets
+      </button>
       <!-- The sections go in two columns on a phone on its side: see .af-columns in global.scss. -->
       <div class="af-columns">
         <!-- The lists that follow the sky and the telescope. -->
@@ -180,6 +215,7 @@ export class ListsPage {
   constructor() {
     addIcons({
       add,
+      arrowBack,
       bookmarkOutline,
       documentTextOutline,
       folderOpenOutline,
@@ -188,11 +224,20 @@ export class ListsPage {
       libraryOutline,
       ribbonOutline,
       saveOutline,
+      searchOutline,
       swapVerticalOutline,
     });
   }
 
   protected readonly isIconUrl = isIconUrl;
+
+  protected backToMap(): void {
+    void this.router.navigateByUrl('/tabs/sky');
+  }
+
+  protected openSearch(): void {
+    void this.router.navigateByUrl('/tabs/lists/search');
+  }
 
   protected open(id: string): void {
     void this.router.navigateByUrl(`/tabs/lists/${id}`);

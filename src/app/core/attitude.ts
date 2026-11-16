@@ -74,6 +74,25 @@ export function phoneUpDirection([w, x, y, z]: Quaternion): Vector3 {
   return [2 * (x * y - w * z), 1 - 2 * (x * x + z * z), 2 * (y * z + w * x)];
 }
 
+/** The local direction the right edge of the phone points, along the phone's x axis. */
+export function phoneRightDirection([w, x, y, z]: Quaternion): Vector3 {
+  // The first column of the rotation matrix for this quaternion.
+  return [1 - 2 * (y * y + z * z), 2 * (x * y + w * z), 2 * (x * z - w * y)];
+}
+
+/**
+ * The local direction the top of the screen's picture points. With the phone upright it
+ * is the top of the phone. Turned on its side, the browser turns the picture, by the
+ * screen's angle: at 90°, with the phone's top to the left, the picture's top is the
+ * phone's right edge, and at 270° its left edge.
+ */
+export function screenUpDirection(attitude: Quaternion, screenAngleDeg: number): Vector3 {
+  const angle = screenAngleDeg * RAD;
+  const [up, right] = [phoneUpDirection(attitude), phoneRightDirection(attitude)];
+  const [cos, sin] = [Math.cos(angle), Math.sin(angle)];
+  return [cos * up[0] + sin * right[0], cos * up[1] + sin * right[1], cos * up[2] + sin * right[2]];
+}
+
 /** Below this rate, a phone on a mount counts as not moving. */
 const STILL_RATE_DEG_PER_S = 0.5;
 /** How long it must stay that way, so a brief pause doesn't count. */

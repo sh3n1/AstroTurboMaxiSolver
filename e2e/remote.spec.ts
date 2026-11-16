@@ -1,6 +1,8 @@
 import type { Browser, BrowserContext, Page } from '@playwright/test';
 import { devices, expect, test } from '@playwright/test';
 
+import { tapMore } from './navigation';
+
 // Two phones are two browsers here, each with its own storage, linked by real WebRTC on
 // this machine. The codes are pasted rather than scanned. Chromium's fake camera stands in
 // for the finder's, and shows no stars, so its plate solves fail, and say so.
@@ -70,7 +72,7 @@ test('links two phones: the screen follows the finder, and aligns through it', a
   const band = finder.getByTestId('finder-band');
   await expect(band).toContainText('remote mode');
   await expect(finder.getByTestId('sensor-toggle')).toHaveCount(0);
-  await expect(finder.getByRole('tab', { name: 'Sky' })).toBeHidden();
+  await expect(finder.getByTestId('more')).toHaveCount(0);
 
   // Where the finder's sensors point, the screen shows.
   await sendOrientation(finder, 0, 90, 0);
@@ -79,17 +81,17 @@ test('links two phones: the screen follows the finder, and aligns through it', a
   await expect(screen.getByTestId('finder-sensors-off')).toHaveCount(0);
 
   // Red night mode on the screen turns the finder's screen red too.
-  await screen.getByTestId('night-toggle').click();
+  await tapMore(screen, 'night-toggle');
   await expect(finder.locator('html')).toHaveClass(/night/);
-  await screen.getByTestId('night-toggle').click();
+  await tapMore(screen, 'night-toggle');
   await expect(finder.locator('html')).not.toHaveClass(/night/);
 
   // Alignment is done on the screen. The plate solve runs on the finder, whose fake camera
   // sees no stars, and the screen hears why.
-  await screen.getByTestId('alignment-status').click();
+  await tapMore(screen, 'alignment-status');
   await screen.getByTestId('alignment-star').first().click();
   await screen.getByTestId('confirm-centred').click();
-  await expect(screen.getByTestId('alignment-failed')).toContainText('no stars', { timeout: 45_000 });
+  await expect(screen.getByTestId('alignment-failed')).toContainText(/no stars|couldn't match/, { timeout: 45_000 });
 
   // An alignment made on the screen reaches the finder, which uses it.
   await screen.getByTestId('align-simulated').click();

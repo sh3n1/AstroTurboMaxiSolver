@@ -1,6 +1,8 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 
+import { openPage, moreTile, tapMore } from './navigation';
+
 // Chromium's fake camera stands in for a real one, so the test page's flow can be
 // checked here. Real limits can only be measured on a real phone.
 test.use({
@@ -118,7 +120,7 @@ test('aligns using the real sensor reading', async ({ page }) => {
   await page.goto('/');
   await startSensors(page);
   await sendOrientation(page, 0, 90, 0);
-  await page.locator('[data-testid=alignment-status]').click();
+  await tapMore(page, 'alignment-status');
   await page.locator('[data-testid=alignment-star]').first().click();
   await page.locator('[data-testid=confirm-centred]').click();
 
@@ -127,9 +129,9 @@ test('aligns using the real sensor reading', async ({ page }) => {
   await page.locator('[data-testid=align-with-sensors]').click();
   await expect(page.locator('[data-testid=alignment-result]')).toContainText('from the sensors');
   await page.locator('[data-testid=alignment-done]').click();
-  await expect(page.locator('[data-testid=alignment-status]')).toContainText('rough');
+  await expect(await moreTile(page, 'alignment-status')).toContainText('rough');
   // Aligned, even roughly, so the button is green. The Align page says how it was done.
-  await expect(page.locator('[data-testid=alignment-status]')).toHaveClass(/good/);
+  await expect(await moreTile(page, 'alignment-status')).toHaveClass(/good/);
 });
 
 test('runs the camera test and produces a report', async ({ page }) => {
@@ -223,13 +225,15 @@ test('plate solves automatically when the phone is still', async ({ page }) => {
 
   // Still in the same place, well past the pause between attempts: no second attempt.
   await sendGyroscope(page, 0, 0, 0, 400);
+  // Untouched with the sensors on, the buttons fade and leave the sky clear.
+  await expect(page.getByTestId('controls')).toHaveClass(/faded/, { timeout: 15_000 });
   const failures = async (): Promise<number> => {
-    await page.getByRole('tab', { name: 'Settings' }).click();
+    await openPage(page, 'Settings');
     await page.locator('[data-testid=open-solve-log]').click();
     await expect(page.locator('[data-testid=solve-log-entry]').first()).toBeVisible();
     const count = await page.locator('[data-testid=solve-log-entry]', { hasText: /No stars|No match/ }).count();
     await page.locator('[data-testid=open-solve-log]').click();
-    await page.getByRole('tab', { name: 'Sky' }).click();
+    await openPage(page, 'Sky');
     return count;
   };
   expect(await failures()).toBe(1);
@@ -253,7 +257,7 @@ test('does not use the camera when automatic solving is off', async ({ page }) =
   // Automatic solving is switched off for this test, before the page loads.
   await page.goto('/tabs/settings');
   await expect(page.locator('[data-testid=auto-solve]')).toHaveAttribute('aria-checked', 'false');
-  await page.getByRole('tab', { name: 'Sky' }).click();
+  await openPage(page, 'Sky');
   await startSensors(page);
   await sendOrientation(page, 0, 120, 0);
   await expect(page.locator('[data-testid=sensor-toggle]')).toContainText('Sensors on');
@@ -273,8 +277,12 @@ test('plate solves when the green rings are tapped, leaving the alignment alone'
   await page.locator('[data-testid=aim-at-target]').click();
   await expect(page.locator('[data-testid=guidance]')).toContainText('0.0° away');
 
+  // The rings sit above the target's box, in the part of the map it leaves clear.
+  const canvas = page.locator('app-sky canvas');
+  const [x, y] = (await canvas.getAttribute('data-centre'))!.split(',').map(Number);
+  expect(y).toBeLessThan((await canvas.boundingBox())!.height / 2);
   // The fake camera shows no stars, so the solve fails and says why.
-  await page.locator('app-sky canvas').click();
+  await canvas.click({ position: { x, y } });
   await expect(page.getByTestId('solve-toast')).toBeVisible({ timeout: 45_000 });
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('astrofinder.alignment') ?? '{}'));
   expect(saved.value ?? null).toBeNull();
@@ -292,5 +300,15 @@ test('plate solves when the red rings are tapped, with no target', async ({ page
 
   // A tap on them solves. The fake camera shows no stars, so it fails and says why.
   await canvas.click();
+  await expect(page.getByTestId('solve-toast')).toBeVisible({ timeout: 45_000 });
+});
+
+test('plate solves on the sky map when the shutter remote is pressed, if chosen', async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.addInitScript(() => localStorage.setItem('astrofinder.settings', JSON.stringify({ shutterAligns: true })));
+  await page.goto('/tabs/sky');
+  await expect(page.locator('app-sky canvas')).toBeVisible();
+  // The fake camera shows no stars, so the solve fails and says why.
+  await page.keyboard.press('AudioVolumeUp');
   await expect(page.getByTestId('solve-toast')).toBeVisible({ timeout: 45_000 });
 });

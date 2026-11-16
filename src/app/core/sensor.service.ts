@@ -11,11 +11,12 @@ import {
   combineAttitudes,
   inverseAttitude,
   integrateGyroscope,
-  phoneUpDirection,
+  screenUpDirection,
   rearCameraDirection,
 } from './attitude';
 import { cameraPointing, requestSensorPermission } from './device-orientation';
 import { magneticDeclinationDeg } from './magnetic';
+import { screenAngleDeg } from './sideways';
 
 /** Share of each orientation reading blended in when it is the only source of movement. */
 const ORIENTATION_ONLY_WEIGHT = 0.2;
@@ -230,7 +231,9 @@ export class SensorService {
   private show(attitude: Quaternion): void {
     const camera = cameraPointing(rearCameraDirection(attitude));
     this.state.cameraPointing.set(camera);
-    this.state.viewRollDeg.set(viewRollDeg(camera, phoneUpDirection(attitude)));
+    // The map turns with the screen's picture, which the browser turns when the phone is
+    // on its side, so up on the map stays up on the screen.
+    this.state.viewRollDeg.set(viewRollDeg(camera, screenUpDirection(attitude, screenAngleDeg())));
     const alignment = this.state.alignment();
     this.state.pointing.set(alignment ? telescopePointing(camera, alignment.offset) : camera);
   }

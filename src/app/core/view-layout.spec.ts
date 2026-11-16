@@ -5,6 +5,13 @@ describe('viewLayout', () => {
     expect(viewLayout(400, 800, false)).toEqual({ centreX: 200, centreY: 400, spanPx: 400 });
   });
 
+  it("centres the sky map above the target's box with the phone upright", () => {
+    // The box's top is 500 px down: the reticle goes in the middle of what is above it.
+    expect(viewLayout(400, 800, false, undefined, 500)).toEqual({ centreX: 200, centreY: 250, spanPx: 400 });
+    // A tall box never pushes the reticle up under the readout at the top.
+    expect(viewLayout(400, 800, false, undefined, 100).centreY).toBe(120);
+  });
+
   it('puts the eyepiece circle above its panel with the phone upright', () => {
     const layout = viewLayout(400, 800, true);
     expect(layout.centreX).toBe(200);

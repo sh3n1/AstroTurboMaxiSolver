@@ -34,10 +34,12 @@ import { AppState } from './app-state.service';
 import type { Horizontal } from './astronomy';
 import { compassPoint, compassShort } from './astronomy';
 import { BookmarkSheetComponent } from './bookmark-sheet.component';
+import { ListViewService } from './list-view.service';
 import { ListsService } from './lists.service';
 import { LocalTimePipe } from './local-time.pipe';
 import { countLabel } from './observing-log';
 import { ObservingLogService } from './observing-log.service';
+import { PlaylistService } from './playlist.service';
 import { SeenActionsService } from './seen-actions.service';
 import { SensorService } from './sensor.service';
 import { iconDataUrl, targetIcon } from './target-icons';
@@ -83,7 +85,7 @@ const MAX_CACHED_RISES = 2000;
 const GOOD_ALTITUDE_DEG = 30;
 
 /**
- * The rows of a list of targets, the same on the Targets tab and on every list. A tap
+ * The rows of a list of targets, the same in the search and on every list. A tap
  * aims at the target. Swiping a row to the left uncovers its actions: mark it seen, and
  * on the user's own lists, remove it. While reordering, each row has a handle to drag by.
  */
@@ -336,6 +338,9 @@ export class TargetListComponent {
   protected readonly lists = inject(ListsService);
   protected readonly log = inject(ObservingLogService);
   private readonly seenActions = inject(SeenActionsService);
+  private readonly playlist = inject(PlaylistService);
+  /** The list on show, which a tap on a row plays from that row. */
+  private readonly view = inject(ListViewService, { optional: true });
 
   constructor() {
     addIcons({
@@ -440,11 +445,18 @@ export class TargetListComponent {
 
   /**
    * Selects a target and opens the sky map, where the arrow guides the user to it. The
-   * sensors start too, since following the arrow needs them. This tap is what lets the
-   * browser ask for sensor permission, so it happens here rather than on the map.
+   * list plays from there, as it is ordered and filtered now, so the map's buttons step
+   * to the next and previous targets in it. The sensors start too, since following the
+   * arrow needs them. This tap is what lets the browser ask for sensor permission, so it
+   * happens here rather than on the map.
    */
   protected aimAt(target: Target): void {
-    this.state.selectedTargetId.set(target.id);
+    if (this.view) {
+      const ids = this.view.ordered().map((row) => row.id);
+      this.playlist.play(this.view.title(), ids, target.id, this.router.url);
+    } else {
+      this.state.selectedTargetId.set(target.id);
+    }
     if (!this.state.sensorsActive()) void this.sensors.start({ automatic: true });
     void this.router.navigateByUrl('/tabs/sky');
   }

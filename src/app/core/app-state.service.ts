@@ -71,7 +71,7 @@ export interface Settings {
   showEquatorial: boolean;
   /** Keep the phone's screen on while the app is open. */
   keepScreenOn: boolean;
-  /** A Bluetooth camera shutter remote presses the Align page's big round button. */
+  /** A Bluetooth camera shutter remote aligns on the Align page, and plate solves on the sky map. */
   shutterAligns: boolean;
   /** Show a toast for successful plate solves too, with the stars matched. For debugging. */
   solveSuccessToast: boolean;

@@ -6,6 +6,8 @@ import { IonButton, IonChip, IonContent, IonFabButton, IonIcon, IonRange, ToastC
 import { addIcons } from 'ionicons';
 import {
   add,
+  ellipsisHorizontal,
+  listOutline,
   eye,
   eyeOutline,
   compassOutline,
@@ -53,15 +55,17 @@ import { designationText, designations } from '../core/designations';
 import type { ComponentStar } from '../core/double-stars';
 import { doubleComponents, withoutDoubleCopies } from '../core/double-stars';
 import { equipmentLabel, eyepieceLabel, modifierLabel, telescopeLabel } from '../core/equipment';
-import { FullscreenService } from '../core/fullscreen.service';
 import { LiveSolverService } from '../core/live-solver.service';
-import { LocalTimePipe } from '../core/local-time.pipe';
+import { MoreSheetComponent } from '../core/more-sheet.component';
 import { countLabel } from '../core/observing-log';
 import { ObservingLogService } from '../core/observing-log.service';
+import { PlaylistBarComponent } from '../core/playlist-bar.component';
+import { PlaylistService } from '../core/playlist.service';
 import { RemoteService } from '../core/remote.service';
 import { RETICLE_RINGS_DEG, chevronSpacingPx, guideAngleDeg, pulseOpacity } from '../core/reticle';
 import { SeenActionsService } from '../core/seen-actions.service';
 import { SensorService } from '../core/sensor.service';
+import { isShutterPress } from '../core/shutter-remote';
 import { sideways } from '../core/sideways';
 import { SoundService } from '../core/sound.service';
 import { TargetDetailsComponent } from '../core/target-details.component';
@@ -179,6 +183,11 @@ const TAP_MAX_MOVE_PX = 10;
 const TAP_MAX_MS = 500;
 /** Rings smaller than this on screen still take a tap this far from their centre, for a finger. */
 const MIN_TAP_RADIUS_PX = 48;
+/**
+ * With the sensors steering and no touch for this long, the round buttons fade away and
+ * leave the sky clear, as a car's navigation screen does. Any touch brings them back.
+ */
+const RAIL_IDLE_MS = 10_000;
 
 // The app's own colours for its sky map and guidance. Night mode turns everything red by
 // brightness, so its faint lines and greys are brightened there to stay visible.
@@ -253,13 +262,14 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
   selector: 'app-sky',
   imports: [
     DecimalPipe,
-    LocalTimePipe,
     IonButton,
     IonChip,
     IonContent,
     IonFabButton,
     IonIcon,
     IonRange,
+    MoreSheetComponent,
+    PlaylistBarComponent,
     TargetDetailsComponent,
   ],
   styles: `
@@ -310,6 +320,25 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
       display: flex;
       flex-direction: column;
     }
+    /* Fades away while idle, and takes no taps then: a touch on the map brings it back. */
+    .controls,
+    .zoom {
+      transition: opacity 0.2s;
+    }
+    .controls.faded,
+    .zoom.faded {
+      opacity: 0;
+      transition: opacity 0.8s;
+    }
+    .controls.faded ion-fab-button,
+    .zoom.faded ion-fab-button {
+      pointer-events: none;
+    }
+    /* Big enough to hit in the dark at arm's length, and set a little apart. */
+    .controls ion-fab-button,
+    .zoom ion-fab-button {
+      margin: 4px;
+    }
     .controls ion-fab-button,
     .zoom ion-fab-button {
       --background: rgb(10 14 28 / 85%);
@@ -338,16 +367,7 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
       --border-color: #ffffff;
       --border-width: 2px;
     }
-    /* Words for screen readers, since the buttons only show icons. */
-    .visually-hidden {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      overflow: hidden;
-      clip-path: inset(50%);
-      white-space: nowrap;
-    }
-    /* A sensor problem, in a small box at the bottom, just above the tab bar. */
+    /* A sensor problem, in a small box at the bottom of the map. */
     .message {
       margin-top: 6px;
       padding: 6px 10px;
@@ -380,15 +400,6 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
       color: var(--af-muted);
       font-size: calc(14px * var(--af-scale, 1));
     }
-    .fields {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0 12px;
-      padding-right: 8px;
-    }
-    .fields .wide {
-      grid-column: 1 / -1;
-    }
     .recent {
       display: flex;
       gap: 2px;
@@ -398,7 +409,7 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
       flex-shrink: 0;
       font-size: calc(14px * var(--af-scale, 1));
     }
-    /* Above the tab bar, which lies over the map on this tab. */
+    /* Above the time control, which lies over the bottom of the map when it shows. */
     .dock {
       position: absolute;
       left: 10px;
@@ -460,20 +471,32 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
       border-radius: 12px;
       background: rgb(10 14 28 / 92%);
       color: var(--af-text);
-      font-size: calc(16px * var(--af-scale, 1));
+      font-size: calc(18px * var(--af-scale, 1));
     }
     /* The text takes what room is left, and the buttons stay together on one line beside it. */
     .bar-row {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       gap: 4px;
+    }
+    /*
+     * The directions and distance, under the name and the buttons, the box's full width.
+     * "Down 15° · Left 24°" is read as one thing, so it never breaks over two lines.
+     */
+    .guide {
+      flex: 1 0 100%;
+      order: 1;
+    }
+    .directions {
+      white-space: nowrap;
     }
     /* A button at the row's right end, such as the star limit's reset. */
     .bar-row .end {
       margin-left: auto;
     }
     .bar-text {
-      flex: 1 1 auto;
+      flex: 1 1 0;
       min-width: 0;
     }
     .target-icon {
@@ -519,11 +542,12 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
     }
     .directions {
       color: var(--af-guidance);
-      font-size: calc(15px * var(--af-scale, 1));
+      font-size: calc(17px * var(--af-scale, 1));
+      font-weight: 600;
     }
     /*
-     * A phone on its side: the map is wide and short. The tab bar is a rail at the left
-     * then, so nothing lies under the map's boxes.
+     * A phone on its side: the map is wide and short. The boxes keep to the bottom left,
+     * and the round buttons to the right edge, so the reticle in the middle stays clear.
      */
     @media (orientation: landscape) and (max-height: 520px) {
       /*
@@ -532,11 +556,11 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
        */
       .controls {
         top: calc(4px + var(--ion-safe-area-top, 0px));
-        bottom: 4px;
+        bottom: calc(4px + var(--af-tab-bar-height, 0px));
         right: calc(4px + var(--ion-safe-area-right, 0px));
         display: grid;
         grid-auto-flow: column;
-        grid-template-rows: repeat(auto-fill, 48px);
+        grid-template-rows: repeat(auto-fill, 64px);
         direction: rtl;
         /* Only the buttons take taps: the map can be dragged between and under them. */
         pointer-events: none;
@@ -544,15 +568,15 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
       .controls ion-fab-button {
         pointer-events: auto;
       }
-      /* The map runs under the tab rail, so what sits at the left starts beside the rail. */
+      /* Clear of a notch or camera hole at the left edge. */
       .readout {
-        left: calc(10px + var(--af-rail-width, 0px));
+        left: calc(10px + var(--ion-safe-area-left, 0px));
       }
       /* Never taller than the map: the box of the target shrinks and scrolls inside itself. */
       .dock {
-        left: calc(10px + var(--af-rail-width, 0px));
+        left: calc(10px + var(--ion-safe-area-left, 0px));
         right: calc(10px + var(--ion-safe-area-right, 0px));
-        bottom: 8px;
+        bottom: calc(8px + var(--af-tab-bar-height, 0px));
         max-height: calc(100vh - 16px - var(--af-time-control-height, 0px));
         align-items: flex-start;
       }
@@ -562,7 +586,7 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
       /* Zoom lies in a row at the bottom, beside the column of buttons instead of under it. */
       .zoom {
         position: absolute;
-        right: 48px;
+        right: 64px;
         bottom: 0;
         flex-direction: row;
         margin: 0;
@@ -575,7 +599,7 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
       .eyepiece-panel,
       .message {
         box-sizing: border-box;
-        width: min(40%, 280px);
+        width: min(42%, 320px);
         flex-shrink: 0;
       }
       .bar,
@@ -584,36 +608,98 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
         min-height: 0;
         overflow-y: auto;
       }
-      /* With little width, the target's buttons go on their own line under its name. */
-      .bar-row {
-        flex-wrap: wrap;
-      }
-      /* The name shrinks and wraps inside its own space, so the icon stays beside it. */
-      .bar-text {
-        flex: 1 1 0;
-      }
       .bar-buttons {
-        flex: 1 0 100%;
         justify-content: space-between;
       }
-      /* Open, the details need more room for their chart, and may lie over the reticle. */
-      .bar.detailed,
       .eyepiece-panel {
         width: min(46%, 360px);
       }
-      /* That is room enough for the buttons beside the name, which leaves more for the details. */
-      .bar.detailed .bar-row {
-        flex-wrap: nowrap;
+      /*
+       * With a target, its box is a panel down the left edge, the map's full height, like
+       * the card of a car's navigation app: the list being played at the top, as upright,
+       * then which way to move, first and largest, then the target, and the buttons at the
+       * foot. The map's centre moves into the clear part beside it
+       * (see clearSpan), so the panel never lies over the reticle or the guidance.
+       */
+      .stage {
+        --af-panel-width: min(38vw, 300px);
       }
-      .bar.detailed .bar-buttons {
+      .dock:has(.bar) {
+        top: calc(8px + var(--ion-safe-area-top, 0px));
+      }
+      .dock:has(.bar) .bar,
+      .dock:has(.bar) .eyepiece-panel,
+      .dock:has(.bar) .message {
+        width: var(--af-panel-width);
+      }
+      .dock:has(.bar) .bar {
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+      }
+      .bar > .bar-row {
+        flex: 1 0 auto;
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        grid-template-rows: auto auto 1fr;
+        grid-template-areas:
+          'guide guide'
+          'icon text'
+          'buttons buttons';
+        align-items: center;
+      }
+      .bar > .bar-row .guide {
+        grid-area: guide;
+        margin-bottom: 6px;
+      }
+      .bar > .bar-row .target-icon {
+        grid-area: icon;
+      }
+      .bar > .bar-row .bar-text {
+        grid-area: text;
+      }
+      .bar > .bar-row .bar-buttons {
+        grid-area: buttons;
+        align-self: end;
+      }
+      /* The instruction, read first and from furthest away. */
+      .bar .directions {
+        font-size: calc(22px * var(--af-scale, 1));
+      }
+      /*
+       * The list being played stays at the top, as with the phone upright, and stays in
+       * view while the details scroll under it.
+       */
+      .bar app-playlist-bar {
+        position: sticky;
+        /* The panel's own padding, so nothing scrolls into view above the row. */
+        top: -6px;
+        z-index: 1;
+        margin-top: -6px;
+        padding-top: 4px;
+        background: #0a0e1c;
+      }
+      /* Open, the details take the room the panel has, and scroll inside it. */
+      .bar.detailed {
+        width: min(46vw, 360px);
+      }
+      .bar.detailed > .bar-row {
         flex: none;
+      }
+      /* The pointing readout moves beside the panel. */
+      .stage:has(.bar) .readout {
+        left: calc(20px + var(--ion-safe-area-left, 0px) + var(--af-panel-width));
+      }
+      .stage:has(.bar.detailed) .readout {
+        left: calc(20px + var(--ion-safe-area-left, 0px) + min(46vw, 360px));
       }
     }
   `,
   template: `
     <!-- No header, so the map fills the whole screen. -->
     <ion-content [scrollY]="false" [fullscreen]="true">
-      <div class="stage">
+      <!-- Any touch brings back the round buttons, after they fade away while idle. -->
+      <div class="stage" (pointerdown)="wake()">
         <canvas
           #canvas
           aria-label="Sky map. Drag to aim, pinch to zoom."
@@ -662,19 +748,22 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
 
         <!-- A finder phone linked to a screen phone shows only the map: nothing to tap by accident. -->
         @if (!state.finderMode()) {
-          <div class="controls">
-            <!--
-            Green while the motion sensors steer the view. First, since it is used most. On a
-            screen phone, the finder phone on the telescope steers it, and this opens the link.
+          <!--
+            The big round buttons, down the right edge: only what is used all the time at the
+            telescope. Everything else is under More. They fade while idle: see RAIL_IDLE_MS.
           -->
+          <div class="controls" data-testid="controls" [class.faded]="railHidden()">
+            <!--
+              Green while the motion sensors steer the view. On a screen phone, the finder phone
+              on the telescope steers it, and this opens the link.
+            -->
             @if (state.remoteFinder()) {
-              <ion-fab-button size="small" data-testid="sensor-toggle" class="good on" (click)="openRemote()">
+              <ion-fab-button data-testid="sensor-toggle" class="good on" (click)="openRemote()">
                 <ion-icon name="phone-landscape-outline" aria-hidden="true"></ion-icon>
                 <span class="visually-hidden">Steered by the finder phone</span>
               </ion-fab-button>
             } @else {
               <ion-fab-button
-                size="small"
                 data-testid="sensor-toggle"
                 [class.good]="state.sensorsActive()"
                 [class.on]="state.sensorsActive()"
@@ -685,12 +774,7 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
               </ion-fab-button>
             }
             <!-- Steps through the sky map, the eyepiece view and the eyepiece ring, showing the view it switches to. -->
-            <ion-fab-button
-              size="small"
-              data-testid="view-mode"
-              [attr.data-mode]="mode()"
-              (click)="mode.set(nextView())"
-            >
+            <ion-fab-button data-testid="view-mode" [attr.data-mode]="mode()" (click)="mode.set(nextView())">
               <ion-icon
                 aria-hidden="true"
                 [name]="isIconUrl(viewButtons[nextView()].icon) ? undefined : viewButtons[nextView()].icon"
@@ -699,70 +783,28 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
               <span class="visually-hidden">{{ viewButtons[nextView()].label }}</span>
             </ion-fab-button>
             <!--
-            Opens the time control, to see the sky at another time. Amber while the map shows
-            another time, like the other warnings, since the sky shown isn't the real one.
-          -->
+              Amber while something under it needs seeing to: the telescope isn't aligned, or
+              the map shows another time.
+            -->
             <ion-fab-button
-              size="small"
-              data-testid="open-time"
-              [class.warn]="state.planning()"
-              [class.on]="state.planning()"
-              [attr.aria-pressed]="state.timeControlOpen()"
-              (click)="state.timeControlOpen.set(!state.timeControlOpen())"
+              data-testid="more"
+              [class.warn]="state.planning() || !state.alignment()"
+              [attr.aria-expanded]="moreOpen()"
+              (click)="moreOpen.set(!moreOpen())"
             >
-              <ion-icon name="time-outline" aria-hidden="true"></ion-icon>
-              <span class="visually-hidden">Change the time</span>
-            </ion-fab-button>
-            <!-- Green once aligned, amber until then. The Align page says if it was only rough. -->
-            <ion-fab-button
-              size="small"
-              data-testid="alignment-status"
-              [class.good]="state.alignment()"
-              [class.warn]="!state.alignment()"
-              [class.on]="state.alignment()"
-              (click)="openAlignment()"
-            >
-              <ion-icon name="locate-outline" aria-hidden="true"></ion-icon>
-              <span class="visually-hidden">
-                @if (state.alignment(); as alignment) {
-                  Aligned: {{ alignment.starId }}{{ alignment.method === 'plate-solve' ? '' : ', rough' }}
-                } @else {
-                  Not aligned
-                }
-              </span>
-            </ion-fab-button>
-            <!-- Full screen hides the browser bars. Not offered where the browser can't, as on iPhones. -->
-            @if (fullscreen.supported) {
-              <ion-fab-button
-                size="small"
-                data-testid="fullscreen-toggle"
-                [attr.aria-pressed]="fullscreen.active()"
-                [class.on]="fullscreen.active()"
-                (click)="fullscreen.toggle()"
-              >
-                <ion-icon
-                  [name]="fullscreen.active() ? 'contract-outline' : 'expand-outline'"
-                  aria-hidden="true"
-                ></ion-icon>
-                <span class="visually-hidden">Full screen</span>
-              </ion-fab-button>
-            }
-            <!-- Red night mode, at hand while observing. Red when on, like everything else then. -->
-            <ion-fab-button
-              size="small"
-              data-testid="night-toggle"
-              [attr.aria-pressed]="state.settings().nightMode"
-              [class.on]="state.settings().nightMode"
-              (click)="state.updateSettings({ nightMode: !state.settings().nightMode })"
-            >
-              <ion-icon name="moon-outline" aria-hidden="true"></ion-icon>
-              <span class="visually-hidden">Red night mode</span>
+              <ion-icon name="ellipsis-horizontal" aria-hidden="true"></ion-icon>
+              <span class="visually-hidden">More</span>
             </ion-fab-button>
           </div>
+
+          <!-- What is needed less at the telescope: big tiles with words, over the map. -->
+          @if (moreOpen()) {
+            <app-more-sheet (closed)="moreOpen.set(false)"></app-more-sheet>
+          }
         }
 
         @if (!state.finderMode()) {
-          <div class="dock">
+          <div class="dock" #dock>
             <!-- Location sits bottom left and zoom bottom right, just above whatever boxes are open below. -->
             <div class="corner">
               @if (!state.selectedTarget()) {
@@ -778,9 +820,8 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
                 }
               }
               @if (mode() !== 'eyepiece') {
-                <div class="zoom">
+                <div class="zoom" [class.faded]="railHidden()">
                   <ion-fab-button
-                    size="small"
                     aria-label="Zoom in"
                     data-testid="zoom-in"
                     [disabled]="fieldDeg() <= minField"
@@ -789,7 +830,6 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
                     <ion-icon name="add" aria-hidden="true"></ion-icon>
                   </ion-fab-button>
                   <ion-fab-button
-                    size="small"
                     aria-label="Zoom out"
                     data-testid="zoom-out"
                     [disabled]="fieldDeg() >= maxField"
@@ -929,6 +969,13 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
 
             @if (state.selectedTarget(); as target) {
               <div class="bar" data-testid="target-bar" [class.detailed]="showDetails()">
+                <!--
+                  Observing through a list: back and forward through it, like a music playlist.
+                  The middle says where in the list, and opens it.
+                -->
+                @if (playlist.playing()) {
+                  <app-playlist-bar data-testid="playlist"></app-playlist-bar>
+                }
                 <div class="bar-row">
                   <!-- The target's own icon, as in the lists. -->
                   @if (targetIconUrl(); as icon) {
@@ -936,6 +983,9 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
                   }
                   <div class="bar-text">
                     <strong data-testid="target-designations">{{ designationText(target) }}</strong> {{ target.name }}
+                  </div>
+                  <!-- Which way to move, on a line of its own the box's full width, never broken. -->
+                  <div class="guide">
                     <div class="directions" data-testid="directions">{{ directions() }}</div>
                     <div class="muted" data-testid="guidance">
                       <span class="keep">{{ targetDistance() | number: '1.1-1' }}° away</span>
@@ -1006,7 +1056,7 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
                 }
               </div>
             }
-            <!-- Last, just above the tab bar, so it is seen without covering the sky. -->
+            <!-- Last, at the bottom, so it is seen without covering the sky. -->
             @if (sensors.error(); as message) {
               <div class="message" data-testid="sensor-error">{{ message }}</div>
             }
@@ -1019,9 +1069,9 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
 export class SkyPage implements AfterViewInit, OnDestroy {
   protected readonly state = inject(AppState);
   protected readonly sensors = inject(SensorService);
-  protected readonly fullscreen = inject(FullscreenService);
   protected readonly liveSolver = inject(LiveSolverService);
   protected readonly remote = inject(RemoteService);
+  protected readonly playlist = inject(PlaylistService);
   private readonly sound = inject(SoundService);
   private readonly router = inject(Router);
   private readonly toasts = inject(ToastController);
@@ -1162,7 +1212,14 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   });
 
   private readonly canvasRef = viewChild.required<ElementRef<HTMLCanvasElement>>('canvas');
-  private resizeObserver?: ResizeObserver;
+  /**
+   * Redraws when the canvas changes size, as when the phone rotates, and when the boxes at
+   * the bottom do, as when a target is chosen or its details open: the reticle moves into
+   * the part of the map they leave clear.
+   */
+  private readonly resizeObserver = new ResizeObserver(() => this.queueDraw());
+  private readonly dockRef = viewChild<ElementRef<HTMLElement>>('dock');
+  private observedDock?: HTMLElement;
   /** The sky's rotation at the frame being drawn. */
   private frameRotation = this.state.rotationAt(this.state.frameTime());
   private skyTurnTimer?: ReturnType<typeof setTimeout>;
@@ -1186,6 +1243,20 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   private reticleRadiusPx = 0;
   /** True while a tap's plate solve runs, so a second tap does nothing. */
   protected readonly solvingHere = signal(false);
+  /** Whether the More sheet is open. */
+  protected readonly moreOpen = signal(false);
+  /** No touch for a while: see RAIL_IDLE_MS. */
+  private readonly idle = signal(false);
+  private idleTimer?: ReturnType<typeof setTimeout>;
+  /**
+   * The round buttons fade only while the sensors steer, since then the hands are on the
+   * telescope. Not while the More sheet or the time control is open.
+   */
+  protected readonly railHidden = computed(
+    () => this.idle() && this.state.sensorsActive() && !this.moreOpen() && !this.state.timeControlOpen(),
+  );
+  /** A shutter remote's press plate solves: see shutterPressed. */
+  private readonly onKey = (event: KeyboardEvent): void => this.shutterPressed(event);
   private pinchStart?: { distance: number; fieldDeg: number };
 
   constructor() {
@@ -1211,6 +1282,8 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       locationOutline,
       settingsOutline,
       phoneLandscapeOutline,
+      ellipsisHorizontal,
+      listOutline,
     });
     this.baseStarsLoaded = this.loadStars();
     // The faint stars are a large file, so they only load once the eyepiece view opens.
@@ -1251,6 +1324,15 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       this.shownAlignedAt = alignedAt ?? null;
     });
 
+    // The boxes at the bottom are watched for size whenever they are on screen.
+    effect(() => {
+      const dock = this.dockRef()?.nativeElement;
+      if (dock === this.observedDock) return;
+      if (this.observedDock) this.resizeObserver.unobserve(this.observedDock);
+      if (dock) this.resizeObserver.observe(dock);
+      this.observedDock = dock;
+    });
+
     // Redraw whenever anything shown on the map changes.
     effect(() => {
       this.state.pointing();
@@ -1284,13 +1366,35 @@ export class SkyPage implements AfterViewInit, OnDestroy {
 
   ngAfterViewInit(): void {
     // The canvas has no size until layout finishes, and changes when the phone rotates.
-    this.resizeObserver = new ResizeObserver(() => this.queueDraw());
     this.resizeObserver.observe(this.canvasRef().nativeElement);
+    window.addEventListener('keydown', this.onKey);
+    this.wake();
   }
 
   ngOnDestroy(): void {
-    this.resizeObserver?.disconnect();
+    this.resizeObserver.disconnect();
     clearTimeout(this.skyTurnTimer);
+    clearTimeout(this.idleTimer);
+    window.removeEventListener('keydown', this.onKey);
+  }
+
+  /** A touch: the round buttons come back, until the next while without one. */
+  protected wake(): void {
+    this.idle.set(false);
+    clearTimeout(this.idleTimer);
+    this.idleTimer = setTimeout(() => this.idle.set(true), RAIL_IDLE_MS);
+  }
+
+  /**
+   * A Bluetooth shutter remote, when the setting is on, plate solves on the map, as a tap
+   * on the rings does. The Align page has its own use for it, aligning. Not on a finder
+   * phone, whose screen phone asks for its solves.
+   */
+  private shutterPressed(event: KeyboardEvent): void {
+    if (!this.state.settings().shutterAligns || !this.state.mapOnShow() || this.state.finderMode()) return;
+    if (!isShutterPress(event)) return;
+    event.preventDefault();
+    void this.solveHere();
   }
 
   protected setStarLimit(event: Event): void {
@@ -1316,10 +1420,6 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     else void this.sensors.start();
   }
 
-  protected openAlignment(): void {
-    void this.router.navigateByUrl('/align');
-  }
-
   protected openRemote(): void {
     void this.router.navigateByUrl('/remote');
   }
@@ -1329,9 +1429,11 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     return this.seenActions.openLog(target.id);
   }
 
+  /** Clears the target, and stops observing through a list. */
   protected clearTarget(): void {
     this.state.selectedTargetId.set(null);
     this.showDetails.set(false);
+    this.playlist.stop();
   }
 
   /**
@@ -1394,7 +1496,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     const canvas = this.canvasRef().nativeElement;
     const rect = canvas.getBoundingClientRect();
     const cx = this.viewCentreX || canvas.clientWidth / 2;
-    const cy = canvas.clientHeight / 2;
+    const cy = this.viewCentreY || canvas.clientHeight / 2;
     const distance = Math.hypot(event.clientX - rect.left - cx, event.clientY - rect.top - cy);
     return distance <= Math.max(this.reticleRadiusPx, MIN_TAP_RADIUS_PX);
   }
@@ -1592,10 +1694,22 @@ export class SkyPage implements AfterViewInit, OnDestroy {
 
   /**
    * With the phone on its side, the part of the map's width that nothing covers: from the
-   * tab rail, or the eyepiece's panel, to the column of round buttons. Measured from what
+   * boxes at the left, or the eyepiece's panel, to the column of round buttons. Measured from what
    * is on screen, so it follows a notch, the text size and the panel's own width. With the
    * phone upright there is none to measure, as the boxes sit below the view instead.
    */
+  /**
+   * With the phone upright, how far down the map is clear: to the top of the target's box,
+   * which grows when its details open. Measured from what is on screen. The eyepiece view
+   * places its circle above its own panel instead.
+   */
+  private clearBottom(canvas: HTMLCanvasElement, isEyepiece: boolean): number | undefined {
+    if (sideways() || isEyepiece) return undefined;
+    const box = canvas.parentElement?.querySelector('.bar')?.getBoundingClientRect();
+    if (!box || box.height === 0) return undefined;
+    return box.top - canvas.getBoundingClientRect().top - CLEAR_MARGIN_PX;
+  }
+
   private clearSpan(canvas: HTMLCanvasElement, isEyepiece: boolean): ClearSpan | undefined {
     const stage = canvas.parentElement;
     if (!sideways() || !stage) return undefined;
@@ -1604,8 +1718,11 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       const box = stage.querySelector(selector)?.getBoundingClientRect();
       return box && box.width > 0 ? box[side] - origin : undefined;
     };
-    // The dock starts where the rail ends. In the eyepiece view its panel reaches further.
-    const left = (isEyepiece ? edge('.eyepiece-panel', 'right') : undefined) ?? edge('.dock', 'left');
+    // The clear part starts beside the target's panel or the eyepiece's, if one is open.
+    const panels = ['.bar', isEyepiece ? '.eyepiece-panel' : null]
+      .map((selector) => (selector ? edge(selector, 'right') : undefined))
+      .filter((right): right is number => right !== undefined);
+    const left = panels.length > 0 ? Math.max(...panels) : edge('.dock', 'left');
     const right = edge('.controls', 'left');
     if (left === undefined || right === undefined) return undefined;
     return { left: left + CLEAR_MARGIN_PX, right: right - CLEAR_MARGIN_PX };
@@ -1636,9 +1753,17 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     this.frameRotation = this.state.rotationAt(this.state.frameTime());
     const basis = viewBasis(this.steadyPointing(isEyepiece));
     // The eyepiece's circle fits the screen whichever way up the phone is held.
-    const { centreX, centreY, spanPx } = viewLayout(width, height, isEyepiece, this.clearSpan(canvas, isEyepiece));
+    const { centreX, centreY, spanPx } = viewLayout(
+      width,
+      height,
+      isEyepiece,
+      this.clearSpan(canvas, isEyepiece),
+      this.clearBottom(canvas, isEyepiece),
+    );
     this.viewCentreX = centreX;
     this.viewCentreY = centreY;
+    // Where the reticle is on the canvas, for tests that tap it.
+    canvas.dataset['centre'] = `${Math.round(centreX)},${Math.round(centreY)}`;
     this.viewSpanPx = spanPx;
     this.queueSkyTurn(spanPx);
     const flip = this.imageFlip();
@@ -2054,9 +2179,10 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     height: number,
     scale: number,
   ): void {
-    // The view's centre, which sits right of the screen's middle on a phone on its side.
+    // The view's centre: right of the screen's middle on a phone on its side, and above it
+    // on an upright phone while the target's box takes the bottom of the screen.
     const cx = this.viewCentreX || width / 2;
-    const cy = height / 2;
+    const cy = this.viewCentreY || height / 2;
     const color = this.isOnTarget() ? COLOR.onTarget : COLOR.reticle;
     // While plate solving, the reticle fades in and out, and keeps redrawing itself to do so.
     const opacity = this.state.plateSolving() ? pulseOpacity(performance.now()) : 1;

@@ -31,6 +31,8 @@ stays in localStorage and is never synced.
 | Debug options: solve toasts, send solves, capture mode | `astrofinder.settings` | Development only. |
 | Alignment | `astrofinder.alignment` | Only valid for this phone in this mount. |
 | Sort order chosen per list | `astrofinder.listSorts` | Keyed by list UUID, or by the app list's name. A view choice. |
+| Chart of tonight open or closed, on every list | `astrofinder.listChart` | A view choice. |
+| The list being observed through (playlist) | `astrofinder.playlist` | Where this phone is in a list tonight, like the selected target. |
 | Weather forecast | `astrofinder.forecast` | Throwaway cache. |
 
 App code and the star and target data are in the service worker cache (`ngsw-config.json`)

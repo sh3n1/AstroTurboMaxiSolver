@@ -4,6 +4,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import {
   IonBadge,
   IonButton,
+  IonButtons,
   IonContent,
   IonHeader,
   IonIcon,
@@ -27,6 +28,7 @@ import { addIcons } from 'ionicons';
 import {
   add,
   apertureOutline,
+  arrowBack,
   bluetoothOutline,
   cameraOutline,
   chatbubbleEllipsesOutline,
@@ -80,6 +82,7 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
     DecimalPipe,
     IonBadge,
     IonButton,
+    IonButtons,
     IonContent,
     IonHeader,
     IonIcon,
@@ -179,6 +182,11 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
   template: `
     <ion-header>
       <ion-toolbar>
+        <ion-buttons slot="start">
+          <ion-button aria-label="Back to the map" data-testid="back-to-map" (click)="backToMap()">
+            <ion-icon slot="icon-only" name="arrow-back" aria-hidden="true"></ion-icon>
+          </ion-button>
+        </ion-buttons>
         <ion-title>Settings</ion-title>
       </ion-toolbar>
     </ion-header>
@@ -359,7 +367,10 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
               Shutter sound on solve
             </ion-toggle>
           </ion-item>
-          <!-- A Bluetooth camera shutter remote, to align without reaching for the phone. -->
+          <!--
+            A Bluetooth camera shutter remote, so the phone needn't be touched: it aligns on the
+            Align page, and plate solves on the sky map.
+          -->
           <ion-item>
             <ion-icon slot="start" name="bluetooth-outline" aria-hidden="true"></ion-icon>
             <ion-toggle
@@ -367,7 +378,7 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
               [checked]="settings().shutterAligns"
               (ionChange)="state.updateSettings({ shutterAligns: $any($event).detail.checked })"
             >
-              Shutter remote aligns
+              Shutter remote aligns and solves
             </ion-toggle>
           </ion-item>
         </ion-list>
@@ -629,6 +640,10 @@ export class SettingsPage {
   protected readonly state = inject(AppState);
   protected readonly remote = inject(RemoteService);
   private readonly router = inject(Router);
+
+  protected backToMap(): void {
+    void this.router.navigateByUrl('/tabs/sky');
+  }
   protected readonly settings = this.state.settings;
   protected readonly liveSolver = inject(LiveSolverService);
   protected readonly screenWake = inject(ScreenWakeService);
@@ -697,6 +712,7 @@ export class SettingsPage {
     addIcons({
       phoneLandscapeOutline,
       add,
+      arrowBack,
       createOutline,
       trashOutline,
       apertureOutline,

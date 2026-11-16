@@ -1,4 +1,4 @@
-// How every list of targets is ordered, filtered and split into sections: the Targets tab,
+// How every list of targets is ordered, filtered and split into sections: the search,
 // the catalogues and the user's own lists all work the same way. Plain functions, with no
 // Angular dependency, so they can be unit tested.
 
@@ -6,7 +6,7 @@ import type { Target } from './targets';
 
 /**
  * The orders a list can be shown in. "list" is the list's own: the catalogue's numbers,
- * the order the user gave their list, or the best match on the Targets tab.
+ * the order the user gave their list, or the best match in the search.
  */
 export const SORTS = ['list', 'best-time', 'highest', 'brightest', 'nearest'] as const;
 export type SortId = (typeof SORTS)[number];
@@ -154,7 +154,7 @@ export function firstRows<T>(sections: readonly Section<T>[], limit: number): Se
 }
 
 /**
- * The Targets tab's own order, the best match: targets whose designation is exactly what
+ * The search's own order, the best match: targets whose designation is exactly what
  * was typed, then whatever is up, then the brightest.
  */
 export function bestMatch<T extends Pick<Target, 'mag'>>(
