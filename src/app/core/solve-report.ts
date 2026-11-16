@@ -15,7 +15,7 @@ export interface SolveReport {
   time: string;
   browser: string;
   /** Automatic while still, or asked for by alignment. */
-  trigger: 'auto' | 'alignment';
+  trigger: 'auto' | 'alignment' | 'tap';
   outcome: 'solved' | 'failed';
   message: string;
   durationMs: number;

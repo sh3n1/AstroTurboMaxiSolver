@@ -262,3 +262,35 @@ test('does not use the camera when automatic solving is off', async ({ page }) =
   await page.waitForTimeout(3000);
   await expect(page.locator('[data-testid=solve-toast]')).toHaveCount(0);
 });
+
+test('plate solves when the green rings are tapped, leaving the alignment alone', async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.goto('/tabs/targets');
+  await page.locator('app-targets ion-searchbar input').fill('Vega');
+  // Wait for the search to apply, because the list updates just after typing.
+  await expect(page.locator('app-targets ion-item').first()).toContainText('Vega');
+  await page.locator('app-targets ion-item').first().click();
+  await page.locator('[data-testid=aim-at-target]').click();
+  await expect(page.locator('[data-testid=guidance]')).toContainText('0.0° away');
+
+  // The fake camera shows no stars, so the solve fails and says why.
+  await page.locator('app-sky canvas').click();
+  await expect(page.getByTestId('solve-toast')).toBeVisible({ timeout: 45_000 });
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('astrofinder.alignment') ?? '{}'));
+  expect(saved.value ?? null).toBeNull();
+});
+
+test('plate solves when the red rings are tapped, with no target', async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.goto('/tabs/sky');
+  // A tap away from the rings does nothing.
+  const canvas = page.locator('app-sky canvas');
+  const box = (await canvas.boundingBox())!;
+  await canvas.click({ position: { x: 10, y: box.height / 2 } });
+  await page.waitForTimeout(500);
+  await expect(page.getByTestId('solve-toast')).toHaveCount(0);
+
+  // A tap on them solves. The fake camera shows no stars, so it fails and says why.
+  await canvas.click();
+  await expect(page.getByTestId('solve-toast')).toBeVisible({ timeout: 45_000 });
+});

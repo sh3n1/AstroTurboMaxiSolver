@@ -27,5 +27,6 @@ export const routes: Routes = [
   },
   { path: 'device-test', loadComponent: () => import('./pages/device-test.page').then((m) => m.DeviceTestPage) },
   { path: 'align', loadComponent: () => import('./pages/align.page').then((m) => m.AlignPage) },
+  { path: 'remote', loadComponent: () => import('./pages/remote.page').then((m) => m.RemotePage) },
   { path: '', redirectTo: 'tabs/sky', pathMatch: 'full' },
 ];

@@ -121,7 +121,17 @@ export function longestExposureSeconds(track: MediaStreamTrack, limitSeconds: nu
 export function closeCamera(camera: OpenCamera | null): void {
   camera?.stream.getTracks().forEach((track) => track.stop());
   if (camera) camera.video.srcObject = null;
+  // Its full size drawing canvas isn't needed until the camera opens again.
+  if (captureCanvas) captureCanvas.width = captureCanvas.height = 0;
 }
+
+/**
+ * The canvas frames are drawn on to read their pixels. One is reused rather than one per
+ * picture: a phone camera frame takes about 8 MB, and a finder phone takes pictures all
+ * night, faster than old phones free the memory of discarded canvases.
+ */
+let captureCanvas: HTMLCanvasElement | null = null;
+let captureContext: CanvasRenderingContext2D | null = null;
 
 /** Sets manual exposure and far focus. Returns false if the camera refuses. */
 export async function applyCameraSettings(track: MediaStreamTrack, settings: CaptureSettings): Promise<boolean> {
@@ -200,16 +210,19 @@ export async function captureStack(
   partialAt: readonly number[] = [],
 ): Promise<CapturedFrame> {
   const [width, height] = [video.videoWidth, video.videoHeight];
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!captureCanvas) {
+    captureCanvas = document.createElement('canvas');
+    captureContext = captureCanvas.getContext('2d', { willReadFrequently: true });
+  }
+  const [canvas, ctx] = [captureCanvas, captureContext];
   if (!ctx || !width || !height) throw new Error('The camera gave no picture.');
 
   const pixels = new Float32Array(width * height);
   const partial: { frames: number; pixels: Float32Array }[] = [];
   for (let frame = 0; frame < settings.frames; frame++) {
     await nextFrame(video, settings.exposureSeconds * 1000);
+    // Sized each time: another camera may have been closed meanwhile, which shrinks it.
+    if (canvas.width !== width || canvas.height !== height) [canvas.width, canvas.height] = [width, height];
     ctx.drawImage(video, 0, 0, width, height);
     const { data } = ctx.getImageData(0, 0, width, height);
     for (let i = 0; i < pixels.length; i++) {

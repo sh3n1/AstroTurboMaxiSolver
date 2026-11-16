@@ -31,7 +31,7 @@ export interface SolveLogEntry {
   id: number;
   at: Date;
   /** Automatic while the phone is still, or asked for by alignment. */
-  trigger: 'auto' | 'alignment';
+  trigger: SolveTrigger;
   /** A retry means the frame was unusable, such as too bright, so it tries again soon. */
   outcome: 'solved' | 'failed' | 'retry';
   /** One short line for a toast or the log, such as "No match in 14 stars". */
@@ -45,6 +45,9 @@ export interface SolveLogEntry {
   /** After a solve, how far the sensors were from the true position. */
   sensorErrorDeg: number | null;
 }
+
+/** What started a solve: the phone lying still, alignment, or a tap on the rings. */
+export type SolveTrigger = 'auto' | 'alignment' | 'tap';
 
 /** The result of a plate solve the user asked for, such as during alignment. */
 export type SolveNowResult = { ok: true; attitude: Quaternion; matched: number } | { ok: false; reason: string };
@@ -72,6 +75,11 @@ const MAX_ISO_REDUCTIONS = 6;
 /** A learnt field of view outside this range would mean a bad solve, so it is ignored. */
 const MIN_FOCAL_FACTOR = 0.7;
 const MAX_FOCAL_FACTOR = 1.3;
+/**
+ * A learnt field of view this close to the current one isn't saved. Each solve measures it
+ * slightly differently, and every change means a new solver index and a settings write.
+ */
+const FOCAL_FACTOR_TOLERANCE = 0.005;
 /** How many attempts the log keeps. */
 const LOG_LENGTH = 20;
 /** The camera must move at least this far before another automatic attempt. */
@@ -100,6 +108,12 @@ export class LiveSolverService {
    * shows a toast for each new one, and Settings lists them for debugging.
    */
   readonly log = signal<SolveLogEntry[]>([]);
+
+  /**
+   * On a screen phone linked to a finder phone, solves are asked of the finder, whose
+   * camera sees the sky. Set by RemoteService while linked, null otherwise.
+   */
+  remoteSolve: ((trigger: Exclude<SolveTrigger, 'auto'>) => Promise<SolveNowResult>) | null = null;
 
   /**
    * Where the camera pointed at the last finished attempt. Trying again from the same
@@ -131,6 +145,8 @@ export class LiveSolverService {
     effect(() => {
       const allowed =
         this.state.sensorsActive() &&
+        // A screen phone's own camera isn't on the telescope: the finder phone solves.
+        !this.state.remoteFinder() &&
         this.state.settings().autoSolve &&
         this.state.settings().mount === 'direct' &&
         !this.state.planning();
@@ -316,11 +332,22 @@ export class LiveSolverService {
   }
 
   /**
+   * Adds an attempt made by the finder phone, so the screen phone tells it with the same
+   * toasts and lists it in Settings, as if it had made it itself.
+   */
+  addRemoteEntry(entry: Omit<SolveLogEntry, 'id'>): void {
+    const newest: SolveLogEntry = { ...entry, id: ++this.logCount };
+    this.log.update((log) => [newest, ...log].slice(0, LOG_LENGTH));
+  }
+
+  /**
    * Plate solves straight away, without waiting for the phone to be still, because the
    * user has just said the telescope is still. Used by alignment. It works whether or not
-   * the sensors are on, and corrects them if they are.
+   * the sensors are on, and corrects them if they are. The trigger says who asked, for the
+   * log, and so the sky map can tell a tap's result as it tells automatic ones.
    */
-  async solveNow(): Promise<SolveNowResult> {
+  async solveNow(trigger: Exclude<SolveTrigger, 'auto'> = 'alignment'): Promise<SolveNowResult> {
+    if (this.remoteSolve) return this.remoteSolve(trigger);
     if (this.state.planning()) {
       return { ok: false, reason: 'Paused while showing another time. Go back to now to solve.' };
     }
@@ -352,7 +379,7 @@ export class LiveSolverService {
         await new Promise((resolve) => setTimeout(resolve, SETTLE_MS));
         frame = await captureStack(camera.video, this.captureSettings());
       }
-      const entry = { trigger: 'alignment' as const, startedAt, iso: this.iso, frames: this.plan.frames };
+      const entry = { trigger, startedAt, iso: this.iso, frames: this.plan.frames };
       if (averageLevel(frame.pixels) > MAX_SKY_LEVEL) {
         this.record({ ...entry, outcome: 'failed', message: 'Too bright to see stars' });
         return { ok: false, reason: 'Too bright for the camera. Keep lights out of view.' };
@@ -367,7 +394,7 @@ export class LiveSolverService {
       );
       entry.frames = frames;
       const report = (outcome: 'solved' | 'failed', message: string): void =>
-        this.report({ trigger: 'alignment', outcome, message, startedAt, before, kept, inputs, response, frames });
+        this.report({ trigger, outcome, message, startedAt, before, kept, inputs, response, frames });
       if (!response.solution) {
         this.record({
           ...entry,
@@ -405,7 +432,7 @@ export class LiveSolverService {
       return { ok: true, attitude, matched: response.solution.matched };
     } catch (error) {
       this.record({
-        trigger: 'alignment',
+        trigger,
         startedAt,
         iso: this.iso,
         outcome: 'failed',
@@ -436,7 +463,7 @@ export class LiveSolverService {
 
   /** Sends a finished attempt, with its frame, to the PC. Does nothing unless reporting. */
   private report(attempt: {
-    trigger: 'auto' | 'alignment';
+    trigger: SolveTrigger;
     outcome: 'solved' | 'failed';
     message: string;
     startedAt: number;
@@ -479,6 +506,8 @@ export class LiveSolverService {
    */
   private learnFieldOfView(focalPx: number, width: number, height: number): void {
     const factor = focalPx / (FOCAL_SHARE_OF_LONG_SIDE * Math.max(width, height));
+    const current = this.state.settings().cameraFocalFactor;
+    if (Math.abs(factor - current) <= current * FOCAL_FACTOR_TOLERANCE) return;
     if (Number.isFinite(factor) && factor > MIN_FOCAL_FACTOR && factor < MAX_FOCAL_FACTOR) {
       this.state.updateSettings({ cameraFocalFactor: Number(factor.toFixed(4)) });
     }

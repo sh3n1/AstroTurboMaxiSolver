@@ -10,24 +10,26 @@ import type { SolveRequest, SolveResponse } from './solver-messages';
 import { detectStars } from './star-detector';
 
 let stars: ReturnType<typeof catalogFromRows> = [];
-// Building an index takes a moment, so keep one per frame size and field of view.
-const indexes = new Map<string, SolverIndex>();
+/**
+ * Building an index takes a moment, so the last one is kept for the next frame of the same
+ * size and field of view. Only one: the field of view is learnt from each solve and shifts
+ * a little, and each index is a megabyte or two. Keeping every one filled the memory of a
+ * finder phone solving all night until Android closed Chrome.
+ */
+let cached: { key: string; index: SolverIndex } | null = null;
 
 addEventListener('message', ({ data }: MessageEvent<SolveRequest>) => {
   if (data.type === 'init') {
     stars = catalogFromRows(data.starRows);
-    indexes.clear();
+    cached = null;
     return;
   }
 
   const { id, pixels, width, height, focalPx, flipped, hint, timeLimitMs } = data;
   const geometry = { width, height, focalPx, flipped };
   const key = `${width}x${height}x${focalPx}x${flipped}`;
-  let index = indexes.get(key);
-  if (!index) {
-    index = buildSolverIndex(stars, geometry);
-    indexes.set(key, index);
-  }
+  if (cached?.key !== key) cached = { key, index: buildSolverIndex(stars, geometry) };
+  const index = cached.index;
 
   const started = performance.now();
   const detection = detectStars(pixels, width, height);

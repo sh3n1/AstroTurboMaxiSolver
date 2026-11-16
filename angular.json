@@ -24,7 +24,7 @@
             },
             "index": "src/index.html",
             "polyfills": [],
-            "allowedCommonJsDependencies": ["geomagnetism"],
+            "allowedCommonJsDependencies": ["geomagnetism", "jsqr"],
             "tsConfig": "tsconfig.app.json",
             "inlineStyleLanguage": "scss",
             "assets": [
