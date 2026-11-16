@@ -8,6 +8,7 @@ import { equatorialVector } from './astronomy';
 import { HERSCHEL_400, HERSCHEL_II } from './herschel';
 import type { Month } from './hubble-night-sky-challenge';
 import { HUBBLE_NIGHT_SKY_CHALLENGE } from './hubble-night-sky-challenge';
+import { readListFile } from './list-files';
 import { LocalDb } from './local-db';
 import { LocalTimePipe } from './local-time.pipe';
 import { RASC_DEEP_SKY_GEMS } from './rasc-deep-sky-gems';
@@ -20,17 +21,17 @@ import { recommendationLimit } from './sky-quality';
 import { SyncedStore } from './synced-store';
 import type { FixedListId, ListItem, ListRecord, ListedTarget, TargetList } from './target-lists';
 import {
-  FIXED_LISTS,
-  UNCATEGORIZED_ID,
-  UNCATEGORIZED_NAME,
   catalogueTargets,
   designationIndex,
-  listRows,
   exportFileName,
   exportLists,
+  FIXED_LISTS,
   listItemId,
+  listRows,
   newListId,
   parseImport,
+  UNCATEGORIZED_ID,
+  UNCATEGORIZED_NAME,
   uniqueName,
 } from './target-lists';
 import type { Target } from './targets';
@@ -306,13 +307,21 @@ export class ListsService {
   }
 
   /**
-   * Adds the lists in an exported file as new lists, so nothing the user has is
-   * overwritten. Returns how many lists were added. Throws a readable error for a bad file.
+   * Adds the lists in a file as new lists, so nothing the user has is overwritten: the
+   * app's own list files, SkySafari .skylist files, and CSV or plain text from other apps.
+   * Returns how many lists were added, and the objects of other apps' files that the app
+   * doesn't know. Throws a readable error for a file it can't use.
    */
-  import(text: string): number {
-    const imported = parseImport(text);
-    for (const { name, targetIds } of imported) this.create(name, targetIds);
-    return imported.length;
+  import(text: string, fileName = ''): { lists: number; missing: string[] } {
+    // JSON is only ever the app's own format, which says clearly when a file isn't one.
+    if (/^\s*[{[]/.test(text)) {
+      const imported = parseImport(text);
+      for (const { name, targetIds } of imported) this.create(name, targetIds);
+      return { lists: imported.length, missing: [] };
+    }
+    const { name, targetIds, missing } = readListFile(text, fileName, this.state.targets());
+    this.create(name, targetIds);
+    return { lists: 1, missing };
   }
 
   /**

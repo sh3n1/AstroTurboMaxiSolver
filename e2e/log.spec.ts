@@ -358,3 +358,71 @@ test('gives UUIDs to the records of a database saved with older ids', async ({ p
   expect(ids).toHaveLength(4);
   for (const id of ids) expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
 });
+
+test('saves the log as OpenAstronomyLog for other apps, with the observer named', async ({ page }) => {
+  await selectTarget(page, 'M31');
+  await page.getByTestId('mark-seen').click();
+  await page.locator('[data-testid=log-rating] ion-chip', { hasText: 'Great' }).click();
+  await page.getByTestId('log-sheet-close').click();
+
+  await page.goto('/tabs/lists/log');
+  await page.getByTestId('log-transfer').click();
+  await page.locator('ion-action-sheet button', { hasText: 'Save for other apps (OAL)' }).click();
+  // The name goes in the file, since other apps match observations to a user by it.
+  const ask = page.getByTestId('oal-name');
+  await ask.locator('input').first().fill('Ada');
+  await ask.locator('input').nth(1).fill('Lovelace');
+  const download = page.waitForEvent('download');
+  await ask.locator('button', { hasText: 'Save' }).click();
+  const file = await download;
+  expect(file.suggestedFilename()).toMatch(/^astroturbomaxisolver-log-\d{4}-\d{2}-\d{2}\.xml$/);
+  const text = await (await file.createReadStream()).toArray().then((chunks) => Buffer.concat(chunks).toString());
+  expect(text).toContain('<oal:observations version="2.1"');
+  expect(text).toContain('<name>Ada</name><surname>Lovelace</surname>');
+  expect(text).toContain('<name>M31</name>');
+  // Great is 1 on the Deep Sky Liste scale.
+  expect(text).toContain('<rating>1</rating>');
+
+  // The name is offered again next time.
+  await page.getByTestId('log-transfer').click();
+  await page.locator('ion-action-sheet button', { hasText: 'Save for other apps (OAL)' }).click();
+  await expect(page.getByTestId('oal-name').locator('input').first()).toHaveValue('Ada');
+});
+
+test("records the standard's extra details, and carries the night's sky to the next entry", async ({ page }) => {
+  await selectTarget(page, 'M31');
+  await page.getByTestId('mark-seen').click();
+  const sheet = page.locator('ion-modal app-log-entry-sheet');
+  await sheet.locator('[data-testid=log-rating] ion-chip', { hasText: 'Good' }).click();
+  // Folded at first, to keep the form quick.
+  await expect(sheet.getByTestId('log-details')).toHaveCount(0);
+  await sheet.getByTestId('log-more').click();
+  await sheet.locator('[data-testid=log-seeing] ion-chip', { hasText: '2 Good' }).click();
+  await sheet.locator('[data-testid=log-sqm] input').fill('18.4');
+  // A galaxy offers the deep-sky appearance and a size; colours are for double stars.
+  await sheet.locator('[data-testid=log-appearance] ion-chip', { hasText: 'Mottled' }).click();
+  await sheet.locator('[data-testid=log-size] input').fill('120');
+  await expect(sheet.getByTestId('log-colour-main')).toHaveCount(0);
+  await page.waitForTimeout(600);
+  await sheet.getByTestId('log-sheet-close').click();
+
+  // The next object that night starts with the same seeing and SQM reading, but its own look.
+  await selectTarget(page, 'Albireo');
+  await page.getByTestId('mark-seen').click();
+  await sheet.locator('[data-testid=log-rating] ion-chip', { hasText: 'Great' }).click();
+  await sheet.getByTestId('log-more').click();
+  await expect(sheet.locator('[data-testid=log-seeing] ion-chip', { hasText: '2 Good' })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  );
+  await expect(sheet.locator('[data-testid=log-sqm] input')).toHaveValue('18.4');
+  await expect(sheet.locator('[data-testid=log-appearance] ion-chip[aria-checked=true]')).toHaveCount(0);
+  // A double star offers the colours of its two stars.
+  await sheet.locator('[data-testid=log-colour-main] ion-chip', { hasText: 'orange' }).click();
+  await sheet.locator('[data-testid=log-colour-companion] ion-chip', { hasText: 'blue' }).click();
+  await expect(sheet.locator('[data-testid=log-colour-main] ion-chip', { hasText: 'orange' })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  );
+  await expect(sheet.getByTestId('log-size')).toHaveCount(0);
+});

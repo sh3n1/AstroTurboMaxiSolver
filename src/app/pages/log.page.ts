@@ -2,6 +2,7 @@ import type { ElementRef } from '@angular/core';
 import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import {
   ActionSheetController,
+  AlertController,
   IonBackButton,
   IonBadge,
   IonButton,
@@ -186,6 +187,7 @@ export class LogPage {
   protected readonly log = inject(ObservingLogService);
   private readonly seenActions = inject(SeenActionsService);
   private readonly actionSheets = inject(ActionSheetController);
+  private readonly alerts = inject(AlertController);
   private readonly toasts = inject(ToastController);
   private readonly fileInput = viewChild.required<ElementRef<HTMLInputElement>>('fileInput');
 
@@ -225,6 +227,32 @@ export class LogPage {
     return this.seenActions.openLog(entry.targetId, entry.id);
   }
 
+  /**
+   * Saves the log as OpenAstronomyLog, after asking for the observer's name, which other
+   * programs such as DeepskyLog use to match the observations to their account.
+   */
+  private async exportOal(): Promise<void> {
+    const last = this.log.lastObserver();
+    const alert = await this.alerts.create({
+      header: 'Your name',
+      message: 'Other apps match the observations to you by it.',
+      inputs: [
+        { name: 'name', type: 'text', placeholder: 'First name', value: last.name },
+        { name: 'surname', type: 'text', placeholder: 'Surname', value: last.surname },
+      ],
+      buttons: [
+        { text: 'Cancel', role: 'cancel' },
+        {
+          text: 'Save',
+          handler: ({ name, surname }: { name: string; surname: string }) =>
+            this.log.exportOal({ name: name.trim(), surname: surname.trim() }),
+        },
+      ],
+      htmlAttributes: { 'data-testid': 'oal-name' },
+    });
+    await alert.present();
+  }
+
   /** Export as a spreadsheet or a backup, or import a backup. */
   protected async transfer(): Promise<void> {
     const hasEntries = this.log.entries().length > 0;
@@ -235,6 +263,11 @@ export class LogPage {
           ? [
               { text: 'Save as a spreadsheet', icon: 'save-outline', handler: () => this.log.exportCsv() },
               { text: 'Save a backup', icon: 'save-outline', handler: () => this.log.exportJson() },
+              {
+                text: 'Save for other apps (OAL)',
+                icon: 'save-outline',
+                handler: () => void this.exportOal(),
+              },
             ]
           : []),
         {

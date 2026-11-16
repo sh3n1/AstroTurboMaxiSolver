@@ -194,7 +194,7 @@ import { fixedListEntries } from '../core/target-lists';
         #fileInput
         class="hidden-input"
         type="file"
-        accept=".json,.txt,application/json,text/plain"
+        accept=".json,.txt,.skylist,.csv,application/json,text/plain,text/csv"
         data-testid="import-file"
         (change)="importFile($event)"
       />
@@ -286,14 +286,14 @@ export class ListsPage {
     const file = input.files?.[0];
     // Clear the choice, so picking the same file again still imports it.
     input.value = '';
-    if (file) this.importText(await file.text());
+    if (file) this.importText(await file.text(), file.name);
   }
 
   /** For lists shared as text, which some phones do instead of sharing a file. */
   private async importPasted(): Promise<void> {
     const alert = await this.alerts.create({
       header: 'Import pasted text',
-      message: 'Paste the text of a shared AstroTurboMaxiSolver list.',
+      message: 'Paste a shared list, or a list of objects, one per line.',
       inputs: [{ name: 'text', type: 'textarea', placeholder: '{ "format": "astroturbomaxisolver-lists", … }' }],
       buttons: [
         { text: 'Cancel', role: 'cancel' },
@@ -303,23 +303,36 @@ export class ListsPage {
     await alert.present();
   }
 
-  private importText(text: string): void {
+  /**
+   * Imports the app's own list files, SkySafari .skylist files, and CSV or plain text from
+   * other apps. Objects the app doesn't know are named, so the user knows what is missing.
+   */
+  private importText(text: string, fileName = 'Pasted list'): void {
     try {
-      const count = this.lists.import(text);
-      void this.toast(count === 1 ? 'Imported 1 list' : `Imported ${count} lists`);
+      const { lists, missing } = this.lists.import(text, fileName);
+      const imported = lists === 1 ? 'Imported 1 list' : `Imported ${lists} lists`;
+      // Longer when it names what is missing, to give time to read it.
+      if (missing.length === 0) void this.toast(imported);
+      else void this.toast(`${imported}. ${notFoundText(missing)}`, 6000);
     } catch (error) {
       void this.toast(error instanceof Error ? error.message : 'Import failed');
     }
   }
 
-  private async toast(message: string): Promise<void> {
+  private async toast(message: string, duration = 3000): Promise<void> {
     const toast = await this.toasts.create({
       message,
-      duration: 3000,
+      duration,
       position: 'top',
       cssClass: 'af-toast',
       htmlAttributes: { 'data-testid': 'lists-toast' },
     });
     await toast.present();
   }
+}
+
+/** The objects an import left out, briefly: "2 not found: PGC 1, Sh2-101". */
+function notFoundText(missing: readonly string[]): string {
+  const shown = missing.slice(0, 3).join(', ');
+  return `${missing.length} not found: ${shown}${missing.length > 3 ? '…' : ''}`;
 }

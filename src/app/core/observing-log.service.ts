@@ -3,8 +3,11 @@ import { Injectable, computed, inject } from '@angular/core';
 import { AppState } from './app-state.service';
 import { skyConditions } from './astronomy';
 import { LocalDb } from './local-db';
+import type { OalObserver } from './oal-export';
+import { exportLogOal, oalFileName } from './oal-export';
 import type { LogConditions, LogEntry } from './observing-log';
 import {
+  carriedDetails,
   exportLogCsv,
   exportLogJson,
   logFileName,
@@ -12,8 +15,8 @@ import {
   newEntry,
   nightKey,
   parseLogJson,
-  seenStates,
   seenCounts,
+  seenStates,
 } from './observing-log';
 import { logEntryUuid } from './storage-migration';
 import { SyncedStore } from './synced-store';
@@ -85,8 +88,11 @@ export class ObservingLogService {
   log(target: Target): LogEntry {
     const now = new Date();
     const entry = newEntry(target, now, this.conditionsAt(target, now));
-    this.store.save([entry]);
-    return entry;
+    // The night's seeing and sky readings carry over, so they needn't be typed again.
+    const details = carriedDetails(this.entries(), now);
+    const saved = details ? { ...entry, details } : entry;
+    this.store.save([saved]);
+    return saved;
   }
 
   /**
@@ -115,7 +121,7 @@ export class ObservingLogService {
   }
 
   /** Changes an entry's rating, tags or note. */
-  update(id: string, changes: Partial<Pick<LogEntry, 'rating' | 'tags' | 'note'>>): void {
+  update(id: string, changes: Partial<Pick<LogEntry, 'rating' | 'tags' | 'note' | 'details'>>): void {
     const entry = this.store.get(id);
     if (entry) this.store.save([{ ...entry, ...changes }]);
   }
@@ -154,6 +160,27 @@ export class ObservingLogService {
     this.download(exportLogJson(this.entries()), logFileName('json'), 'application/json');
   }
 
+  /**
+   * Saves the log as OpenAstronomyLog, for other observing programs and DeepskyLog. The
+   * observer's name goes in the file, since those programs match observations by it, and
+   * is remembered on this phone for next time.
+   */
+  exportOal(observer: OalObserver): void {
+    saveObserver(observer);
+    const targets = new Map(this.state.targets().map((target) => [target.id, target]));
+    this.download(exportLogOal(this.entries(), targets, observer, this.state.kit()), oalFileName(), 'application/xml');
+  }
+
+  /** The observer's name used for the last OAL export, to fill in next time. */
+  lastObserver(): OalObserver {
+    try {
+      const saved = JSON.parse(localStorage.getItem(OBSERVER_KEY) ?? '{}') as Partial<OalObserver>;
+      return { name: saved.name ?? '', surname: saved.surname ?? '' };
+    } catch {
+      return { name: '', surname: '' };
+    }
+  }
+
   private download(text: string, fileName: string, type: string): void {
     const url = URL.createObjectURL(new Blob([text], { type }));
     const link = document.createElement('a');
@@ -162,5 +189,16 @@ export class ObservingLogService {
     link.click();
     // Give the browser a moment to start the download before freeing the file.
     setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  }
+}
+
+/** Where the observer's name for OAL files is remembered. This phone only, like the settings. */
+const OBSERVER_KEY = 'astroturbomaxisolver.observer';
+
+function saveObserver(observer: OalObserver): void {
+  try {
+    localStorage.setItem(OBSERVER_KEY, JSON.stringify(observer));
+  } catch {
+    // Storage may be blocked: the name is then asked for again next time.
   }
 }

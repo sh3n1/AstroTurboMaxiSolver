@@ -34,6 +34,111 @@ export const LOG_TAGS = [
   'Try a darker sky',
 ] as const;
 
+/**
+ * Seeing on the Antoniadi scale, as observers and OpenAstronomyLog use it: 1 is perfect,
+ * steady air, 5 very poor.
+ */
+export type Seeing = 1 | 2 | 3 | 4 | 5;
+
+export const SEEING: readonly { value: Seeing; label: string }[] = [
+  { value: 1, label: '1 Perfect' },
+  { value: 2, label: '2 Good' },
+  { value: 3, label: '3 Moderate' },
+  { value: 4, label: '4 Poor' },
+  { value: 5, label: '5 Very poor' },
+];
+
+/** A star's colour as seen, in OpenAstronomyLog's words, for double stars. */
+export type StarColour = 'white' | 'yellow' | 'orange' | 'red' | 'green' | 'blue';
+export const STAR_COLOURS: readonly StarColour[] = ['white', 'yellow', 'orange', 'red', 'green', 'blue'];
+
+/**
+ * What an object looked like, as OpenAstronomyLog records it. Which apply depends on the
+ * kind of object: see appearanceChoices.
+ */
+export type Appearance =
+  | 'stellar'
+  | 'extended'
+  | 'resolved'
+  | 'mottled'
+  | 'unusualShape'
+  | 'partlyUnresolved'
+  | 'colorContrasts'
+  | 'equalBrightness'
+  | 'niceSurrounding';
+
+export const APPEARANCE_LABELS: Record<Appearance, string> = {
+  stellar: 'Star-like',
+  extended: 'Extended',
+  resolved: 'Resolved',
+  mottled: 'Mottled',
+  unusualShape: 'Unusual shape',
+  partlyUnresolved: 'Partly unresolved',
+  colorContrasts: 'Colour contrasts',
+  equalBrightness: 'Equal brightness',
+  niceSurrounding: 'Nice surroundings',
+};
+
+/** The kinds of object whose details differ: double stars and open clusters have their own. */
+export type DetailKind = 'deepSky' | 'openCluster' | 'double' | 'other';
+
+/** The appearance choices that fit a kind of object. */
+export function appearanceChoices(kind: DetailKind): readonly Appearance[] {
+  const deepSky: Appearance[] = ['stellar', 'extended', 'resolved', 'mottled'];
+  if (kind === 'openCluster') return [...deepSky, 'unusualShape', 'partlyUnresolved', 'colorContrasts'];
+  if (kind === 'double') return ['equalBrightness', 'niceSurrounding'];
+  return kind === 'deepSky' ? deepSky : [];
+}
+
+/**
+ * The details the user may add, all optional, in OpenAstronomyLog's terms. The sky's
+ * (seeing, naked-eye limit and SQM reading) carry over to the night's next entries.
+ */
+export interface LogDetails {
+  seeing?: Seeing;
+  /** The faintest star seen with the naked eye, in magnitudes. */
+  faintestStar?: number;
+  /** A Sky Quality Meter reading, in magnitudes per square arcsecond. */
+  sqm?: number;
+  appearance?: Appearance[];
+  /** The size seen, in arcminutes: the long side, and the short side for oval objects. */
+  sizeArcmin?: number;
+  minorArcmin?: number;
+  /** A double star's colours, as seen. */
+  colourMain?: StarColour;
+  colourCompanion?: StarColour;
+}
+
+/** The sky details that carry over from one entry to the next on the same night. */
+const SKY_DETAILS = ['seeing', 'faintestStar', 'sqm'] as const;
+
+/**
+ * The sky details for a new entry: those of the newest entry on the same night, since the
+ * sky changes slowly and retyping them for every object would be a chore at the telescope.
+ */
+export function carriedDetails(entries: readonly LogEntry[], time: Date): LogDetails | undefined {
+  const night = nightKey(time);
+  const previous = [...entries]
+    .filter((e) => nightKey(new Date(e.time)) === night && e.details)
+    .sort((a, b) => b.time.localeCompare(a.time))[0];
+  if (!previous?.details) return undefined;
+  const carried: LogDetails = {};
+  for (const key of SKY_DETAILS) {
+    if (previous.details[key] !== undefined) Object.assign(carried, { [key]: previous.details[key] });
+  }
+  return Object.keys(carried).length > 0 ? carried : undefined;
+}
+
+/** Details without the empty ones, or nothing if none are left, so blank fields save nothing. */
+export function cleanDetails(details: LogDetails): LogDetails | undefined {
+  const clean = Object.fromEntries(
+    Object.entries(details).filter(
+      ([, value]) => value !== undefined && value !== null && !(Array.isArray(value) && value.length === 0),
+    ),
+  ) as LogDetails;
+  return Object.keys(clean).length > 0 ? clean : undefined;
+}
+
 /** What the sky and the telescope were like when the entry was logged. Filled in by the app. */
 export interface LogConditions {
   latitudeDeg: number;
@@ -67,6 +172,8 @@ export interface LogEntry {
   tags: string[];
   note: string;
   conditions: LogConditions;
+  /** What the user added beyond the rating, tags and note. Missing until they add any. */
+  details?: LogDetails;
 }
 
 /** A night's entries, newest first, as the log page shows them. */
@@ -219,6 +326,12 @@ export function exportLogCsv(entries: readonly LogEntry[]): string {
     'Equipment',
     'Latitude',
     'Longitude',
+    'Seeing',
+    'Naked-eye limit',
+    'SQM',
+    'Appearance',
+    'Size',
+    'Colours',
   ];
   const rows = [...entries]
     .sort((a, b) => a.time.localeCompare(b.time))
@@ -240,9 +353,26 @@ export function exportLogCsv(entries: readonly LogEntry[]): string {
         equipmentLabel(c.equipment),
         c.latitudeDeg.toFixed(3),
         c.longitudeDeg.toFixed(3),
+        ...detailColumns(e.details),
       ];
     });
   return [header, ...rows].map((row) => row.map(csvField).join(',')).join('\r\n') + '\r\n';
+}
+
+/** The details as CSV columns, empty where not given. */
+function detailColumns(details: LogDetails = {}): (string | number)[] {
+  const size = details.sizeArcmin
+    ? `${details.sizeArcmin}′${details.minorArcmin ? ` × ${details.minorArcmin}′` : ''}`
+    : '';
+  const colours = [details.colourMain, details.colourCompanion].filter(Boolean).join(' and ');
+  return [
+    details.seeing ?? '',
+    details.faintestStar ?? '',
+    details.sqm ?? '',
+    (details.appearance ?? []).map((a) => APPEARANCE_LABELS[a]).join('; '),
+    size,
+    colours,
+  ];
 }
 
 /** Whether a value read from a file looks like a log entry, so a bad file never half-imports. */

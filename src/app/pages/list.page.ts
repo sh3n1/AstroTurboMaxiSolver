@@ -37,6 +37,8 @@ import { ListToolsComponent } from '../core/list-tools.component';
 import { ListViewService } from '../core/list-view.service';
 import { ListsService } from '../core/lists.service';
 import { ObservingLogService } from '../core/observing-log.service';
+import { programFor } from '../core/observing-programs';
+import { ProgramCardComponent } from '../core/program-card.component';
 import { exportFileName, exportLists } from '../core/target-lists';
 
 /**
@@ -50,6 +52,7 @@ import { exportFileName, exportLists } from '../core/target-lists';
   // not each time the sky map behind it updates.
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    ProgramCardComponent,
     DecimalPipe,
     IonBackButton,
     IonButton,
@@ -134,6 +137,10 @@ import { exportFileName, exportLists } from '../core/target-lists';
 
     <ion-content>
       @if (list(); as current) {
+        <!-- A club's or society's observing programme: what it is, and a link to its own page. -->
+        @if (program(); as programme) {
+          <app-program-card [program]="programme"></app-program-card>
+        }
         @if (current.id === 'reticle') {
           <!-- Where the reticle is, since this list follows it. -->
           <ion-card>
@@ -222,6 +229,8 @@ export class ListPage {
   });
 
   /** The list on show. Reads the lists, so it updates when they change. */
+  /** The observing programme the list comes from, if it is one. */
+  protected readonly program = computed(() => programFor(this.id()));
   protected readonly list = computed(() => {
     // Read both, so the page follows any change to either kind of list.
     this.lists.fixedLists();

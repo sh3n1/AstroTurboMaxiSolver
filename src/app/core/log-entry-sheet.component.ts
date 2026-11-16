@@ -8,6 +8,7 @@ import {
   IonContent,
   IonHeader,
   IonIcon,
+  IonInput,
   IonTextarea,
   IonTitle,
   IonToolbar,
@@ -15,15 +16,35 @@ import {
   ToastController,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { add, chevronBack, chevronForward, close, telescopeOutline, trashOutline } from 'ionicons/icons';
+import {
+  add,
+  chevronBack,
+  chevronDown,
+  chevronForward,
+  chevronUp,
+  close,
+  telescopeOutline,
+  trashOutline,
+} from 'ionicons/icons';
 
 import { APP_ICONS } from './app-icons';
 import { AppState } from './app-state.service';
 import { equipmentLabel } from './equipment';
 import { LocalTimePipe } from './local-time.pipe';
-import { LOG_TAGS, RATINGS, ordinal, wasSeen } from './observing-log';
-import type { LogConditions, LogEntry, Rating } from './observing-log';
+import {
+  APPEARANCE_LABELS,
+  LOG_TAGS,
+  RATINGS,
+  SEEING,
+  STAR_COLOURS,
+  appearanceChoices,
+  cleanDetails,
+  ordinal,
+  wasSeen,
+} from './observing-log';
+import type { Appearance, DetailKind, LogConditions, LogDetails, LogEntry, Rating, StarColour } from './observing-log';
 import { ObservingLogService } from './observing-log.service';
+import { nakedEyeLimit } from './sky-quality';
 import { iconDataUrl, phaseIcon } from './target-icons';
 
 /** Long enough to reach Undo after deleting by mistake. */
@@ -47,6 +68,7 @@ const DELETED_TOAST_MS = 5000;
     IonContent,
     IonHeader,
     IonIcon,
+    IonInput,
     IonTextarea,
     IonTitle,
     IonToolbar,
@@ -103,6 +125,44 @@ const DELETED_TOAST_MS = 5000;
     .tags {
       display: flex;
       flex-wrap: wrap;
+    }
+    /* Folds the details that most observations don't need, to keep the form quick. */
+    .more {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin: 16px 0 0;
+      padding: 8px 0;
+      min-height: 44px;
+      border: none;
+      background: none;
+      color: var(--ion-color-primary);
+      font: inherit;
+      font-size: calc(16px * var(--af-scale, 1));
+      font-weight: 600;
+    }
+    .fields {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0 12px;
+    }
+    /* Large enough to read at arm's length, the label too, which Ionic shows smaller. */
+    .fields ion-input {
+      font-size: calc(18px * var(--af-scale, 1));
+    }
+    /* Colours are stored in OpenAstronomyLog's lower case words, but read as names. */
+    .colour-row ion-chip {
+      text-transform: capitalize;
+    }
+    .colour-row {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0 4px;
+    }
+    .colour-row > span {
+      min-width: 6.5em;
+      font-size: calc(15px * var(--af-scale, 1));
     }
     ion-textarea {
       --background: var(--ion-color-step-50, rgba(255, 255, 255, 0.05));
@@ -245,6 +305,135 @@ const DELETED_TOAST_MS = 5000;
           [value]="entry()?.note ?? ''"
           (ionInput)="setNote($any($event).detail.value ?? '')"
         ></ion-textarea>
+
+        <!--
+          What OpenAstronomyLog can record beyond the rating and note: the sky, and what the
+          object looked like. Folded, since most observations need none of it at the telescope.
+        -->
+        <button
+          type="button"
+          class="more"
+          data-testid="log-more"
+          [attr.aria-expanded]="showMore()"
+          (click)="showMore.set(!showMore())"
+        >
+          More details
+          <ion-icon [name]="showMore() ? 'chevron-up' : 'chevron-down'" aria-hidden="true"></ion-icon>
+        </button>
+        @if (showMore()) {
+          @let d = details();
+          <div data-testid="log-details">
+            <h3 id="seeing-label">Seeing</h3>
+            <div class="tags" role="radiogroup" aria-labelledby="seeing-label" data-testid="log-seeing">
+              @for (option of seeingChoices; track option.value) {
+                @let on = d.seeing === option.value;
+                <ion-chip
+                  role="radio"
+                  [attr.aria-checked]="on"
+                  [outline]="!on"
+                  [color]="on ? 'primary' : 'medium'"
+                  (click)="setDetails({ seeing: on ? undefined : option.value })"
+                  >{{ option.label }}</ion-chip
+                >
+              }
+            </div>
+
+            <h3>Sky</h3>
+            <div class="fields">
+              <!-- The naked-eye limit, estimated from the Bortle class until the user gives it. -->
+              <ion-input
+                data-testid="log-faintest"
+                label="Naked-eye limit"
+                labelPlacement="stacked"
+                type="number"
+                inputmode="decimal"
+                [debounce]="400"
+                [placeholder]="'≈ ' + (estimatedLimit() | number: '1.1-1')"
+                [value]="d.faintestStar ?? ''"
+                (ionInput)="setNumber('faintestStar', $any($event).detail.value, 0, 8.5)"
+              ></ion-input>
+              <ion-input
+                data-testid="log-sqm"
+                label="SQM reading"
+                labelPlacement="stacked"
+                type="number"
+                inputmode="decimal"
+                placeholder="mag/arcsec²"
+                [debounce]="400"
+                [value]="d.sqm ?? ''"
+                (ionInput)="setNumber('sqm', $any($event).detail.value, 10, 23)"
+              ></ion-input>
+            </div>
+
+            @if (appearance().length > 0) {
+              <h3>Appearance</h3>
+              <div class="tags" data-testid="log-appearance">
+                @for (option of appearance(); track option) {
+                  @let on = !!d.appearance?.includes(option);
+                  <ion-chip
+                    role="checkbox"
+                    [attr.aria-checked]="on"
+                    [outline]="!on"
+                    [color]="on ? 'primary' : 'medium'"
+                    (click)="toggleAppearance(option)"
+                    >{{ appearanceLabels[option] }}</ion-chip
+                  >
+                }
+              </div>
+            }
+
+            @if (kind() === 'double') {
+              <h3>Colours</h3>
+              @for (star of colourStars; track star.key) {
+                <div
+                  class="colour-row"
+                  role="radiogroup"
+                  [attr.aria-label]="star.label"
+                  [attr.data-testid]="star.testId"
+                >
+                  <span>{{ star.label }}</span>
+                  @for (colour of starColours; track colour) {
+                    @let on = d[star.key] === colour;
+                    <ion-chip
+                      role="radio"
+                      [attr.aria-checked]="on"
+                      [outline]="!on"
+                      [color]="on ? 'primary' : 'medium'"
+                      (click)="setColour(star.key, on ? undefined : colour)"
+                      >{{ colour }}</ion-chip
+                    >
+                  }
+                </div>
+              }
+            }
+
+            @if (kind() === 'deepSky' || kind() === 'openCluster') {
+              <h3>Size seen</h3>
+              <div class="fields">
+                <ion-input
+                  data-testid="log-size"
+                  label="Long side (′)"
+                  labelPlacement="stacked"
+                  type="number"
+                  inputmode="decimal"
+                  [debounce]="400"
+                  [value]="d.sizeArcmin ?? ''"
+                  (ionInput)="setNumber('sizeArcmin', $any($event).detail.value, 0.01, 600)"
+                ></ion-input>
+                <ion-input
+                  data-testid="log-minor"
+                  label="Short side (′)"
+                  labelPlacement="stacked"
+                  type="number"
+                  inputmode="decimal"
+                  [debounce]="400"
+                  [value]="d.minorArcmin ?? ''"
+                  (ionInput)="setNumber('minorArcmin', $any($event).detail.value, 0.01, 600)"
+                ></ion-input>
+              </div>
+            }
+          </div>
+        }
       }
     </ion-content>
   `,
@@ -269,6 +458,15 @@ export class LogEntrySheetComponent implements OnInit {
   private readonly toasts = inject(ToastController);
 
   protected readonly ratings = RATINGS;
+  protected readonly seeingChoices = SEEING;
+  protected readonly starColours = STAR_COLOURS;
+  protected readonly appearanceLabels = APPEARANCE_LABELS;
+  protected readonly colourStars = [
+    { key: 'colourMain', label: 'Main star', testId: 'log-colour-main' },
+    { key: 'colourCompanion', label: 'Companion', testId: 'log-colour-companion' },
+  ] as const;
+  /** Whether the extra details are unfolded. */
+  protected readonly showMore = signal(false);
   protected readonly tags = LOG_TAGS;
   protected readonly appIcons = APP_ICONS;
   protected readonly equipmentLabel = equipmentLabel;
@@ -287,6 +485,22 @@ export class LogEntrySheetComponent implements OnInit {
   protected readonly title = computed(
     () => this.catalogueTarget()?.name ?? this.entries().at(-1)?.targetName ?? this.target(),
   );
+
+  /** The details of the entry shown, or none yet. */
+  protected readonly details = computed<LogDetails>(() => this.entry()?.details ?? {});
+
+  /** Which details fit the target: double stars and open clusters have their own. */
+  protected readonly kind = computed<DetailKind>(() => {
+    const target = this.catalogueTarget();
+    if (!target) return 'other';
+    if (target.kind === 'Double star' || target.double) return 'double';
+    if (target.kind === 'Open cluster') return 'openCluster';
+    return ['Galaxy', 'Nebula', 'Globular cluster', 'Other'].includes(target.kind) ? 'deepSky' : 'other';
+  });
+  protected readonly appearance = computed(() => appearanceChoices(this.kind()));
+
+  /** The naked-eye limit the Bortle class suggests, shown until the user gives one. */
+  protected readonly estimatedLimit = computed(() => nakedEyeLimit(this.conditions()?.bortle ?? 5));
 
   /** The sky and telescope shown: the entry's, or for a new one, as they are now. */
   protected readonly conditions = computed<LogConditions | undefined>(() => {
@@ -309,7 +523,7 @@ export class LogEntrySheetComponent implements OnInit {
   );
 
   constructor() {
-    addIcons({ add, chevronBack, chevronForward, close, telescopeOutline, trashOutline });
+    addIcons({ add, chevronBack, chevronForward, close, telescopeOutline, trashOutline, chevronDown, chevronUp });
   }
 
   ngOnInit(): void {
@@ -344,6 +558,42 @@ export class LogEntrySheetComponent implements OnInit {
     if (!this.entry() && !note.trim()) return;
     const id = this.ensureEntry();
     if (id) this.log.update(id, { note });
+  }
+
+  /** Changes some of the details, logging a blank form first. Empty ones are dropped. */
+  protected setDetails(changes: Partial<LogDetails>): void {
+    const id = this.ensureEntry();
+    if (id) this.log.update(id, { details: cleanDetails({ ...this.details(), ...changes }) });
+  }
+
+  /** A double star's colour, for one of its two stars, or none. */
+  protected setColour(star: 'colourMain' | 'colourCompanion', colour: StarColour | undefined): void {
+    this.setDetails({ [star]: colour });
+  }
+
+  protected toggleAppearance(option: Appearance): void {
+    const current = this.details().appearance ?? [];
+    this.setDetails({
+      appearance: current.includes(option) ? current.filter((a) => a !== option) : [...current, option],
+    });
+  }
+
+  /**
+   * A number typed into a field. Blank clears it; a number outside the sensible range for
+   * that field, such as a half-typed one, is left unsaved.
+   */
+  protected setNumber(
+    key: 'faintestStar' | 'sqm' | 'sizeArcmin' | 'minorArcmin',
+    text: string | null | undefined,
+    min: number,
+    max: number,
+  ): void {
+    const value = Number(String(text ?? '').replace(',', '.'));
+    if (String(text ?? '').trim() === '') {
+      if (this.details()[key] !== undefined) this.setDetails({ [key]: undefined });
+      return;
+    }
+    if (Number.isFinite(value) && value >= min && value <= max) this.setDetails({ [key]: value });
   }
 
   /**

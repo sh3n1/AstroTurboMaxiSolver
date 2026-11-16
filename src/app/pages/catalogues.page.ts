@@ -21,6 +21,8 @@ import { AppState } from '../core/app-state.service';
 import { currentFirst } from '../core/list-order';
 import { ListsService } from '../core/lists.service';
 import { ObservingLogService } from '../core/observing-log.service';
+import { programFor } from '../core/observing-programs';
+import { ProgramCardComponent } from '../core/program-card.component';
 import type { FixedListSection } from '../core/target-lists';
 import { CATALOGUE_GROUPS, fixedListEntries } from '../core/target-lists';
 
@@ -36,6 +38,7 @@ import { CATALOGUE_GROUPS, fixedListEntries } from '../core/target-lists';
   // not each time the sky map behind it updates.
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    ProgramCardComponent,
     IonBackButton,
     IonBadge,
     IonButtons,
@@ -69,6 +72,10 @@ import { CATALOGUE_GROUPS, fixedListEntries } from '../core/target-lists';
     </ion-header>
 
     <ion-content>
+      <!-- A split catalogue from an observing programme: what it is, and a link to its own page. -->
+      @if (program; as programme) {
+        <app-program-card [program]="programme"></app-program-card>
+      }
       <!-- The rows go in two columns on a phone on its side: see .af-columns in global.scss. -->
       <ion-list inset="true" class="af-columns">
         @for (entry of catalogues(); track entry.list.id) {
@@ -116,6 +123,8 @@ export class CataloguesPage {
   /** The lists this page shows: the Catalogues page itself, or one split catalogue's. */
   private readonly section: FixedListSection = this.group?.section ?? 'catalogues';
   protected readonly title: string = this.group?.name ?? 'Catalogues';
+  /** The observing programme of a split catalogue, such as the RASC Finest NGC. */
+  protected readonly program = this.group ? programFor(this.group.id) : null;
   protected readonly back = this.group ? '/tabs/lists/catalogues' : '/tabs/lists';
 
   /**
