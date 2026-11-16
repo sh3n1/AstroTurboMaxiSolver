@@ -1,6 +1,8 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 
+import { openPage } from './navigation';
+
 /** The row for a list on the Lists tab. */
 const listLink = (page: Page, name: string) => page.locator('[data-testid=list-link]', { hasText: name });
 
@@ -179,7 +181,7 @@ test('saves a bookmark to Saved for later, or to a new list', async ({ page }) =
   );
   await page.locator('[data-testid=bookmark-done]').click();
 
-  await page.getByRole('tab', { name: 'Lists' }).click();
+  await openPage(page, 'Lists');
   await expect(listLink(page, 'Saved for later').locator('ion-badge')).toHaveText('1');
   await expect(listLink(page, 'Autumn').locator('ion-badge')).toHaveText('1');
   await listLink(page, 'Saved for later').click();
@@ -248,6 +250,8 @@ async function chooseOrder(page: Page, name: string): Promise<void> {
 
 test('orders and filters a catalogue like any list, and remembers the order', async ({ page }) => {
   await page.goto('/tabs/lists/messier');
+  // The search is ready to type in as the list opens.
+  await expect(page.locator('app-list [data-testid=list-search] input')).toBeFocused();
   const rows = page.locator('app-list [data-testid=list-rows]');
   const items = page.locator('app-list app-target-list ion-item');
   await expect(rows).toHaveAttribute('data-sort', 'list');
@@ -275,14 +279,15 @@ test('orders and filters a catalogue like any list, and remembers the order', as
   await active.click();
   await expect(rows).toHaveAttribute('data-total', '110');
 
-  // The chart of tonight opens on any list.
+  // The chart of tonight starts closed, opens on any list, and stays as it was left.
   await expect(page.locator('app-list [data-testid=plan-chart]')).toHaveCount(0);
   await page.locator('app-list [data-testid=list-chart-toggle]').click();
   await expect(page.locator('app-list [data-testid=plan-line]')).toHaveCount(8);
 
-  // The order chosen for this list is kept.
+  // The order chosen for this list is kept, and the chart is open again.
   await page.reload();
   await expect(page.locator('app-list [data-testid=list-rows]')).toHaveAttribute('data-sort', 'best-time');
+  await expect(page.locator('app-list [data-testid=plan-chart]')).toBeVisible();
 });
 
 test('removes a row from an own list by its swipe action, with undo, and reorders the list', async ({ page }) => {
@@ -296,8 +301,8 @@ test('removes a row from an own list by its swipe action, with undo, and reorder
   await listLink(page, 'Night').click();
   const names = page.locator('app-list [data-testid=designations]');
   await expect(names).toHaveText([/^M13/, /^M57/, /^M31/]);
-  // The user's own lists open with the chart of tonight.
-  await expect(page.locator('app-list [data-testid=plan-line]')).toHaveCount(3);
+  // The chart starts closed here too, until opened on some list.
+  await expect(page.locator('app-list [data-testid=plan-chart]')).toHaveCount(0);
 
   // Swiping is slow to drive, so the row's actions are opened directly.
   const openActions = (index: number) =>
@@ -356,4 +361,55 @@ test('shares a list through the share sheet as a text file, and never downloads 
     .poll(() => page.evaluate(() => (window as unknown as { sharedFiles: unknown[] }).sharedFiles))
     .toEqual([{ name: 'astrofinder-messier.txt', type: 'text/plain' }]);
   expect(downloads).toBe(0);
+});
+
+test('plays a list on the sky map: next and previous, skipping what is below the horizon', async ({ page }) => {
+  // Far north, M81 and M97 never set and M42 never rises, whatever the time of the test.
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      'astrofinder.settings',
+      JSON.stringify({ latitudeDeg: 85, longitudeDeg: 0, locationSet: true }),
+    ),
+  );
+  await page.goto('/tabs/lists');
+  await page.getByTestId('import-file').setInputFiles({
+    name: 'circumpolar.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(
+      JSON.stringify({
+        format: 'astrofinder-lists',
+        version: 1,
+        lists: [{ name: 'Circumpolar', targets: ['M81', 'M42', 'M97'] }],
+      }),
+    ),
+  });
+  await listLink(page, 'Circumpolar').click();
+
+  // A tap on a row opens the map, playing the list from that row.
+  await page.locator('app-list ion-item', { hasText: 'M81' }).first().click();
+  await expect(page).toHaveURL(/tabs\/sky/);
+  const playlist = page.getByTestId('playlist');
+  await expect(playlist.getByTestId('playlist-position')).toHaveText('1/3');
+  await expect(playlist).toContainText('Circumpolar');
+  await expect(page.getByRole('button', { name: 'Previous target' })).toBeDisabled();
+
+  // Next skips M42, which is below the horizon, and stops at the end of the list.
+  await page.getByTestId('playlist-next').click();
+  await expect(page.getByTestId('target-designations')).toContainText('M97');
+  await expect(playlist.getByTestId('playlist-position')).toHaveText('3/3');
+  await expect(page.getByRole('button', { name: 'Next target' })).toBeDisabled();
+
+  await page.getByTestId('playlist-previous').click();
+  await expect(page.getByTestId('target-designations')).toContainText('M81');
+
+  // The list's name opens the list again, and the map's Lists button goes back there.
+  await page.getByTestId('playlist-name').click();
+  await expect(page.locator('app-list [data-testid=list-title]')).toHaveText('Circumpolar');
+  await page.locator('app-list ion-back-button').click();
+  await page.getByTestId('back-to-map').click();
+  await expect(playlist).toBeVisible();
+
+  // Clearing the target stops playing the list.
+  await page.getByRole('button', { name: 'Clear target' }).click();
+  await expect(page.getByTestId('target-bar')).toHaveCount(0);
 });

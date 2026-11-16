@@ -50,7 +50,7 @@ const SEEING_COLOURS: Record<SeeingQuality, string> = {
 };
 
 /**
- * The time control, for planning: the sky at another time. It sits above the tab bar on
+ * The time control, for planning: the sky at another time. It sits at the bottom of
  * every tab, so the lists change as the time does. While a time is chosen, a light blue
  * band always says so, with a button back to now. The time is chosen by dragging a ruler
  * of hours, shaded for day, twilight and full darkness, or by day with the arrows and a
@@ -68,7 +68,7 @@ const SEEING_COLOURS: Record<SeeingQuality, string> = {
     }
     /*
      * A light blue line above and below while it shows anything, so it stands apart from
-     * the map above and the tab bar below. Closed with nothing to say, it has no lines.
+     * the map or the page above it. Closed with nothing to say, it has no lines.
      */
     :host(.showing) {
       border-top: 2px solid var(--ion-color-primary);

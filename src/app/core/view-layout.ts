@@ -9,6 +9,8 @@ const EYEPIECE_CENTRE_SHARE = 0.34;
 const SIDEWAYS_CIRCLE_SHARE = 0.92;
 /** The circle never gets smaller than this, however little room is left for it. */
 const MIN_CIRCLE_RADIUS_PX = 60;
+/** With the phone upright, the reticle stays at least this far down, clear of the readout. */
+const MIN_CENTRE_Y_PX = 120;
 
 /** The view's centre on the screen, and the width in pixels that its field of view covers. */
 export interface ViewLayout {
@@ -20,7 +22,7 @@ export interface ViewLayout {
 
 /**
  * The part of the screen's width that is clear, on a phone on its side: from the right
- * edge of what lies at the left (the tab rail, or the eyepiece's panel) to the left edge
+ * edge of what lies at the left (the target's box, or the eyepiece's panel) to the left edge
  * of the column of buttons at the right. In pixels from the map's left edge.
  */
 export interface ClearSpan {
@@ -29,19 +31,27 @@ export interface ClearSpan {
 }
 
 /**
- * Lays out the view on a screen. With the phone upright, the sky map is centred and the
- * eyepiece's circle sits above its panel, each spanning the width.
+ * Lays out the view on a screen. With the phone upright, the sky map is centred in the
+ * height that `clearBottom` leaves clear above the target's box, and the eyepiece's circle
+ * sits above its panel, each spanning the width.
  *
  * With the phone on its side, `clear` says which part of the width nothing covers. The
- * map still spans the whole width, running under the tab rail, but its centre, where the
+ * map still spans the whole width, running under the boxes, but its centre, where the
  * reticle is, moves to the middle of the clear part. The eyepiece's circle is fitted
  * inside the clear part, as large as the height allows, so no panel lies over it.
  */
-export function viewLayout(width: number, height: number, isEyepiece: boolean, clear?: ClearSpan): ViewLayout {
+export function viewLayout(
+  width: number,
+  height: number,
+  isEyepiece: boolean,
+  clear?: ClearSpan,
+  clearBottom?: number,
+): ViewLayout {
   if (!clear) {
-    return isEyepiece
-      ? { centreX: width / 2, centreY: height * EYEPIECE_CENTRE_SHARE, spanPx: width }
-      : { centreX: width / 2, centreY: height / 2, spanPx: width };
+    if (isEyepiece) return { centreX: width / 2, centreY: height * EYEPIECE_CENTRE_SHARE, spanPx: width };
+    // Upright, the reticle sits in the middle of what the target's box leaves clear above it.
+    const clearHeight = Math.min(height, clearBottom ?? height);
+    return { centreX: width / 2, centreY: Math.max(MIN_CENTRE_Y_PX, clearHeight / 2), spanPx: width };
   }
   const centreX = (clear.left + clear.right) / 2;
   if (!isEyepiece) return { centreX, centreY: height / 2, spanPx: width };

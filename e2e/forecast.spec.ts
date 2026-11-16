@@ -1,6 +1,8 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 
+import { tapMore } from './navigation';
+
 const LEVELS = [
   1000, 975, 950, 925, 900, 850, 800, 750, 700, 650, 600, 550, 500, 450, 400, 350, 300, 250, 200, 150, 100, 70, 50, 30,
 ];
@@ -45,7 +47,7 @@ test.beforeEach(async ({ page, context }) => {
 test('shows clouds and seeing under the ruler, with when they were updated', async ({ page }) => {
   await serveForecast(page, true);
   // Collapsed when the panel opens, until the button shows the rows.
-  await page.locator('[data-testid=open-time]').click();
+  await tapMore(page, 'open-time');
   await expect(page.locator('[data-testid=time-ruler]')).toBeVisible();
   await expect(page.locator('[data-testid=forecast-status]')).toHaveCount(0);
   await page.locator('[data-testid=expand-time]').click();
@@ -59,14 +61,14 @@ test('shows clouds and seeing under the ruler, with when they were updated', asy
   // Left shown, it is still collapsed the next time the panel opens.
   await page.locator('[data-testid=expand-time]').click();
   await page.locator('[data-testid=close-time]').click();
-  await page.locator('[data-testid=open-time]').click();
+  await tapMore(page, 'open-time');
   await expect(page.locator('[data-testid=time-ruler]')).toBeVisible();
   await expect(page.locator('[data-testid=forecast-status]')).toHaveCount(0);
 });
 
 test('keeps the last forecast for when there is no connection', async ({ page }) => {
   await serveForecast(page, true);
-  await page.locator('[data-testid=open-time]').click();
+  await tapMore(page, 'open-time');
   await page.locator('[data-testid=expand-time]').click();
   await expect(page.locator('[data-testid=forecast-status]')).toContainText('Updated');
 
@@ -74,14 +76,14 @@ test('keeps the last forecast for when there is no connection', async ({ page })
   await page.unroute('https://api.open-meteo.com/**');
   await serveForecast(page, false);
   await page.reload();
-  await page.locator('[data-testid=open-time]').click();
+  await tapMore(page, 'open-time');
   await page.locator('[data-testid=expand-time]').click();
   await expect(page.locator('[data-testid=forecast-status]')).toContainText('Updated');
 });
 
 test('says when there is no forecast at all', async ({ page }) => {
   await serveForecast(page, false);
-  await page.locator('[data-testid=open-time]').click();
+  await tapMore(page, 'open-time');
   await page.locator('[data-testid=expand-time]').click();
   await expect(page.locator('[data-testid=forecast-status]')).toHaveText('No forecast');
 });
@@ -95,14 +97,14 @@ test('fetches again only once the forecast is 15 minutes old', async ({ page }) 
     requests++;
     return route.fulfill({ json: fakeForecast() });
   });
-  await page.locator('[data-testid=open-time]').click();
+  await tapMore(page, 'open-time');
   await page.locator('[data-testid=expand-time]').click();
   await expect(page.locator('[data-testid=forecast-status]')).toContainText('Updated');
   expect(requests).toBe(1);
 
   // Closing and opening again straight away uses the forecast already there.
   await page.locator('[data-testid=close-time]').click();
-  await page.locator('[data-testid=open-time]').click();
+  await tapMore(page, 'open-time');
   await page.locator('[data-testid=expand-time]').click();
   await expect(page.locator('[data-testid=forecast-status]')).toContainText('Updated');
   expect(requests).toBe(1);

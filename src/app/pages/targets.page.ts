@@ -1,5 +1,15 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { IonButton, IonButtons, IonContent, IonHeader, IonIcon, IonText, IonTitle, IonToolbar } from '@ionic/angular';
+import { ChangeDetectionStrategy, Component, inject, viewChild } from '@angular/core';
+import {
+  IonBackButton,
+  IonButton,
+  IonButtons,
+  IonContent,
+  IonHeader,
+  IonIcon,
+  IonText,
+  IonTitle,
+  IonToolbar,
+} from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { timeOutline } from 'ionicons/icons';
 
@@ -9,9 +19,9 @@ import { ListToolsComponent } from '../core/list-tools.component';
 import { ListViewService } from '../core/list-view.service';
 
 /**
- * Search every target by designation, name or type. It is a list like any other, the
- * longest one: the same tools, orders, filters and rows as the catalogues and the user's
- * own lists. Its own order is the best match for what was typed.
+ * Search every target by designation, name or type, opened from the top of Lists. It is a
+ * list like any other, the longest one: the same tools, orders, filters and rows as the
+ * catalogues and the user's own lists. Its own order is the best match for what was typed.
  */
 @Component({
   selector: 'app-targets',
@@ -19,6 +29,7 @@ import { ListViewService } from '../core/list-view.service';
   // not each time the sky map behind it updates.
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    IonBackButton,
     IonButton,
     IonButtons,
     IonContent,
@@ -40,7 +51,10 @@ import { ListViewService } from '../core/list-view.service';
   template: `
     <ion-header class="list-header">
       <ion-toolbar>
-        <ion-title>Targets</ion-title>
+        <ion-buttons slot="start">
+          <ion-back-button defaultHref="/tabs/lists" text="" aria-label="Back"></ion-back-button>
+        </ion-buttons>
+        <ion-title>Search</ion-title>
         <ion-buttons slot="end">
           <!-- Opens the time control: the heights and the order follow the time chosen. -->
           <ion-button
@@ -68,6 +82,13 @@ import { ListViewService } from '../core/list-view.service';
   `,
 })
 export class TargetsPage {
+  private readonly tools = viewChild(ListToolsComponent);
+
+  /** Each time the list comes on show, the search is ready to type in. */
+  ionViewDidEnter(): void {
+    this.tools()?.focusSearch();
+  }
+
   protected readonly state = inject(AppState);
 
   constructor() {
@@ -75,6 +96,7 @@ export class TargetsPage {
     inject(ListViewService).configure({
       key: () => 'targets',
       rows: () => this.state.targets(),
+      title: () => 'Search',
       ownOrder: () => 'Best match',
       bestMatch: true,
     });

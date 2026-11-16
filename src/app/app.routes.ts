@@ -6,8 +6,11 @@ export const routes: Routes = [
     loadComponent: () => import('./tabs/tabs.page').then((m) => m.TabsPage),
     children: [
       { path: 'sky', loadComponent: () => import('./pages/sky.page').then((m) => m.SkyPage) },
-      { path: 'targets', loadComponent: () => import('./pages/targets.page').then((m) => m.TargetsPage) },
       { path: 'lists', loadComponent: () => import('./pages/lists.page').then((m) => m.ListsPage) },
+      // Searching every target is part of Lists: it is the longest list of all.
+      { path: 'lists/search', loadComponent: () => import('./pages/targets.page').then((m) => m.TargetsPage) },
+      // The Targets tab became the search in Lists.
+      { path: 'targets', redirectTo: 'lists/search', pathMatch: 'full' },
       {
         path: 'lists/catalogues',
         loadComponent: () => import('./pages/catalogues.page').then((m) => m.CataloguesPage),

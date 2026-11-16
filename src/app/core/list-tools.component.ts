@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input, viewChild } from '@angular/core';
 import { ActionSheetController, IonButton, IonChip, IonIcon, IonModal, IonSearchbar } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { analyticsOutline, close, filterOutline, funnelOutline } from 'ionicons/icons';
@@ -9,7 +9,7 @@ import { ListViewService } from './list-view.service';
 
 /**
  * The tools above every list of targets: the search, then the order, the filters and the
- * chart, each behind one icon. The same on the Targets tab and on every list, so a list
+ * chart, each behind one icon. The same in the search and on every list, so a list
  * always works the way the last one did. The filters open as a sheet from the bottom,
  * with every choice in view at once. The page provides the ListViewService.
  */
@@ -220,6 +220,13 @@ import { ListViewService } from './list-view.service';
   `,
 })
 export class ListToolsComponent {
+  private readonly searchbar = viewChild(IonSearchbar);
+
+  /** Puts the cursor in the search, ready to type, as a list opens. */
+  focusSearch(): void {
+    void this.searchbar()?.setFocus();
+  }
+
   readonly placeholder = input('Search this list');
 
   protected readonly view = inject(ListViewService);

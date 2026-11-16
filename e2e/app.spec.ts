@@ -1,6 +1,8 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 
+import { openPage, moreTile, tapMore } from './navigation';
+
 /** Chooses a type in the Targets tab's filter sheet, then closes the sheet. */
 async function filterTargetsByType(page: Page, type: string | RegExp): Promise<void> {
   await page.locator('app-targets [data-testid=list-filter]').click();
@@ -12,7 +14,9 @@ async function filterTargetsByType(page: Page, type: string | RegExp): Promise<v
 test('visits the app root url', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('[data-testid=view-mode]')).toBeVisible();
-  await expect(page.getByRole('tab', { name: 'Targets' })).toBeVisible();
+  // The map is home: no tab bar, and Lists is under its More button.
+  await expect(page.getByTestId('more')).toBeVisible();
+  await expect(page.getByRole('tab')).toHaveCount(0);
 });
 
 test('opens on a close zoom with the sky data loaded', async ({ page }) => {
@@ -32,10 +36,10 @@ test('shows RA and Dec on the sky map only when chosen in Settings', async ({ pa
   await expect(page.locator('[data-testid=pointing]')).toContainText('Alt');
   await expect(page.locator('[data-testid=equatorial]')).toHaveCount(0);
 
-  await page.getByRole('tab', { name: 'Settings' }).click();
+  await openPage(page, 'Settings');
   await expect(page.locator('[data-testid=show-equatorial]')).toHaveAttribute('aria-checked', 'false');
   await page.locator('[data-testid=show-equatorial]').click();
-  await page.getByRole('tab', { name: 'Sky' }).click();
+  await openPage(page, 'Sky');
   await expect(page.locator('[data-testid=equatorial]')).toContainText(/RA \d+h \d+m, Dec [+−-]\d+°/);
 });
 
@@ -62,7 +66,7 @@ test('keeps the screen on while the app is open, and lets go when turned off', a
   // On by default.
   await expect.poll(counts).toEqual({ requested: 1, released: 0 });
 
-  await page.getByRole('tab', { name: 'Settings' }).click();
+  await openPage(page, 'Settings');
   const toggle = page.locator('[data-testid=keep-screen-on]');
   await expect(toggle).toHaveAttribute('aria-checked', 'true');
   await toggle.click();
@@ -180,7 +184,7 @@ test('follows the sky turning by the second, not by the minute', async ({ page }
   // A controlled clock, so the test can let time pass without waiting.
   await page.clock.install({ time: new Date('2026-08-15T21:00:00Z') });
   await page.goto('/');
-  await page.getByRole('tab', { name: 'Targets' }).click();
+  await openPage(page, 'Search');
   // Altair is near the celestial equator, where the sky moves fastest.
   await page.locator('app-targets ion-searchbar input').fill('Altair');
   await page.locator('app-targets ion-item').first().click();
@@ -195,7 +199,7 @@ test('finds a target, guides to it and shows it in the eyepiece', async ({ page 
   await page.goto('/');
 
   // Search for a target and select it, which opens the sky map.
-  await page.getByRole('tab', { name: 'Targets' }).click();
+  await openPage(page, 'Search');
   await page.locator('app-targets ion-searchbar input').fill('Vega');
   await expect(page.locator('app-targets ion-item')).toHaveCount(1);
   await page.locator('app-targets ion-item').click();
@@ -220,20 +224,19 @@ test('remembers night mode after a reload', async ({ page }) => {
 
 test('switches night mode from the sky map', async ({ page }) => {
   await page.goto('/');
-  await page.locator('[data-testid=night-toggle]').click();
+  await tapMore(page, 'night-toggle');
   await expect(page.locator('html')).toHaveClass(/night/);
-  await page.locator('[data-testid=night-toggle]').click();
+  await tapMore(page, 'night-toggle');
   await expect(page.locator('html')).not.toHaveClass(/night/);
 });
 
 test('goes full screen and back from the sky map', async ({ page }) => {
   await page.goto('/');
-  const button = page.locator('[data-testid=fullscreen-toggle]');
   const isFullscreen = (): Promise<boolean> => page.evaluate(() => document.fullscreenElement !== null);
   await expect.poll(isFullscreen).toBe(false);
-  await button.click();
+  await tapMore(page, 'fullscreen-toggle');
   await expect.poll(isFullscreen).toBe(true);
-  await button.click();
+  await tapMore(page, 'fullscreen-toggle');
   await expect.poll(isFullscreen).toBe(false);
 });
 
@@ -249,10 +252,10 @@ test('keeps the zoom buttons above the target bar', async ({ page }) => {
 
 test('aligns the telescope on a suggested star', async ({ page }) => {
   await page.goto('/');
-  await expect(page.locator('[data-testid=alignment-status]')).toContainText('Not aligned');
+  await expect(await moreTile(page, 'alignment-status')).toContainText('Not aligned');
 
   // The status on the sky map opens the alignment flow.
-  await page.locator('[data-testid=alignment-status]').click();
+  await tapMore(page, 'alignment-status');
   const stars = page.locator('[data-testid=alignment-star]');
   await expect(stars.first()).toBeVisible();
   const starName = (await stars.first().locator('h2').innerText()).trim();
@@ -268,9 +271,9 @@ test('aligns the telescope on a suggested star', async ({ page }) => {
 
   // A toast on the sky map confirms it, and the result survives a reload.
   await expect(page.locator('[data-testid=alignment-toast] .toast-message')).toHaveText(`Aligned: ${starName}, rough`);
-  await expect(page.locator('[data-testid=alignment-status]')).toContainText(starName);
+  await expect(await moreTile(page, 'alignment-status')).toContainText(starName);
   await page.reload();
-  await expect(page.locator('[data-testid=alignment-status]')).toContainText(starName);
+  await expect(await moreTile(page, 'alignment-status')).toContainText(starName);
 });
 
 test('aligns on the selected target, and sums up the alignment on one line', async ({ page }) => {
@@ -284,7 +287,7 @@ test('aligns on the selected target, and sums up the alignment on one line', asy
   await page.locator('app-targets ion-searchbar input').fill(name);
   await expect(page.locator('app-targets ion-item').first()).toContainText(name);
   await page.locator('app-targets ion-item').first().click();
-  await page.locator('[data-testid=alignment-status]').click();
+  await tapMore(page, 'alignment-status');
   await expect(page.locator('[data-testid=align-selected-target]')).toContainText(name);
   await page.locator('[data-testid=align-selected-target]').click();
   await expect(page.locator('h2').filter({ hasText: `Centre ${name}` })).toBeVisible();
@@ -292,7 +295,7 @@ test('aligns on the selected target, and sums up the alignment on one line', asy
   await page.locator('[data-testid=confirm-centred]').click();
   await page.locator('[data-testid=align-simulated]').click();
   await page.locator('[data-testid=alignment-done]').click();
-  await page.locator('[data-testid=alignment-status]').click();
+  await tapMore(page, 'alignment-status');
   await expect(page.locator('[data-testid=current-alignment]')).toContainText(`${name} ·`);
   await expect(page.locator('[data-testid=current-alignment]')).toContainText('simulated');
 
@@ -300,8 +303,8 @@ test('aligns on the selected target, and sums up the alignment on one line', asy
   await page.locator('[data-testid=remove-alignment]').click();
   await page.locator('ion-alert button', { hasText: 'Remove' }).click();
   await expect(page.locator('[data-testid=current-alignment]')).toHaveCount(0);
-  await page.locator('ion-back-button').click();
-  await expect(page.locator('[data-testid=alignment-status]')).toContainText('Not aligned');
+  await page.locator('app-align ion-back-button').click();
+  await expect(await moreTile(page, 'alignment-status')).toContainText('Not aligned');
 });
 
 test('asks for alignment again after the mount changes', async ({ page }) => {
@@ -311,7 +314,7 @@ test('asks for alignment again after the mount changes', async ({ page }) => {
   await page.locator('[data-testid=align-simulated]').click();
   await page.locator('[data-testid=alignment-done]').click();
 
-  await page.getByRole('tab', { name: 'Settings' }).click();
+  await openPage(page, 'Settings');
   await expect(page.locator('[data-testid=open-alignment]')).toContainText('Aligned on');
   await page.evaluate(() => {
     // Selecting through the native picker is slow to drive, so set the value directly.
@@ -534,7 +537,7 @@ test('sets star visibility and equipment in the eyepiece view', async ({ page })
   await expect(items.filter({ hasText: '2× Barlow' })).toHaveCount(1);
 
   // The eyepiece view picks from it. A bigger aperture shows fainter stars.
-  await page.getByRole('tab', { name: 'Sky', exact: true }).click();
+  await openPage(page, 'Sky');
   const toggle = page.getByTestId('equipment-toggle');
   await page.getByTestId('pick-telescope').filter({ hasText: '200/1000' }).click();
   await expect(label).toContainText('13.1');
@@ -544,13 +547,13 @@ test('sets star visibility and equipment in the eyepiece view', async ({ page })
   await expect(toggle).toContainText('200/1000 · 10 mm · 2× Barlow · 200×');
 
   // Deleting the telescope in use goes back to the first, and Undo brings it back.
-  await page.getByRole('tab', { name: 'Settings', exact: true }).click();
+  await openPage(page, 'Settings');
   await page.getByRole('button', { name: 'Delete 200/1000' }).click();
-  await page.getByRole('tab', { name: 'Sky', exact: true }).click();
+  await openPage(page, 'Sky');
   await expect(label).toContainText('12.1');
-  await page.getByRole('tab', { name: 'Settings', exact: true }).click();
+  await openPage(page, 'Settings');
   await page.getByTestId('kit-deleted-toast').getByRole('button', { name: 'Undo' }).click();
-  await page.getByRole('tab', { name: 'Sky', exact: true }).click();
+  await openPage(page, 'Sky');
   await expect(label).toContainText('13.1');
 });
 
@@ -567,7 +570,7 @@ test('turns the telescope and eyepieces saved before the kit existed into its fi
   });
   await page.goto('/tabs/settings');
   await expect(page.getByTestId('kit-item')).toHaveText([/102\/900/, /25 mm/, /10 mm/]);
-  await page.getByRole('tab', { name: 'Sky', exact: true }).click();
+  await openPage(page, 'Sky');
   await page.locator('[data-testid=view-mode]').click();
   await expect(page.getByTestId('equipment-toggle')).toContainText('102/900 · 10 mm · 90×');
 
@@ -590,7 +593,7 @@ test('sets sky darkness in Settings, which changes the eyepiece view', async ({ 
     const select = document.querySelector('[data-testid=bortle]')!;
     select.dispatchEvent(new CustomEvent('ionChange', { detail: { value: 3 }, bubbles: true }));
   });
-  await page.getByRole('tab', { name: 'Sky' }).click();
+  await openPage(page, 'Sky');
   await page.locator('[data-testid=view-mode]').click();
   // A rural sky, class 3, with 130 mm: 6.8 plus 6.3 for the aperture.
   await expect(page.locator('[data-testid=star-limit-label]')).toContainText('13.1');
@@ -609,14 +612,14 @@ test('shows larger text by default, and follows the text size setting', async ({
     const select = document.querySelector('[data-testid=text-size]')!;
     select.dispatchEvent(new CustomEvent('ionChange', { detail: { value: 'extra-large' }, bubbles: true }));
   });
-  await page.getByRole('tab', { name: 'Sky' }).click();
+  await openPage(page, 'Sky');
   expect(await readoutSize()).toBeCloseTo(20.3, 0);
 });
 
 test('shows secondary text as brightly as main text at night', async ({ page }) => {
   await page.goto('/tabs/settings');
   await page.locator('[data-testid=night-mode]').click();
-  await page.getByRole('tab', { name: 'Sky' }).click();
+  await openPage(page, 'Sky');
   const colours = await page.locator('[data-testid=pointing]').evaluate((el) => ({
     readout: getComputedStyle(el).color,
     main: getComputedStyle(document.body).getPropertyValue('--af-text').trim(),
@@ -724,53 +727,49 @@ test('turns the shutter sound for plate solves on and off in Settings', async ({
   await expect(page.locator('[data-testid=solve-sound]')).toHaveClass(/toggle-checked/);
 });
 
-test('lays out for a phone on its side: a tab rail, and map buttons that never overlap', async ({ page }) => {
+test('lays out for a phone on its side: the map full screen, and big buttons that never overlap', async ({ page }) => {
   await page.setViewportSize({ width: 860, height: 380 });
   await page.goto('/');
   const box = async (selector: string) => (await page.locator(selector).boundingBox())!;
+  const rail = ['sensor-toggle', 'view-mode', 'more'];
 
-  // The tab bar is a rail down the left side, the full height of the screen.
-  const rail = await box('ion-tab-bar');
-  expect(rail.x).toBe(0);
-  expect(rail.height).toBeGreaterThan(370);
-  expect(rail.width).toBeLessThan(120);
-  await expect(page.getByRole('tab', { name: 'Settings' })).toBeVisible();
-
-  // The map keeps the whole screen, running under the rail, and its boxes start beside the rail.
+  // The map keeps the whole screen: there is no tab bar.
   const map = await box('app-sky canvas');
   expect(map.x).toBe(0);
   expect(map.width).toBe(860);
   expect(map.height).toBeGreaterThan(370);
-  expect((await box('[data-testid=pointing]')).x).toBeGreaterThanOrEqual(rail.width);
+  await expect(page.getByRole('tab')).toHaveCount(0);
 
   // In the eyepiece view, the panel and the buttons leave the circle's place clear.
   await page.locator('[data-testid=view-mode]').click();
   const panel = await box('[data-testid=eyepiece-panel]');
-  expect(panel.x).toBeGreaterThanOrEqual(rail.width);
   expect(panel.x + panel.width).toBeLessThan(860 / 2 + 40);
-  // Every round button takes its tap there. The location's row once lay across them.
-  for (const id of ['sensor-toggle', 'view-mode', 'open-time', 'alignment-status', 'night-toggle']) {
+  // Every big button takes its tap there, and is big enough to find in the dark.
+  for (const id of rail) {
     const onTop = await page.evaluate((testid) => {
       const button = document.querySelector(`[data-testid=${testid}]`)!;
       const { x, y, width, height } = button.getBoundingClientRect();
       return button.contains(document.elementFromPoint(x + width / 2, y + height / 2));
     }, id);
     expect(onTop, id).toBe(true);
+    expect((await box(`[data-testid=${id}]`)).height, id).toBeGreaterThanOrEqual(56);
   }
   await page.locator('[data-testid=view-mode]').click();
   await page.locator('[data-testid=view-mode]').click();
 
-  // Zoom lies beside the column of round buttons, not under it, and all are on screen.
+  // Zoom lies beside the column of buttons, not under it, and all are on screen.
   const zoomOut = await box('[data-testid=zoom-out]');
-  const night = await box('[data-testid=night-toggle]');
-  expect(zoomOut.x + zoomOut.width).toBeLessThanOrEqual(night.x + 1);
-  expect(night.y + night.height).toBeLessThanOrEqual(380);
+  const more = await box('[data-testid=more]');
+  expect(zoomOut.x + zoomOut.width).toBeLessThanOrEqual(more.x + 1);
+  expect(more.y + more.height).toBeLessThanOrEqual(380);
+  // The zoom buttons are as big as the others.
+  expect(zoomOut.height).toBeCloseTo(more.height, 0);
 
-  // With the time control open the map is shorter, and the buttons still all fit on it.
-  await page.locator('[data-testid=open-time]').click();
+  // With the time control open the map is shorter, and the buttons still all fit above it.
+  await tapMore(page, 'open-time');
   await expect(page.locator('[data-testid=time-ruler]')).toBeVisible();
   const ruler = await box('[data-testid=time-ruler]');
-  for (const id of ['sensor-toggle', 'view-mode', 'open-time', 'alignment-status', 'night-toggle', 'zoom-in']) {
+  for (const id of [...rail, 'zoom-in']) {
     const button = await box(`[data-testid=${id}]`);
     expect(button.y, id).toBeGreaterThanOrEqual(0);
     expect(button.y + button.height, id).toBeLessThanOrEqual(ruler.y + 1);

@@ -14,6 +14,22 @@ import { TonightService } from './tonight.service';
 
 /** Where each list's chosen order is remembered, by the list's key. */
 const SORTS_KEY = 'astrofinder.listSorts';
+/** Where the chart of tonight is remembered as open or closed, for every list alike. */
+const CHART_KEY = 'astrofinder.listChart';
+
+/**
+ * Whether the chart of tonight is open: as it was last left, on whichever list, so each
+ * list opens the way the user last wanted. Closed at first. Shared by every list's view.
+ */
+const chartOpenState = signal(loadChartOpen());
+
+function loadChartOpen(): boolean {
+  try {
+    return localStorage.getItem(CHART_KEY) === 'open';
+  } catch {
+    return false;
+  }
+}
 /** The telescope's direction is followed in steps this size, so "nearest" doesn't re-sort at every tremble. */
 const POINTING_STEP_DEG = 0.5;
 const RAD = Math.PI / 180;
@@ -27,12 +43,12 @@ export interface ListViewConfig {
   rows: () => readonly ListedTarget[];
   /** What the list's own order is called in the sort menu, such as "Catalogue order". */
   ownOrder: () => string;
-  /** On the Targets tab, the list's own order is the best match for what was typed. */
+  /** The list's name, as the sky map shows it while observing through the list. */
+  title: () => string;
+  /** In the search, the list's own order is the best match for what was typed. */
   bestMatch?: boolean;
   /** Orders that make no sense for this list, such as "nearest" inside the reticle. */
   withoutSorts?: () => readonly SortId[];
-  /** Whether the chart starts open. The user's own lists do. */
-  chartOpen?: () => boolean;
 }
 
 /** A filter that is on, as a chip the user can tap to take it off. */
@@ -62,7 +78,7 @@ function loadSorts(): Record<string, SortId> {
 
 /**
  * One list of targets on show: its search, order and filters, and the rows that result.
- * The Targets tab and every list page have their own, so all behave alike. The tools in
+ * The search and every list page have their own, so all behave alike. The tools in
  * the header (ListToolsComponent) and the rows below (ListRowsComponent) both use it.
  */
 @Injectable()
@@ -78,6 +94,9 @@ export class ListViewService {
     this.config.set(config);
   }
 
+  /** The list's name, for the sky map's playlist. */
+  readonly title = computed(() => this.config()?.title() ?? '');
+
   // ---- What the user chose ----
 
   readonly query = signal('');
@@ -90,11 +109,15 @@ export class ListViewService {
   /** Reordering one of the user's own lists by hand: everything shows, in the list's own order. */
   readonly editing = signal(false);
 
-  /** The chart, open or closed: the user's choice, or else how the list starts. */
-  private readonly chartChoice = signal<boolean | null>(null);
-  readonly chartOpen = computed(() => this.chartChoice() ?? this.config()?.chartOpen?.() ?? false);
+  /** The chart of tonight, open or closed, as last left on any list. */
+  readonly chartOpen = chartOpenState.asReadonly();
   toggleChart(): void {
-    this.chartChoice.set(!this.chartOpen());
+    chartOpenState.set(!chartOpenState());
+    try {
+      localStorage.setItem(CHART_KEY, chartOpenState() ? 'open' : 'closed');
+    } catch {
+      // Storage may be blocked: the choice then lasts until the page closes.
+    }
   }
 
   private readonly savedSorts = signal(loadSorts());

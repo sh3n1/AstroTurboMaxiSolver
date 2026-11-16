@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+import { openPage, tapMore } from './navigation';
+
 /** Lets the app know where the test phone is, in Madrid, so the sky has a place. */
 test.beforeEach(async ({ page, context }) => {
   // The time control shows the forecast, but tests never call the real service.
@@ -12,7 +14,7 @@ test.beforeEach(async ({ page, context }) => {
 });
 
 test('plans for another time from the sky map, and goes back to now', async ({ page }) => {
-  await page.locator('[data-testid=open-time]').click();
+  await tapMore(page, 'open-time');
   const ruler = page.locator('[data-testid=time-ruler]');
   await expect(ruler).toBeVisible();
   // Not planning yet, so Now has nothing to do.
@@ -41,10 +43,10 @@ test('plans for another time from the sky map, and goes back to now', async ({ p
   // Closed, a band says which time is on show, on every tab.
   await page.locator('[data-testid=close-time]').click();
   await expect(page.locator('[data-testid=planning-band]')).toContainText('Showing');
-  // The clock button is amber while the map shows another time.
-  await expect(page.locator('[data-testid=open-time]')).toHaveClass(/warn/);
+  // The More button, where the clock is, is amber while the map shows another time.
+  await expect(page.getByTestId('more')).toHaveClass(/warn/);
   await page.screenshot({ path: 'test-results/time-control-band.png' });
-  await page.getByRole('tab', { name: 'Targets' }).click();
+  await openPage(page, 'Search');
   await expect(page.locator('[data-testid=planning-band]')).toBeVisible();
 
   // One tap back to the real time, and the band goes.
@@ -68,7 +70,7 @@ test('changes the Best list as the time changes, and waits with alignment', asyn
   await page.screenshot({ path: 'test-results/time-control-list.png' });
 
   // Alignment needs the real sky. A reload would end planning, so by the tab.
-  await page.getByRole('tab', { name: 'Sky' }).click();
-  await page.locator('[data-testid=alignment-status]').click();
+  await openPage(page, 'Sky');
+  await tapMore(page, 'alignment-status');
   await expect(page.locator('[data-testid=align-planning]')).toBeVisible();
 });

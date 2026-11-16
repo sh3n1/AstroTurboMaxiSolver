@@ -7,7 +7,9 @@ import {
   combineAttitudes,
   integrateGyroscope,
   inverseAttitude,
+  phoneRightDirection,
   phoneUpDirection,
+  screenUpDirection,
   rearCameraDirection,
 } from './attitude';
 import { cameraPointing, rearCameraVector } from './device-orientation';
@@ -49,6 +51,25 @@ describe('attitude', () => {
     const up = phoneUpDirection(spin([0, 0, 90], 1));
     expect(up[0]).toBeCloseTo(-1, 6);
     expect(up[2]).toBeCloseTo(0, 6);
+  });
+
+  it("takes the screen's top as the phone's top while upright, and a side when turned", () => {
+    const close = (actual: readonly number[], expected: readonly number[]): void =>
+      actual.forEach((value, i) => expect(value).toBeCloseTo(expected[i], 6));
+    close(screenUpDirection(upright, 0), phoneUpDirection(upright));
+    // The picture's top is the phone's right edge at 90°, and its left edge at 270°.
+    close(screenUpDirection(upright, 90), phoneRightDirection(upright));
+    close(
+      screenUpDirection(upright, 270),
+      phoneRightDirection(upright).map((value) => -value),
+    );
+  });
+
+  it('keeps the screen picture upright with the phone on its side, its top to the left', () => {
+    // Turned anticlockwise, the browser turns its picture by 90°, whose top then points up.
+    const up = screenUpDirection(spin([0, 0, 90], 1), 90);
+    expect(up[0]).toBeCloseTo(0, 6);
+    expect(up[2]).toBeCloseTo(1, 6);
   });
 
   describe('attitude from a plate solve', () => {

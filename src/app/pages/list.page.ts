@@ -1,5 +1,5 @@
 import { DecimalPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, viewChild } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
@@ -41,7 +41,7 @@ import { exportFileName, exportLists } from '../core/target-lists';
 
 /**
  * One list of targets: a catalogue, a collection or one of the user's own. It has the same
- * tools, orders, filters and rows as the Targets tab. The user's own lists can also be
+ * tools, orders, filters and rows as the search. The user's own lists can also be
  * renamed, deleted and put in order by hand, and their rows removed.
  */
 @Component({
@@ -198,6 +198,13 @@ import { exportFileName, exportLists } from '../core/target-lists';
   `,
 })
 export class ListPage {
+  private readonly tools = viewChild(ListToolsComponent);
+
+  /** Each time the list comes on show, the search is ready to type in. */
+  ionViewDidEnter(): void {
+    this.tools()?.focusSearch();
+  }
+
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly lists = inject(ListsService);
@@ -259,6 +266,7 @@ export class ListPage {
     this.view.configure({
       key: () => this.id(),
       rows: () => this.list()?.targets ?? [],
+      title: () => this.list()?.name ?? 'List',
       ownOrder: () => {
         const list = this.list();
         if (list?.id === 'now') return 'Best first';
@@ -267,8 +275,6 @@ export class ListPage {
       },
       // Inside the reticle, the list's own order is already the nearest first.
       withoutSorts: () => (this.id() === 'reticle' ? ['nearest'] : []),
-      // The user's own lists are plans for a night, so their chart starts open.
-      chartOpen: () => !!this.list() && this.list()?.kind !== 'fixed',
     });
   }
 

@@ -8,6 +8,7 @@ import type { SolveNowResult } from './live-solver.service';
 import type { FinderMessage, RemoteMessage, RemoteRole, RemoteSite, ScreenMessage } from './remote-link';
 import { alignmentKey, decodePairingCode, encodePairingCode, parseMessage, toRemoteEntry } from './remote-link';
 import { SensorService } from './sensor.service';
+import { screenAngleDeg } from './sideways';
 
 /**
  * Where the link is:
@@ -262,7 +263,8 @@ export class RemoteService {
       case 'pose':
         this.state.pointing.set(message.pointing);
         this.state.cameraPointing.set(message.camera);
-        this.state.viewRollDeg.set(message.rollDeg);
+        // Sent relative to the finder phone's top: this phone turns it for its own screen.
+        this.state.viewRollDeg.set(message.rollDeg + screenAngleDeg());
         this.state.plateSolving.set(message.solving);
         this.finderSteering.set(message.steering !== false);
         break;
@@ -347,7 +349,8 @@ export class RemoteService {
       t: 'pose',
       pointing: this.state.pointing(),
       camera: this.state.cameraPointing(),
-      rollDeg: this.state.viewRollDeg(),
+      // Relative to the phone's top, since the screen phone may be turned another way.
+      rollDeg: this.state.viewRollDeg() - screenAngleDeg(),
       solving: this.state.plateSolving(),
       steering: this.state.sensorsActive(),
     });

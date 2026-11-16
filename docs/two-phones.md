@@ -28,7 +28,7 @@ JSON over one reliable, ordered data channel (`remote-link.ts`):
 | From | Message | When |
 | --- | --- | --- |
 | Finder | `hello` | Once linked: its alignment and location. |
-| Finder | `pose` | Where the telescope and camera point, the roll, whether it is solving, and whether its sensors are steering. On every change, at most every 50 ms, and every second anyway. |
+| Finder | `pose` | Where the telescope and camera point, the roll (from the phone's top, so each phone turns it for its own screen), whether it is solving, and whether its sensors are steering. On every change, at most every 50 ms, and every second anyway. |
 | Finder | `site` | Its location, when it changes. The screen uses it, since both are at the same telescope. |
 | Finder | `solveLog` | Each plate solve attempt, so the screen shows the same toasts and log. |
 | Finder | `solveResult` | The answer to a `solveNow`. |
