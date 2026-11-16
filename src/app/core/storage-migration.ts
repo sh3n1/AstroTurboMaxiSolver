@@ -10,13 +10,13 @@ import type { ListItem, ListRecord, TargetList } from './target-lists';
 import { UNCATEGORIZED_ID, listItemId, startingLists } from './target-lists';
 
 /** Where localStorage kept them. The keys are removed once the database has them. */
-export const OLD_LOG_KEY = 'astrofinder.log';
-export const OLD_LISTS_KEY = 'astrofinder.lists';
+export const OLD_LOG_KEY = 'astroturbomaxisolver.log';
+export const OLD_LISTS_KEY = 'astroturbomaxisolver.lists';
 /** Older still: the session plan's bookmarks, which became Saved for later. */
-export const OLD_PLAN_KEY = 'astrofinder.plan';
+export const OLD_PLAN_KEY = 'astroturbomaxisolver.plan';
 export const OLD_KEYS = [OLD_LOG_KEY, OLD_LISTS_KEY, OLD_PLAN_KEY] as const;
 /** The settings, which held the equipment kit before the database did. They stay there. */
-export const SETTINGS_KEY = 'astrofinder.settings';
+export const SETTINGS_KEY = 'astroturbomaxisolver.settings';
 /** The settings fields that held the kit, removed once the database has it. */
 export const OLD_KIT_SETTINGS = [
   'kit',
@@ -57,12 +57,13 @@ export interface OldData extends LocalRecords {
 // entries, and a list's sort order, saved by its id, still finds it.
 
 /** A log entry's id as a UUID. */
-export const logEntryUuid = (id: string): string => (isUuid(id) ? id : nameUuid(`astrofinder/log-entry/${id}`));
+export const logEntryUuid = (id: string): string =>
+  isUuid(id) ? id : nameUuid(`astroturbomaxisolver/log-entry/${id}`);
 
 /** A list's id as a UUID. Saved for later has its own, the same on every device. */
 export function listUuid(id: string): string {
   if (id === OLD_UNCATEGORIZED_ID) return UNCATEGORIZED_ID;
-  return isUuid(id) ? id : nameUuid(`astrofinder/list/${id}`);
+  return isUuid(id) ? id : nameUuid(`astroturbomaxisolver/list/${id}`);
 }
 
 /**
@@ -70,7 +71,7 @@ export function listUuid(id: string): string {
  * phone, so the device's id goes into the name: two phones' "telescope-1" stay apart.
  */
 const kitUuid = (id: string, deviceId: string): string =>
-  isUuid(id) ? id : nameUuid(`astrofinder/kit/${deviceId}/${id}`);
+  isUuid(id) ? id : nameUuid(`astroturbomaxisolver/kit/${deviceId}/${id}`);
 
 /** The record with a new id and other content changes, its hash worked out again. */
 function changeIds<T extends { id: string }>(record: Synced<T>, changes: Partial<T>): Synced<T> {

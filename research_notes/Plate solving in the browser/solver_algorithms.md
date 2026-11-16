@@ -153,7 +153,7 @@ The biggest wins found are in detection (background subtraction and higher bit d
 - **Distortion fit:** cedar's (f, k) least squares, with a k range, is a single parameter and cheap. — [cedar tetra3.py](https://raw.githubusercontent.com/smroid/cedar-solve/master/tetra3/tetra3.py)
 
 ### Inferences
-These are suggestions for AstroFinder. None of them has been tested yet.
+These are suggestions for AstroTurboMaxiSolver. None of them has been tested yet.
 1. **Detection first:** do background mesh subtraction on the stacked frame before 8-bit conversion, filter elongated and saturated blobs, and filter hot pixels with a per-device dark map built from stacked frames.
 2. **Hint as a candidate filter:** discard hash hits whose catalogue pattern centre is outside the hint cone (±30° plus the field radius). This shrinks the hypothesis count, so the Bonferroni-corrected threshold can be looser for the same false-positive rate.
 3. **Wider-field caution:** at 60°, phone lens distortion at the corners is likely several percent. Without a k term, edge stars miss the match radius and edge ratios drift. Fit k per device and store it in the mount profile.

@@ -134,10 +134,10 @@ const DEFAULT_SETTINGS: Settings = {
   cameraFocalFactor: 1,
 };
 
-const SETTINGS_KEY = 'astrofinder.settings';
+const SETTINGS_KEY = 'astroturbomaxisolver.settings';
 /** How often the live sky's time moves on. The sky turns about 0.004° in a second. */
 const SKY_TIME_STEP_MS = 1000;
-const ALIGNMENT_KEY = 'astrofinder.alignment';
+const ALIGNMENT_KEY = 'astroturbomaxisolver.alignment';
 
 // Browser storage can be blocked or cleared, so the app must work without it.
 function load<T extends object>(key: string, fallback: T): T {

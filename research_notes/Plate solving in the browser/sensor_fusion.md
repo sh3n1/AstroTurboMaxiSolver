@@ -1,6 +1,6 @@
 # Fusing phone sensors with plate solving for telescope pointing
 
-Research notes, November 2026. These notes cover how existing finder products and the research literature combine IMU orientation with plate-solved attitude, and what that means for AstroFinder. AstroFinder is a PWA that uses DeviceOrientation events, a complementary filter, WMM declination and solves taken while the phone is still. Its measured compass error is about 7.5°.
+Research notes, November 2026. These notes cover how existing finder products and the research literature combine IMU orientation with plate-solved attitude, and what that means for AstroTurboMaxiSolver. AstroTurboMaxiSolver is a PWA that uses DeviceOrientation events, a complementary filter, WMM declination and solves taken while the phone is still. Its measured compass error is about 7.5°.
 
 ## How do existing products (StarSense Explorer, SkySafari, PiFinder, Stellarium, SkEye and others) handle drift, magnetic interference and recalibration?
 
@@ -39,7 +39,7 @@ PiFinder is the only product with a public, inspectable design. It treats the pl
 - Seestar's guide says to calibrate the compass away from metal and power lines, and warns that magnetic phone mounts cause interference — [Seestar guide](https://store.seestar.com/blogs/tutorial/cant-locate-the-sun-or-moon-a-step-by-step-guide-to-diagnose-fix)
 
 ### Inferences
-- PiFinder's model maps almost one-to-one onto AstroFinder:
+- PiFinder's model maps almost one-to-one onto AstroTurboMaxiSolver:
   - `q_eq2x` corresponds to "sensor frame to sky frame", which absorbs compass heading error and drift.
   - `q_cam2aligned` corresponds to our alignment offset.
   - `q_imu2cam` corresponds to the fixed phone-to-camera geometry, including a mirror flip.
@@ -68,7 +68,7 @@ Standard practice in spacecraft star trackers is a multiplicative EKF (MEKF). It
 - Latency: PiFinder stamps solves with `exposure_end` and pairs each solve with the IMU quaternion captured with that frame (`result.imu_anchor`). The correction is therefore computed against the attitude at capture time, not at solve completion — [PiFinder integrator.py](https://raw.githubusercontent.com/brickbots/PiFinder/main/python/PiFinder/integrator.py)
 
 ### Inferences
-Recommendations for AstroFinder:
+Recommendations for AstroTurboMaxiSolver:
 1. **Keep the OS-fused orientation as the motion source and add a learned correction quaternion `q_corr`** (sensor frame to true sky frame), so that true attitude = `q_corr * q_sensor`. At each verified solve, set `q_corr = q_solve * inverse(q_sensor_at_capture)`, using the sensor quaternion buffered at the middle of the exposure. Blend toward it with a small time-constant rather than snapping, so the map does not visibly jump. When the solve agrees within a tolerance, snapping is fine.
    - This generalises "learn the compass offset" to all three axes.
    - Keep a separate heading-only offset only for display or diagnostics.

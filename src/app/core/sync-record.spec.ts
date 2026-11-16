@@ -23,10 +23,10 @@ describe('sync records', () => {
   });
 
   it('makes the same UUID from the same name, on any device, and a different one from another name', () => {
-    const id = nameUuid('astrofinder/list/saved-for-later');
+    const id = nameUuid('astroturbomaxisolver/list/saved-for-later');
     expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-8[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
-    expect(nameUuid('astrofinder/list/saved-for-later')).toBe(id);
-    expect(nameUuid('astrofinder/list/saved-for-later2')).not.toBe(id);
+    expect(nameUuid('astroturbomaxisolver/list/saved-for-later')).toBe(id);
+    expect(nameUuid('astroturbomaxisolver/list/saved-for-later2')).not.toBe(id);
     expect([isUuid(id), isUuid(newUuid()), isUuid('list-1'), isUuid('telescope-1')]).toEqual([
       true,
       true,

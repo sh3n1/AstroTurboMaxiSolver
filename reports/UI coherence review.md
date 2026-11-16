@@ -1,6 +1,6 @@
 # UI coherence review
 
-AstroFinder, 11 November 2026. Reviewed from the code of every page and shared component (`src/app/pages`, `src/app/core`, `src/global.scss`, `src/theme`), plus screenshots of the new details panel. Not every screen was looked at on a phone, so the findings are about what the code draws.
+AstroTurboMaxiSolver, 11 November 2026. Reviewed from the code of every page and shared component (`src/app/pages`, `src/app/core`, `src/global.scss`, `src/theme`), plus screenshots of the new details panel. Not every screen was looked at on a phone, so the findings are about what the code draws.
 
 Two questions:
 

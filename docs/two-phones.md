@@ -34,6 +34,7 @@ JSON over one reliable, ordered data channel (`remote-link.ts`):
 | Finder | `solveResult` | The answer to a `solveNow`. |
 | Screen | `solveNow` | Plate solve now, for alignment or a tap on the rings. |
 | Screen | `night` | Red night mode, on or off, so the finder's screen matches. |
+| Screen | `fullscreen` | Full screen, on or off, so the finder's screen matches. |
 | Both | `alignment` | An alignment made or removed on either phone. |
 
 ## How the app uses it
@@ -54,7 +55,11 @@ JSON over one reliable, ordered data channel (`remote-link.ts`):
   - A band at the bottom, in the time band's place, says it is in remote mode. Its cross
     ends the link.
   - If its sensors aren't running, as when an iPhone needs a tap before it allows them, the
-    band offers to start them. Meanwhile the screen phone shows "Finder sensors off" rather
+    band offers to start them.
+  - Full screen follows the screen phone. Leaving it always works, but browsers only enter
+    full screen straight after a tap on that same phone, so when the finder's browser refuses,
+    its band says "Tap for full screen", and one tap there does it. An installed app that opens
+    full screen, and iPhones, which can't, are left as they are. Meanwhile the screen phone shows "Finder sensors off" rather
     than treating the position as live.
   - Showing another time is switched off when it links, since the finder must solve the real
     sky now.

@@ -25,7 +25,7 @@ interface MetaRow {
 const OPEN_TIMEOUT_MS = 4000;
 
 /** The tables, and the fields each is indexed by. The first field is the primary key. */
-export class AstroFinderDb extends Dexie {
+export class AstroTurboMaxiSolverDb extends Dexie {
   meta!: Table<MetaRow, string>;
   logEntries!: Table<Synced<LogEntry>, string>;
   lists!: Table<Synced<ListRecord>, string>;
@@ -33,7 +33,7 @@ export class AstroFinderDb extends Dexie {
   kit!: Table<Synced<KitRecord>, string>;
 
   constructor() {
-    super('astrofinder');
+    super('astroturbomaxisolver');
     // A change to the tables or indexes needs a new version here, with an upgrade if data
     // must change. Never edit a version that has been released.
     this.version(1).stores({
@@ -97,12 +97,12 @@ export class LocalDb {
    */
   movedKitSelection: KitSelection | null = null;
 
-  private opening?: Promise<AstroFinderDb | null>;
+  private opening?: Promise<AstroTurboMaxiSolverDb | null>;
   private lastTime = 0;
   private persistAsked = false;
 
   /** The database, or null when it can't be used. Opens it on the first call. */
-  open(): Promise<AstroFinderDb | null> {
+  open(): Promise<AstroTurboMaxiSolverDb | null> {
     return (this.opening ??= withTimeout(this.start(), OPEN_TIMEOUT_MS, null));
   }
 
@@ -135,9 +135,9 @@ export class LocalDb {
     }
   }
 
-  private async start(): Promise<AstroFinderDb | null> {
+  private async start(): Promise<AstroTurboMaxiSolverDb | null> {
     if (typeof indexedDB === 'undefined') return null;
-    const db = new AstroFinderDb();
+    const db = new AstroTurboMaxiSolverDb();
     // A newer version of the app, open in another tab, needs this one to let go before it
     // can change the tables. This version's code wouldn't understand them, so it reloads.
     db.on('versionchange', () => {
@@ -166,7 +166,7 @@ export class LocalDb {
    * Moves what localStorage held into the database, each part once: the log and lists, and
    * the kit from the settings. Says which parts moved now.
    */
-  private async moveOldData(db: AstroFinderDb): Promise<{ logAndLists: boolean; kit: boolean }> {
+  private async moveOldData(db: AstroTurboMaxiSolverDb): Promise<{ logAndLists: boolean; kit: boolean }> {
     const device = await db.meta.get('deviceId');
     if (device) this.deviceId = device.value as string;
     else await db.meta.put({ key: 'deviceId', value: this.deviceId });

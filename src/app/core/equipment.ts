@@ -81,14 +81,14 @@ export interface Equipment {
  * Editing one saves the user's own item, which then takes its place.
  */
 export const DEFAULT_TELESCOPE: Telescope = {
-  id: nameUuid('astrofinder/kit/default-telescope'),
+  id: nameUuid('astroturbomaxisolver/kit/default-telescope'),
   name: '',
   type: 'newtonian',
   apertureMm: 130,
   focalMm: 650,
 };
 export const DEFAULT_EYEPIECE: Eyepiece = {
-  id: nameUuid('astrofinder/kit/default-eyepiece'),
+  id: nameUuid('astroturbomaxisolver/kit/default-eyepiece'),
   name: '',
   focalMm: 25,
   fieldDeg: 52,

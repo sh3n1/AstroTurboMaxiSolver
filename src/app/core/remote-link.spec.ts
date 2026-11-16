@@ -30,14 +30,19 @@ describe('pairing codes', () => {
   });
 
   it('refuses anything else with a message for the user', async () => {
-    await expect(decodePairingCode('https://example.com')).rejects.toThrow("This isn't an AstroFinder pairing code");
-    await expect(decodePairingCode('AF1:not-really')).rejects.toThrow("This isn't an AstroFinder pairing code");
+    await expect(decodePairingCode('https://example.com')).rejects.toThrow(
+      "This isn't an AstroTurboMaxiSolver pairing code",
+    );
+    await expect(decodePairingCode('AF1:not-really')).rejects.toThrow(
+      "This isn't an AstroTurboMaxiSolver pairing code",
+    );
   });
 });
 
 describe('link messages', () => {
   it('reads known messages and ignores anything else', () => {
     expect(parseMessage('{"t":"solveNow","id":1,"trigger":"tap"}')).toEqual({ t: 'solveNow', id: 1, trigger: 'tap' });
+    expect(parseMessage('{"t":"fullscreen","on":true}')).toEqual({ t: 'fullscreen', on: true });
     expect(parseMessage('{"t":"somethingNew"}')).toBeNull();
     expect(parseMessage('not json')).toBeNull();
     expect(parseMessage('null')).toBeNull();

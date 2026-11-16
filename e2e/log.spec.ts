@@ -156,7 +156,7 @@ test('shows all-time observation counts on the sky and lists, excluding failed t
     mimeType: 'application/json',
     buffer: Buffer.from(
       JSON.stringify({
-        format: 'astrofinder-log',
+        format: 'astroturbomaxisolver-log',
         version: 1,
         entries: [
           backupEntry('previous-observation', '2020-01-01T22:00:00.000Z', 3),
@@ -223,9 +223,9 @@ test('moves the log and lists saved before the database into it, once', async ({
         },
       },
     };
-    localStorage.setItem('astrofinder.log', JSON.stringify([entry]));
+    localStorage.setItem('astroturbomaxisolver.log', JSON.stringify([entry]));
     localStorage.setItem(
-      'astrofinder.lists',
+      'astroturbomaxisolver.lists',
       JSON.stringify([
         { id: 'uncategorized', name: 'Uncategorized', targetIds: ['M13'] },
         { id: 'list-old', name: 'Winter', targetIds: ['M42', 'M45'] },
@@ -236,7 +236,10 @@ test('moves the log and lists saved before the database into it, once', async ({
   await expect(page.locator('app-log')).toContainText('Trapezium sharp');
   // The old copies are gone once the database has them.
   expect(
-    await page.evaluate(() => [localStorage.getItem('astrofinder.log'), localStorage.getItem('astrofinder.lists')]),
+    await page.evaluate(() => [
+      localStorage.getItem('astroturbomaxisolver.log'),
+      localStorage.getItem('astroturbomaxisolver.lists'),
+    ]),
   ).toEqual([null, null]);
 
   await page.reload();
@@ -256,7 +259,7 @@ test('gives UUIDs to the records of a database saved with older ids', async ({ p
     () =>
       new Promise<void>((resolve, reject) => {
         // Dexie keeps its version 1 as IndexedDB version 10.
-        const request = indexedDB.open('astrofinder', 10);
+        const request = indexedDB.open('astroturbomaxisolver', 10);
         request.onupgradeneeded = () => {
           const db = request.result;
           db.createObjectStore('meta', { keyPath: 'key' });
@@ -336,7 +339,7 @@ test('gives UUIDs to the records of a database saved with older ids', async ({ p
   const ids = await page.evaluate(
     () =>
       new Promise<string[]>((resolve) => {
-        const request = indexedDB.open('astrofinder');
+        const request = indexedDB.open('astroturbomaxisolver');
         request.onsuccess = () => {
           const db = request.result;
           const tx = db.transaction(['logEntries', 'lists', 'listItems'], 'readonly');

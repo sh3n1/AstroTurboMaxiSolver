@@ -43,7 +43,7 @@ const CHART_WIDTH = 336;
 const CHART_TOP = 6;
 const CHART_HORIZON = 50;
 
-/** Standard icons for the kinds without one of AstroFinder's own, as in the lists. */
+/** Standard icons for the kinds without one of AstroTurboMaxiSolver's own, as in the lists. */
 const KIND_ICONS: Partial<Record<TargetKind, string>> = {
   Other: 'shapes-outline',
   'Open cluster': 'sparkles-outline',
@@ -434,7 +434,7 @@ export class TargetDetailsComponent {
   protected readonly type = computed(() => objectTypeText(this.target()));
   /** A disc lit as much as the body is, for the "% lit" chip. */
   protected readonly litIcon = computed(() => iconDataUrl(phaseIcon(this.facts()?.litFraction ?? 1, true)));
-  /** AstroFinder's own icon for the target, as in the lists, or null for a standard one. */
+  /** AstroTurboMaxiSolver's own icon for the target, as in the lists, or null for a standard one. */
   protected readonly typeIcon = computed(() => {
     const paths = targetIcon(this.target());
     return paths ? iconDataUrl(paths) : null;

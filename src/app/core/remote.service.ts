@@ -3,6 +3,7 @@ import { ToastController } from '@ionic/angular';
 
 import { AppState } from './app-state.service';
 import type { Alignment } from './app-state.service';
+import { FullscreenService } from './fullscreen.service';
 import { LiveSolverService } from './live-solver.service';
 import type { SolveNowResult } from './live-solver.service';
 import type { FinderMessage, RemoteMessage, RemoteRole, RemoteSite, ScreenMessage } from './remote-link';
@@ -32,7 +33,7 @@ const GATHER_TIMEOUT_MS = 4000;
 /** How long a plate solve asked of the finder may take before giving up. */
 const SOLVE_TIMEOUT_MS = 60_000;
 /** The data channel's name, the same on both phones. */
-const CHANNEL = 'astrofinder';
+const CHANNEL = 'astroturbomaxisolver';
 
 /**
  * Links two phones so one works as the finder on the telescope and the other as the
@@ -46,6 +47,7 @@ const CHANNEL = 'astrofinder';
 @Injectable({ providedIn: 'root' })
 export class RemoteService {
   private readonly state = inject(AppState);
+  private readonly fullscreen = inject(FullscreenService);
   private readonly liveSolver = inject(LiveSolverService);
   private readonly sensors = inject(SensorService);
   private readonly toasts = inject(ToastController);
@@ -59,6 +61,11 @@ export class RemoteService {
   readonly error = signal('');
   /** On the screen phone: whether the finder's sensors steer its position. */
   readonly finderSteering = signal(true);
+  /**
+   * On the finder phone: the screen phone went full screen, but this browser needs a tap
+   * here before it can follow. The finder's band then offers it.
+   */
+  readonly fullscreenWanted = signal(false);
 
   private connection: RTCPeerConnection | null = null;
   private channel: RTCDataChannel | null = null;
@@ -106,6 +113,11 @@ export class RemoteService {
     effect(() => {
       const on = this.state.settings().nightMode;
       if (this.isLinked('screen')) this.send({ t: 'night', on });
+    });
+    // Full screen follows the screen phone too, so the finder shows no bright browser bars.
+    effect(() => {
+      const on = this.fullscreen.active();
+      if (this.isLinked('screen')) this.send({ t: 'fullscreen', on });
     });
     // An alignment made on either phone goes to the other.
     effect(() => {
@@ -243,6 +255,7 @@ export class RemoteService {
       this.state.sensorsActive.set(true);
       this.liveSolver.remoteSolve = (trigger) => this.requestSolve(trigger);
       this.send({ t: 'night', on: this.state.settings().nightMode });
+      this.send({ t: 'fullscreen', on: this.fullscreen.active() });
       this.expectMessages();
     }
   }
@@ -296,6 +309,9 @@ export class RemoteService {
         break;
       case 'night':
         if (this.state.settings().nightMode !== message.on) this.state.updateSettings({ nightMode: message.on });
+        break;
+      case 'fullscreen':
+        void this.followFullscreen(message.on);
         break;
     }
   }
@@ -393,6 +409,27 @@ export class RemoteService {
   }
 
   /** Closes the link, and gives the screen phone back its own sensors and camera. */
+  /**
+   * On the finder phone, follows the screen phone into full screen or out of it. Leaving
+   * always works. Entering needs a tap on this phone in most browsers, so if it is refused
+   * the finder's band asks for one. Where the app can't change it (an installed app that
+   * opens full screen, or an iPhone), nothing is done.
+   */
+  private async followFullscreen(on: boolean): Promise<void> {
+    if (!this.fullscreen.supported) return;
+    if (!on) {
+      this.fullscreenWanted.set(false);
+      await this.fullscreen.exit();
+      return;
+    }
+    this.fullscreenWanted.set(!(await this.fullscreen.enter()));
+  }
+
+  /** The finder's band asked for full screen, and the user tapped it on this phone. */
+  async enterWantedFullscreen(): Promise<void> {
+    if (await this.fullscreen.enter()) this.fullscreenWanted.set(false);
+  }
+
   private close(): void {
     clearTimeout(this.poseTimer);
     clearTimeout(this.silenceTimer);
@@ -410,6 +447,7 @@ export class RemoteService {
     this.lastLogSent = this.liveSolver.log()[0]?.id ?? 0;
     this.state.finderMode.set(false);
     this.finderSteering.set(true);
+    this.fullscreenWanted.set(false);
     if (this.state.remoteFinder()) {
       this.liveSolver.remoteSolve = null;
       this.state.remoteFinder.set(false);

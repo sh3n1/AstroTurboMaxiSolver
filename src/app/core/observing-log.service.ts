@@ -132,13 +132,15 @@ export class ObservingLogService {
 
   /**
    * Adds the entries in a backup file, skipping those the log already has, so importing
-   * twice is safe. Returns how many were new. Throws a readable error for a bad file.
+   * twice is safe. Returns how many were new, once they are saved on the device, so the
+   * app can't be closed between "Imported" and the entries being kept. Throws a readable
+   * error for a bad file.
    */
-  import(text: string): number {
+  async import(text: string): Promise<number> {
     // A backup made before ids were UUIDs gets the same UUIDs as the log got, so it still matches.
     const imported = parseLogJson(text).map((entry) => ({ ...entry, id: logEntryUuid(entry.id) }));
     const fresh = mergeEntries(this.entries(), imported).slice(this.entries().length);
-    this.store.save(fresh);
+    await this.store.save(fresh);
     return fresh.length;
   }
 

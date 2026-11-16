@@ -1,6 +1,6 @@
 # Local data
 
-How AstroFinder keeps the user's data on the phone, and how it is ready to be synced between
+How AstroTurboMaxiSolver keeps the user's data on the phone, and how it is ready to be synced between
 devices later. Sync itself is not built.
 
 ## Where each thing is kept
@@ -23,23 +23,23 @@ stays in localStorage and is never synced.
 
 | Data | Key | Why it isn't synced |
 | --- | --- | --- |
-| Kit selection: which telescope, eyepiece, Barlow and filter are in use | `astrofinder.settings` | Each phone may be on a different telescope. It points at kit records by UUID. |
-| Location, Bortle | `astrofinder.settings` | Where this phone is tonight. Shared observing sites would be a new synced table. |
-| Mount type, camera field factor | `astrofinder.settings` | This phone's mount and camera. |
-| Night mode, text size | `astrofinder.settings` | Chosen for this screen and session. A tablet and a phone differ. |
-| Auto solve, keep screen on, shutter remote, solve sound, RA/Dec, eyepiece star limit | `astrofinder.settings` | How this phone is used. |
-| Debug options: solve toasts, send solves, capture mode | `astrofinder.settings` | Development only. |
-| Alignment | `astrofinder.alignment` | Only valid for this phone in this mount. |
-| Sort order chosen per list | `astrofinder.listSorts` | Keyed by list UUID, or by the app list's name. A view choice. |
-| Chart of tonight open or closed, on every list | `astrofinder.listChart` | A view choice. |
-| The list being observed through (playlist) | `astrofinder.playlist` | Where this phone is in a list tonight, like the selected target. |
-| Weather forecast | `astrofinder.forecast` | Throwaway cache. |
+| Kit selection: which telescope, eyepiece, Barlow and filter are in use | `astroturbomaxisolver.settings` | Each phone may be on a different telescope. It points at kit records by UUID. |
+| Location, Bortle | `astroturbomaxisolver.settings` | Where this phone is tonight. Shared observing sites would be a new synced table. |
+| Mount type, camera field factor | `astroturbomaxisolver.settings` | This phone's mount and camera. |
+| Night mode, text size | `astroturbomaxisolver.settings` | Chosen for this screen and session. A tablet and a phone differ. |
+| Auto solve, keep screen on, shutter remote, solve sound, RA/Dec, eyepiece star limit | `astroturbomaxisolver.settings` | How this phone is used. |
+| Debug options: solve toasts, send solves, capture mode | `astroturbomaxisolver.settings` | Development only. |
+| Alignment | `astroturbomaxisolver.alignment` | Only valid for this phone in this mount. |
+| Sort order chosen per list | `astroturbomaxisolver.listSorts` | Keyed by list UUID, or by the app list's name. A view choice. |
+| Chart of tonight open or closed, on every list | `astroturbomaxisolver.listChart` | A view choice. |
+| The list being observed through (playlist) | `astroturbomaxisolver.playlist` | Where this phone is in a list tonight, like the selected target. |
+| Weather forecast | `astroturbomaxisolver.forecast` | Throwaway cache. |
 
 App code and the star and target data are in the service worker cache (`ngsw-config.json`)
 for offline start. They aren't user data.
 
 IndexedDB is used through [Dexie](https://dexie.org) 4 (Apache-2.0). The database is called
-`astrofinder` and its schema is in `src/app/core/local-db.ts`.
+`astroturbomaxisolver` and its schema is in `src/app/core/local-db.ts`.
 
 ## How the app uses it
 
@@ -88,8 +88,8 @@ Rules every write follows:
 - Every record id is a UUID. A new record gets a random one (version 4).
 - A record that two devices must agree on without talking to each other gets a UUID made
   from a name (version 8, from a 128-bit cyrb128 hash, `nameUuid` in `sync-record.ts`):
-  - Saved for later: `nameUuid('astrofinder/list/saved-for-later')`.
-  - A target's place in a list: `nameUuid('astrofinder/list-item/<listId>/<targetId>')`.
+  - Saved for later: `nameUuid('astroturbomaxisolver/list/saved-for-later')`.
+  - A target's place in a list: `nameUuid('astroturbomaxisolver/list-item/<listId>/<targetId>')`.
   - The built-in default telescope and eyepiece.
 - Ids from before UUIDs become name-based UUIDs of their old id, so the same old id always
   gives the same UUID (`storage-migration.ts`). An old log backup imported later still
@@ -134,9 +134,9 @@ edited or deleted later. The ids let observations be found by telescope or eyepi
 On the first start with the database, `LocalDb` moves the old data in one transaction
 (`src/app/core/storage-migration.ts`). Each part has its own flag in `meta`, so it moves once:
 
-- `migratedFromLocalStorage` covers `astrofinder.log`, `astrofinder.lists` and the older
-  `astrofinder.plan`. Their keys are removed only after the transaction commits.
-- `migratedKit` covers the kit in `astrofinder.settings`. It comes either as the `kit` field
+- `migratedFromLocalStorage` covers `astroturbomaxisolver.log`, `astroturbomaxisolver.lists` and the older
+  `astroturbomaxisolver.plan`. Their keys are removed only after the transaction commits.
+- `migratedKit` covers the kit in `astroturbomaxisolver.settings`. It comes either as the `kit` field
   or as the flat telescope fields of earlier versions. AppState then rewrites the settings
   without the kit, with the selection pointing at the new UUIDs.
 
@@ -145,6 +145,10 @@ A failure leaves localStorage untouched for the next start.
 Database version 2 added the `kit` table and turned version 1's non-UUID ids into UUIDs.
 
 ## Future sync (not built)
+
+The plan for syncing through the user's Google Drive, OneDrive or Dropbox, with one folder
+per device, is in `sync-plan.md`. It refines the outline below, which came first, in places:
+winners by revision rather than by clock, and more header fields.
 
 The intended protocol, which the fields above support:
 
@@ -165,6 +169,6 @@ The intended protocol, which the fields above support:
 
 ## Changing the schema
 
-Add `this.version(n + 1).stores({...})` in `AstroFinderDb`, with `.upgrade(tx => …)` if
+Add `this.version(n + 1).stores({...})` in `AstroTurboMaxiSolverDb`, with `.upgrade(tx => …)` if
 existing records must change. Never edit a released version. A tab still running the old
 version reloads itself when a newer tab upgrades the database.

@@ -35,14 +35,14 @@ export interface ListItem {
 
 /** The id of a target's place in a list. The same on every device, which a sync relies on. */
 export function listItemId(listId: string, targetId: string): string {
-  return nameUuid(`astrofinder/list-item/${listId}/${targetId}`);
+  return nameUuid(`astroturbomaxisolver/list-item/${listId}/${targetId}`);
 }
 
 /**
  * The list every bookmark goes to unless the user picks another. It can't be deleted.
  * Its id is made from a name, so it is the same list on every device.
  */
-export const UNCATEGORIZED_ID = nameUuid('astrofinder/list/saved-for-later');
+export const UNCATEGORIZED_ID = nameUuid('astroturbomaxisolver/list/saved-for-later');
 /** Its name, which the user can't change: where a bookmark waits until it is sorted or seen. */
 export const UNCATEGORIZED_NAME = 'Saved for later';
 
@@ -167,7 +167,7 @@ export function fixedListEntries<T extends { id: string }>(
 export type FixedListId = (typeof FIXED_LISTS)[number]['id'];
 
 /** Marks an exported file as ours, so importing something else fails clearly. */
-const EXPORT_FORMAT = 'astrofinder-lists';
+const EXPORT_FORMAT = 'astroturbomaxisolver-lists';
 const EXPORT_VERSION = 1;
 
 /** The lists a new user starts with, taking over the bookmarks of the old session plan. */
@@ -205,18 +205,18 @@ export function exportLists(lists: readonly Pick<TargetList, 'name' | 'targetIds
 
 /**
  * Reads lists from an exported file. Throws an error with a message for the user when
- * the text isn't an AstroFinder list, so a wrong file never half-imports.
+ * the text isn't an AstroTurboMaxiSolver list, so a wrong file never half-imports.
  */
 export function parseImport(text: string): { name: string; targetIds: string[] }[] {
   let data: unknown;
   try {
     data = JSON.parse(text);
   } catch {
-    throw new Error("This isn't an AstroFinder list file");
+    throw new Error("This isn't an AstroTurboMaxiSolver list file");
   }
   const file = data as { format?: unknown; lists?: unknown };
   if (file?.format !== EXPORT_FORMAT || !Array.isArray(file.lists)) {
-    throw new Error("This isn't an AstroFinder list file");
+    throw new Error("This isn't an AstroTurboMaxiSolver list file");
   }
   return file.lists.map((entry: { name?: unknown; targets?: unknown }) => {
     if (typeof entry?.name !== 'string' || !Array.isArray(entry.targets)) {
@@ -228,7 +228,7 @@ export function parseImport(text: string): { name: string; targetIds: string[] }
   });
 }
 
-/** A file name for a list, such as "astrofinder-galaxies-for-spring.json". */
+/** A file name for a list, such as "astroturbomaxisolver-galaxies-for-spring.json". */
 export function exportFileName(name: string): string {
   const slug = name
     .toLowerCase()
@@ -236,7 +236,7 @@ export function exportFileName(name: string): string {
     .replace(/[̀-ͯ]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
-  return `astrofinder-${slug || 'list'}.json`;
+  return `astroturbomaxisolver-${slug || 'list'}.json`;
 }
 
 /**

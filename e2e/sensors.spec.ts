@@ -14,7 +14,9 @@ test.use({
 // about other things turn it off, so they stay quick and don't compete for the fake camera.
 test.beforeEach(async ({ page }, testInfo) => {
   if (testInfo.title.includes('plate solves automatically')) return;
-  await page.addInitScript(() => localStorage.setItem('astrofinder.settings', JSON.stringify({ autoSolve: false })));
+  await page.addInitScript(() =>
+    localStorage.setItem('astroturbomaxisolver.settings', JSON.stringify({ autoSolve: false })),
+  );
 });
 
 /** Turns sensors on, waiting until they are listening, since asking permission takes a moment. */
@@ -65,7 +67,7 @@ test('turns compass headings to true north for the location', async ({ page }) =
   // In Seattle, magnetic north is about 15° east of true north.
   await page.addInitScript(() =>
     localStorage.setItem(
-      'astrofinder.settings',
+      'astroturbomaxisolver.settings',
       JSON.stringify({ autoSolve: false, latitudeDeg: 47.61, longitudeDeg: -122.33, locationSet: true }),
     ),
   );
@@ -284,7 +286,7 @@ test('plate solves when the green rings are tapped, leaving the alignment alone'
   // The fake camera shows no stars, so the solve fails and says why.
   await canvas.click({ position: { x, y } });
   await expect(page.getByTestId('solve-toast')).toBeVisible({ timeout: 45_000 });
-  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('astrofinder.alignment') ?? '{}'));
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('astroturbomaxisolver.alignment') ?? '{}'));
   expect(saved.value ?? null).toBeNull();
 });
 
@@ -305,7 +307,9 @@ test('plate solves when the red rings are tapped, with no target', async ({ page
 
 test('plate solves on the sky map when the shutter remote is pressed, if chosen', async ({ page }) => {
   test.setTimeout(60_000);
-  await page.addInitScript(() => localStorage.setItem('astrofinder.settings', JSON.stringify({ shutterAligns: true })));
+  await page.addInitScript(() =>
+    localStorage.setItem('astroturbomaxisolver.settings', JSON.stringify({ shutterAligns: true })),
+  );
   await page.goto('/tabs/sky');
   await expect(page.locator('app-sky canvas')).toBeVisible();
   // The fake camera shows no stars, so the solve fails and says why.

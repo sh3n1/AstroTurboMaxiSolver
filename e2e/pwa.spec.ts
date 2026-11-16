@@ -49,7 +49,7 @@ test('serves a complete web app manifest', async ({ page, request }) => {
 
   // These fields are what browsers need in order to offer installation.
   const manifest = await (await request.get(`/${href}`)).json();
-  expect(manifest.name).toBe('AstroFinder');
+  expect(manifest.name).toBe('AstroTurboMaxiSolver');
   expect(manifest.display).toBe('fullscreen');
   expect(manifest.icons.map((icon: { purpose: string }) => icon.purpose)).toEqual(
     expect.arrayContaining(['any', 'maskable']),

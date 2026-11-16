@@ -6,7 +6,7 @@ import { computed, signal } from '@angular/core';
 import { liveQuery } from 'dexie';
 import type { Table } from 'dexie';
 
-import type { AstroFinderDb, LocalDb } from './local-db';
+import type { AstroTurboMaxiSolverDb, LocalDb } from './local-db';
 import type { LocalRecords } from './storage-migration';
 import { changeRecord, contentOf, createRecord, deleteRecord } from './sync-record';
 import type { Synced } from './sync-record';
@@ -35,7 +35,7 @@ export class SyncedStore<T extends { id: string }> {
    */
   constructor(
     private readonly localDb: LocalDb,
-    private readonly tableOf: (db: AstroFinderDb) => Table<Synced<T>, string>,
+    private readonly tableOf: (db: AstroTurboMaxiSolverDb) => Table<Synced<T>, string>,
     private readonly oldOf: (old: LocalRecords) => Synced<T>[],
   ) {}
 
@@ -78,12 +78,13 @@ export class SyncedStore<T extends { id: string }> {
 
   /**
    * Adds or changes items. A deleted item saved again comes back. An item saved unchanged
-   * writes nothing, so it doesn't count as a change to sync.
+   * writes nothing, so it doesn't count as a change to sync. The items show at once; the
+   * promise settles once they are on the device, for callers that must not leave before.
    */
-  save(items: readonly T[]): void {
+  save(items: readonly T[]): Promise<void> {
     const now = this.localDb.now();
     const device = this.localDb.deviceId;
-    this.write(
+    return this.write(
       items.map((item) => {
         const known = this.all().get(item.id);
         return known ? changeRecord(known, item, device, now) : createRecord(item, device, now);
@@ -92,10 +93,10 @@ export class SyncedStore<T extends { id: string }> {
   }
 
   /** Marks items deleted. They stay in the table for a sync, and for Undo, which saves them again. */
-  remove(ids: readonly string[]): void {
+  remove(ids: readonly string[]): Promise<void> {
     const now = this.localDb.now();
     const device = this.localDb.deviceId;
-    this.write(
+    return this.write(
       ids.map((id) => {
         const known = this.all().get(id);
         return known ? deleteRecord(known, device, now) : null;
@@ -108,12 +109,15 @@ export class SyncedStore<T extends { id: string }> {
     this.all.update((all) => new Map([...all, ...records.map((r) => [r.id, r] as const)]));
   }
 
-  /** Shows the changes at once, then saves them. A failed save keeps them until the app closes. */
-  private write(changes: readonly (Synced<T> | null)[]): void {
+  /**
+   * Shows the changes at once, then saves them, settling once saved. A failed save keeps
+   * them until the app closes.
+   */
+  private write(changes: readonly (Synced<T> | null)[]): Promise<void> {
     const changed = changes.filter((c): c is Synced<T> => c !== null);
-    if (changed.length === 0) return;
+    if (changed.length === 0) return Promise.resolve();
     this.merge(changed);
-    void this.persist(changed);
+    return this.persist(changed);
   }
 
   private async persist(records: readonly Synced<T>[]): Promise<void> {

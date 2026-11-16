@@ -1,6 +1,6 @@
 # Browser compute options for star detection and plate solving (as of November 2026)
 
-Scope: whether WebGPU, WebAssembly (SIMD, threads), WebGL, OffscreenCanvas, WebCodecs and ImageCapture can speed up AstroFinder's pipeline. The pipeline is a TypeScript Web Worker working on 1080x1920 8-bit greyscale frames: 32 px block median background, MAD noise, bilinear background subtraction, threshold, connected components, then a hash or index pattern solver. Targets are Android Chrome first and iOS Safari 17+.
+Scope: whether WebGPU, WebAssembly (SIMD, threads), WebGL, OffscreenCanvas, WebCodecs and ImageCapture can speed up AstroTurboMaxiSolver's pipeline. The pipeline is a TypeScript Web Worker working on 1080x1920 8-bit greyscale frames: 32 px block median background, MAD noise, bilinear background subtraction, threshold, connected components, then a hash or index pattern solver. Targets are Android Chrome first and iOS Safari 17+.
 
 ## 1. WebGPU availability and suitability
 
@@ -61,7 +61,7 @@ Fixed-width WASM SIMD works on every target, including Safari 16.4+, with no dep
 ### Inferences
 - **What we control:**
   - The app serves its own static files, and AGENTS.md says HTTPS hosting comes later, so COOP and COEP headers can be set in the dev server and on the future host.
-  - The headers mainly get in the way of cross-origin resources: map tiles, CDN fonts, and so on. AstroFinder bundles its data locally, so the risk is low.
+  - The headers mainly get in the way of cross-origin resources: map tiles, CDN fonts, and so on. AstroTurboMaxiSolver bundles its data locally, so the risk is low.
 - **Gains to expect on our pipeline:**
   - The 9.5x and 30x figures are best cases for desktop kernels.
   - Our block median and connected components branch heavily and access memory irregularly. A realistic expectation is 1.5–3x from plain WASM plus SIMD over well-tuned TypeScript, and less where the JS is already tight typed-array code.
@@ -92,7 +92,7 @@ cedar-solve is Apache-2.0 and safe as a reference to port. cedar-detect is NOT A
 - **stardetect** (crates.io) is a different Rust star-detection crate (wavelet, multiscale). Its Cargo.toml lists Apache-2.0 — [lib.rs stardetect](https://lib.rs/crates/stardetect)
 
 ### Inferences
-- **cedar-detect:** AstroFinder is a commercial-style closed app that detects stars, so it could plausibly count as "substantially similar functionality". Treat cedar-detect as off-limits for bundling without written permission or until its MIT change date. Its published algorithm ideas (local threshold, noise estimate, hot-pixel and streak rejection) can still inform our own code. This is not legal advice.
+- **cedar-detect:** AstroTurboMaxiSolver is a commercial-style closed app that detects stars, so it could plausibly count as "substantially similar functionality". Treat cedar-detect as off-limits for bundling without written permission or until its MIT change date. Its published algorithm ideas (local threshold, noise estimate, hot-pixel and streak rejection) can still inform our own code. This is not legal advice.
 - **cedar-solve or tetra3 (Apache-2.0):** the right base for a TypeScript or Rust-to-WASM port of the solver. Keep the Apache NOTICE and attribution.
 - **SEP:** LGPLv3 in a static WASM bundle would require letting users relink, which is impractical. Avoid it.
 - **astrometry.net and its WASM ports** are GPL, as AGENTS.md already notes, so they are unusable.

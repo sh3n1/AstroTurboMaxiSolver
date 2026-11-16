@@ -1,4 +1,4 @@
-// Feasibility simulator for AstroFinder: can a phone in a bright city see enough
+// Feasibility simulator for AstroTurboMaxiSolver: can a phone in a bright city see enough
 // stars, through a browser video stream, for plate solving to work?
 //
 // It does NOT render pixels. For each trial it:

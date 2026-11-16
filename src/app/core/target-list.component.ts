@@ -47,7 +47,7 @@ import type { ListedTarget } from './target-lists';
 import { rowDesignations } from './target-lists';
 import type { Target, TargetKind } from './targets';
 
-/** Standard icons for the kinds without one of AstroFinder's own, in target-icons.ts. */
+/** Standard icons for the kinds without one of AstroTurboMaxiSolver's own, in target-icons.ts. */
 const KIND_ICONS: Record<
   Exclude<
     TargetKind,
@@ -68,7 +68,7 @@ interface Row {
   key: string;
   position: Horizontal;
   rise: Date | null;
-  /** AstroFinder's own icon as an image, or null to use a standard one. */
+  /** AstroTurboMaxiSolver's own icon as an image, or null to use a standard one. */
   icon: string | null;
   designations: string;
   seen: 'seen' | 'tried' | undefined;
@@ -191,7 +191,7 @@ const GOOD_ALTITUDE_DEG = 30;
             <ion-item button detail="false" (click)="aimAt(target)">
               @let icon = row.icon;
               @let seen = row.seen;
-              <!-- Galaxies, nebulae, planets and the Moon have AstroFinder's own icons. A green tick
+              <!-- Galaxies, nebulae, planets and the Moon have AstroTurboMaxiSolver's own icons. A green tick
                marks a target seen, or how many times once it is more than one, and an amber
                ring one looked for but not seen yet. -->
               <span

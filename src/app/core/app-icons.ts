@@ -1,4 +1,4 @@
-// AstroFinder's own icons for ideas Ionic has no good symbol for, drawn like the target
+// AstroTurboMaxiSolver's own icons for ideas Ionic has no good symbol for, drawn like the target
 // icons: thin lines on the same 24 × 24 grid. Each means one thing everywhere it appears,
 // so no Ionic icon has to stand for two ideas. Ready as image URLs for an ion-icon's src.
 

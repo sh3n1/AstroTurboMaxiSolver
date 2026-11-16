@@ -51,7 +51,9 @@ export type ScreenMessage =
   /** An alignment made on the screen phone, for the finder to use. */
   | { t: 'alignment'; alignment: Alignment | null }
   /** Red night mode, turned on or off on the screen phone, so the finder's screen matches. */
-  | { t: 'night'; on: boolean };
+  | { t: 'night'; on: boolean }
+  /** Full screen, entered or left on the screen phone, so the finder's screen matches. */
+  | { t: 'fullscreen'; on: boolean };
 
 export type RemoteMessage = FinderMessage | ScreenMessage;
 
@@ -64,7 +66,7 @@ export interface PairingPayload {
 
 /** Every pairing code starts with this, so a wrong QR code is told apart at once. */
 const CODE_PREFIX = 'AF1:';
-const NOT_A_CODE = "This isn't an AstroFinder pairing code";
+const NOT_A_CODE = "This isn't an AstroTurboMaxiSolver pairing code";
 
 /** Bytes through a compression or decompression stream. */
 async function throughStream(bytes: Uint8Array, stream: CompressionStream | DecompressionStream): Promise<Uint8Array> {
@@ -125,7 +127,17 @@ export async function decodePairingCode(code: string): Promise<PairingPayload> {
   throw new Error(NOT_A_CODE);
 }
 
-const MESSAGE_TYPES = new Set(['hello', 'pose', 'site', 'alignment', 'solveLog', 'solveResult', 'solveNow', 'night']);
+const MESSAGE_TYPES = new Set([
+  'hello',
+  'pose',
+  'site',
+  'alignment',
+  'solveLog',
+  'solveResult',
+  'solveNow',
+  'night',
+  'fullscreen',
+]);
 
 /**
  * Reads a message from the other phone, or null if it isn't one. Both phones run the same

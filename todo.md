@@ -1,4 +1,4 @@
-# AstroFinder TODO
+# AstroTurboMaxiSolver TODO
 
 Suggested tasks, in order. Technical approaches are proposals until recorded in `AGENTS.md`.
 

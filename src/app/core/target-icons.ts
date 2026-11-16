@@ -1,4 +1,4 @@
-// AstroFinder's own line icons for galaxies, nebulae, double stars, the planets and the Moon.
+// AstroTurboMaxiSolver's own line icons for galaxies, nebulae, double stars, the planets and the Moon.
 // Each icon is a few SVG paths on a 24 × 24 grid, drawn as thin lines like the Ionic
 // outline icons. The same paths draw the icon in lists (as an SVG image) and on the sky
 // map (as canvas paths), so both always look alike.

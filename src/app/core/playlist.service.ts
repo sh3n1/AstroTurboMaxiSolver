@@ -8,7 +8,7 @@ import { makePlaylist, parsePlaylist, stepIndex } from './playlist';
  * Where the playlist is kept. It is this phone's own state, like the selected target, so
  * it stays in localStorage and isn't synced: see docs/local-data.md.
  */
-const PLAYLIST_KEY = 'astrofinder.playlist';
+const PLAYLIST_KEY = 'astroturbomaxisolver.playlist';
 
 /**
  * The list being observed through. Tapping a target in a list starts it, and the sky map's

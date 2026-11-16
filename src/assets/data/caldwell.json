@@ -1,5 +1,5 @@
 {
-  "about": "The Caldwell catalogue, written for AstroFinder: each Caldwell number and the NGC or IC objects it stands for. The app joins it to the NGC and IC objects when it loads. Caldwell objects with no NGC or IC number are full targets in extraTargets, with rounded J2000 positions.",
+  "about": "The Caldwell catalogue, written for AstroTurboMaxiSolver: each Caldwell number and the NGC or IC objects it stands for. The app joins it to the NGC and IC objects when it loads. Caldwell objects with no NGC or IC number are full targets in extraTargets, with rounded J2000 positions.",
   "objects": {
     "C1": ["NGC 188"],
     "C2": ["NGC 40"],

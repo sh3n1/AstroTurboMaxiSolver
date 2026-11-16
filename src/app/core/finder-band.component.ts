@@ -1,9 +1,10 @@
 import { Component, inject } from '@angular/core';
 import { IonButton, IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { close, phoneLandscapeOutline } from 'ionicons/icons';
+import { close, expandOutline, phoneLandscapeOutline } from 'ionicons/icons';
 
 import { AppState } from './app-state.service';
+import { FullscreenService } from './fullscreen.service';
 import { RemoteService } from './remote.service';
 import { SensorService } from './sensor.service';
 
@@ -57,7 +58,18 @@ import { SensorService } from './sensor.service';
   `,
   template: `
     <div class="band" data-testid="finder-band" [attr.data-steering]="state.sensorsActive()">
-      @if (state.sensorsActive()) {
+      @if (remote.fullscreenWanted() && !fullscreen.active()) {
+        <!-- The screen phone went full screen: the browser needs a tap here to follow. -->
+        <button
+          class="band-text"
+          type="button"
+          data-testid="finder-fullscreen"
+          (click)="remote.enterWantedFullscreen()"
+        >
+          <ion-icon name="expand-outline" aria-hidden="true"></ion-icon>
+          <span>Tap for full screen</span>
+        </button>
+      } @else if (state.sensorsActive()) {
         <span class="band-text">
           <ion-icon name="phone-landscape-outline" aria-hidden="true"></ion-icon>
           <span>Finder · remote mode</span>
@@ -78,8 +90,9 @@ export class FinderBandComponent {
   protected readonly state = inject(AppState);
   protected readonly remote = inject(RemoteService);
   protected readonly sensors = inject(SensorService);
+  protected readonly fullscreen = inject(FullscreenService);
 
   constructor() {
-    addIcons({ close, phoneLandscapeOutline });
+    addIcons({ close, expandOutline, phoneLandscapeOutline });
   }
 }

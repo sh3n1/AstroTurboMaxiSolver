@@ -28,12 +28,24 @@ export class FullscreenService {
 
   /** Enters full screen, or leaves it. */
   async toggle(): Promise<void> {
-    if (this.isFullscreen()) {
-      await document.exitFullscreen().catch(() => undefined);
-    } else {
-      // Hides the phone's navigation bar too, where the browser allows it.
-      await document.documentElement.requestFullscreen({ navigationUI: 'hide' }).catch(() => undefined);
-    }
+    if (this.isFullscreen()) await this.exit();
+    else await this.enter();
+  }
+
+  /**
+   * Enters full screen. Returns whether it worked: browsers only allow it straight after a
+   * tap on this phone, so a request from the other phone of a pair is refused.
+   */
+  async enter(): Promise<boolean> {
+    if (this.isFullscreen()) return true;
+    // Hides the phone's navigation bar too, where the browser allows it.
+    await document.documentElement.requestFullscreen({ navigationUI: 'hide' }).catch(() => undefined);
+    return this.isFullscreen();
+  }
+
+  /** Leaves full screen, which needs no tap. */
+  async exit(): Promise<void> {
+    if (this.isFullscreen()) await document.exitFullscreen().catch(() => undefined);
   }
 
   private isFullscreen(): boolean {

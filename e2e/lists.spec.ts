@@ -189,7 +189,7 @@ test('saves a bookmark to Saved for later, or to a new list', async ({ page }) =
 });
 
 test('keeps the bookmarks of the old session plan', async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('astrofinder.plan', JSON.stringify({ ids: ['M42'] })));
+  await page.addInitScript(() => localStorage.setItem('astroturbomaxisolver.plan', JSON.stringify({ ids: ['M42'] })));
   await page.goto('/tabs/plan');
   await expect(listLink(page, 'Saved for later').locator('ion-badge')).toHaveText('1');
 });
@@ -197,7 +197,11 @@ test('keeps the bookmarks of the old session plan', async ({ page }) => {
 test('imports a list file, and refuses one that is not a list', async ({ page }) => {
   await page.goto('/tabs/lists');
   const file = page.locator('[data-testid=import-file]');
-  const list = { format: 'astrofinder-lists', version: 1, lists: [{ name: 'Shared', targets: ['M13', 'M57'] }] };
+  const list = {
+    format: 'astroturbomaxisolver-lists',
+    version: 1,
+    lists: [{ name: 'Shared', targets: ['M13', 'M57'] }],
+  };
   await file.setInputFiles({
     name: 'shared.json',
     mimeType: 'application/json',
@@ -208,7 +212,7 @@ test('imports a list file, and refuses one that is not a list', async ({ page })
 
   await file.setInputFiles({ name: 'photo.json', mimeType: 'application/json', buffer: Buffer.from('{}') });
   await expect(page.locator('[data-testid=lists-toast] .toast-message').last()).toHaveText(
-    "This isn't an AstroFinder list file",
+    "This isn't an AstroTurboMaxiSolver list file",
   );
 });
 
@@ -292,7 +296,11 @@ test('orders and filters a catalogue like any list, and remembers the order', as
 
 test('removes a row from an own list by its swipe action, with undo, and reorders the list', async ({ page }) => {
   await page.goto('/tabs/lists');
-  const list = { format: 'astrofinder-lists', version: 1, lists: [{ name: 'Night', targets: ['M13', 'M57', 'M31'] }] };
+  const list = {
+    format: 'astroturbomaxisolver-lists',
+    version: 1,
+    lists: [{ name: 'Night', targets: ['M13', 'M57', 'M31'] }],
+  };
   await page.locator('[data-testid=import-file]').setInputFiles({
     name: 'night.json',
     mimeType: 'application/json',
@@ -359,7 +367,7 @@ test('shares a list through the share sheet as a text file, and never downloads 
   await page.locator('[data-testid=share-list]').click();
   await expect
     .poll(() => page.evaluate(() => (window as unknown as { sharedFiles: unknown[] }).sharedFiles))
-    .toEqual([{ name: 'astrofinder-messier.txt', type: 'text/plain' }]);
+    .toEqual([{ name: 'astroturbomaxisolver-messier.txt', type: 'text/plain' }]);
   expect(downloads).toBe(0);
 });
 
@@ -367,7 +375,7 @@ test('plays a list on the sky map: next and previous, skipping what is below the
   // Far north, M81 and M97 never set and M42 never rises, whatever the time of the test.
   await page.addInitScript(() =>
     localStorage.setItem(
-      'astrofinder.settings',
+      'astroturbomaxisolver.settings',
       JSON.stringify({ latitudeDeg: 85, longitudeDeg: 0, locationSet: true }),
     ),
   );
@@ -377,7 +385,7 @@ test('plays a list on the sky map: next and previous, skipping what is below the
     mimeType: 'application/json',
     buffer: Buffer.from(
       JSON.stringify({
-        format: 'astrofinder-lists',
+        format: 'astroturbomaxisolver-lists',
         version: 1,
         lists: [{ name: 'Circumpolar', targets: ['M81', 'M42', 'M97'] }],
       }),
