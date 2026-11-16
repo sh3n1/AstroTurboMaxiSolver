@@ -45,6 +45,7 @@ import {
   navigateOutline,
   openOutline,
   phonePortraitOutline,
+  phoneLandscapeOutline,
   volumeLowOutline,
   textOutline,
   trashOutline,
@@ -60,6 +61,7 @@ import { EquipmentEditorComponent } from '../core/equipment-editor.component';
 import { listToastPlace } from '../core/list-toast';
 import { LiveSolverService } from '../core/live-solver.service';
 import { LocalTimePipe } from '../core/local-time.pipe';
+import { RemoteService } from '../core/remote.service';
 import { ScreenWakeService } from '../core/screen-wake.service';
 import { BORTLE_CLASSES } from '../core/sky-quality';
 import { SoundService } from '../core/sound.service';
@@ -317,6 +319,26 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
               }
             </ion-label>
           </ion-item>
+          <!-- One phone on the telescope as the finder, another in the hand as the screen. -->
+          <ion-item button detail="true" data-testid="open-remote" (click)="openRemote()">
+            <ion-icon slot="start" name="phone-landscape-outline" aria-hidden="true"></ion-icon>
+            <ion-label class="ion-text-wrap">
+              <h2>Two phones</h2>
+              @switch (remote.status()) {
+                @case ('connected') {
+                  <p class="good">
+                    {{ remote.role() === 'finder' ? 'This phone is the finder' : 'Linked to the finder' }}
+                  </p>
+                }
+                @case ('lost') {
+                  <p class="warn">Link lost</p>
+                }
+                @default {
+                  <p>Finder on the telescope, screen in your hand</p>
+                }
+              }
+            </ion-label>
+          </ion-item>
           <ion-item>
             <ion-icon slot="start" name="camera-outline" aria-hidden="true"></ion-icon>
             <ion-toggle
@@ -476,7 +498,7 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
                   <h3 [class.good]="entry.outcome === 'solved'">{{ entry.message }}</h3>
                   <p>
                     {{ entry.at | localTime: 'time-seconds' }} ·
-                    {{ entry.trigger === 'auto' ? 'Automatic' : 'Alignment' }} ·
+                    {{ entry.trigger === 'auto' ? 'Automatic' : entry.trigger === 'tap' ? 'Tapped' : 'Alignment' }} ·
                     {{ entry.durationMs / 1000 | number: '1.1-1' }} s · ISO {{ entry.iso }}
                     @if (entry.frames > 1) {
                       · {{ entry.frames }} frames
@@ -587,6 +609,12 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
               >Log and lists saved with Dexie.js, David Fahlander, Apache License 2.0.</ion-label
             >
           </ion-item>
+          <ion-item>
+            <ion-label class="ion-text-wrap credit"
+              >Pairing codes made with QR Code Generator, Kazuhiko Arase, MIT License, and read with jsQR, Cosmo Wolfe,
+              Apache License 2.0. QR Code is a trademark of DENSO WAVE.</ion-label
+            >
+          </ion-item>
           <ion-item lines="none" data-testid="credit-jpl">
             <ion-label class="ion-text-wrap credit"
               >Orbits of Ceres, Vesta, Pallas and Juno from the NASA/JPL Small-Body Database.</ion-label
@@ -599,6 +627,7 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
 })
 export class SettingsPage {
   protected readonly state = inject(AppState);
+  protected readonly remote = inject(RemoteService);
   private readonly router = inject(Router);
   protected readonly settings = this.state.settings;
   protected readonly liveSolver = inject(LiveSolverService);
@@ -666,6 +695,7 @@ export class SettingsPage {
 
   constructor() {
     addIcons({
+      phoneLandscapeOutline,
       add,
       createOutline,
       trashOutline,
@@ -714,6 +744,10 @@ export class SettingsPage {
 
   protected openAlignment(): void {
     void this.router.navigateByUrl('/align');
+  }
+
+  protected openRemote(): void {
+    void this.router.navigateByUrl('/remote');
   }
 
   protected async useGps(): Promise<void> {

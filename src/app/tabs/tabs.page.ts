@@ -1,15 +1,17 @@
 import type { OnDestroy } from '@angular/core';
-import { Component, ElementRef, effect, signal, viewChild } from '@angular/core';
+import { Component, ElementRef, effect, inject, signal, viewChild } from '@angular/core';
 import { IonIcon, IonLabel, IonTabBar, IonTabButton, IonTabs } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { bookmarksOutline, mapOutline, searchOutline, settingsOutline } from 'ionicons/icons';
 
+import { AppState } from '../core/app-state.service';
+import { FinderBandComponent } from '../core/finder-band.component';
 import { TimeControlComponent } from '../core/time-control.component';
 
 /** The app's main navigation. */
 @Component({
   selector: 'app-tabs',
-  imports: [IonIcon, IonLabel, IonTabBar, IonTabButton, IonTabs, TimeControlComponent],
+  imports: [FinderBandComponent, IonIcon, IonLabel, IonTabBar, IonTabButton, IonTabs, TimeControlComponent],
   styles: `
     /*
      * On the Sky tab the tab bar floats over the map instead of taking space from it.
@@ -23,12 +25,26 @@ import { TimeControlComponent } from '../core/time-control.component';
      * The time control sits just above the tab bar on every tab. Over the map it floats
      * too, and its height adds to the space the sky page keeps clear.
      */
-    ion-tabs.over-map app-time-control {
+    ion-tabs.over-map app-time-control,
+    ion-tabs.over-map app-finder-band {
       position: absolute;
       left: 0;
       right: 0;
       bottom: calc(56px + var(--ion-safe-area-bottom, 0px));
       z-index: 10;
+    }
+    /*
+     * A finder phone linked to a screen phone stays on the map, with no tabs: only its
+     * band, at the very bottom.
+     */
+    ion-tabs.finder {
+      --af-tab-bar-height: calc(var(--ion-safe-area-bottom, 0px) + var(--af-time-control-height, 0px));
+    }
+    ion-tabs.finder ion-tab-bar {
+      display: none;
+    }
+    ion-tabs.finder.over-map app-finder-band {
+      bottom: var(--ion-safe-area-bottom, 0px);
     }
     ion-tabs.over-map ion-tab-bar {
       position: absolute;
@@ -51,7 +67,8 @@ import { TimeControlComponent } from '../core/time-control.component';
         /* The rail's width, with the room a notch or camera hole takes at the left edge. */
         --af-rail-width: calc(88px + var(--ion-safe-area-left, 0px));
       }
-      ion-tabs.over-map {
+      ion-tabs.over-map,
+      ion-tabs.finder {
         --af-tab-bar-height: 0px;
       }
       /*
@@ -113,25 +130,36 @@ import { TimeControlComponent } from '../core/time-control.component';
         --padding-end: 0;
       }
       app-time-control,
-      ion-tabs.over-map app-time-control {
+      ion-tabs.over-map app-time-control,
+      ion-tabs.over-map app-finder-band {
         position: static;
         grid-column: 2;
         grid-row: 2;
       }
       /* Under the map it runs the full width too, its buttons starting clear of the rail. */
-      ion-tabs.over-map app-time-control {
+      ion-tabs.over-map app-time-control,
+      ion-tabs.over-map app-finder-band {
         grid-column: 1 / span 2;
         padding-left: var(--af-rail-width);
+      }
+      /* With no rail on a finder phone, nothing to keep clear of. */
+      ion-tabs.finder.over-map app-finder-band {
+        padding-left: 0;
       }
     }
   `,
   template: `
     <ion-tabs
       [class.over-map]="tab() === 'sky'"
+      [class.finder]="state.finderMode()"
       [style.--af-time-control-height.px]="timeControlHeight()"
       (ionTabsDidChange)="tab.set($event.tab)"
     >
-      <app-time-control #timeControl></app-time-control>
+      @if (state.finderMode()) {
+        <app-finder-band #timeControl></app-finder-band>
+      } @else {
+        <app-time-control #timeControl></app-time-control>
+      }
       <ion-tab-bar slot="bottom" id="af-tab-bar">
         <ion-tab-button tab="sky">
           <ion-icon name="map-outline" aria-hidden="true"></ion-icon>
@@ -154,6 +182,7 @@ import { TimeControlComponent } from '../core/time-control.component';
   `,
 })
 export class TabsPage implements OnDestroy {
+  protected readonly state = inject(AppState);
   /** The tab on show, so the Sky tab can lay the tab bar over its map. */
   protected readonly tab = signal('sky');
 
@@ -166,8 +195,10 @@ export class TabsPage implements OnDestroy {
 
   constructor() {
     addIcons({ bookmarksOutline, mapOutline, searchOutline, settingsOutline });
+    // The band under the map changes when a finder phone links, so the one shown is watched.
     effect(() => {
       const element = this.timeControl()?.nativeElement;
+      this.resizes.disconnect();
       if (element) this.resizes.observe(element);
     });
   }

@@ -209,8 +209,23 @@ export class AppState {
   /** The width of sky the eyepiece shows, in degrees. */
   readonly trueField = computed(() => equipmentTrueField(this.equipment()));
 
-  /** True while the phone's sensors are steering the map instead of dragging. */
+  /**
+   * True while the phone's sensors are steering the map instead of dragging. On a screen
+   * phone linked to a finder phone, the finder's sensors steer it, and this is true too.
+   */
   readonly sensorsActive = signal(false);
+
+  /**
+   * True on a screen phone while a finder phone on the telescope steers the map and plate
+   * solves for it (RemoteService). This phone's own sensors and camera then stay off.
+   */
+  readonly remoteFinder = signal(false);
+
+  /**
+   * True on a finder phone while linked to a screen phone. The sky map then shows no
+   * buttons and takes no touches, so nothing done by accident changes what the screen shows.
+   */
+  readonly finderMode = signal(false);
 
   /** Where the camera points according to the sensors, or null when they are off. */
   readonly cameraPointing = signal<Horizontal | null>(null);

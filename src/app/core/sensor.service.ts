@@ -122,6 +122,8 @@ export class SensorService {
    * chose that and may want to change it.
    */
   async start({ automatic = false }: { automatic?: boolean } = {}): Promise<void> {
+    // A finder phone on the telescope steers the map: this phone's sensors aren't on it.
+    if (this.state.remoteFinder()) return;
     this.error.set('');
     try {
       if (!(await requestSensorPermission())) {
@@ -153,6 +155,8 @@ export class SensorService {
   }
 
   stop(): void {
+    // Steered by a finder phone, which only unlinking stops.
+    if (this.state.remoteFinder()) return;
     clearTimeout(this.noDataTimer);
     window.removeEventListener('deviceorientationabsolute', this.onAbsolute);
     window.removeEventListener('deviceorientation', this.onRelative);
@@ -183,9 +187,13 @@ export class SensorService {
    * Takes a plate-solved attitude as the truth. The difference from the compass at that
    * moment is the compass's error, which then corrects every later reading, so the
    * position stays true between solves instead of drifting back to the compass.
+   * With the sensors off, the map only moves to the solved position, once.
    */
   applyPlateSolve(solved: Quaternion): void {
-    if (!this.state.sensorsActive()) return;
+    if (!this.state.sensorsActive()) {
+      this.show(solved);
+      return;
+    }
     this.attitude = solved;
     if (this.lastReading) this.compassCorrection = combineAttitudes(solved, inverseAttitude(this.lastReading));
     this.publish();
@@ -215,9 +223,14 @@ export class SensorService {
   /** Updates where the camera and the telescope point, using any saved alignment. */
   private publish(): void {
     if (!this.attitude || !this.state.sensorsActive()) return;
-    const camera = cameraPointing(rearCameraDirection(this.attitude));
+    this.show(this.attitude);
+  }
+
+  /** Shows the phone's attitude on the map: where the camera points, and the telescope. */
+  private show(attitude: Quaternion): void {
+    const camera = cameraPointing(rearCameraDirection(attitude));
     this.state.cameraPointing.set(camera);
-    this.state.viewRollDeg.set(viewRollDeg(camera, phoneUpDirection(this.attitude)));
+    this.state.viewRollDeg.set(viewRollDeg(camera, phoneUpDirection(attitude)));
     const alignment = this.state.alignment();
     this.state.pointing.set(alignment ? telescopePointing(camera, alignment.offset) : camera);
   }
