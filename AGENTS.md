@@ -72,7 +72,7 @@ Before finishing a change, run: `npm run lint`, `npm run test:unit` and `npm run
 - Offline behaviour: The app should be able to run offline
 - User data: the log, lists and equipment kit are in IndexedDB through Dexie, as sync-ready records with UUID ids, device id, timestamps, revision, hash and tombstones. Settings for this device stay in localStorage. Read `docs/local-data.md` before adding anything that is saved.
 - Star catalogue or index storage and size limits: TODO
-- Permission handling for camera, motion and location: TODO
+- Permissions: the camera, the location and the motion sensors are each asked for when first needed, never all at once on opening, through `permissions.service.ts`. The first time, a line says why, just before the browser asks; a refusal shows how to allow it again. The first time the app opens with no location, a welcome offers to take it from the GPS.
 
 ## Domain
 

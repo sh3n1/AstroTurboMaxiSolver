@@ -1,0 +1,19 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "http://localhost:4210",
+      "localStorage": [
+        { "name": "astroturbomaxisolver.permissions-explained", "value": "[\"camera\",\"location\",\"motion\"]" },
+        { "name": "astroturbomaxisolver.welcome-seen", "value": "true" }
+      ]
+    },
+    {
+      "origin": "http://localhost:4211",
+      "localStorage": [
+        { "name": "astroturbomaxisolver.permissions-explained", "value": "[\"camera\",\"location\",\"motion\"]" },
+        { "name": "astroturbomaxisolver.welcome-seen", "value": "true" }
+      ]
+    }
+  ]
+}

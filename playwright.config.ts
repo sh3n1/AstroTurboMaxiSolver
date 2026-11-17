@@ -13,6 +13,9 @@ export default defineConfig({
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
   use: {
     trace: 'on-first-retry',
+    // As if the app had been used before: the first-time welcome and the reasons for each
+    // permission already seen, so they don't stand in the way. permissions.spec.ts starts fresh.
+    storageState: 'e2e/storage-state.json',
   },
   projects: publishedURL
     ? [{ name: 'published', testMatch: 'pwa.spec.ts', use: { ...devices['Pixel 7'], baseURL: publishedURL } }]
