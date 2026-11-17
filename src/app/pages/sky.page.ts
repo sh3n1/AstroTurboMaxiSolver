@@ -9,6 +9,7 @@ import {
   mapOutline,
   radioButtonOffOutline,
   refreshOutline,
+  syncOutline,
   remove,
 } from 'ionicons/icons';
 
@@ -28,6 +29,7 @@ import { SkyCanvasComponent } from '../core/sky-map/sky-canvas.component';
 import type { ViewMode } from '../core/sky-map/sky-style';
 import { DEFAULT_FIELD_DEG, MAX_FIELD_DEG, MIN_FIELD_DEG, ZOOM_STEP, clampField } from '../core/sky-map/sky-style';
 import { SoundService } from '../core/sound.service';
+import { SyncService } from '../core/sync/sync.service';
 import { TargetBarComponent } from '../core/target-bar.component';
 import { UpdateService } from '../core/update.service';
 
@@ -149,7 +151,7 @@ const MENU_IDLE_MS = 10_000;
                   </button>
                 }
               }
-              <!-- Bottom right, like Set location on the left: installing, and a new version. -->
+              <!-- Bottom right, like Set location on the left: installing, a new version, and sync. -->
               <div class="right">
                 <!-- Until the app is installed. -->
                 @if (install.available()) {
@@ -173,6 +175,18 @@ const MENU_IDLE_MS = 10_000;
                   >
                     <ion-icon name="refresh-outline" aria-hidden="true"></ion-icon>
                     Update app
+                  </button>
+                }
+                <!-- Sync's access to the drive has run out, with changes to send: a tap renews it. -->
+                @if (sync.offerTap()) {
+                  <button
+                    type="button"
+                    class="readout location unset"
+                    data-testid="sync-tap"
+                    (click)="sync.syncNow(true)"
+                  >
+                    <ion-icon name="sync-outline" aria-hidden="true"></ion-icon>
+                    Sync
                   </button>
                 }
               </div>
@@ -202,6 +216,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   private readonly permissions = inject(PermissionsService);
   protected readonly install = inject(InstallService);
   protected readonly update = inject(UpdateService);
+  protected readonly sync = inject(SyncService);
   protected readonly liveSolver = inject(LiveSolverService);
   private readonly sound = inject(SoundService);
   private readonly toasts = inject(ToastController);
@@ -253,7 +268,16 @@ export class SkyPage implements AfterViewInit, OnDestroy {
 
   constructor() {
     // Its own icons, and the two the menu's view tile is given by name.
-    addIcons({ add, downloadOutline, locationOutline, mapOutline, radioButtonOffOutline, refreshOutline, remove });
+    addIcons({
+      add,
+      downloadOutline,
+      locationOutline,
+      mapOutline,
+      radioButtonOffOutline,
+      refreshOutline,
+      remove,
+      syncOutline,
+    });
 
     // Every failed automatic plate solve, or one started by tapping the rings, is told
     // with a toast. Successes only when the debugging setting asks for them, and with a soft

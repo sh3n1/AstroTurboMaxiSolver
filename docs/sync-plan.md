@@ -1,7 +1,7 @@
 # Sync between devices (plan, not built)
 
-Status: design discussed on 2026-11-16; work started on 2026-11-17 on the `sync` branch,
-Google Drive first. This note keeps what was decided,
+Status: design discussed on 2026-11-16; Google Drive sync built on 2026-11-18, on the `sync`
+branch. This note keeps what was decided,
 what was proposed, and what is still open, so the work can be picked up later. The record
 format it builds on is in `local-data.md`.
 
@@ -167,9 +167,15 @@ While the app is in "testing" mode, Google only lets listed accounts sign in.
 1. Done: the `history` field, the merge rules, and the conflicts table, with unit tests.
 2. Done: the storage interface with an in-memory drive, and the sync (change files,
    checkpoints) tested against it, with no network. Snapshots later.
-3. The first provider, Google Drive: sign-in, then list, read and write in its app folder.
-4. Settings: connect and disconnect, last sync time, "Sync now". Sync on start, on
-   reconnecting, and a while after a change.
-5. End-to-end test with two browser contexts sharing the fake storage, as the two-phone test
-   does.
-6. The other providers, then tombstone purging and snapshots.
+3. Done: Google Drive (`google-drive-provider.ts`, `google-drive-storage.ts`, the client id in
+   `sync-config.ts`).
+4. Done: `sync.service.ts` and Settings' Sync section (connect, "Sync now", disconnect, last
+   sync time). It syncs on connecting, on a tap, 20 s after a change, when the app comes back
+   into view or back online, and every 10 minutes, while the access is valid. When it has run
+   out, a "Sync" pill on the map offers a tap, if there are changes to send or the last sync
+   was over 6 hours ago.
+5. Done: `e2e/sync.spec.ts`, two devices through a fake Drive, with Google's script faked.
+   Sync is hidden while it is tried out: five quick taps on the Settings title show it on
+   that device (`astroturbomaxisolver.syncUnlocked`), and it stays shown while connected.
+6. To do: the "edited on two phones" mark on log entries with a kept conflict; then Dropbox
+   and OneDrive; then tombstone purging and snapshots.

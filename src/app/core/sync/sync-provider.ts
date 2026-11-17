@@ -29,6 +29,9 @@ export interface SyncProvider {
   /** Forgets the access on this device. The files stay on the drive. */
   disconnect(): Promise<void>;
 
+  /** Gets ready ahead of a tap, such as by loading the drive's sign-in script. Optional work. */
+  preload(): void;
+
   /** The app's folder on the drive. Its calls reject with NeedsSignInError when not ready. */
   readonly storage: SyncStorage;
 }
