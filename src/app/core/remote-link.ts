@@ -28,10 +28,13 @@ export type FinderMessage =
   /**
    * Where the telescope and camera point. Sent on every change, and every second anyway.
    * Steering is false while the finder's sensors are off, when its position doesn't follow
-   * the telescope.
+   * the telescope. Poses go on their own channel, which never resends a lost one and may
+   * deliver them out of order, so each is numbered and the screen drops any older than the
+   * last it used. Optional, for a finder running an older version.
    */
   | {
       t: 'pose';
+      n?: number;
       pointing: Horizontal;
       camera: Horizontal | null;
       rollDeg: number;

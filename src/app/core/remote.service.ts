@@ -6,6 +6,7 @@ import type { Alignment } from './app-state.service';
 import { FullscreenService } from './fullscreen.service';
 import { LiveSolverService } from './live-solver.service';
 import type { SolveNowResult } from './live-solver.service';
+import { PoseGlide } from './pose-glide';
 import type { FinderMessage, RemoteMessage, RemoteRole, RemoteSite, ScreenMessage } from './remote-link';
 import { alignmentKey, decodePairingCode, encodePairingCode, parseMessage, toRemoteEntry } from './remote-link';
 import { SensorService } from './sensor.service';
@@ -34,6 +35,12 @@ const GATHER_TIMEOUT_MS = 4000;
 const SOLVE_TIMEOUT_MS = 60_000;
 /** The data channel's name, the same on both phones. */
 const CHANNEL = 'astroturbomaxisolver';
+/**
+ * A second channel just for poses. It never resends a lost message and doesn't keep them in
+ * order: a newer pose replaces a lost one anyway, while waiting for it to be resent would
+ * hold back every pose after it, so the map would freeze for a moment and then jump.
+ */
+const POSE_CHANNEL = 'astroturbomaxisolver-pose';
 
 /**
  * Links two phones so one works as the finder on the telescope and the other as the
@@ -69,6 +76,15 @@ export class RemoteService {
 
   private connection: RTCPeerConnection | null = null;
   private channel: RTCDataChannel | null = null;
+  private poseChannel: RTCDataChannel | null = null;
+  /** The finder numbers its poses, and the screen remembers the newest it used. */
+  private poseNumber = 0;
+  /** On the screen phone: glides the map towards each pose instead of jumping. */
+  private readonly glide = new PoseGlide(({ pointing, camera, rollDeg }) => {
+    this.state.pointing.set(pointing);
+    this.state.cameraPointing.set(camera);
+    this.state.viewRollDeg.set(rollDeg);
+  });
   private lastPoseSent = 0;
   private poseTimer?: ReturnType<typeof setTimeout>;
   private heartbeat?: ReturnType<typeof setInterval>;
@@ -147,6 +163,7 @@ export class RemoteService {
     this.role.set('finder');
     const connection = this.newConnection();
     this.useChannel(connection.createDataChannel(CHANNEL));
+    this.usePoseChannel(connection.createDataChannel(POSE_CHANNEL, { ordered: false, maxRetransmits: 0 }));
     try {
       await connection.setLocalDescription(await connection.createOffer());
       this.code.set(await encodePairingCode({ role: 'finder', sdp: await this.gathered(connection) }));
@@ -182,7 +199,8 @@ export class RemoteService {
     this.reset();
     this.role.set('screen');
     const connection = this.newConnection();
-    connection.ondatachannel = (event) => this.useChannel(event.channel);
+    connection.ondatachannel = (event) =>
+      event.channel.label === POSE_CHANNEL ? this.usePoseChannel(event.channel) : this.useChannel(event.channel);
     try {
       await connection.setRemoteDescription({ type: 'offer', sdp: offer.sdp });
       await connection.setLocalDescription(await connection.createAnswer());
@@ -243,6 +261,15 @@ export class RemoteService {
     };
   }
 
+  /** The poses' channel only carries messages: the main channel decides when the link is up or down. */
+  private usePoseChannel(channel: RTCDataChannel): void {
+    this.poseChannel = channel;
+    channel.onmessage = (event) => {
+      const message = parseMessage(String(event.data));
+      if (message) this.receive(message);
+    };
+  }
+
   private opened(): void {
     this.status.set('connected');
     this.code.set('');
@@ -288,10 +315,17 @@ export class RemoteService {
         this.applySite(message.site);
         break;
       case 'pose':
-        this.state.pointing.set(message.pointing);
-        this.state.cameraPointing.set(message.camera);
-        // Sent relative to the finder phone's top: this phone turns it for its own screen.
-        this.state.viewRollDeg.set(message.rollDeg + screenAngleDeg());
+        // One that arrived after a newer one is out of date.
+        if (message.n !== undefined) {
+          if (message.n <= this.poseNumber) break;
+          this.poseNumber = message.n;
+        }
+        this.glide.to({
+          pointing: message.pointing,
+          camera: message.camera,
+          // Sent relative to the finder phone's top: this phone turns it for its own screen.
+          rollDeg: message.rollDeg + screenAngleDeg(),
+        });
         this.state.plateSolving.set(message.solving);
         this.finderSteering.set(message.steering !== false);
         break;
@@ -380,6 +414,7 @@ export class RemoteService {
     this.lastPoseSent = Date.now();
     this.send({
       t: 'pose',
+      n: ++this.poseNumber,
       pointing: this.state.pointing(),
       camera: this.state.cameraPointing(),
       // Relative to the phone's top, since the screen phone may be turned another way.
@@ -389,8 +424,10 @@ export class RemoteService {
     });
   }
 
+  /** Sends a message to the other phone: poses on their own channel while it is open. */
   private send(message: RemoteMessage): void {
-    if (this.channel?.readyState === 'open') this.channel.send(JSON.stringify(message));
+    const channel = message.t === 'pose' && this.poseChannel?.readyState === 'open' ? this.poseChannel : this.channel;
+    if (channel?.readyState === 'open') channel.send(JSON.stringify(message));
   }
 
   /**
@@ -453,10 +490,15 @@ export class RemoteService {
     clearInterval(this.heartbeat);
     this.poseTimer = undefined;
     const channel = this.channel;
+    const poseChannel = this.poseChannel;
     const connection = this.connection;
     this.channel = null;
+    this.poseChannel = null;
     this.connection = null;
     channel?.close();
+    poseChannel?.close();
+    this.poseNumber = 0;
+    this.glide.stop();
     connection?.close();
     this.code.set('');
     for (const resolve of this.pendingSolves.values()) resolve({ ok: false, reason: 'The finder phone disconnected.' });

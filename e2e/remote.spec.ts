@@ -92,6 +92,17 @@ test('links two phones: the screen follows the finder, and aligns through it', a
   await expect(finder.getByTestId('pointing')).toContainText('Alt 0° Az 0°');
   await expect(screen.getByTestId('pointing')).toContainText('Alt 0° Az 0°');
   await expect(screen.getByTestId('finder-sensors-off')).toHaveCount(0);
+  // And it follows when the finder moves: poses come on their own channel, glided into place.
+  // The finder's sensor fusion only eases towards each compass reading, so it is sent until
+  // it is nearly there. Then the screen shows the same.
+  await expect(async () => {
+    await sendOrientation(finder, 0, 120, 0);
+    await expect(finder.getByTestId('pointing')).toContainText(/Alt (29|30)° Az 0°/, { timeout: 200 });
+  }).toPass({ timeout: 15_000 });
+  await expect(async () => {
+    const shown = await finder.getByTestId('pointing').textContent();
+    await expect(screen.getByTestId('pointing')).toHaveText(shown!, { timeout: 200 });
+  }).toPass({ timeout: 5_000 });
 
   // Red night mode on the screen turns the finder's screen red too.
   await tapMore(screen, 'night-toggle');
