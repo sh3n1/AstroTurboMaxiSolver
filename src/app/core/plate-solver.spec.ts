@@ -196,7 +196,9 @@ describe('plate solving from a rendered image', () => {
   it('finds the real field of view when the assumed one is 6% off', () => {
     const { pixels, truth } = render({ raDeg: 84, decDeg: 0, focalPx: FRAME.focalPx * 1.06 });
     const { stars: found } = detectStars(pixels, FRAME.width, FRAME.height);
-    const solution = solveFrame(found, FRAME, index);
+    // This checks the answer, not the speed (the speed has its own test): with no hint it
+    // tries several focal lengths, which can pass the usual time limit on a busy machine.
+    const solution = solveFrame(found, FRAME, index, undefined, 18_000);
     expect(solution).not.toBeNull();
     expect(angleDeg(solution!.pointing, truth)).toBeLessThan(0.3);
     expect(solution!.focalPx / FRAME.focalPx).toBeCloseTo(1.06, 1);
