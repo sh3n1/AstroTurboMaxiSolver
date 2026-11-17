@@ -1,8 +1,9 @@
-import { ChangeDetectionStrategy, Component, inject, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input, output } from '@angular/core';
 import { Router } from '@angular/router';
 import { IonIcon, IonTabs } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
+  compassOutline,
   contractOutline,
   expandOutline,
   listOutline,
@@ -13,14 +14,23 @@ import {
   timeOutline,
 } from 'ionicons/icons';
 
+import { isIconUrl } from './app-icons';
 import { AppState } from './app-state.service';
 import { FullscreenService } from './fullscreen.service';
+import { SensorService } from './sensor.service';
+
+/** The view the view tile switches to: its icon, an Ionic name or an image URL, and its name. */
+export interface ViewTile {
+  icon: string;
+  label: string;
+}
 
 /**
- * What the sky map's More button opens: big tiles with words, over the map, for what is
- * needed less often at the telescope than the round buttons. A tap on a tile does its job
- * and closes the sheet, and so does a tap beside it. It lies over the sky page's stage,
- * which places it.
+ * The sky map's menu: big tiles with words, over the bottom of the map. A tap on the map
+ * opens it, and it goes away by itself after a while without a touch, or with another tap
+ * on the map, so the sky stays clear while the hands are on the telescope. The sensors and
+ * the view stay open after a tap, to see what changed; the other tiles do their job and
+ * close it. It lies over the sky page's stage, which places it and times it.
  */
 @Component({
   selector: 'app-more-sheet',
@@ -30,13 +40,6 @@ import { FullscreenService } from './fullscreen.service';
     /* The backdrop and the sheet are placed on the map's stage, not in a box of their own. */
     :host {
       display: contents;
-    }
-    /* Taps outside the sheet close it. */
-    .backdrop {
-      position: absolute;
-      inset: 0;
-      z-index: 20;
-      background: rgb(0 0 0 / 40%);
     }
     .sheet {
       position: absolute;
@@ -77,14 +80,54 @@ import { FullscreenService } from './fullscreen.service';
     .tile.good ion-icon {
       color: var(--ion-color-success);
     }
+    /*
+     * At night every colour becomes red by its brightness, so the green of a switch that is
+     * on would turn a weaker red than the white of one that is off: a lit fill instead.
+     */
+    :host-context(html.night) .tile.good {
+      background: #6b6b6b;
+    }
+    :host-context(html.night) .tile.good ion-icon {
+      color: #ffffff;
+    }
     /* A switch that is on, such as night mode, has a lit frame. */
     .tile[aria-pressed='true'] {
       border-color: var(--ion-color-primary);
     }
   `,
   template: `
-    <div class="backdrop" aria-hidden="true" (click)="closed.emit()"></div>
-    <div class="sheet" data-testid="more-sheet" role="group" aria-label="More">
+    <div class="sheet" data-testid="more-sheet" role="group" aria-label="Menu">
+      <!--
+        Green while the motion sensors steer the view. On a screen phone, the finder phone
+        on the telescope steers it, and this opens the link.
+      -->
+      @if (state.remoteFinder()) {
+        <button type="button" class="tile good" data-testid="sensor-toggle" (click)="go('/remote')">
+          <ion-icon name="phone-landscape-outline" aria-hidden="true"></ion-icon>
+          Finder steers
+        </button>
+      } @else {
+        <button
+          type="button"
+          class="tile"
+          data-testid="sensor-toggle"
+          [class.good]="state.sensorsActive()"
+          [attr.aria-pressed]="state.sensorsActive()"
+          (click)="toggleSensors()"
+        >
+          <ion-icon name="compass-outline" aria-hidden="true"></ion-icon>
+          {{ state.sensorsActive() ? 'Sensors on' : 'Use sensors' }}
+        </button>
+      }
+      <!-- Steps through the sky map, the eyepiece view and the eyepiece ring, showing the view it switches to. -->
+      <button type="button" class="tile" data-testid="view-mode" [attr.data-mode]="mode()" (click)="nextView.emit()">
+        <ion-icon
+          aria-hidden="true"
+          [name]="isIconUrl(view().icon) ? undefined : view().icon"
+          [src]="isIconUrl(view().icon) ? view().icon : undefined"
+        ></ion-icon>
+        {{ view().label }}
+      </button>
       <button type="button" class="tile" data-testid="open-lists" (click)="openLists()">
         <ion-icon name="list-outline" aria-hidden="true"></ion-icon>
         Lists
@@ -145,17 +188,25 @@ import { FullscreenService } from './fullscreen.service';
   `,
 })
 export class MoreSheetComponent {
-  /** A tile was tapped, or the map beside the sheet: the sky page closes it. */
+  /** The view on show, for tests, and the one the view tile switches to. */
+  readonly mode = input.required<string>();
+  readonly view = input.required<ViewTile>();
+  /** A tile that does its job and is done was tapped: the sky page closes the sheet. */
   readonly closed = output<void>();
+  /** The view tile was tapped: the sky page steps to the next view. */
+  readonly nextView = output<void>();
 
   protected readonly state = inject(AppState);
   protected readonly fullscreen = inject(FullscreenService);
+  private readonly sensors = inject(SensorService);
+  protected readonly isIconUrl = isIconUrl;
   private readonly router = inject(Router);
   /** The tabs holding the pages, which remember where each was left. */
   private readonly tabs = inject(IonTabs, { optional: true });
 
   constructor() {
     addIcons({
+      compassOutline,
       contractOutline,
       expandOutline,
       listOutline,
@@ -180,6 +231,12 @@ export class MoreSheetComponent {
     this.closed.emit();
     if (this.tabs) void this.tabs.select('lists');
     else void this.router.navigateByUrl('/tabs/lists');
+  }
+
+  /** Starts or stops the motion sensors steering the map. The sheet stays, to show which. */
+  protected toggleSensors(): void {
+    if (this.state.sensorsActive()) this.sensors.stop();
+    else void this.sensors.start();
   }
 
   /** Opens or closes the time control, to see the sky at another time. */

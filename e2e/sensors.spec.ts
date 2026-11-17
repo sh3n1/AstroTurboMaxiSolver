@@ -21,8 +21,8 @@ test.beforeEach(async ({ page }, testInfo) => {
 
 /** Turns sensors on, waiting until they are listening, since asking permission takes a moment. */
 async function startSensors(page: Page): Promise<void> {
-  await page.locator('[data-testid=sensor-toggle]').click();
-  await expect(page.locator('[data-testid=sensor-toggle]')).toContainText('Sensors on');
+  await tapMore(page, 'sensor-toggle');
+  await expect(await moreTile(page, 'sensor-toggle')).toContainText('Sensors on');
 }
 
 /** Sends the browser the same event a phone's orientation sensor would. */
@@ -54,8 +54,8 @@ test('moves the map with the phone sensors', async ({ page }) => {
   await expect(pointing).toContainText('Alt 0° Az 0°');
 
   // Turning sensors off returns control to dragging.
-  await page.locator('[data-testid=sensor-toggle]').click();
-  await expect(page.locator('[data-testid=sensor-toggle]')).toContainText('Use sensors');
+  await tapMore(page, 'sensor-toggle');
+  await expect(await moreTile(page, 'sensor-toggle')).toContainText('Use sensors');
   await page.mouse.move(box!.x + 100, box!.y + 200);
   await page.mouse.down();
   await page.mouse.move(box!.x + 200, box!.y + 300, { steps: 3 });
@@ -80,16 +80,16 @@ test('turns compass headings to true north for the location', async ({ page }) =
 
 test('explains when no sensor data arrives', async ({ page }) => {
   await page.goto('/');
-  await page.locator('[data-testid=sensor-toggle]').click();
+  await tapMore(page, 'sensor-toggle');
   await expect(page.locator('[data-testid=sensor-error]')).toContainText('No sensor data', { timeout: 6000 });
-  await expect(page.locator('[data-testid=sensor-toggle]')).toContainText('Use sensors');
+  await expect(await moreTile(page, 'sensor-toggle')).toContainText('Use sensors');
 });
 
 test('turns the sensors on when a target is chosen', async ({ page }) => {
   await page.goto('/tabs/targets');
   await page.locator('app-targets ion-searchbar input').fill('Vega');
   await page.locator('app-targets ion-item').first().click();
-  await expect(page.locator('[data-testid=sensor-toggle]')).toContainText('Sensors on');
+  await expect(await moreTile(page, 'sensor-toggle')).toContainText('Sensors on');
   // A phone's readings steer the map from then on.
   await sendOrientation(page, 0, 90, 0);
   await expect(page.locator('[data-testid=pointing]')).toContainText('Alt 0° Az 0°');
@@ -99,12 +99,12 @@ test('aims at the target with the sensors on, switching them off', async ({ page
   await page.goto('/tabs/targets');
   await page.locator('app-targets ion-searchbar input').fill('Vega');
   await page.locator('app-targets ion-item').first().click();
-  await expect(page.locator('[data-testid=sensor-toggle]')).toContainText('Sensors on');
+  await expect(await moreTile(page, 'sensor-toggle')).toContainText('Sensors on');
   await sendOrientation(page, 0, 90, 0);
 
   // Aim is there with the sensors on. It turns them off, so they can't pull the map back.
   await page.locator('[data-testid=aim-at-target]').click();
-  await expect(page.locator('[data-testid=sensor-toggle]')).toContainText('Use sensors');
+  await expect(await moreTile(page, 'sensor-toggle')).toContainText('Use sensors');
   await expect(page.locator('[data-testid=guidance]')).toContainText('0.0° away');
 });
 
@@ -112,9 +112,9 @@ test('turns automatic sensors off quietly on a device without them', async ({ pa
   await page.goto('/tabs/targets');
   await page.locator('app-targets ion-searchbar input').fill('Vega');
   await page.locator('app-targets ion-item').first().click();
-  await expect(page.locator('[data-testid=sensor-toggle]')).toContainText('Sensors on');
+  await expect(await moreTile(page, 'sensor-toggle')).toContainText('Sensors on');
   // No readings arrive, so they switch off, without a message about it.
-  await expect(page.locator('[data-testid=sensor-toggle]')).toContainText('Use sensors', { timeout: 6000 });
+  await expect(await moreTile(page, 'sensor-toggle')).toContainText('Use sensors', { timeout: 6000 });
   await expect(page.locator('[data-testid=sensor-error]')).toHaveCount(0);
 });
 
@@ -227,8 +227,9 @@ test('plate solves automatically when the phone is still', async ({ page }) => {
 
   // Still in the same place, well past the pause between attempts: no second attempt.
   await sendGyroscope(page, 0, 0, 0, 400);
-  // Untouched with the sensors on, the buttons fade and leave the sky clear.
-  await expect(page.getByTestId('controls')).toHaveClass(/faded/, { timeout: 15_000 });
+  // Untouched, the menu and zoom go, leaving the sky clear.
+  await expect(page.getByTestId('more-sheet')).toHaveCount(0, { timeout: 15_000 });
+  await expect(page.locator('app-sky .zoom')).toHaveClass(/faded/);
   const failures = async (): Promise<number> => {
     await openPage(page, 'Settings');
     await page.locator('[data-testid=open-solve-log]').click();
@@ -262,7 +263,7 @@ test('does not use the camera when automatic solving is off', async ({ page }) =
   await openPage(page, 'Sky');
   await startSensors(page);
   await sendOrientation(page, 0, 120, 0);
-  await expect(page.locator('[data-testid=sensor-toggle]')).toContainText('Sensors on');
+  await expect(await moreTile(page, 'sensor-toggle')).toContainText('Sensors on');
   // Hold still long enough that a solve would have run and failed, if it were going to.
   await sendGyroscope(page, 0, 0, 0, 90);
   await page.waitForTimeout(3000);
