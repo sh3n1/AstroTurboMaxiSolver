@@ -25,11 +25,11 @@ stays in localStorage and is never synced.
 | --- | --- | --- |
 | Kit selection: which telescope, eyepiece, Barlow and filter are in use | `astroturbomaxisolver.settings` | Each phone may be on a different telescope. It points at kit records by UUID. |
 | Location, Bortle | `astroturbomaxisolver.settings` | Where this phone is tonight. Shared observing sites would be a new synced table. |
-| Mount type, camera field factor | `astroturbomaxisolver.settings` | This phone's mount and camera. |
+| Camera field factor | `astroturbomaxisolver.settings` | This phone's camera. |
 | Night mode, text size | `astroturbomaxisolver.settings` | Chosen for this screen and session. A tablet and a phone differ. |
 | Auto solve, keep screen on, shutter remote, solve sound, RA/Dec, eyepiece star limit | `astroturbomaxisolver.settings` | How this phone is used. |
 | Debug options: solve toasts, send solves, capture mode | `astroturbomaxisolver.settings` | Development only. |
-| Alignment | `astroturbomaxisolver.alignment` | Only valid for this phone in this mount. |
+| Alignment | `astroturbomaxisolver.alignment` | Only valid for this phone on this telescope. |
 | Sort order chosen per list | `astroturbomaxisolver.listSorts` | Keyed by list UUID, or by the app list's name. A view choice. |
 | Chart of tonight open or closed, on every list | `astroturbomaxisolver.listChart` | A view choice. |
 | Observing programmes whose card was read | `astroturbomaxisolver.programsRead` | A view choice: the card then shows folded. |

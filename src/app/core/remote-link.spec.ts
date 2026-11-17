@@ -73,7 +73,6 @@ describe('link messages', () => {
     const aligned = {
       starId: 'Vega',
       alignedAt: '2026-11-15T22:00:00.000Z',
-      mount: 'direct',
       offset: [0, 0, 1],
     } as const;
     const synced = {

@@ -22,7 +22,6 @@ const cameraFor = (telescope: Horizontal, liftDeg: number): Horizontal => ({
 const aligned: Alignment = {
   starId: 'Vega',
   alignedAt: NOW.toISOString(),
-  mount: 'direct',
   offset: cameraOffset(cameraFor(south, 2), south),
   position: south,
   method: 'plate-solve',

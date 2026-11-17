@@ -52,7 +52,7 @@ describe('alignment', () => {
       expect(separationDeg(result, { altDeg: 50, azDeg: 13 })).toBeLessThan(1e-9);
     });
 
-    it('handles the large angle of a mirror mount', () => {
+    it('handles a large angle between camera and telescope', () => {
       const camera = { altDeg: 20, azDeg: 90 };
       const telescope = { altDeg: 70, azDeg: 90 };
       const offset = cameraOffset(camera, telescope);

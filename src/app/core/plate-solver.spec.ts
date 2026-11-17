@@ -47,7 +47,6 @@ interface RenderOptions {
   raDeg: number;
   decDeg: number;
   rollDeg?: number;
-  flipped?: boolean;
   focalPx?: number;
   limitMag?: number;
 }
@@ -81,7 +80,7 @@ function render(options: RenderOptions): { pixels: Float32Array; truth: Vector3 
     const z = dot(star.vector, forward);
     if (z <= 0) continue;
     const cx = (focalPx * dot(star.vector, axisX)) / z;
-    const px = width / 2 + cx * (options.flipped ? -1 : 1);
+    const px = width / 2 + cx;
     const py = height / 2 + (focalPx * dot(star.vector, axisY)) / z;
     if (px < 4 || px >= width - 4 || py < 4 || py >= height - 4) continue;
     const amplitude = Math.min(210, 160 * 10 ** (-0.4 * (star.mag - 2)));
@@ -193,14 +192,6 @@ describe('plate solving from a rendered image', () => {
       expect(angleDeg(solution!.pointing, truth)).toBeLessThan(0.2);
     });
   }
-
-  it('solves a mirrored image from a mirror mount', () => {
-    const { pixels, truth } = render({ raDeg: 84, decDeg: 0, flipped: true });
-    const { stars: found } = detectStars(pixels, FRAME.width, FRAME.height);
-    const solution = solveFrame(found, { ...FRAME, flipped: true }, index);
-    expect(solution).not.toBeNull();
-    expect(angleDeg(solution!.pointing, truth)).toBeLessThan(0.2);
-  });
 
   it('finds the real field of view when the assumed one is 6% off', () => {
     const { pixels, truth } = render({ raDeg: 84, decDeg: 0, focalPx: FRAME.focalPx * 1.06 });

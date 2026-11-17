@@ -25,9 +25,9 @@ addEventListener('message', ({ data }: MessageEvent<SolveRequest>) => {
     return;
   }
 
-  const { id, pixels, width, height, focalPx, flipped, hint, timeLimitMs } = data;
-  const geometry = { width, height, focalPx, flipped };
-  const key = `${width}x${height}x${focalPx}x${flipped}`;
+  const { id, pixels, width, height, focalPx, hint, timeLimitMs } = data;
+  const geometry = { width, height, focalPx };
+  const key = `${width}x${height}x${focalPx}`;
   if (cached?.key !== key) cached = { key, index: buildSolverIndex(stars, geometry) };
   const index = cached.index;
 

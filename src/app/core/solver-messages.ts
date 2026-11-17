@@ -13,7 +13,6 @@ export type SolveRequest =
       width: number;
       height: number;
       focalPx: number;
-      flipped: boolean;
       hint: SolveHint | null;
       timeLimitMs: number;
     };
