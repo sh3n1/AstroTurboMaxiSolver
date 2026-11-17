@@ -179,7 +179,7 @@ const PREVIEW_CAMERA_ERROR: Horizontal = { altDeg: 2, azDeg: 3 };
       --box-shadow: none;
       --background: var(--ion-color-primary);
       --background-activated: var(--ion-color-primary-shade);
-      --color: #0a0e1a;
+      --color: var(--af-ink);
       font-size: calc(20px * var(--af-scale));
       font-weight: 700;
       transition: transform 80ms ease-out;
@@ -195,7 +195,7 @@ const PREVIEW_CAMERA_ERROR: Horizontal = { altDeg: 2, azDeg: 3 };
     /* While solving it can't be pressed: a dim disc, the words in full-strength text. */
     .big-round.solving {
       border-radius: 50%;
-      background: rgb(143 183 255 / 16%);
+      background: rgba(var(--ion-color-primary-rgb), 0.16);
       color: var(--af-text);
     }
     .big-round-content {

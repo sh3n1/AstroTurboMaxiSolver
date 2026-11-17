@@ -45,12 +45,12 @@ const MAX_STAR_LIMIT = 13;
     }
     ion-range {
       padding: 0 8px 0 0;
-      --bar-background: #232a3d;
+      --bar-background: var(--af-edge);
     }
     .equipment-toggle {
       margin: 2px 0 4px;
       padding: 6px 10px;
-      border: 1px solid #232a3d;
+      border: 1px solid var(--af-edge);
       border-radius: 14px;
       background: transparent;
       color: var(--af-muted);

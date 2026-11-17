@@ -56,10 +56,6 @@ html.night body {
  */
 :root {
   --af-scale: 1.2;
-  --af-text: #e8ebf5;
-  --af-muted: #a8b0c6;
-  /* Guidance towards the target: directions and arrows. A lighter blue than the accent. */
-  --af-guidance: #a9cbff;
 }
 
 /* Section headers, the same on every page: small, bold capitals in the quieter colour. */
@@ -116,13 +112,13 @@ ion-chip {
  */
 html.night {
   --af-muted: var(--af-text);
-  --ion-color-medium: #e8ebf5;
+  --ion-color-medium: var(--af-text);
   --ion-color-medium-rgb: 232, 235, 245;
-  --ion-text-color-step-200: #e8ebf5;
-  --ion-text-color-step-300: #e8ebf5;
-  --ion-text-color-step-400: #e8ebf5;
-  --ion-text-color-step-500: #e8ebf5;
-  --ion-text-color-step-600: #e8ebf5;
+  --ion-text-color-step-200: var(--af-text);
+  --ion-text-color-step-300: var(--af-text);
+  --ion-text-color-step-400: var(--af-text);
+  --ion-text-color-step-500: var(--af-text);
+  --ion-text-color-step-600: var(--af-text);
 }
 html.night ion-app {
   font-weight: 500;
@@ -136,12 +132,12 @@ html.night ion-app {
  */
 :root.night.md,
 :root.night.ios {
-  --ion-color-primary: #ffffff;
+  --ion-color-primary: var(--af-bright);
   --ion-color-primary-rgb: 255, 255, 255;
   --ion-color-primary-contrast: #000000;
   --ion-color-primary-contrast-rgb: 0, 0, 0;
   --ion-color-primary-shade: #e0e0e0;
-  --ion-color-primary-tint: #ffffff;
+  --ion-color-primary-tint: var(--af-bright);
 }
 html.night ion-segment-button {
   --color: var(--af-text);
@@ -154,7 +150,7 @@ html.night ion-tab-button {
   color: var(--af-text);
 }
 html.night ion-tab-button.tab-selected {
-  --color-selected: #ffffff;
+  --color-selected: var(--af-bright);
 }
 html.night ion-label p,
 html.night ion-note {
@@ -192,13 +188,13 @@ html.night ion-note {
  * dark red. White becomes full-strength red, so the badge stays bright, its number black.
  */
 html.night .af-count {
-  background: #ffffff;
+  background: var(--af-bright);
   color: #000000;
 }
 
 /* Toasts on the sky map: large, plain text, readable at arm's length and in red night mode. */
 ion-toast.af-toast {
-  --background: #1b2338;
+  --background: var(--af-raised);
   --color: var(--af-text);
   --border-radius: 12px;
   font-size: calc(16px * var(--af-scale, 1));
@@ -214,8 +210,6 @@ ion-toast.af-toast {
 :root ion-action-sheet,
 :root ion-popover,
 :root ion-modal {
-  --af-raised: #1b2338;
-  --af-raised-edge: rgb(255 255 255 / 22%);
   --backdrop-opacity: 0.65;
 }
 :root ion-alert,
@@ -235,7 +229,7 @@ ion-alert .alert-input.sc-ion-alert-ios {
   padding: 10px 12px;
   border: 1px solid var(--af-raised-edge);
   border-radius: 8px;
-  background: #0d1220;
+  background: var(--af-surface);
   color: var(--af-text);
   font-size: calc(16px * var(--af-scale, 1));
 }
@@ -279,7 +273,7 @@ ion-modal.day-picker-modal {
   --width: min(360px, calc(100% - 32px));
   --height: auto;
   --border-radius: 16px;
-  --background: #141b2d;
+  --background: var(--af-card);
   --backdrop-opacity: 0.55;
 }
 ion-modal.day-picker-modal .ion-page {
@@ -295,7 +289,7 @@ ion-modal.day-picker-modal::part(content) {
   color: var(--af-text);
 }
 .day-picker-card ion-datetime {
-  --background: #141b2d;
+  --background: var(--af-card);
   --background-rgb: 20, 27, 45;
   --title-color: var(--af-text);
   width: 100%;

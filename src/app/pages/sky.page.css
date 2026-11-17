@@ -10,7 +10,7 @@
 .stage {
   position: relative;
   height: 100%;
-  background: #05070f;
+  background: var(--af-sky);
   overflow: hidden;
 }
 .readout {
@@ -22,7 +22,7 @@
   color: var(--af-muted);
   padding: 4px 8px;
   border-radius: 8px;
-  background: rgb(5 7 15 / 92%);
+  background: rgb(var(--af-sky-rgb) / 92%);
   pointer-events: none;
 }
 /* Zoom: a column of two round buttons in the top right corner. */
@@ -45,10 +45,10 @@
 /* Big enough to hit in the dark at arm's length, and set a little apart. */
 .zoom ion-fab-button {
   margin: 4px;
-  --background: rgb(10 14 28 / 85%);
-  --background-activated: #232a3d;
+  --background: rgb(var(--af-overlay-rgb) / 85%);
+  --background-activated: var(--af-edge);
   --color: var(--af-text);
-  --border-color: #232a3d;
+  --border-color: var(--af-edge);
   --border-width: 1px;
   --border-style: solid;
   --box-shadow: none;
@@ -58,7 +58,7 @@
   margin-top: 6px;
   padding: 6px 10px;
   border-radius: 10px;
-  background: rgb(10 14 28 / 92%);
+  background: var(--af-overlay);
   color: var(--ion-color-warning);
   font-size: calc(15px * var(--af-scale, 1));
   text-align: center;
@@ -67,9 +67,9 @@
 .eyepiece-panel {
   margin-bottom: 6px;
   padding: 4px 4px 4px 12px;
-  border: 1px solid #232a3d;
+  border: 1px solid var(--af-edge);
   border-radius: 12px;
-  background: rgb(10 14 28 / 92%);
+  background: var(--af-overlay);
   color: var(--af-text);
   font-size: calc(15px * var(--af-scale, 1));
 }
@@ -125,9 +125,9 @@
 /* Nearly solid, like the readout at the top, so map labels behind it barely show. */
 .bar {
   padding: 6px 4px 6px 12px;
-  border: 1px solid #232a3d;
+  border: 1px solid var(--af-edge);
   border-radius: 12px;
-  background: rgb(10 14 28 / 92%);
+  background: var(--af-overlay);
   color: var(--af-text);
   font-size: calc(18px * var(--af-scale, 1));
 }

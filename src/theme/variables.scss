@@ -1,34 +1,69 @@
 // AstroTurboMaxiSolver's night-sky theme. These load after Ionic's dark palette, so they
 // override it. See https://ionicframework.com/docs/theming/
 
+// The app's own colours. Every component takes its colours from these, so the look changes
+// in one place. Ionic's palette below is built from them too. Night mode, in global.scss,
+// overrides a few. The canvases can't read CSS variables cheaply, so the ones they draw with
+// are repeated in src/app/core/theme.ts, and a test keeps the two the same.
+:root {
+  // Backgrounds, from the darkest: the sky map, the page, then rows, cards and toolbars.
+  --af-sky: #05070f;
+  --af-sky-rgb: 5 7 15;
+  --af-page: #070a14;
+  --af-surface: #0d1220;
+  --af-surface-rgb: 13 18 32;
+  // Panels over the sky map: nearly solid, so the map barely shows through.
+  --af-overlay-rgb: 10 14 28;
+  --af-overlay: rgb(var(--af-overlay-rgb) / 92%);
+  // The day picker's card, and dialogs, menus and sheets, lighter still, with a pale edge.
+  --af-card: #141b2d;
+  --af-raised: #1b2338;
+  --af-raised-edge: rgb(255 255 255 / 22%);
+  // Borders and dividers.
+  --af-edge: #232a3d;
+  // Text: main, secondary, and dark text or outlines on a bright fill.
+  --af-text: #e8ebf5;
+  --af-muted: #a8b0c6;
+  --af-ink: #0a0e1a;
+  // Guidance towards the target: directions and arrows. A lighter blue than the accent.
+  --af-guidance: #a9cbff;
+  // The accent, green for good and on target, and red for errors and the reticle.
+  --af-accent: #8fb7ff;
+  --af-good: #6fcf9f;
+  --af-bad: #e5484d;
+  // White, which the night filter turns into full-strength red: for what must stay bright there.
+  --af-bright: #ffffff;
+}
+
 // Ionic's palette sets its colours per platform, on :root.md and :root.ios. These
-// use the same selectors and load later, so they win.
+// use the same selectors and load later, so they win. Ionic needs each -rgb value as
+// plain numbers, so those repeat their colour.
 :root.md,
 :root.ios {
   // Dark navy instead of grey, to match the sky map.
-  --ion-background-color: #070a14;
+  --ion-background-color: var(--af-page);
   --ion-background-color-rgb: 7, 10, 20;
-  --ion-text-color: #e8ebf5;
+  --ion-text-color: var(--af-text);
   --ion-text-color-rgb: 232, 235, 245;
-  --ion-border-color: #232a3d;
-  --ion-toolbar-background: #0d1220;
-  --ion-tab-bar-background: #0d1220;
-  --ion-tab-bar-border-color: #232a3d;
-  --ion-item-background: #0d1220;
-  --ion-card-background: #0d1220;
+  --ion-border-color: var(--af-edge);
+  --ion-toolbar-background: var(--af-surface);
+  --ion-tab-bar-background: var(--af-surface);
+  --ion-tab-bar-border-color: var(--af-edge);
+  --ion-item-background: var(--af-surface);
+  --ion-card-background: var(--af-surface);
 
   // Soft blue, bright enough to read on the dark background.
-  --ion-color-primary: #8fb7ff;
+  --ion-color-primary: var(--af-accent);
   --ion-color-primary-rgb: 143, 183, 255;
-  --ion-color-primary-contrast: #070a14;
+  --ion-color-primary-contrast: var(--af-page);
   --ion-color-primary-contrast-rgb: 7, 10, 20;
   --ion-color-primary-shade: #7ea1e0;
   --ion-color-primary-tint: #9abeff;
 
   // Green for good and on target, as the sky map's on-target rings.
-  --ion-color-success: #6fcf9f;
+  --ion-color-success: var(--af-good);
   --ion-color-success-rgb: 111, 207, 159;
-  --ion-color-success-contrast: #070a14;
+  --ion-color-success-contrast: var(--af-page);
   --ion-color-success-contrast-rgb: 7, 10, 20;
   --ion-color-success-shade: #62b68c;
   --ion-color-success-tint: #7dd4a9;
@@ -36,15 +71,15 @@
   // Amber for warnings. Never for guidance, which is light blue.
   --ion-color-warning: #ffb454;
   --ion-color-warning-rgb: 255, 180, 84;
-  --ion-color-warning-contrast: #070a14;
+  --ion-color-warning-contrast: var(--af-page);
   --ion-color-warning-contrast-rgb: 7, 10, 20;
   --ion-color-warning-shade: #e09e4a;
   --ion-color-warning-tint: #ffbc65;
 
   // Red for errors, the same as the reticle.
-  --ion-color-danger: #e5484d;
+  --ion-color-danger: var(--af-bad);
   --ion-color-danger-rgb: 229, 72, 77;
-  --ion-color-danger-contrast: #ffffff;
+  --ion-color-danger-contrast: var(--af-bright);
   --ion-color-danger-contrast-rgb: 255, 255, 255;
   --ion-color-danger-shade: #ca3f44;
   --ion-color-danger-tint: #e85a5f;

@@ -20,7 +20,7 @@ import { SensorService } from './sensor.service';
   styles: `
     :host {
       display: block;
-      background: rgb(13 18 32 / 94%);
+      background: rgb(var(--af-surface-rgb) / 94%);
       color: var(--af-text);
       border-top: 2px solid var(--ion-color-primary);
       border-bottom: 2px solid var(--ion-color-primary);

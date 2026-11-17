@@ -218,7 +218,7 @@ const KIND_ICONS: Partial<Record<TargetKind, string>> = {
           text-anchor="end"
           font-size="13"
           fill="var(--af-muted)"
-          stroke="#0a0e1a"
+          stroke="var(--af-ink)"
           stroke-width="3"
           paint-order="stroke"
         >

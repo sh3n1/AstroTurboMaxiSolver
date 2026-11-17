@@ -1,3 +1,5 @@
+import { THEME } from './theme';
+
 // The time control's arithmetic: steps, dragging, days and the colour of the sky through
 // the day. Plain functions, so they can be tested without the control around them.
 
@@ -66,7 +68,7 @@ export const SKY_SHADE_COLOURS: Record<SkyShade, string> = {
   civil: '#3b4f86',
   nautical: '#283563',
   astronomical: '#182040',
-  night: '#0a0e1a',
+  night: THEME.ink,
 };
 
 /**

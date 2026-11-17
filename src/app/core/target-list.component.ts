@@ -142,7 +142,7 @@ const GOOD_ALTITUDE_DEG = 30;
      * dull dark red. White becomes full-strength red, like the count beside it.
      */
     :host-context(html.night) .tick {
-      color: #ffffff;
+      color: var(--af-bright);
     }
     /* Seen more than once: the count takes the tick's place, at the same corner. */
     /*
