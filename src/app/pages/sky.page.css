@@ -1,0 +1,217 @@
+/* The sky page's own layout: the map, the zoom buttons and the dock, and where its panels sit. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.stage {
+  position: relative;
+  height: 100%;
+  background: #05070f;
+  overflow: hidden;
+}
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  /* Stops the browser scrolling the page while the user drags or pinches the map. */
+  touch-action: none;
+  cursor: grab;
+}
+.readout {
+  position: absolute;
+  top: calc(10px + var(--ion-safe-area-top, 0px));
+  left: 10px;
+  font-size: calc(14px * var(--af-scale, 1));
+  line-height: 1.45;
+  color: var(--af-muted);
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: rgb(5 7 15 / 92%);
+  pointer-events: none;
+}
+/* Zoom: a column of two round buttons in the top right corner. */
+.zoom {
+  position: absolute;
+  top: calc(4px + var(--ion-safe-area-top, 0px));
+  right: calc(4px + var(--ion-safe-area-right, 0px));
+  display: flex;
+  flex-direction: column;
+  transition: opacity 0.2s;
+}
+/* Comes and goes with the menu, and takes no taps while hidden: a tap on the map brings both. */
+.zoom.faded {
+  opacity: 0;
+  transition: opacity 0.8s;
+}
+.zoom.faded ion-fab-button {
+  pointer-events: none;
+}
+/* Big enough to hit in the dark at arm's length, and set a little apart. */
+.zoom ion-fab-button {
+  margin: 4px;
+  --background: rgb(10 14 28 / 85%);
+  --background-activated: #232a3d;
+  --color: var(--af-text);
+  --border-color: #232a3d;
+  --border-width: 1px;
+  --border-style: solid;
+  --box-shadow: none;
+}
+/* A sensor problem, in a small box at the bottom of the map. */
+.message {
+  margin-top: 6px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: rgb(10 14 28 / 92%);
+  color: var(--ion-color-warning);
+  font-size: calc(15px * var(--af-scale, 1));
+  text-align: center;
+  pointer-events: none;
+}
+.eyepiece-panel {
+  margin-bottom: 6px;
+  padding: 4px 4px 4px 12px;
+  border: 1px solid #232a3d;
+  border-radius: 12px;
+  background: rgb(10 14 28 / 92%);
+  color: var(--af-text);
+  font-size: calc(15px * var(--af-scale, 1));
+}
+/* Above the time control, which lies over the bottom of the map when it shows. */
+.dock {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: calc(10px + var(--af-tab-bar-height, 0px));
+  display: flex;
+  flex-direction: column;
+  /* The empty space beside the location still lets the map be dragged. */
+  pointer-events: none;
+}
+.dock > * {
+  pointer-events: auto;
+}
+/*
+ * A row along the bottom, with the location on the left. Only what is in it
+ * takes taps. Named with the dock, to win over the dock's own rule above: the bare row
+ * once took every tap across its width, and so covered the round buttons beside it.
+ */
+.dock > .corner {
+  display: flex;
+  align-items: flex-end;
+  pointer-events: none;
+}
+.dock > .corner > * {
+  pointer-events: auto;
+}
+/* Shares the pointing readout's look, but sits in the row instead of the top corner. */
+.readout.location {
+  position: static;
+  margin-bottom: 6px;
+}
+/* A button, so it takes taps, with a border to show it can be tapped. */
+.readout.location.unset {
+  pointer-events: auto;
+  color: var(--af-text);
+  font: inherit;
+  font-size: calc(14px * var(--af-scale, 1));
+  text-align: left;
+  border: 1px solid var(--ion-color-warning);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.readout.location.unset ion-icon {
+  flex: none;
+  font-size: 20px;
+  color: var(--ion-color-warning);
+}
+/* Nearly solid, like the readout at the top, so map labels behind it barely show. */
+.bar {
+  padding: 6px 4px 6px 12px;
+  border: 1px solid #232a3d;
+  border-radius: 12px;
+  background: rgb(10 14 28 / 92%);
+  color: var(--af-text);
+  font-size: calc(18px * var(--af-scale, 1));
+}
+/*
+ * A phone on its side: the map is wide and short. The boxes keep to the bottom left,
+ * and zoom to the top right corner, so the reticle in the middle stays clear.
+ */
+@media (orientation: landscape) and (max-height: 520px) {
+  /* Clear of a notch or camera hole at the left edge. */
+  .readout {
+    left: calc(10px + var(--ion-safe-area-left, 0px));
+  }
+  /* Never taller than the map: the box of the target shrinks and scrolls inside itself. */
+  .dock {
+    left: calc(10px + var(--ion-safe-area-left, 0px));
+    right: calc(10px + var(--ion-safe-area-right, 0px));
+    bottom: calc(8px + var(--af-tab-bar-height, 0px));
+    max-height: calc(100vh - 16px - var(--af-time-control-height, 0px));
+    align-items: flex-start;
+  }
+  .corner {
+    align-self: stretch;
+  }
+  /*
+   * The boxes keep to the bottom left corner, narrow enough to leave the reticle in
+   * the middle of the map clear at the usual zoom.
+   */
+  .bar,
+  .eyepiece-panel,
+  .message {
+    box-sizing: border-box;
+    width: min(42%, 320px);
+    flex-shrink: 0;
+  }
+  .bar,
+  .eyepiece-panel {
+    flex-shrink: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+  .eyepiece-panel {
+    width: min(46%, 360px);
+  }
+  /*
+   * With a target, its box is a panel down the left edge, the map's full height, like
+   * the card of a car's navigation app: the list being played at the top, as upright,
+   * then which way to move, first and largest, then the target, and the buttons at the
+   * foot. The map's centre moves into the clear part beside it
+   * (see clearSpan), so the panel never lies over the reticle or the guidance.
+   */
+  .stage {
+    --af-panel-width: min(38vw, 300px);
+  }
+  .dock:has(.bar) {
+    top: calc(8px + var(--ion-safe-area-top, 0px));
+  }
+  .dock:has(.bar) .bar,
+  .dock:has(.bar) .eyepiece-panel,
+  .dock:has(.bar) .message {
+    width: var(--af-panel-width);
+  }
+  /* The bar lays out its own parts for this: see TargetBarComponent. */
+  .dock:has(.bar) .bar {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+  }
+  /* Open, the details take the room the panel has, and scroll inside it. */
+  .bar.detailed {
+    width: min(46vw, 360px);
+  }
+  /* The pointing readout moves beside the panel. */
+  .stage:has(.bar) .readout {
+    left: calc(20px + var(--ion-safe-area-left, 0px) + var(--af-panel-width));
+  }
+  .stage:has(.bar.detailed) .readout {
+    left: calc(20px + var(--ion-safe-area-left, 0px) + min(46vw, 360px));
+  }
+}
