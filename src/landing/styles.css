@@ -22,9 +22,98 @@ body {
   margin: 0;
   background: var(--sky);
   color: var(--text);
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
   font-size: 18px;
   line-height: 1.55;
+}
+
+/*
+ * The sky behind the page: two layers of tiny stars, tiled, twinkling out of step, and a
+ * shooting star now and then. Behind everything, and still for people who ask for less motion.
+ */
+.sky {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+.stars {
+  position: absolute;
+  inset: 0;
+  background-repeat: repeat;
+}
+.stars.far {
+  background-image:
+    radial-gradient(1px 1px at 20px 30px, var(--text), transparent),
+    radial-gradient(1px 1px at 140px 80px, var(--muted), transparent),
+    radial-gradient(1px 1px at 90px 160px, var(--text), transparent),
+    radial-gradient(1px 1px at 210px 210px, var(--muted), transparent),
+    radial-gradient(1px 1px at 250px 40px, var(--text), transparent);
+  background-size: 280px 260px;
+  opacity: 0.45;
+  animation: twinkle 7s ease-in-out infinite alternate;
+}
+.stars.near {
+  background-image:
+    radial-gradient(1.5px 1.5px at 60px 120px, var(--text), transparent),
+    radial-gradient(1.5px 1.5px at 330px 60px, var(--accent), transparent),
+    radial-gradient(2px 2px at 200px 300px, var(--text), transparent),
+    radial-gradient(1.5px 1.5px at 400px 250px, var(--warning), transparent);
+  background-size: 460px 380px;
+  opacity: 0.7;
+  animation: twinkle 4.5s ease-in-out infinite alternate-reverse;
+}
+@keyframes twinkle {
+  from {
+    opacity: 0.25;
+  }
+  to {
+    opacity: 0.8;
+  }
+}
+.shooting-star {
+  position: absolute;
+  top: 12%;
+  left: -20%;
+  width: 140px;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, var(--text));
+  opacity: 0;
+  transform: rotate(18deg);
+  animation: shoot 13s linear 3s infinite;
+}
+/* Quick across the sky, then a long wait before the next one. */
+@keyframes shoot {
+  0% {
+    opacity: 0;
+    transform: translateX(0) rotate(18deg);
+  }
+  2% {
+    opacity: 1;
+  }
+  8% {
+    opacity: 0;
+    transform: translateX(80vw) translateY(26vw) rotate(18deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(80vw) translateY(26vw) rotate(18deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stars {
+    animation: none;
+  }
+  .shooting-star {
+    display: none;
+  }
 }
 
 main,
@@ -56,9 +145,30 @@ h2 {
   border-radius: 22px;
 }
 .hero h1 {
-  margin: 16px 0 8px;
+  margin: 16px 0 4px;
   font-size: clamp(28px, 7vw, 46px);
   word-break: break-word;
+}
+/* The joke under the name: smaller, slanted, as an aside. */
+.subtitle {
+  margin: 0 auto 24px;
+  color: var(--accent);
+  font-size: 17px;
+  font-style: italic;
+}
+/* The logo floats gently, like a satellite. */
+.logo {
+  animation: float 6s ease-in-out infinite;
+}
+@keyframes float {
+  50% {
+    transform: translateY(-6px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .logo {
+    animation: none;
+  }
 }
 .tagline {
   max-width: 640px;
@@ -86,27 +196,75 @@ h2 {
   outline-offset: 3px;
 }
 
-/* Three screens side by side, or one under another on a phone. */
-.screens {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 24px;
+/*
+ * The app's screens in a row that scrolls sideways, each one snapping into place, with an
+ * arrow on each side. Several show at once on a wide screen, one at a time on a phone.
+ */
+.carousel {
+  position: relative;
   margin-top: 32px;
 }
-.screens figure {
+.carousel-track {
+  display: flex;
+  gap: 24px;
+  padding: 4px 4px 12px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+}
+.carousel-track::-webkit-scrollbar {
+  display: none;
+}
+.carousel-track:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 4px;
+}
+.carousel figure {
+  flex: 0 0 min(280px, 72vw);
   margin: 0;
+  scroll-snap-align: center;
   text-align: center;
 }
-.screens img {
+.carousel img {
   width: 100%;
-  max-width: 300px;
   height: auto;
   border: 1px solid var(--edge);
   border-radius: 20px;
 }
-.screens figcaption {
+.carousel figcaption {
   margin-top: 8px;
   color: var(--muted);
+}
+.carousel-arrow {
+  position: absolute;
+  top: 40%;
+  z-index: 1;
+  width: 48px;
+  height: 48px;
+  border: 1px solid var(--edge);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 32px;
+  line-height: 1;
+  cursor: pointer;
+}
+.carousel-arrow:hover,
+.carousel-arrow:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.carousel-arrow.prev {
+  left: -8px;
+}
+.carousel-arrow.next {
+  right: -8px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .carousel-track {
+    scroll-behavior: auto;
+  }
 }
 
 .features {
@@ -121,6 +279,13 @@ h2 {
   border: 1px solid var(--edge);
   border-radius: 14px;
   background: var(--surface);
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease;
+}
+.features li:hover {
+  border-color: var(--accent);
+  transform: translateY(-3px);
 }
 .features h3 {
   margin-bottom: 4px;
@@ -149,6 +314,27 @@ h2 {
   font-weight: 600;
 }
 
+/* Questions that open with a tap. */
+.faq details {
+  max-width: 720px;
+  margin: 10px 0;
+  padding: 12px 18px;
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.faq summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.faq details[open] summary {
+  color: var(--accent);
+}
+.faq details p {
+  margin: 8px 0 0;
+  color: var(--muted);
+}
+
 .about p {
   max-width: 720px;
 }
@@ -159,6 +345,12 @@ h2 {
 .cta {
   margin: 48px 0;
   text-align: center;
+}
+.cta-line {
+  display: block;
+  margin-bottom: 16px;
+  font-size: 24px;
+  font-weight: 700;
 }
 
 footer {

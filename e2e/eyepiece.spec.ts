@@ -175,7 +175,7 @@ test('steps through the sky map, the eyepiece view and the eyepiece ring', async
   const button = await moreTile(page, 'view-mode');
   const ring = page.locator('[data-testid=ring-readout]');
 
-  // The sky map, with the Telrad rings and zoom.
+  // The sky map, with the three rings and zoom.
   await expect(button).toHaveAttribute('data-mode', 'sky');
   await expect(ring).toHaveCount(0);
 

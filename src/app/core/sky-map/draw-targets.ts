@@ -225,7 +225,7 @@ function drawTargetMarker(ctx: CanvasRenderingContext2D, { x, y }: Point, gap: n
 
 /**
  * AstroTurboMaxiSolver's reticle at the view's centre: rings of these diameters in degrees,
- * the three sizes observers know from a Telrad finder, or one the size of the eyepiece's
+ * the three rings of 0.5°, 2° and 4°, or one the size of the eyepiece's
  * field. Green when on target, and faded by `opacity` while plate solving. Returns the
  * largest ring's radius in pixels, where the guidance starts and a tap is taken.
  */

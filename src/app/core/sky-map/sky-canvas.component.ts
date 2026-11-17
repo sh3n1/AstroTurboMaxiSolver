@@ -417,7 +417,7 @@ export class SkyCanvasComponent implements AfterViewInit, OnDestroy {
   }
 
   /**
-   * The reticle's rings at the view's centre, the three sizes of a Telrad finder or one the
+   * The reticle's rings at the view's centre, the three rings of 0.5°, 2° and 4° or one the
    * size of the eyepiece's field, and the guidance from them to the selected target.
    */
   private drawReticle(frame: Frame): void {

@@ -45,83 +45,134 @@
     </script>
   </head>
   <body>
+    <!-- A twinkling sky behind the page, and now and then a shooting star. Decoration only. -->
+    <div class="sky" aria-hidden="true">
+      <span class="stars far"></span>
+      <span class="stars near"></span>
+      <span class="shooting-star"></span>
+    </div>
+
     <header class="hero">
       <img class="logo" src="app/icons/icon-192x192.png" width="96" height="96" alt="" />
       <h1>AstroTurboMaxiSolver</h1>
+      <p class="subtitle">
+        Because AstroTurbo<wbr />Maxi<wbr />Solver<wbr />Mega<wbr />Finder<wbr />Pro<wbr />Plus was too long.
+      </p>
       <p class="tagline">
-        A telescope finder in your phone. It reads the stars to know where your telescope points, and guides you to your
-        target.
+        Your phone does the star-hopping, so you can enjoy the view. It reads the stars to know where your telescope
+        points, and guides you to your target.
       </p>
       <a class="button" href="app/">Open the app</a>
       <p class="facts">Free · Works offline · Android and iPhone</p>
     </header>
 
     <main>
-      <section class="screens" aria-label="Screens of the app">
-        <figure>
-          <img
-            src="images/guidance.jpg"
-            width="780"
-            height="1688"
-            loading="lazy"
-            alt="The sky map, with arrows pointing the way to the Andromeda Galaxy"
-          />
-          <figcaption>Arrows lead the way to your target</figcaption>
-        </figure>
-        <figure>
-          <img
-            src="images/eyepiece.jpg"
-            width="780"
-            height="1688"
-            loading="lazy"
-            alt="The eyepiece view, centred on the Great Hercules Cluster"
-          />
-          <figcaption>See what your eyepiece will show</figcaption>
-        </figure>
-        <figure>
-          <img
-            src="images/night.jpg"
-            width="780"
-            height="1688"
-            loading="lazy"
-            alt="The sky map in red night mode, on Saturn, with the menu open"
-          />
-          <figcaption>Red night mode keeps your eyes dark-adapted</figcaption>
-        </figure>
+      <!-- The app's screens, one after another: swipe, or use the arrows. -->
+      <section class="carousel" aria-label="Screens of the app">
+        <button type="button" class="carousel-arrow prev" aria-label="Previous screen">&#8249;</button>
+        <div class="carousel-track" tabindex="0">
+          <figure>
+            <img
+              src="images/guidance.jpg"
+              width="780"
+              height="1688"
+              loading="lazy"
+              alt="The sky map, with arrows pointing the way to the Andromeda Galaxy"
+            />
+            <figcaption>Follow the arrows. That's it.</figcaption>
+          </figure>
+          <figure>
+            <img
+              src="images/align.jpg"
+              width="780"
+              height="1688"
+              loading="lazy"
+              alt="Aligning the telescope: a list of the brightest stars to choose from"
+            />
+            <figcaption>Align once, on a bright star it picks for you</figcaption>
+          </figure>
+          <figure>
+            <img
+              src="images/eyepiece.jpg"
+              width="780"
+              height="1688"
+              loading="lazy"
+              alt="The eyepiece view, centred on the Great Hercules Cluster"
+            />
+            <figcaption>See what your eyepiece will show</figcaption>
+          </figure>
+          <figure>
+            <img
+              src="images/time.jpg"
+              width="780"
+              height="1688"
+              loading="lazy"
+              alt="The sky map with the time ruler, and clouds and seeing hour by hour"
+            />
+            <figcaption>Clouds and seeing, hour by hour</figcaption>
+          </figure>
+          <figure>
+            <img
+              src="images/lists.jpg"
+              width="780"
+              height="1688"
+              loading="lazy"
+              alt="The lists: best right now, in the reticle, your own lists and the observing log"
+            />
+            <figcaption>Lists for tonight, ready to go</figcaption>
+          </figure>
+          <figure>
+            <img
+              src="images/night.jpg"
+              width="780"
+              height="1688"
+              loading="lazy"
+              alt="The sky map in red night mode, on Saturn, with the menu open"
+            />
+            <figcaption>Red night mode. Your eyes will thank you.</figcaption>
+          </figure>
+        </div>
+        <button type="button" class="carousel-arrow next" aria-label="Next screen">&#8250;</button>
       </section>
 
       <section>
         <h2>What it does</h2>
         <ul class="features">
           <li>
-            <h3>Knows where you point</h3>
+            <h3>Follows your every move</h3>
             <p>
-              The phone's camera looks at the sky, finds the stars and works out where the telescope points: plate
-              solving, in your browser, with no internet needed.
+              Move the telescope and the phone's sensors move the map with it. Every plate solve from the camera
+              fine-tunes the position.
             </p>
           </li>
           <li>
-            <h3>Follows the telescope</h3>
-            <p>The motion sensors move the map as you move the telescope, and each plate solve corrects them.</p>
-          </li>
-          <li>
-            <h3>Guides you there</h3>
-            <p>Pick a target and follow the arrows until it is in the rings, then in your eyepiece.</p>
-          </li>
-          <li>
-            <h3>Lists for tonight</h3>
+            <h3>Knows where you're pointing</h3>
             <p>
-              Messier, Caldwell, NGC and IC objects, planets, double stars, and what is best right now. Keep your own
+              The camera looks up, spots the stars and works out where your telescope points. Sensor fusion and plate
+              solving, running right in your browser, even with no signal.
+            </p>
+          </li>
+          <li>
+            <h3>Takes you there</h3>
+            <p>Pick a target, follow the arrows, and there it is in the rings. Then in your eyepiece.</p>
+          </li>
+          <li>
+            <h3>Never runs out of targets</h3>
+            <p>
+              Messier, Caldwell, NGC and IC objects, planets, double stars, and what's best right now. Plus your own
               lists and an observing log.
             </p>
           </li>
           <li>
-            <h3>Two phones</h3>
-            <p>One phone on the telescope as the finder, another in your hand as the screen, linked directly.</p>
+            <h3>Old phone in a drawer?</h3>
+            <p>
+              Give it a new job: put it on the telescope as the finder, and use your own phone as the remote. Optional:
+              one phone is all you need.
+            </p>
           </li>
           <li>
             <h3>Made for city skies</h3>
-            <p>Designed to work under a bright city sky, with large text you can read at arm's length.</p>
+            <p>Built under a bright city sky, with big text you can read at arm's length, even without your glasses.</p>
           </li>
         </ul>
       </section>
@@ -131,30 +182,53 @@
         <ol class="steps">
           <li>Fix your phone to the telescope, with its camera looking at the sky.</li>
           <li>Align once: centre a bright star in the eyepiece and tap.</li>
-          <li>Choose a target and follow the arrows.</li>
+          <li>Pick a target, follow the arrows, and enjoy the view.</li>
         </ol>
         <p class="note">
-          Best on Android with Chrome. iPhone with Safari works too, with some limits. From the app, install it on your
-          home screen to use it full screen.
+          Best on Android with Chrome. It works on iPhone with Safari too, with a few limits. Install it from the app to
+          use it full screen.
         </p>
-        <p class="warning">Never point your telescope or your phone's camera at the Sun.</p>
+        <p class="warning">Never point your telescope or your phone's camera at the Sun. Seriously.</p>
+      </section>
+
+      <section class="faq">
+        <h2>Questions you may have</h2>
+        <details>
+          <summary>Is the name a joke?</summary>
+          <p>Yes. The app isn't.</p>
+        </details>
+        <details>
+          <summary>Do I need internet at the telescope?</summary>
+          <p>No. Open it once at home, and it works offline in the field.</p>
+        </details>
+        <details>
+          <summary>Will it work with my telescope?</summary>
+          <p>If you can fix a phone to it, yes. The phone's camera does the work, not the telescope's.</p>
+        </details>
+        <details>
+          <summary>How much does it cost?</summary>
+          <p>Nothing. No ads, and no account needed.</p>
+        </details>
       </section>
 
       <section class="about">
         <h2>About this project</h2>
         <p>
-          AstroTurboMaxiSolver is a personal project. It was built with vibe coding, describing to an AI what to build,
-          and it is the first project I have made this way. I find it useful at the telescope, so I wanted to share it
-          with other amateur astronomers.
+          AstroTurboMaxiSolver started as a personal project, a tool just for me. I built it quickly in my free time
+          with vibe coding, by describing to an AI what to build, and it's the first project I've made this way, so
+          expect some things to fail. I find it useful at the telescope, so I wanted to share it with other amateur
+          astronomers.
         </p>
-        <p>It will be released as open source soon.</p>
+        <p>I'm working towards releasing it as open source soon.</p>
         <p class="disclaimer">
-          It is provided as is, without any warranty. Positions and guidance may be wrong: check them before relying on
-          them.
+          It's provided as is, without any warranty. It's experimental, not production software, and it may never be.
         </p>
       </section>
 
-      <p class="cta"><a class="button" href="app/">Open the app</a></p>
+      <p class="cta">
+        <span class="cta-line">Clear skies!</span>
+        <a class="button" href="app/">Open the app</a>
+      </p>
     </main>
 
     <footer>
@@ -163,5 +237,25 @@
         NASA/JPL Small-Body Database and others. Full credits are in the app's Settings.
       </p>
     </footer>
+    <script>
+      // The carousel's arrows move one screen at a time, counting from the screen they last
+      // went to, so quick taps each move one even while it is still scrolling. Swiping works
+      // without this.
+      const track = document.querySelector('.carousel-track');
+      const screens = track.querySelectorAll('figure');
+      let current = 0;
+      const go = (by) => {
+        // Start from where a swipe left it, unless an arrow's scroll is still under way.
+        const step = screens[0].getBoundingClientRect().width + 24;
+        if (!track.dataset.moving) current = Math.round(track.scrollLeft / step);
+        current = Math.min(screens.length - 1, Math.max(0, current + by));
+        track.dataset.moving = '1';
+        screens[current].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        clearTimeout(go.timer);
+        go.timer = setTimeout(() => delete track.dataset.moving, 600);
+      };
+      document.querySelector('.carousel-arrow.prev').addEventListener('click', () => go(-1));
+      document.querySelector('.carousel-arrow.next').addEventListener('click', () => go(1));
+    </script>
   </body>
 </html>

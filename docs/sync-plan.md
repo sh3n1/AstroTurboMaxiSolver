@@ -130,9 +130,6 @@ new dependency (ask before adding one).
 | OneDrive | App folder (`approot`), visible | MSAL / PKCE; refresh tokens for single-page apps last about 24 hours | |
 | Google Drive | `appDataFolder`, hidden from the user | Google Identity Services gives one-hour tokens, no refresh token: needs a quiet re-sign-in | Names aren't unique in Drive: work with file ids |
 
-**Open:** which provider first. Dropbox is the simplest; Google Drive if most users are on
-Android.
-
 ## Why an address is needed (not a backend)
 
 Nothing runs on a server: sign-in uses PKCE (no client secret), and files go straight
@@ -140,27 +137,13 @@ between the device and the user's drive. But each provider only sends the sign-i
 **registered addresses**:
 
 - `http://localhost` is accepted by all three for development (to be confirmed for each).
-- A raw IP address such as `https://192.168.1.159:8443`, as the phones use now, is refused
-  by Google, and possibly by the others.
-- A real HTTPS hostname is accepted.
+- A raw IP address such as the PC's address on the home network is refused by Google, and
+  possibly by the others.
+- A real HTTPS hostname is accepted: the published site, `https://astroturbomaxisolver.app/app/`.
 
-Options for testing on phones without changing the "localhost only" hosting rule:
-
-1. **Android over USB:** Chrome's port forwarding (`chrome://inspect` → Port forwarding)
-   lets the phone open the PC's dev server as `localhost:8443`. No hosting at all. Not for
-   iPhones.
-2. **A tunnel with a fixed name**, while testing only, since it exposes the dev server:
-   - **Cloudflare named tunnel** (the same `cloudflared` as the quick tunnel used before):
-     free, but needs a domain of the user's on Cloudflare (about €10 a year). Recommended;
-     the same domain can later host the released PWA on Cloudflare Pages, as static files.
-   - **Tailscale Funnel:** free fixed `https://<machine>.<tailnet>.ts.net`, no domain needed.
-   - **ngrok** free static domain: shows a warning page in browsers first. Last choice.
-
-At release the PWA needs an HTTPS address anyway (static hosting, not a backend). While the
-app is in "testing" mode, Google only lets listed accounts sign in.
-
-**Open:** how to handle the redirect address for phone testing (USB forwarding, or a fixed
-tunnel and which).
+Phones test sync on the published site, or on Android through Chrome's USB port forwarding
+(`chrome://inspect` → Port forwarding), which opens the PC's dev server as `localhost:8443`.
+While the app is in "testing" mode, Google only lets listed accounts sign in.
 
 ## Decisions
 
@@ -169,7 +152,10 @@ tunnel and which).
   `http://localhost` for the dev server, so no tunnel is needed. The Google client id is
   public by design (sign-in uses PKCE or Google's token flow, with no secret), but it is still
   kept outside the code's logic as configuration, so the code doesn't depend on one account.
-
+- **Google sign-in** uses Google Identity Services' token flow, its script loaded from
+  `accounts.google.com` only when Drive is connected. Access lasts an hour and is kept in
+  memory only. After that, or after the app restarts, a tap renews it: Google's window opens
+  and closes by itself. No server, so no refresh tokens.
 - **Each device writes only its own changes**; readers merge every device's folder.
 - **Log entry conflicts keep both versions:** the losing one is kept and the entry is marked.
   Lists and kit just take the winner.
