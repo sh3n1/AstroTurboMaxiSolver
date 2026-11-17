@@ -8,6 +8,7 @@ import { APP_ICONS } from '../core/app-icons';
 import { AppState } from '../core/app-state.service';
 import { formatLocation } from '../core/astronomy';
 import { EyepiecePanelComponent } from '../core/eyepiece-panel.component';
+import { InstallNoticeComponent } from '../core/install-notice.component';
 import { LiveSolverService } from '../core/live-solver.service';
 import { MENU_TAP_GUARD_MS, MoreSheetComponent } from '../core/more-sheet.component';
 import { PointingReadoutComponent } from '../core/pointing-readout.component';
@@ -46,6 +47,7 @@ const MENU_IDLE_MS = 10_000;
     IonFabButton,
     IonIcon,
     EyepiecePanelComponent,
+    InstallNoticeComponent,
     MoreSheetComponent,
     PointingReadoutComponent,
     SkyCanvasComponent,
@@ -78,6 +80,8 @@ const MENU_IDLE_MS = 10_000;
 
         <!-- A finder phone linked to a screen phone shows only the map: nothing to tap by accident. -->
         @if (!state.finderMode()) {
+          <!-- Offers to install the app, until it is installed or turned down. -->
+          <app-install-notice />
           <!--
             Zoom, top right, shown with the menu. Not in the eyepiece view, where the eyepiece
             sets the field. Pinching zooms too.
