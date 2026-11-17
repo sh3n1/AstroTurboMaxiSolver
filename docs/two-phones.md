@@ -36,6 +36,8 @@ JSON over one reliable, ordered data channel (`remote-link.ts`):
 | Screen | `night` | Red night mode, on or off, so the finder's screen matches. |
 | Screen | `fullscreen` | Full screen, on or off, so the finder's screen matches. |
 | Screen | `target` | The target chosen, or null when cleared, so the finder's map guides to it too. Sent once linked, and on every change. |
+| Either | `pause` | The link is paused: each phone works on its own, and the link stays open underneath. Two phones offers Reconnect, which sends `resume` and needs no new codes. While paused, silence doesn't count as the link being lost. It lasts while both phones keep the app open. |
+| Either | `resume` | The paused link is back: each phone takes its part again, and the finder sends `hello`. |
 | Both | `alignment` | An alignment made or removed on either phone. |
 
 ## How the app uses it
@@ -54,7 +56,7 @@ JSON over one reliable, ordered data channel (`remote-link.ts`):
   - No buttons, no tab bar, and the map takes no touches, so nothing touched by accident
     changes what the screen shows. It also stays on the map, which automatic solving needs.
   - A band at the bottom, in the time band's place, says it is in remote mode. Its cross
-    ends the link.
+    pauses the link.
   - If its sensors aren't running, as when an iPhone needs a tap before it allows them, the
     band offers to start them.
   - Full screen follows the screen phone. Leaving it always works, but browsers only enter

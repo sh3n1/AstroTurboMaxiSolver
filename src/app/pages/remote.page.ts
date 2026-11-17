@@ -91,6 +91,23 @@ import { RemoteService } from '../core/remote.service';
           @case ('connected') {
             <p class="status">{{ remote.role() === 'finder' ? 'This phone is the finder' : 'Linked to the finder' }}</p>
             <ion-button expand="block" data-testid="remote-open-sky" (click)="openSky()">Sky map</ion-button>
+            <!-- Paused, each phone works alone, and the link resumes without new codes. -->
+            <ion-button expand="block" fill="outline" data-testid="remote-pause" (click)="remote.pause()">
+              Pause link
+            </ion-button>
+            <ion-button
+              expand="block"
+              fill="outline"
+              color="danger"
+              data-testid="remote-disconnect"
+              (click)="disconnect()"
+            >
+              Unlink
+            </ion-button>
+          }
+          @case ('paused') {
+            <p class="status">Link paused</p>
+            <ion-button expand="block" data-testid="remote-resume" (click)="remote.resume()">Reconnect</ion-button>
             <ion-button
               expand="block"
               fill="outline"

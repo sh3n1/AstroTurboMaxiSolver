@@ -157,13 +157,29 @@ test('links two phones: the screen follows the finder, and aligns through it', a
     .toBe('simulated');
   await screen.getByTestId('alignment-done').click();
 
-  // The cross on the finder's band ends remote mode: its own map and buttons come back,
-  // and the screen says the finder is gone, and gets its own sensors back.
+  // The cross on the finder's band pauses remote mode: its own map and buttons come back,
+  // and the screen gets its own sensors back, with no warning, since it was meant.
   await finder.getByTestId('finder-exit').click();
   await expect(band).toHaveCount(0);
   await expect(finder.getByTestId('open-menu')).toBeAttached();
-  await expect(screen.getByTestId('remote-toast')).toContainText('Finder phone disconnected', { timeout: 20_000 });
   await expect(await moreTile(screen, 'sensor-toggle')).toContainText('Use sensors');
+  await tapMore(screen, 'more-remote');
+  await expect(screen.getByTestId('remote-status')).toHaveAttribute('data-status', 'paused');
+  // Well past the time a silent finder would count as gone: paused, the link waits.
+  await screen.waitForTimeout(5000);
+  await expect(screen.getByTestId('remote-status')).toHaveAttribute('data-status', 'paused');
+  await expect(screen.getByTestId('remote-toast')).toHaveCount(0);
+
+  // Reconnect needs no codes: both phones are linked again, and the finder steers.
+  await screen.getByTestId('remote-resume').click();
+  await expect(screen).toHaveURL(/tabs\/sky/);
+  await expect(band).toBeVisible();
+  await expect(await moreTile(screen, 'sensor-toggle')).toContainText('Finder steers');
+
+  // Unlinking ends it for good: the finder says it is no longer linked.
+  await tapMore(screen, 'more-remote');
+  await screen.getByTestId('remote-disconnect').click();
+  await expect(band).toHaveCount(0, { timeout: 20_000 });
   await context.close();
 });
 

@@ -21,8 +21,15 @@ export interface RemoteSite {
 /** A plate solve attempt as the finder tells it, for the screen's toasts and log. */
 export type RemoteSolveEntry = Omit<SolveLogEntry, 'id' | 'at'> & { at: string };
 
+/**
+ * Either phone pauses the link, or resumes it. Paused, each phone works on its own, while
+ * the link stays open underneath, so it resumes without new codes.
+ */
+export type LinkMessage = { t: 'pause' } | { t: 'resume' };
+
 /** What the finder phone sends. */
 export type FinderMessage =
+  | LinkMessage
   /** Sent first, once the link is open. */
   | { t: 'hello'; alignment: Alignment | null; site: RemoteSite }
   /**
@@ -48,6 +55,7 @@ export type FinderMessage =
 
 /** What the screen phone sends. */
 export type ScreenMessage =
+  | LinkMessage
   /** Plate solve now: to align, or for a tap on the rings. */
   | { t: 'solveNow'; id: number; trigger: 'alignment' | 'tap' }
   /** An alignment made on the screen phone, for the finder to use. */
@@ -142,6 +150,8 @@ const MESSAGE_TYPES = new Set([
   'night',
   'fullscreen',
   'target',
+  'pause',
+  'resume',
 ]);
 
 /**

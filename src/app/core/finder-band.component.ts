@@ -80,7 +80,8 @@ import { SensorService } from './sensor.service';
           <span>Finder · tap to start sensors</span>
         </button>
       }
-      <ion-button fill="clear" data-testid="finder-exit" aria-label="Exit remote mode" (click)="remote.disconnect()">
+      <!-- Pauses rather than ends the link, so Two phones can reconnect it without new codes. -->
+      <ion-button fill="clear" data-testid="finder-exit" aria-label="Pause remote mode" (click)="remote.pause()">
         <ion-icon slot="icon-only" name="close" aria-hidden="true"></ion-icon>
       </ion-button>
     </div>
