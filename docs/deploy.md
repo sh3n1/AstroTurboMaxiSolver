@@ -11,6 +11,7 @@ moving to another one means only changing this computer's upload command.
 | --- | --- |
 | Serve over HTTPS | Browsers only give the camera and motion sensors to secure pages. |
 | Serve `index.html` for any address inside the app, such as `/tabs/sky` | The app has its own addresses. Reloading or opening one must load the app, not a "not found" page. |
+| Serve `/index.html` as itself, without redirecting it to `/` | The service worker downloads it to keep the app for offline use. With a redirect it keeps an incomplete app, which fails without a connection. |
 | Never cache `index.html`, `ngsw.json` or `ngsw-worker.js` for long (at most 10 minutes) | They name the current version. Kept longer, phones keep running an old version. |
 | Serve `manifest.webmanifest` as JSON | Browsers read it to offer installing the app. |
 
@@ -47,7 +48,8 @@ its account and the address stay on this computer.
 
 Keep any host's own configuration outside the project too. For Cloudflare, its
 `wrangler.jsonc` sets `assets.directory` to the full path of `www`, and
-`not_found_handling` to `single-page-application`, so addresses inside the app load it.
+`not_found_handling` to `single-page-application`, so addresses inside the app load it,
+and `html_handling` to `none`, so `/index.html` isn't redirected to `/`.
 Never run a host's tool in a way that lets it pick the folder or write files into the project:
 on 2026-11-17, `wrangler pages project create` wrote a config pointing at `src/` and
 published the source code, until it was taken down. The checks below now look for that.
