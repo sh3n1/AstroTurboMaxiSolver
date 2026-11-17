@@ -13,7 +13,6 @@ import {
   Equator,
   Horizon,
   Illumination,
-  InverseRefraction,
   Observer,
   Refraction,
   Rotation_EQJ_HOR,
@@ -109,9 +108,29 @@ export function refract(v: Vector3): Vector3 {
   return raiseBy(v, Refraction(REFRACTION, vectorToHorizontal(v).altDeg));
 }
 
+/**
+ * How far below where it appears something really is, in degrees (negative): the lift of
+ * the air undone, for a height as it appears.
+ *
+ * The app's own, in place of astronomy-engine's InverseRefraction, which closes in on the
+ * answer the same way but only stops within 1e-14 of a degree. Numbers beyond ±64 can't be
+ * told apart that finely, so for about one height in a thousand deep below the horizon it
+ * stepped between two neighbours for ever, and froze the app while a list worked out when
+ * its objects rise. This stops at a billionth of a degree, or after a few steps anyway.
+ */
+export function inverseRefractionDeg(apparentAltDeg: number): number {
+  let altDeg = apparentAltDeg - Refraction(REFRACTION, apparentAltDeg);
+  for (let step = 0; step < 20; step++) {
+    const error = altDeg + Refraction(REFRACTION, altDeg) - apparentAltDeg;
+    if (Math.abs(error) < 1e-9) break;
+    altDeg -= error;
+  }
+  return altDeg - apparentAltDeg;
+}
+
 /** The real direction of something that appears at a local direction: refract() undone. */
 export function unrefract(v: Vector3): Vector3 {
-  return raiseBy(v, InverseRefraction(REFRACTION, vectorToHorizontal(v).altDeg));
+  return raiseBy(v, inverseRefractionDeg(vectorToHorizontal(v).altDeg));
 }
 
 /** A J2000 direction turned to where it appears in the local sky, using a rotation from skyRotation. */
@@ -264,7 +283,7 @@ const SKY_TURN_DEG_PER_HOUR = 360 / 23.9345;
  * The real height of something that appears exactly on the horizon: just below it,
  * since the air lifts it by about half a degree there.
  */
-const HORIZON_REAL_ALT_DEG = InverseRefraction(REFRACTION, 0);
+const HORIZON_REAL_ALT_DEG = inverseRefractionDeg(0);
 
 /**
  * Hours until an object fixed among the stars rises above the horizon, from where it
