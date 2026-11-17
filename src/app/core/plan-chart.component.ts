@@ -135,7 +135,7 @@ interface PlanLine {
         text-anchor="end"
         font-size="13"
         fill="var(--af-muted)"
-        stroke="#0a0e1a"
+        stroke="var(--af-ink)"
         stroke-width="3"
         paint-order="stroke"
       >
@@ -167,7 +167,7 @@ interface PlanLine {
               font-size="12"
               font-weight="700"
               [attr.fill]="line.colour"
-              stroke="#0a0e1a"
+              stroke="var(--af-ink)"
               stroke-width="3"
               paint-order="stroke"
             >

@@ -4,6 +4,7 @@
 
 import type { Vector3 } from '../astronomy';
 import type { Target } from '../targets';
+import { THEME } from '../theme';
 
 /**
  * The three views the view button steps through, in this order: the sky map with the
@@ -64,19 +65,19 @@ export const BELOW_HORIZON_OPACITY = 0.35;
 // The app's own colours for its sky map and guidance. Night mode turns everything red by
 // brightness, so its faint lines and greys are brightened there to stay visible.
 const DAY_COLOR = {
-  sky: '#05070f',
+  sky: THEME.sky,
   grid: '#141c2e',
   constellationLine: '#2a4170',
   constellationName: '#55709f',
   horizon: '#3f8f6a',
-  cardinal: '#6fcf9f',
-  reticle: '#e5484d',
-  onTarget: '#6fcf9f',
+  cardinal: THEME.success,
+  reticle: THEME.danger,
+  onTarget: THEME.success,
   /** The guidance chevrons and line. The selected target itself is marked in onTarget green. */
-  guide: '#a9cbff',
-  deepSky: '#8fb7ff',
+  guide: THEME.guidance,
+  deepSky: THEME.primary,
   solarSystem: '#ffd479',
-  starLabel: '#a8b0c6',
+  starLabel: THEME.muted,
   sizeCircle: '#4c6aa6',
 };
 const NIGHT_COLOR: typeof DAY_COLOR = {
@@ -84,8 +85,8 @@ const NIGHT_COLOR: typeof DAY_COLOR = {
   grid: '#2a3550',
   constellationLine: '#4f6fae',
   constellationName: '#b4c6e8',
-  horizon: '#6fcf9f',
-  starLabel: '#e8ebf5',
+  horizon: THEME.success,
+  starLabel: THEME.text,
   sizeCircle: '#7f9bd2',
   reticle: '#ffb3b3',
 };

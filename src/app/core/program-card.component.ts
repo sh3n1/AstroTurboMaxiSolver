@@ -32,9 +32,9 @@ const read = signal(loadRead());
     :host {
       display: block;
       margin: 12px 16px 4px;
-      border: 1px solid #232a3d;
+      border: 1px solid var(--af-edge);
       border-radius: 12px;
-      background: #0d1220;
+      background: var(--af-surface);
       color: var(--af-text);
     }
     .head {

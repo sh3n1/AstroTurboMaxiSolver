@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+import { THEME, THEME_VARIABLES } from '../src/app/core/theme';
+
 import { openMenu, openPage, tapMore } from './navigation';
 
 // The sky map itself and the settings that change how the app looks.
@@ -273,4 +275,16 @@ test('lays out for a phone on its side: the map full screen, and big buttons tha
   // The ruler shares its line with the day and the buttons.
   const now = await box('[data-testid=time-now]');
   expect(ruler.x).toBeGreaterThan(now.x);
+});
+
+test('draws its canvases in the same colours as the theme', async ({ page }) => {
+  // The canvases take their colours from code, the rest of the app from CSS variables.
+  await page.goto('/tabs/sky');
+  for (const [name, variable] of Object.entries(THEME_VARIABLES)) {
+    const value = await page.evaluate(
+      (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim(),
+      variable,
+    );
+    expect(value, variable).toBe(THEME[name as keyof typeof THEME]);
+  }
 });

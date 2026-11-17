@@ -78,7 +78,7 @@ import type { Target } from './targets';
     }
     /* At night the green would turn a dull dark red: white turns full-strength red instead. */
     :host-context(html.night) .bar-buttons .seen {
-      --color: #ffffff;
+      --color: var(--af-bright);
     }
     /*
      * The eye's count sits on the eye's bottom right corner, as in the lists, so the button
@@ -92,7 +92,7 @@ import type { Target } from './targets';
     .eye .af-count {
       left: calc(50% + 6px);
       top: calc(50% + 1px);
-      --af-count-edge: #0a0e1c;
+      --af-count-edge: rgb(var(--af-overlay-rgb));
     }
     /* Each part of a line wraps as a whole, never in the middle, like "below the horizon". */
     .keep {
@@ -151,7 +151,7 @@ import type { Target } from './targets';
         z-index: 1;
         margin-top: -6px;
         padding-top: 4px;
-        background: #0a0e1c;
+        background: rgb(var(--af-overlay-rgb));
       }
       /* Open, the details take the room the panel has, and scroll inside it. */
       :host(.detailed) > .bar-row {

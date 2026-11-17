@@ -23,13 +23,14 @@ import {
   snapToStep,
   timeAfterDrag,
 } from './planning-time';
+import { THEME } from './theme';
 
 /** Formats the forecast's download time. */
 const TIME_PIPE = new LocalTimePipe();
 /** The ruler's scale: an hour is about a finger's width and a half. */
 const PX_PER_HOUR = 72;
 /** A dark edge around the labels and the marker, so they stand out on the bright day too. */
-const EDGE_COLOUR = '#0a0e1a';
+const EDGE_COLOUR = THEME.ink;
 /** How finely the ruler checks where the Sun is, in minutes. */
 const SHADE_STEP_MINUTES = 10;
 /** The ruler's height, and each forecast row's, before the text size scales them. */
@@ -63,7 +64,7 @@ const SEEING_COLOURS: Record<SeeingQuality, string> = {
   styles: `
     :host {
       display: block;
-      background: rgb(13 18 32 / 94%);
+      background: rgb(var(--af-surface-rgb) / 94%);
       color: var(--af-text);
     }
     /*
@@ -173,8 +174,8 @@ const SEEING_COLOURS: Record<SeeingQuality, string> = {
       align-items: center;
       justify-content: center;
       width: calc(34px * var(--af-scale));
-      background: #0d1220;
-      border-right: 1px solid #232a3d;
+      background: var(--af-surface);
+      border-right: 1px solid var(--af-edge);
       pointer-events: none;
     }
     .row-label ion-icon {
@@ -496,8 +497,8 @@ export class TimeControlComponent {
 
     // Ticks and labels, in the phone's own clock format.
     const style = getComputedStyle(canvas);
-    const text = style.getPropertyValue('--af-text').trim() || '#e8ebf5';
-    const accent = style.getPropertyValue('--ion-color-primary').trim() || '#8fb7ff';
+    const text = style.getPropertyValue('--af-text').trim() || THEME.text;
+    const accent = style.getPropertyValue('--ion-color-primary').trim() || THEME.primary;
     const scale = this.state.textScale();
     ctx.strokeStyle = text;
     ctx.fillStyle = text;
@@ -579,7 +580,7 @@ export class TimeControlComponent {
         ctx.fillStyle = `rgb(${r} ${g} ${b})`;
         ctx.fillRect(left, top, pxPerHour + 0.5, row - 1);
         // Dark figures on light cloud, light ones on clear sky.
-        ctx.fillStyle = share > 0.55 ? '#0a0e1a' : text;
+        ctx.fillStyle = share > 0.55 ? THEME.ink : text;
         const label = `${Math.round(cell.cloudPercent)}%`;
         if (fits(label, middle)) ctx.fillText(label, middle, top + row / 2);
       }

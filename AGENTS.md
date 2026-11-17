@@ -111,6 +111,7 @@ Keep on-screen text short. Don't over-explain: say what matters in a few words, 
 
 - Code style: Clean code, kiss, dont reinvent the wheel, human readable, very commented
 - File size: aim for under 500 lines a file, and never grow one past 800. Before adding to a big file, split it: logic into plain functions in their own files, parts of a screen into their own components. `docs/sky-page-split.md` shows how `sky.page.ts` was split.
+- Colours: use the `--af-*` variables in `src/theme/variables.scss`, never a colour written out in a component. Canvases take theirs from `src/app/core/theme.ts`, which repeats a few of the variables and is checked against them by an end-to-end test.
 - Naming: Angular defaults
 - Testing expectations: Unit tests for astronomy, solver and fusion logic. End-to-end tests for main flows.
 - Dependencies: Ask before adding one. Prefer a well-maintained, permissively licensed library over custom code.

@@ -20,7 +20,7 @@ import { PlaylistService } from './playlist.service';
       display: flex;
       align-items: center;
       margin: -2px 0 4px -8px;
-      border-bottom: 1px solid #232a3d;
+      border-bottom: 1px solid var(--af-edge);
     }
     /* Big enough to find in the dark at arm's length. */
     .step {

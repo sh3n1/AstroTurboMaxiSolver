@@ -30,7 +30,7 @@ const COUNTDOWN_SECONDS = 5;
     .result {
       margin: 12px 0;
       padding: 10px 12px;
-      border: 1px solid #232a3d;
+      border: 1px solid var(--af-edge);
       border-radius: 10px;
       font-size: calc(15px * var(--af-scale, 1));
     }

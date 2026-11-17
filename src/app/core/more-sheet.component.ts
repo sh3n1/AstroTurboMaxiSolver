@@ -51,9 +51,9 @@ export interface ViewTile {
       grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
       gap: 8px;
       padding: 10px;
-      border: 1px solid #232a3d;
+      border: 1px solid var(--af-edge);
       border-radius: 16px;
-      background: rgb(10 14 28 / 97%);
+      background: rgb(var(--af-overlay-rgb) / 97%);
     }
     .tile {
       display: flex;
@@ -63,7 +63,7 @@ export interface ViewTile {
       gap: 6px;
       min-height: 84px;
       padding: 8px;
-      border: 1px solid #232a3d;
+      border: 1px solid var(--af-edge);
       border-radius: 12px;
       background: #141a2c;
       color: var(--af-text);
@@ -88,7 +88,7 @@ export interface ViewTile {
       background: #6b6b6b;
     }
     :host-context(html.night) .tile.good ion-icon {
-      color: #ffffff;
+      color: var(--af-bright);
     }
     /* A switch that is on, such as night mode, has a lit frame. */
     .tile[aria-pressed='true'] {
