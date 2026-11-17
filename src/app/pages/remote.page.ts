@@ -1,5 +1,5 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
 import {
   IonBackButton,
@@ -218,9 +218,13 @@ export class RemotePage {
 
   constructor() {
     addIcons({ phonePortraitOutline, scanOutline, telescopeOutline });
-    // Linked: both phones go to the map, the finder to solve, the screen to guide.
+    // Linked just now: both phones go to the map, the finder to solve, the screen to guide.
+    // Opened while already linked, the page stays, to pause or unlink.
+    let wasConnected = untracked(() => this.connected());
     effect(() => {
-      if (this.connected()) this.openSky();
+      const connected = this.connected();
+      if (connected && !wasConnected) this.openSky();
+      wasConnected = connected;
     });
   }
 

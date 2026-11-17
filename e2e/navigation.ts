@@ -44,7 +44,8 @@ export async function openPage(page: Page, name: MainPage): Promise<void> {
 export async function openMenu(page: Page): Promise<void> {
   if (await page.getByTestId('more-sheet').isVisible()) return;
   await page.getByTestId('open-menu').dispatchEvent('click');
-  await page.getByTestId('more-sheet').waitFor();
+  // Its tiles take taps a moment after it appears, so a double tap can't hit one by accident.
+  await page.locator('[data-testid=more-sheet][data-ready=true]').waitFor();
 }
 
 /** Closes the sky map's menu with a tap on the map, away from the rings, as a user would. */

@@ -1,4 +1,14 @@
-import { ChangeDetectionStrategy, Component, inject, input, output } from '@angular/core';
+import type { ElementRef, OnDestroy } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  afterNextRender,
+  inject,
+  input,
+  output,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { Router } from '@angular/router';
 import { IonIcon, IonTabs } from '@ionic/angular';
 import { addIcons } from 'ionicons';
@@ -18,6 +28,14 @@ import { isIconUrl } from './app-icons';
 import { AppState } from './app-state.service';
 import { FullscreenService } from './fullscreen.service';
 import { SensorService } from './sensor.service';
+
+/**
+ * Taps on the tiles do nothing for this long after the menu appears. The tap that opened
+ * it, or a second one a moment later, often lands where a tile has just appeared, which
+ * would switch something on by accident. Longer than a double tap, short enough not to
+ * be noticed by someone who means to tap a tile.
+ */
+export const MENU_TAP_GUARD_MS = 450;
 
 /** The view the view tile switches to: its icon, an Ionic name or an image URL, and its name. */
 export interface ViewTile {
@@ -54,6 +72,13 @@ export interface ViewTile {
       border: 1px solid var(--af-edge);
       border-radius: 16px;
       background: rgb(var(--af-overlay-rgb) / 97%);
+      /* It fades in, so a tap meant for the map isn't taken for one on a tile it never saw. */
+      animation: appear 150ms ease-out;
+    }
+    @keyframes appear {
+      from {
+        opacity: 0;
+      }
     }
     .tile {
       display: flex;
@@ -96,7 +121,7 @@ export interface ViewTile {
     }
   `,
   template: `
-    <div class="sheet" data-testid="more-sheet" role="group" aria-label="Menu">
+    <div #sheet class="sheet" data-testid="more-sheet" role="group" aria-label="Menu" [attr.data-ready]="ready()">
       <!--
         Green while the motion sensors steer the view. On a screen phone, the finder phone
         on the telescope steers it, and this opens the link.
@@ -187,7 +212,7 @@ export interface ViewTile {
     </div>
   `,
 })
-export class MoreSheetComponent {
+export class MoreSheetComponent implements OnDestroy {
   /** The view on show, for tests, and the one the view tile switches to. */
   readonly mode = input.required<string>();
   readonly view = input.required<ViewTile>();
@@ -204,6 +229,11 @@ export class MoreSheetComponent {
   /** The tabs holding the pages, which remember where each was left. */
   private readonly tabs = inject(IonTabs, { optional: true });
 
+  /** False just after the menu appears, while taps on its tiles are ignored: see MENU_TAP_GUARD_MS. */
+  protected readonly ready = signal(false);
+  private readonly sheet = viewChild.required<ElementRef<HTMLElement>>('sheet');
+  private readyTimer?: ReturnType<typeof setTimeout>;
+
   constructor() {
     addIcons({
       compassOutline,
@@ -216,6 +246,24 @@ export class MoreSheetComponent {
       settingsOutline,
       timeOutline,
     });
+    afterNextRender(() => {
+      this.readyTimer = setTimeout(() => this.ready.set(true), MENU_TAP_GUARD_MS);
+      // Caught on the way down, before any tile hears it, and stopped there. The sheet still
+      // takes the tap, so it doesn't fall through to the map and close the menu.
+      this.sheet().nativeElement.addEventListener(
+        'click',
+        (event) => {
+          if (this.ready()) return;
+          event.stopPropagation();
+          event.preventDefault();
+        },
+        true,
+      );
+    });
+  }
+
+  ngOnDestroy(): void {
+    clearTimeout(this.readyTimer);
   }
 
   protected go(url: string): void {

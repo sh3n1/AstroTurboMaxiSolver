@@ -15,7 +15,8 @@ test('visits the app root url', async ({ page }) => {
   await expect(page.getByTestId('more-sheet')).toBeVisible();
   await expect(page.getByTestId('more-sheet').getByTestId('open-lists')).toBeVisible();
   await expect(page.locator('app-sky .zoom')).not.toHaveClass(/faded/);
-  // Another tap on the map closes it, and so does a while without a touch.
+  // Another tap on the map closes it, once it has been up a moment, and so does a while without a touch.
+  await expect(page.locator('[data-testid=more-sheet][data-ready=true]')).toBeAttached();
   await page.locator('app-sky canvas').click({ position: { x: 20, y: 120 } });
   await expect(page.getByTestId('more-sheet')).toHaveCount(0);
   await expect(page.locator('app-sky .zoom')).toHaveClass(/faded/);
@@ -287,4 +288,23 @@ test('draws its canvases in the same colours as the theme', async ({ page }) => 
     );
     expect(value, variable).toBe(THEME[name as keyof typeof THEME]);
   }
+});
+
+test('ignores a double tap on the map that lands on a tile as the menu appears', async ({ page }) => {
+  await page.goto('/');
+  // Where the night tile appears, found with the menu open, then closed again.
+  await openMenu(page);
+  const tile = (await page.getByTestId('more-sheet').getByTestId('night-toggle').boundingBox())!;
+  await page.locator('app-sky canvas').click({ position: { x: 20, y: 120 } });
+  await expect(page.getByTestId('more-sheet')).toHaveCount(0);
+
+  // A double tap there: the first opens the menu, the second lands on the tile and is ignored.
+  await page.mouse.dblclick(tile.x + tile.width / 2, tile.y + tile.height / 2);
+  await expect(page.getByTestId('more-sheet')).toBeVisible();
+  await expect(page.locator('html')).not.toHaveClass(/night/);
+
+  // A moment later the tile works.
+  await expect(page.locator('[data-testid=more-sheet][data-ready=true]')).toBeAttached();
+  await page.mouse.click(tile.x + tile.width / 2, tile.y + tile.height / 2);
+  await expect(page.locator('html')).toHaveClass(/night/);
 });

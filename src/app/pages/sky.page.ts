@@ -9,7 +9,7 @@ import { AppState } from '../core/app-state.service';
 import { formatLocation } from '../core/astronomy';
 import { EyepiecePanelComponent } from '../core/eyepiece-panel.component';
 import { LiveSolverService } from '../core/live-solver.service';
-import { MoreSheetComponent } from '../core/more-sheet.component';
+import { MENU_TAP_GUARD_MS, MoreSheetComponent } from '../core/more-sheet.component';
 import { PointingReadoutComponent } from '../core/pointing-readout.component';
 import { SensorService } from '../core/sensor.service';
 import { isShutterPress } from '../core/shutter-remote';
@@ -198,6 +198,8 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   protected readonly solvingHere = signal(false);
   /** Whether the menu is open. */
   protected readonly moreOpen = signal(false);
+  /** When it opened, so a double tap on the map doesn't close it again at once. */
+  private menuOpenedAt = 0;
   /** Closes the menu after a while without a touch: see MENU_IDLE_MS. */
   private idleTimer?: ReturnType<typeof setTimeout>;
   /** A shutter remote's press plate solves: see shutterPressed. */
@@ -284,6 +286,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   /** Opens the menu, for its while: see wake. */
   protected openMenu(): void {
     this.moreOpen.set(true);
+    this.menuOpenedAt = performance.now();
     this.wake();
   }
 
@@ -305,6 +308,8 @@ export class SkyPage implements AfterViewInit, OnDestroy {
 
   /** A tap on the map, away from the rings, opens the menu or closes it. */
   protected toggleMenu(): void {
+    // A second tap straight after the one that opened it is a double tap, not a close.
+    if (this.moreOpen() && performance.now() - this.menuOpenedAt < MENU_TAP_GUARD_MS) return;
     if (this.moreOpen()) this.moreOpen.set(false);
     else this.openMenu();
   }
