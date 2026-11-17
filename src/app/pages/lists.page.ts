@@ -286,7 +286,7 @@ export class ListsPage {
     const file = input.files?.[0];
     // Clear the choice, so picking the same file again still imports it.
     input.value = '';
-    if (file) this.importText(await file.text(), file.name);
+    if (file) await this.importText(await file.text(), file.name);
   }
 
   /** For lists shared as text, which some phones do instead of sharing a file. */
@@ -297,7 +297,7 @@ export class ListsPage {
       inputs: [{ name: 'text', type: 'textarea', placeholder: '{ "format": "astroturbomaxisolver-lists", … }' }],
       buttons: [
         { text: 'Cancel', role: 'cancel' },
-        { text: 'Import', handler: ({ text }: { text: string }) => this.importText(text) },
+        { text: 'Import', handler: ({ text }: { text: string }) => void this.importText(text) },
       ],
     });
     await alert.present();
@@ -307,9 +307,9 @@ export class ListsPage {
    * Imports the app's own list files, SkySafari .skylist files, and CSV or plain text from
    * other apps. Objects the app doesn't know are named, so the user knows what is missing.
    */
-  private importText(text: string, fileName = 'Pasted list'): void {
+  private async importText(text: string, fileName = 'Pasted list'): Promise<void> {
     try {
-      const { lists, missing } = this.lists.import(text, fileName);
+      const { lists, missing } = await this.lists.import(text, fileName);
       const imported = lists === 1 ? 'Imported 1 list' : `Imported ${lists} lists`;
       // Longer when it names what is missing, to give time to read it.
       if (missing.length === 0) void this.toast(imported);

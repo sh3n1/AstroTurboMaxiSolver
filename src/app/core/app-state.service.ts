@@ -1,5 +1,6 @@
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
 
+import type { AlignmentSync } from './alignment-sync';
 import type { Horizontal, Vector3 } from './astronomy';
 import {
   equatorialToHorizontal,
@@ -100,6 +101,10 @@ export interface Alignment {
   offset: Vector3; // The telescope's direction in the camera's axes
   /** Missing on alignments saved before plate solving existed, which used the sensors. */
   method?: AlignmentMethod;
+  /** Where the telescope pointed when aligned. Missing on alignments saved before syncs. */
+  position?: Horizontal;
+  /** Corrections made since, each with a target centred in the eyepiece: see alignment-sync.ts. */
+  syncs?: AlignmentSync[];
 }
 
 // Starts with no location of its own, and a common beginner telescope and eyepiece.
@@ -244,6 +249,8 @@ export class AppState {
   private readonly catalog = this.loader.catalog;
   /** The Caldwell catalogue, which adds its numbers to NGC and IC objects. Null until loaded. */
   private readonly caldwell = this.loader.caldwell;
+  /** Resolves once every catalogue file is in, not just the brightest objects. */
+  readonly catalogComplete = this.loader.whenComplete;
 
   /**
    * The catalogue objects with their Caldwell numbers, plus the Caldwell objects that

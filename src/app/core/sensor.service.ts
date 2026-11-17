@@ -1,6 +1,7 @@
 import { computed, Injectable, effect, inject, signal, untracked } from '@angular/core';
 
 import { telescopePointing } from './alignment';
+import { offsetFor } from './alignment-sync';
 import { AppState } from './app-state.service';
 import { viewRollDeg } from './astronomy';
 import type { Quaternion } from './attitude';
@@ -235,6 +236,7 @@ export class SensorService {
     // on its side, so up on the map stays up on the screen.
     this.state.viewRollDeg.set(viewRollDeg(camera, screenUpDirection(attitude, screenAngleDeg())));
     const alignment = this.state.alignment();
-    this.state.pointing.set(alignment ? telescopePointing(camera, alignment.offset) : camera);
+    // The alignment, corrected by any syncs near where the camera points.
+    this.state.pointing.set(alignment ? telescopePointing(camera, offsetFor(alignment, camera, new Date())) : camera);
   }
 }

@@ -26,6 +26,13 @@ export class CatalogLoaderService {
   readonly caldwell = signal<CaldwellData | null>(null);
   /** True once the whole catalogue is in, so the brightest objects alone don't replace it. */
   private complete = false;
+  /** Resolves once the whole catalogue is in: see whenComplete. */
+  private markComplete: () => void = () => undefined;
+  /**
+   * Resolves once the whole catalogue is in, for work that must see every object, such as
+   * importing a list, which would otherwise call NGC objects missing in the first seconds.
+   */
+  readonly whenComplete = new Promise<void>((resolve) => (this.markComplete = resolve));
 
   constructor() {
     const folderUrl = new URL('assets/data/', document.baseURI).href;
@@ -60,6 +67,7 @@ export class CatalogLoaderService {
   private finish(catalog: Target[]): void {
     this.complete = true;
     this.catalog.set(catalog);
+    this.markComplete();
   }
 
   /** Loads the Caldwell list. Without it, everything still works, just without Caldwell numbers. */

@@ -68,10 +68,23 @@ describe('link messages', () => {
     expect(entry.at).toBe('2026-11-15T22:00:00.000Z');
   });
 
-  it('tells alignments apart by when they were made', () => {
+  it('tells alignments apart by when they were made, and by their latest sync', () => {
     expect(alignmentKey(null)).toBe('none');
-    expect(
-      alignmentKey({ starId: 'Vega', alignedAt: '2026-11-15T22:00:00.000Z', mount: 'direct', offset: [0, 0, 1] }),
-    ).toBe('2026-11-15T22:00:00.000Z');
+    const aligned = {
+      starId: 'Vega',
+      alignedAt: '2026-11-15T22:00:00.000Z',
+      mount: 'direct',
+      offset: [0, 0, 1],
+    } as const;
+    const synced = {
+      ...aligned,
+      syncs: [{ telescope: { altDeg: 40, azDeg: 90 }, offset: [0, 0, 1], at: '2026-11-15T22:30:00.000Z' }],
+    } as const;
+    expect(alignmentKey({ ...aligned, offset: [0, 0, 1] })).not.toBe(
+      alignmentKey({ ...aligned, alignedAt: 'later', offset: [0, 0, 1] }),
+    );
+    expect(alignmentKey({ ...aligned, offset: [0, 0, 1] })).not.toBe(
+      alignmentKey({ ...synced, offset: [0, 0, 1], syncs: [{ ...synced.syncs[0], offset: [0, 0, 1] }] }),
+    );
   });
 });

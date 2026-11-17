@@ -579,11 +579,14 @@ export class AlignPage {
   private save(camera: Horizontal, method: AlignmentMethod): void {
     const star = this.chosen();
     if (!star) return;
+    const position = this.state.positionOf(star);
+    // A new alignment starts without syncs: they measured the camera as it sat before.
     this.state.alignment.set({
       starId: star.id,
       alignedAt: new Date().toISOString(),
       mount: this.state.settings().mount,
-      offset: cameraOffset(camera, this.state.positionOf(star)),
+      offset: cameraOffset(camera, position),
+      position,
       method,
     });
     this.step.set('done');

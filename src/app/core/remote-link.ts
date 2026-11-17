@@ -163,5 +163,6 @@ export function toRemoteEntry({ id: _id, at, ...entry }: SolveLogEntry): RemoteS
   return { ...entry, at: at.toISOString() };
 }
 
-/** A key for an alignment, to tell whether the other phone already has it. */
-export const alignmentKey = (alignment: Alignment | null): string => alignment?.alignedAt ?? 'none';
+/** A key for an alignment, to tell whether the other phone already has it, syncs included. */
+export const alignmentKey = (alignment: Alignment | null): string =>
+  alignment ? `${alignment.alignedAt}/${alignment.syncs?.at(-1)?.at ?? ''}` : 'none';
