@@ -281,6 +281,22 @@ ion-modal.day-picker-modal .ion-page {
   display: block;
   contain: content;
 }
+/* The steps to install on an iPhone: a card as tall as its steps, like the day picker. */
+ion-modal.install-steps-modal {
+  --width: min(420px, calc(100% - 32px));
+  --height: auto;
+  --border-radius: 16px;
+  --background: var(--af-card);
+  --backdrop-opacity: 0.55;
+}
+ion-modal.install-steps-modal .ion-page {
+  position: relative;
+  display: block;
+  contain: content;
+}
+ion-modal.install-steps-modal::part(content) {
+  border: 1px solid rgb(255 255 255 / 12%);
+}
 ion-modal.day-picker-modal::part(content) {
   border: 1px solid rgb(255 255 255 / 12%);
 }

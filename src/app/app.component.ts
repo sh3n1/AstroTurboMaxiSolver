@@ -1,6 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { IonApp, IonRouterOutlet } from '@ionic/angular';
 
+import { InstallService } from './core/install.service';
 import { ScreenWakeService } from './core/screen-wake.service';
 
 @Component({
@@ -12,5 +13,7 @@ export class AppComponent {
   constructor() {
     // Starts keeping the screen on, following the setting, for the whole app.
     inject(ScreenWakeService);
+    // Listens from the start for the browser's offer to install, which comes early.
+    inject(InstallService);
   }
 }
