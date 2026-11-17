@@ -77,7 +77,8 @@ It runs, in order, stopping at the first failure:
 2. The build, which also writes `assets/build-info.json`: the version, the git commit, and
    when it was built.
 3. The upload command.
-4. With a `url`, the hosting checks (`scripts/check-deploy.mjs`), including that none of
+4. With a `url`, after waiting 30 seconds for the host to finish switching versions, the
+   hosting checks (`scripts/check-deploy.mjs`), including that none of
    the project's own files, such as its source code, can be read there. Then the PWA end-to-end
    tests against the published copy: it loads, installs its service worker, and works
    offline. A site kept private behind a login can't be checked this way: leave `url` out.
