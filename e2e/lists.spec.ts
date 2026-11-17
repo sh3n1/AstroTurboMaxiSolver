@@ -31,46 +31,21 @@ test('shows the Best right now collection, and the Messier and Caldwell catalogu
   await expect(catalogues.locator('[data-testid=list-link]', { hasText: 'Caldwell' }).locator('ion-badge')).toHaveText(
     '110',
   );
-  // Two objects are listed under two NGC numbers each, and get a row for each.
   await expect(
-    catalogues.locator('[data-testid=list-link]', { hasText: 'Herschel 400' }).locator('ion-badge'),
-  ).toHaveText('400');
-  await expect(
-    catalogues.locator('[data-testid=list-link]', { hasText: 'Herschel II' }).locator('ion-badge'),
-  ).toHaveText('400');
-  // 111 rows: the Double Cluster's two halves each have one.
-  await expect(
-    catalogues.locator('[data-testid=list-link]', { hasText: 'SAC 110 Best NGC' }).locator('ion-badge'),
-  ).toHaveText('111');
-  for (const [name, count] of [
-    ['Explore the Universe', '45'],
-    ['Urban', '87'],
-    ['ASSA Top-100', '100'],
-  ]) {
-    await expect(catalogues.locator('[data-testid=list-link]', { hasText: name }).locator('ion-badge')).toHaveText(
-      count,
-    );
+    catalogues.locator('[data-testid=list-link]', { hasText: 'ASSA Top-100' }).locator('ion-badge'),
+  ).toHaveText('100');
+  // The lists whose publishers reserve all rights are hidden for now, and so are their credits.
+  for (const name of ['Herschel', 'SAC 110', 'Explore the Universe', 'Urban']) {
+    await expect(catalogues.locator('[data-testid=list-link]', { hasText: name })).toHaveCount(0);
   }
-
-  // The RASC Finest NGC opens a page of its seasons: 110 objects and 7 companions.
-  await page.locator('[data-testid=catalogue-group-link]', { hasText: 'RASC Finest NGC' }).click();
-  const seasons = page.locator('app-catalogues', { has: page.locator('ion-title', { hasText: 'RASC Finest NGC' }) });
-  for (const [season, count] of [
-    ['Autumn sky', '23'],
-    ['Winter sky', '18'],
-    ['Spring sky', '54'],
-    ['Summer sky', '22'],
-  ]) {
-    await expect(seasons.locator('[data-testid=list-link]', { hasText: season }).locator('ion-badge')).toHaveText(
-      count,
-    );
+  for (const group of ['RASC Finest NGC', 'RASC Deep-Sky Gems']) {
+    await expect(catalogues.locator('[data-testid=catalogue-group-link]', { hasText: group })).toHaveCount(0);
   }
   await page.goto('/tabs/lists');
   await expect(listLink(page, 'Saved for later')).toBeVisible();
 
   // Each split catalogue has its own page of lists.
   for (const [group, list, count] of [
-    ['RASC Deep-Sky Gems', 'Spring sky', '79'],
     // The default location is on the equator, so the northern list: nine objects in November.
     ['Hubble Night Sky Challenge', 'November', '9'],
   ]) {
@@ -425,22 +400,22 @@ test('plays a list on the sky map: next and previous, skipping what is below the
 });
 
 test("shows an observing programme's card on its lists, open until read", async ({ page }) => {
-  await page.goto('/tabs/lists/urban');
+  await page.goto('/tabs/lists/assa100');
   const card = page.locator('app-list app-program-card');
   // Open the first time: who runs it, what for, and a link to its own page in a new tab.
-  await expect(card.getByTestId('program-name')).toHaveText('Urban Observing Program');
+  await expect(card.getByTestId('program-name')).toHaveText('Top-100 Deep-Sky Objects');
   const link = card.getByTestId('program-link');
-  await expect(link).toHaveAttribute('href', /^https:\/\/www\.astroleague\.org\//);
+  await expect(link).toHaveAttribute('href', /^https:\/\/assa\.saao\.ac\.za\//);
   await expect(link).toHaveAttribute('target', '_blank');
   // Folded, it stays folded, even after a reload.
   await card.getByTestId('program-card-toggle').click();
   await expect(card.getByTestId('program-card')).toHaveCount(0);
   await page.reload();
-  await expect(card.getByTestId('program-name')).toHaveText('Urban Observing Program');
+  await expect(card.getByTestId('program-name')).toHaveText('Top-100 Deep-Sky Objects');
   await expect(card.getByTestId('program-card')).toHaveCount(0);
 
-  // The seasons of a split catalogue share their programme's card, which the group page has too.
-  await page.goto('/tabs/lists/catalogues/rasc');
+  // The months of a split catalogue share their programme's card, which the group page has too.
+  await page.goto('/tabs/lists/catalogues/hubble');
   await expect(page.locator('app-catalogues app-program-card').getByTestId('program-card')).toBeVisible();
   // Catalogues that aren't programmes have none.
   await page.goto('/tabs/lists/messier');

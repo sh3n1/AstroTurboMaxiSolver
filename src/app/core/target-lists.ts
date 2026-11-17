@@ -147,6 +147,29 @@ export const CATALOGUE_GROUPS = [
   },
 ] as const;
 
+/**
+ * Lists whose publishers reserve all rights to them: the Astronomical League's, the RASC's
+ * and the Saguaro Astronomy Club's. They are hidden until there is permission to include
+ * them, or until it is decided what to do with them. Their data stays in the code, so taking
+ * an id out of this set shows the list again. See reports/Monthly observing lists and
+ * catalogues.md for each publisher's terms.
+ */
+export const RESERVED_LISTS: ReadonlySet<string> = new Set([
+  'herschel400',
+  'herschel2',
+  'sac110',
+  'explore-universe',
+  'urban',
+  // Split catalogues: hides the catalogue and each of its seasons.
+  'rasc',
+  'gems',
+]);
+
+/** Whether a list, or a split catalogue, is hidden for now: see RESERVED_LISTS. */
+export function isReserved(item: { id: string; section?: string }): boolean {
+  return RESERVED_LISTS.has(item.id) || (item.section !== undefined && RESERVED_LISTS.has(item.section));
+}
+
 /** One of the app's own lists as a row shows it: the list, with its icon and description. */
 export interface FixedListEntry<T extends { id: string }> {
   list: T;

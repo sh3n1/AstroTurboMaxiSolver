@@ -41,6 +41,15 @@ test('reloads from the service worker while offline', async ({ context, page }) 
   await expect(page.locator(starCanvas)).toBeAttached();
 });
 
+test('offers no device test, which is only for developing the app', async ({ page }) => {
+  await page.goto('/tabs/settings');
+  await expect(page.getByTestId('app-version')).toBeVisible();
+  await expect(page.getByTestId('open-device-test')).toHaveCount(0);
+  // Its address goes to the map, like any address the app doesn't have.
+  await page.goto('/device-test');
+  await expect(page).toHaveURL(/tabs\/sky/);
+});
+
 test('serves a complete web app manifest', async ({ page, request }) => {
   // Follow the link from the page, so this also fails if index.html loses it.
   await page.goto('/');
