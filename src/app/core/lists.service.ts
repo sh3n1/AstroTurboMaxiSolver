@@ -26,6 +26,7 @@ import {
   exportFileName,
   exportLists,
   FIXED_LISTS,
+  isReserved,
   listItemId,
   listRows,
   newListId,
@@ -215,7 +216,8 @@ export class ListsService {
       caldwell: this.caldwell(),
       ...this.programmeLists(),
     };
-    return FIXED_LISTS.map(({ id, name }) => ({
+    // Lists whose publishers reserve their rights are hidden for now: see RESERVED_LISTS.
+    return FIXED_LISTS.filter((fixed) => !isReserved(fixed)).map(({ id, name }) => ({
       id,
       name: id === 'now' ? this.bestNowName() : name,
       kind: 'fixed',

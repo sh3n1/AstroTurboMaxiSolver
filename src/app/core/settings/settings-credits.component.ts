@@ -3,6 +3,8 @@ import { IonIcon, IonItem, IonLabel, IonList, IonListHeader } from '@ionic/angul
 import { addIcons } from 'ionicons';
 import { openOutline } from 'ionicons/icons';
 
+import { RESERVED_LISTS } from '../target-lists';
+
 import { SETTINGS_SECTION_STYLES } from './settings-styles';
 
 /** The credits the licences of the app's data and libraries require, as a section of Settings. */
@@ -55,31 +57,44 @@ import { SETTINGS_SECTION_STYLES } from './settings-styles';
       <ion-item>
         <ion-label class="ion-text-wrap credit">Caldwell catalogue compiled by Sir Patrick Moore.</ion-label>
       </ion-item>
+      <!-- The credits of the lists hidden for now come back with them: see RESERVED_LISTS. -->
+      @if (!reserved.has('herschel400')) {
+        <ion-item>
+          <ion-label class="ion-text-wrap credit">
+            Herschel 400 selected by the Ancient City Astronomy Club, Herschel II by the Rose City Astronomers, as
+            observed in the Astronomical League's programmes.
+          </ion-label>
+        </ion-item>
+      }
+      @if (!reserved.has('sac110')) {
+        <ion-item>
+          <ion-label class="ion-text-wrap credit">
+            110 Best NGC Objects by A. J. Crayon and Steve Coe, Saguaro Astronomy Club.
+          </ion-label>
+        </ion-item>
+      }
+      @if (!reserved.has('rasc')) {
+        <ion-item>
+          <ion-label class="ion-text-wrap credit">
+            Finest NGC list by Alan Dyer, Royal Astronomical Society of Canada.
+          </ion-label>
+        </ion-item>
+      }
+      @if (!reserved.has('gems')) {
+        <ion-item>
+          <ion-label class="ion-text-wrap credit">
+            Deep-Sky Gems by David H. Levy and Explore the Universe, Royal Astronomical Society of Canada.
+          </ion-label>
+        </ion-item>
+      }
+      @if (!reserved.has('urban')) {
+        <ion-item>
+          <ion-label class="ion-text-wrap credit">Urban Observing Program, Astronomical League.</ion-label>
+        </ion-item>
+      }
       <ion-item>
         <ion-label class="ion-text-wrap credit">
-          Herschel 400 selected by the Ancient City Astronomy Club, Herschel II by the Rose City Astronomers, as
-          observed in the Astronomical League's programmes.
-        </ion-label>
-      </ion-item>
-      <ion-item>
-        <ion-label class="ion-text-wrap credit">
-          110 Best NGC Objects by A. J. Crayon and Steve Coe, Saguaro Astronomy Club.
-        </ion-label>
-      </ion-item>
-      <ion-item>
-        <ion-label class="ion-text-wrap credit">
-          Finest NGC list by Alan Dyer, Royal Astronomical Society of Canada.
-        </ion-label>
-      </ion-item>
-      <ion-item>
-        <ion-label class="ion-text-wrap credit">
-          Deep-Sky Gems by David H. Levy and Explore the Universe, Royal Astronomical Society of Canada.
-        </ion-label>
-      </ion-item>
-      <ion-item>
-        <ion-label class="ion-text-wrap credit">
-          Urban Observing Program, Astronomical League. Top-100 Deepsky Objects, Astronomical Society of Southern
-          Africa.
+          Top-100 Deepsky Objects, Astronomical Society of Southern Africa.
         </ion-label>
       </ion-item>
       <ion-item>
@@ -130,6 +145,9 @@ import { SETTINGS_SECTION_STYLES } from './settings-styles';
   `,
 })
 export class SettingsCreditsComponent {
+  /** The lists hidden for now, whose credits are hidden with them. */
+  protected readonly reserved = RESERVED_LISTS;
+
   constructor() {
     addIcons({ openOutline });
   }

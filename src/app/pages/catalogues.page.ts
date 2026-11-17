@@ -24,7 +24,10 @@ import { ObservingLogService } from '../core/observing-log.service';
 import { programFor } from '../core/observing-programs';
 import { ProgramCardComponent } from '../core/program-card.component';
 import type { FixedListSection } from '../core/target-lists';
-import { CATALOGUE_GROUPS, fixedListEntries } from '../core/target-lists';
+import { CATALOGUE_GROUPS, fixedListEntries, isReserved } from '../core/target-lists';
+
+/** The split catalogues shown: not those whose publishers reserve their rights, for now. */
+const SHOWN_GROUPS = CATALOGUE_GROUPS.filter((group) => !isReserved(group));
 
 /**
  * The Catalogues page, opened from the Lists tab: Messier, Caldwell,
@@ -118,7 +121,7 @@ export class CataloguesPage {
   private readonly route = inject(ActivatedRoute);
 
   /** The split catalogue this page shows, from the address, or none for the Catalogues page. */
-  private readonly group = CATALOGUE_GROUPS.find((g) => g.id === this.route.snapshot.paramMap.get('group'));
+  private readonly group = SHOWN_GROUPS.find((g) => g.id === this.route.snapshot.paramMap.get('group'));
 
   /** The lists this page shows: the Catalogues page itself, or one split catalogue's. */
   private readonly section: FixedListSection = this.group?.section ?? 'catalogues';
@@ -136,7 +139,7 @@ export class CataloguesPage {
     return this.group ? currentFirst(entries, this.state.now()) : entries;
   });
   /** Split catalogues, only on the Catalogues page itself. */
-  protected readonly groups = this.group ? [] : CATALOGUE_GROUPS;
+  protected readonly groups = this.group ? [] : SHOWN_GROUPS;
 
   constructor() {
     addIcons({ bookOutline, calendarOutline, flowerOutline, leafOutline, snowOutline, sunnyOutline });
