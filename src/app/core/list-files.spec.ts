@@ -8,6 +8,7 @@ import {
   parseDelimited,
   parseSkylist,
   readListFile,
+  skySafariName,
   targetFinder,
 } from './list-files';
 import type { Target } from './targets';
@@ -120,5 +121,25 @@ describe('readListFile', () => {
   it('names a list from its file', () => {
     expect(listNameFromFile('My list.csv')).toBe('My list');
     expect(listNameFromFile('.csv')).toBe('Imported list');
+  });
+});
+
+describe('SkySafari names', () => {
+  it("writes out SkySafari's Greek letters", () => {
+    expect(skySafariName('$h Cas')).toBe('η Cas');
+    expect(skySafariName('$y1 Psc')).toBe('ψ1 Psc');
+    expect(skySafariName('$z2 Cnc')).toBe('ζ2 Cnc');
+    expect(skySafariName('M 31')).toBe('M 31');
+  });
+
+  it('finds stars by their Greek letters, and by catalogue numbers among their other names', () => {
+    const find = targetFinder([
+      target('Achird', 'η Cas', 'STF 60 Σ 60 WDS 00491+5749 HIP 3821'),
+      target('STF 61', 'Double star', 'STF 61 Σ 61 WDS 00499+2743'),
+    ]);
+    expect(find(skySafariName('$h Cas'))?.id).toBe('Achird');
+    expect(find('STF 60')?.id).toBe('Achird');
+    expect(find('HIP 3821')?.id).toBe('Achird');
+    expect(find('WDS 00499+2743')?.id).toBe('STF 61');
   });
 });

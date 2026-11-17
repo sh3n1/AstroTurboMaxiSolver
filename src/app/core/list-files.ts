@@ -15,6 +15,43 @@ export interface ImportedList {
   missing: string[];
 }
 
+/**
+ * SkySafari writes Greek letters in its files with the old Symbol font's Latin keys, after a
+ * dollar sign: "$h Cas" is η Cas, "$z1 Cnc" is ζ1 Cnc. The app names stars with the Greek
+ * letters themselves.
+ */
+const SYMBOL_FONT_GREEK: Record<string, string> = {
+  a: 'α',
+  b: 'β',
+  g: 'γ',
+  d: 'δ',
+  e: 'ε',
+  z: 'ζ',
+  h: 'η',
+  q: 'θ',
+  i: 'ι',
+  k: 'κ',
+  l: 'λ',
+  m: 'μ',
+  n: 'ν',
+  x: 'ξ',
+  o: 'ο',
+  p: 'π',
+  r: 'ρ',
+  s: 'σ',
+  t: 'τ',
+  u: 'υ',
+  f: 'φ',
+  c: 'χ',
+  y: 'ψ',
+  w: 'ω',
+};
+
+/** A SkySafari name with its Greek letter written out: "$y1 Psc" becomes "ψ1 Psc". */
+export function skySafariName(text: string): string {
+  return text.replace(/^\$([a-z])(?=\d|\s)/, (code, key: string) => SYMBOL_FONT_GREEK[key] ?? code);
+}
+
 /** Whether a text is a SkySafari observing list. */
 export function isSkylist(text: string): boolean {
   return /^\s*SkyObject\s*=\s*BeginObject/m.test(text);
@@ -40,7 +77,7 @@ export function parseSkylist(text: string): string[][] {
       const [key, ...rest] = line.split('=');
       const value = rest.join('=').trim();
       if (!value) continue;
-      if (key.trim() === 'CatalogNumber') current.numbers.push(value);
+      if (key.trim() === 'CatalogNumber') current.numbers.push(skySafariName(value));
       else if (key.trim() === 'CommonName') current.common.push(value);
     }
   }
@@ -102,8 +139,16 @@ export function designationKey(text: string): string {
 }
 
 /**
+ * The catalogue numbers among a target's other names, which are written one after another,
+ * such as "STF 60 Σ 60 WDS 00491+5749" or "HIP 3821": each catalogue's letters with the
+ * number that follows them.
+ */
+const CATALOGUE_NUMBER = /\b[A-Z][A-Za-z]*\s?\d[\dA-Za-z+.-]*/g;
+
+/**
  * Finds targets by any of their names: catalogue designations, the name the app shows, and
- * their other names. The first target with a name keeps it.
+ * their other names, whole and as each catalogue number in them. The first target with a
+ * name keeps it.
  */
 export function targetFinder(targets: readonly Target[]): (text: string) => Target | null {
   const byKey = new Map<string, Target>();
@@ -115,6 +160,7 @@ export function targetFinder(targets: readonly Target[]): (text: string) => Targ
     for (const designation of designations(target)) add(designation, target);
     add(target.name, target);
     for (const alias of (target.aliases ?? '').split(/[,;]/)) add(alias, target);
+    for (const number of (target.aliases ?? '').match(CATALOGUE_NUMBER) ?? []) add(number, target);
   }
   return (text) => byKey.get(designationKey(text)) ?? null;
 }
