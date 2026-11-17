@@ -106,12 +106,17 @@ import { RemoteService } from '../core/remote.service';
             <ion-spinner aria-label="Connecting"></ion-spinner>
           }
           @case ('showing-offer') {
-            <p class="step">1. Scan this with the screen phone</p>
-            <app-qr-code data-testid="remote-code" label="Pairing code" [text]="remote.code()" />
-            <p class="step">2. Scan its reply</p>
+            <!-- While scanning the reply, the code is out of the way: the screen phone has read it already. -->
             @if (scanning()) {
+              <p class="step">2. Scan its reply</p>
               <app-qr-scanner (scanned)="read($event)" />
+              <ion-button expand="block" fill="clear" data-testid="remote-scan-cancel" (click)="scanning.set(false)">
+                Back to the code
+              </ion-button>
             } @else {
+              <p class="step">1. Scan this with the screen phone</p>
+              <app-qr-code data-testid="remote-code" label="Pairing code" [text]="remote.code()" />
+              <p class="step">2. Scan its reply</p>
               <ion-button expand="block" data-testid="remote-scan" (click)="scanning.set(true)">
                 <ion-icon slot="start" name="scan-outline" aria-hidden="true"></ion-icon>
                 Scan reply
