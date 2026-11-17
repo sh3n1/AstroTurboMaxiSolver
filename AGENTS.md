@@ -20,7 +20,7 @@ Features:
 .
 
 - **Platform:** PWA only. Do not add native iOS or Android projects, native plugins, or anything that needs an app store build.
-- **Hosting:** localhost only for now. Do not set up or run a deployment.
+- **Hosting:** development versions are published on the project's own domain, on Cloudflare, over HTTPS.
 - **Current state:** Work in progress
 - **Target users:** Amateur astronomers
 - **Supported devices and browsers:** Only pwa, targeted on smartphones
@@ -121,11 +121,11 @@ Agents must ask before:
 
 - Adding a dependency
 - Committing or pushing
+- Deploying a version
 - Changing the PWA-only or hosting rules
 
 Agents must never:
 
 - Add copyleft code or data, apart from the OpenNGC and HYG exceptions under Licence
-- Deploy
 - Commit secrets
 - Force-push `main`
