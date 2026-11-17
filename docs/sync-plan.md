@@ -128,36 +128,20 @@ between the device and the user's drive. But each provider only sends the sign-i
 **registered addresses**:
 
 - `http://localhost` is accepted by all three for development (to be confirmed for each).
-- A raw IP address such as `https://192.168.1.159:8443`, as the phones use now, is refused
-  by Google, and possibly by the others.
-- A real HTTPS hostname is accepted.
+- A raw IP address such as the PC's address on the home network is refused by Google, and
+  possibly by the others.
+- A real HTTPS hostname is accepted: the published site, `https://astroturbomaxisolver.app/app/`.
 
-Options for testing on phones without changing the "localhost only" hosting rule:
-
-1. **Android over USB:** Chrome's port forwarding (`chrome://inspect` → Port forwarding)
-   lets the phone open the PC's dev server as `localhost:8443`. No hosting at all. Not for
-   iPhones.
-2. **A tunnel with a fixed name**, while testing only, since it exposes the dev server:
-   - **Cloudflare named tunnel** (the same `cloudflared` as the quick tunnel used before):
-     free, but needs a domain of the user's on Cloudflare (about €10 a year). Recommended;
-     the same domain can later host the released PWA on Cloudflare Pages, as static files.
-   - **Tailscale Funnel:** free fixed `https://<machine>.<tailnet>.ts.net`, no domain needed.
-   - **ngrok** free static domain: shows a warning page in browsers first. Last choice.
-
-At release the PWA needs an HTTPS address anyway (static hosting, not a backend). While the
-app is in "testing" mode, Google only lets listed accounts sign in.
-
-**Open:** how to handle the redirect address for phone testing (USB forwarding, or a fixed
-tunnel and which).
+Phones test sync on the published site, or on Android through Chrome's USB port forwarding
+(`chrome://inspect` → Port forwarding), which opens the PC's dev server as `localhost:8443`.
+While the app is in "testing" mode, Google only lets listed accounts sign in.
 
 ## Open decisions
 
 1. Each device writes only its own changes (proposed), or copies everything it is missing
    into its own folder (first idea)?
 2. Which provider first: Dropbox, Google Drive or OneDrive?
-3. The redirect address for phone testing: Android USB port forwarding, a Cloudflare named
-   tunnel (needs a domain), or Tailscale Funnel?
-4. Keep losing versions of log entries as conflicts (proposed), or always take the winner?
+3. Keep losing versions of log entries as conflicts (proposed), or always take the winner?
 
 ## Suggested order of work
 
