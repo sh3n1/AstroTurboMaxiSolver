@@ -1,7 +1,7 @@
 # Splitting the sky page
 
-Status: done on 2026-11-17, steps 1 to 8. The page went from about 2,240 lines to 756, which
-is under the 800-line limit but over the 500 aimed for. See "What is left" at the end.
+Status: done on 2026-11-17, steps 1 to 8. The page went from about 2,240 lines to 756, and
+then to about 340 when the canvas moved out too. See "What came after" at the end.
 
 `src/app/pages/sky.page.ts` is about 2,240 lines, three times the next largest file. It holds
 the map's drawing, its gestures, its star data, its layout and three panels. This plan splits
@@ -79,17 +79,21 @@ Steps 1 to 5 bring the file to about 1,300 lines, and 6 to 8 to about 500.
 No new features, no renamed test ids, no changed look. The repeated colours such as `#232a3d`
 become theme tokens in a later change, not here.
 
-## What is left
+## What came after
 
-The page is 756 lines, not the 500 estimated: its styles went to `sky.page.css` (217 lines),
-and two things were added that the plan didn't list, `core/target-guidance.service.ts` (how
-far the target is and which way to move, shared by the map and the target bar) and the
-`ViewMode` type in `sky-style.ts`.
+The page was still 756 lines after the split, so the canvas itself moved out too, into
+`sky-map/sky-canvas.component.ts`: the draw loop, the layout of the view's centre, the
+smoothing, the gestures and the guidance. The page gives it the view and the zoom, and hears
+of a tap on the rings or elsewhere on the map. The page keeps the menu, the zoom buttons, the
+dock and the toasts, at about 340 lines, and the canvas component is about 480.
 
-What still fills the page is the canvas itself: the draw loop, the layout of the view's
-centre, the smoothing, the gestures' effects and the guidance. The next step, if the page
-grows again, is a `SkyCanvasComponent` that owns the canvas and those parts, leaving the
-page with the menu, the zoom buttons and the dock. That would bring both under 500 lines.
+The canvas measures the panels laid over it (`.bar`, `.eyepiece-panel`, `.zoom`, `.dock`)
+from the page's stage, its host's parent. The page watches the dock's size and asks the
+canvas to redraw.
+
+Two more things changed from the plan: the styles went to `sky.page.css`, and
+`core/target-guidance.service.ts` holds how far the target is and which way to move, shared
+by the map and the target bar.
 
 One thing changed in behaviour: the target bar now owns whether its details are open, so
 they close whenever the target is cleared by any means, not only by the bar's own cross.
