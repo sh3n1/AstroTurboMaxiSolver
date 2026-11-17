@@ -1,8 +1,6 @@
 import type { Page } from '@playwright/test';
 import { devices, expect, test } from '@playwright/test';
 
-import { moreTile } from './navigation';
-
 // Installing the app on the home screen. Chrome only offers to install a real, served app,
 // so on Android the tests give the page the same event Chrome would, with a dialog that
 // says yes.
@@ -33,10 +31,8 @@ test('offers to install on Android, until it is installed', async ({ page }) => 
   expect(await page.evaluate(() => (window as unknown as { installDialogShown?: boolean }).installDialogShown)).toBe(
     true,
   );
-  // Installed: nothing more to offer, here or in the menu.
+  // Installed: nothing more to offer.
   await expect(button).toHaveCount(0);
-  await expect(await moreTile(page, 'sensor-toggle')).toBeVisible();
-  await expect(page.getByTestId('install-tile')).toHaveCount(0);
 });
 
 test("offers it again on the next visit when Chrome's dialog was turned down", async ({ page }) => {
@@ -51,11 +47,6 @@ test("offers it again on the next visit when Chrome's dialog was turned down", a
   await expect(page.locator('app-sky canvas')).toBeVisible();
   await offerInstall(page);
   await expect(page.getByTestId('install-app')).toBeVisible();
-  // The menu has it too.
-  await (await moreTile(page, 'install-tile')).click();
-  expect(await page.evaluate(() => (window as unknown as { installDialogShown?: boolean }).installDialogShown)).toBe(
-    true,
-  );
 });
 
 test.describe('on an iPhone', () => {
@@ -70,10 +61,6 @@ test.describe('on an iPhone', () => {
     await expect(steps).toContainText('Add to Home Screen');
     await page.getByTestId('install-steps-close').click();
     await expect(steps).toHaveCount(0);
-
-    // The menu opens the same steps.
-    await (await moreTile(page, 'install-tile')).click();
-    await expect(page.getByTestId('install-steps')).toBeVisible();
   });
 
   test('offers nothing once it runs from the home screen', async ({ page }) => {
@@ -82,7 +69,5 @@ test.describe('on an iPhone', () => {
     await expect(page.locator('app-sky canvas')).toBeVisible();
     await page.waitForTimeout(300);
     await expect(page.getByTestId('install-app')).toHaveCount(0);
-    await expect(await moreTile(page, 'sensor-toggle')).toBeVisible();
-    await expect(page.getByTestId('install-tile')).toHaveCount(0);
   });
 });

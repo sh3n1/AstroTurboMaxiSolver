@@ -7,7 +7,7 @@ import { InstallService } from './install.service';
 
 /**
  * The steps to install on iPhones and iPads, which have no install button, in a card. The
- * map's Install button and the menu's Install tile open it there.
+ * map's Install button opens it there.
  */
 @Component({
   selector: 'app-install-notice',

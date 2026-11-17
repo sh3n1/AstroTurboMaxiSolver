@@ -15,7 +15,6 @@ import { addIcons } from 'ionicons';
 import {
   compassOutline,
   contractOutline,
-  downloadOutline,
   expandOutline,
   listOutline,
   locateOutline,
@@ -28,7 +27,6 @@ import {
 import { isIconUrl } from './app-icons';
 import { AppState } from './app-state.service';
 import { FullscreenService } from './fullscreen.service';
-import { InstallService } from './install.service';
 import { SensorService } from './sensor.service';
 
 /**
@@ -207,13 +205,6 @@ export interface ViewTile {
         <ion-icon name="phone-landscape-outline" aria-hidden="true"></ion-icon>
         Two phones
       </button>
-      <!-- Until the app is on the home screen: Chrome's install dialog, or the steps on iPhones. -->
-      @if (install.available()) {
-        <button type="button" class="tile" data-testid="install-tile" (click)="installApp()">
-          <ion-icon name="download-outline" aria-hidden="true"></ion-icon>
-          Install
-        </button>
-      }
       <button type="button" class="tile" data-testid="open-settings" (click)="go('/tabs/settings')">
         <ion-icon name="settings-outline" aria-hidden="true"></ion-icon>
         Settings
@@ -232,7 +223,6 @@ export class MoreSheetComponent implements OnDestroy {
 
   protected readonly state = inject(AppState);
   protected readonly fullscreen = inject(FullscreenService);
-  protected readonly install = inject(InstallService);
   private readonly sensors = inject(SensorService);
   protected readonly isIconUrl = isIconUrl;
   private readonly router = inject(Router);
@@ -248,7 +238,6 @@ export class MoreSheetComponent implements OnDestroy {
     addIcons({
       compassOutline,
       contractOutline,
-      downloadOutline,
       expandOutline,
       listOutline,
       locateOutline,
@@ -275,12 +264,6 @@ export class MoreSheetComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     clearTimeout(this.readyTimer);
-  }
-
-  /** Installs the app, or shows how on iPhones, and closes the menu. */
-  protected installApp(): void {
-    this.closed.emit();
-    void this.install.install();
   }
 
   protected go(url: string): void {
