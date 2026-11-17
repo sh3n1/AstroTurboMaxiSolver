@@ -30,17 +30,14 @@ import {
 
 import { APP_ICONS, isIconUrl } from '../core/app-icons';
 import { AppState } from '../core/app-state.service';
-import type { Horizontal, Vector3 } from '../core/astronomy';
+import type { Horizontal } from '../core/astronomy';
 import {
-  toApparent,
   azimuthChangeDeg,
   equatorialToHorizontal,
-  equatorialVector,
   formatDec,
   formatLocation,
   formatRa,
   horizontalVector,
-  normalize,
   rotateInView,
   separationDeg,
   stereographic,
@@ -48,10 +45,7 @@ import {
   toViewCoordinates,
   viewBasis,
 } from '../core/astronomy';
-import type { ConstellationRow } from '../core/constellations';
-import { designationText, designations } from '../core/designations';
-import type { ComponentStar } from '../core/double-stars';
-import { doubleComponents, withoutDoubleCopies } from '../core/double-stars';
+import { designationText } from '../core/designations';
 import { equipmentLabel, eyepieceLabel, modifierLabel, telescopeLabel } from '../core/equipment';
 import { LiveSolverService } from '../core/live-solver.service';
 import { MoreSheetComponent } from '../core/more-sheet.component';
@@ -60,15 +54,38 @@ import { ObservingLogService } from '../core/observing-log.service';
 import { PlaylistBarComponent } from '../core/playlist-bar.component';
 import { PlaylistService } from '../core/playlist.service';
 import { RemoteService } from '../core/remote.service';
-import { RETICLE_RINGS_DEG, chevronSpacingPx, guideAngleDeg, pulseOpacity } from '../core/reticle';
+import { RETICLE_RINGS_DEG, guideAngleDeg, pulseOpacity } from '../core/reticle';
 import { SeenActionsService } from '../core/seen-actions.service';
 import { SensorService } from '../core/sensor.service';
 import { isShutterPress } from '../core/shutter-remote';
 import { sideways } from '../core/sideways';
+import type { Frame } from '../core/sky-map/draw-sky';
+import {
+  drawConstellationLines,
+  drawConstellationNames,
+  drawEyepieceMask,
+  drawGrid,
+  drawHorizon,
+  drawStars,
+} from '../core/sky-map/draw-sky';
+import { drawChevrons, drawPointer, drawReticle, drawTargets } from '../core/sky-map/draw-targets';
+import { MapGestures } from '../core/sky-map/map-gestures';
+import type { Point, Project } from '../core/sky-map/sky-style';
+import {
+  COLOR,
+  DEFAULT_FIELD_DEG,
+  MAX_ALTITUDE_DEG,
+  MAX_FIELD_DEG,
+  MIN_ALTITUDE_DEG,
+  MIN_FIELD_DEG,
+  ZOOM_STEP,
+  magnitudeLimit,
+  useColors,
+} from '../core/sky-map/sky-style';
+import { StarFieldService } from '../core/sky-map/star-field.service';
 import { SoundService } from '../core/sound.service';
 import { TargetDetailsComponent } from '../core/target-details.component';
-import type { IconPath } from '../core/target-icons';
-import { DISC_RADIUS, ICON_DASH, ICON_GRID, iconDataUrl, phaseIcon, targetIcon } from '../core/target-icons';
+import { iconDataUrl, targetIcon } from '../core/target-icons';
 import type { Target } from '../core/targets';
 import type { ClearSpan } from '../core/view-layout';
 import { EYEPIECE_VIEW_SCALE, viewLayout } from '../core/view-layout';
@@ -87,177 +104,25 @@ const VIEW_BUTTONS: Record<ViewMode, { icon: string; label: string }> = {
   eyepiece: { icon: APP_ICONS.eyepiece, label: 'Eyepiece view' },
   ring: { icon: 'radio-button-off-outline', label: 'Field ring' },
 };
-type Point = { x: number; y: number };
-type Project = (v: Vector3) => Point | null;
-
-interface Star {
-  raDeg: number;
-  decDeg: number;
-  vector: Vector3;
-  mag: number;
-  colorIndex: number;
-}
-
-interface Constellation {
-  name: string;
-  label: Vector3;
-  lines: Vector3[][];
-}
-
-interface Box {
-  left: number;
-  right: number;
-  top: number;
-  bottom: number;
-}
-
 /** The slider's range for the faintest stars shown. */
 const MIN_STAR_LIMIT = 2;
 const MAX_STAR_LIMIT = 13;
-/** Size of the grid cells that let the eyepiece view find nearby stars quickly. */
-const STAR_CELL_DEG = 4;
-/** Objects this far beyond the screen edge are skipped, though their size circle could reach in. */
-const OFF_SCREEN_MARGIN_PX = 200;
 /** The gap kept between the eyepiece's circle and what lies beside it, on a phone on its side. */
 const CLEAR_MARGIN_PX = 10;
 /** How long a toast message stays, long enough to read at arm's length. */
 const TOAST_MS = 3500;
-const DEFAULT_FIELD_DEG = 20; // Close enough to read the stars and match a finder's view
-const MIN_FIELD_DEG = 5;
-const MAX_FIELD_DEG = 120;
-const ZOOM_STEP = 1.5;
-const MAX_ALTITUDE_DEG = 89; // Looking exactly straight up has no defined "right"
-const MIN_ALTITUDE_DEG = -20;
-const GRID_ALTITUDES_DEG = [30, 60];
-const GRID_AZIMUTH_STEP_DEG = 45;
-const CARDINALS = [
-  { label: 'N', azDeg: 0 },
-  { label: 'E', azDeg: 90 },
-  { label: 'S', azDeg: 180 },
-  { label: 'W', azDeg: 270 },
-];
-/** Below this size on screen, an object's real outline is too small to be useful. */
-const MIN_SIZE_CIRCLE_PX = 6;
-
-/** Radius of a planet's or the Moon's icon disc on the map, at standard text size. */
-const ICON_DISC_PX = 7;
-
-/** Line width of the map's icons, in screen pixels. */
-const ICON_LINE_PX = 1.6;
-
-/** Canvas versions of the icon paths, made once each, since parsing them every frame is slow. */
-const iconPaths = new Map<string, Path2D>();
-function iconPath(d: string): Path2D {
-  let path = iconPaths.get(d);
-  if (!path) {
-    // Phases change slowly, but over a long session their old shapes would pile up.
-    if (iconPaths.size > 200) iconPaths.clear();
-    path = new Path2D(d);
-    iconPaths.set(d, path);
-  }
-  return path;
-}
-/** Stars known only by catalogue names are labelled to this magnitude: see isShownAtField. */
-const UNNAMED_STAR_LABEL_MAG = 4.5;
-/** Fainter than this, an object's size circle only shows when it is the selected target. */
-const MAX_SIZE_CIRCLE_MAG = 6;
-/**
- * How strongly the sky map draws what is below the horizon: still there, to plan what
- * comes up next, but clearly faded so it isn't mistaken for something visible now.
- */
-const BELOW_HORIZON_OPACITY = 0.35;
-
 /** How fast the sky turns, in degrees a second: a full turn in a sidereal day. */
 const SKY_TURN_DEG_PER_S = 360 / 86_164;
 // Limits on how often the map redraws just to follow the sky's turning.
 const MIN_SKY_TURN_WAIT_MS = 100;
 const MAX_SKY_TURN_WAIT_MS = 10_000;
-/** The guidance chevrons, from the one nearest the reticle outwards. */
-const CHEVRON_FADE = [0.35, 0.65, 1];
-const CHEVRON_HEIGHT_PX = 8;
-const CHEVRON_HALF_WIDTH_PX = 11;
-/** Rings smaller than this have no room for a size label. */
-const MIN_LABELLED_RING_PX = 30;
-/** A tap moves less than this, and is over sooner than this. Anything else is a drag. */
-const TAP_MAX_MOVE_PX = 10;
-const TAP_MAX_MS = 500;
 /** Rings smaller than this on screen still take a tap this far from their centre, for a finger. */
 const MIN_TAP_RADIUS_PX = 48;
 /**
- * With the sensors steering and no touch for this long, the round buttons fade away and
- * leave the sky clear, as a car's navigation screen does. Any touch brings them back.
+ * The menu and the zoom buttons go away after this long without a touch, and leave the sky
+ * clear, as a car's navigation screen does. A tap on the map brings them back.
  */
 const MENU_IDLE_MS = 10_000;
-
-// The app's own colours for its sky map and guidance. Night mode turns everything red by
-// brightness, so its faint lines and greys are brightened there to stay visible.
-const DAY_COLOR = {
-  sky: '#05070f',
-  grid: '#141c2e',
-  constellationLine: '#2a4170',
-  constellationName: '#55709f',
-  horizon: '#3f8f6a',
-  cardinal: '#6fcf9f',
-  reticle: '#e5484d',
-  onTarget: '#6fcf9f',
-  /** The guidance chevrons and line. The selected target itself is marked in onTarget green. */
-  guide: '#a9cbff',
-  deepSky: '#8fb7ff',
-  solarSystem: '#ffd479',
-  starLabel: '#a8b0c6',
-  sizeCircle: '#4c6aa6',
-};
-const NIGHT_COLOR: typeof DAY_COLOR = {
-  ...DAY_COLOR,
-  grid: '#2a3550',
-  constellationLine: '#4f6fae',
-  constellationName: '#b4c6e8',
-  horizon: '#6fcf9f',
-  starLabel: '#e8ebf5',
-  sizeCircle: '#7f9bd2',
-  reticle: '#ffb3b3',
-};
-/** The colours in use, switched between day and night at the start of each drawing. */
-const COLOR = { ...DAY_COLOR };
-
-/** Star tints from hot blue to cool red, chosen by the star's B-V colour index. */
-const STAR_TINTS = ['#b9d0ff', '#f4f6ff', '#fff3d6', '#ffd2a1', '#ffb08a'];
-
-function starTintIndex(colorIndex: number): number {
-  if (colorIndex < 0) return 0;
-  if (colorIndex < 0.4) return 1;
-  if (colorIndex < 0.8) return 2;
-  if (colorIndex < 1.3) return 3;
-  return 4;
-}
-
-/** Faint stars only clutter a wide view, so show more of them when zoomed in. */
-function magnitudeLimit(fieldDeg: number): number {
-  if (fieldDeg >= 90) return 5.5;
-  if (fieldDeg >= 40) return 6;
-  return 6.5;
-}
-
-/** Hides fainter labelled objects in wide views, where they would crowd the map. */
-function isShownAtField(target: Target, fieldDeg: number): boolean {
-  // The Moon and planets always show. Pluto and the asteroids are faint, so they follow
-  // the same rules as other faint objects below.
-  if (target.kind === 'Moon' || target.kind === 'Planet') return true;
-  // The map already writes each constellation's name among its lines.
-  if (target.kind === 'Constellation') return false;
-  // Stars known only by catalogue names are labelled only zoomed in, and only the brighter
-  // ones with a Greek letter, such as "κ Cyg": "HR 7633" and "33 Cyg" would crowd the map.
-  if (target.unnamed) {
-    return fieldDeg < 25 && target.mag <= UNNAMED_STAR_LABEL_MAG && /^\p{Script=Greek}/u.test(target.id);
-  }
-  if (target.kind === 'Star') return target.mag <= (fieldDeg >= 60 ? 1.5 : fieldDeg >= 25 ? 3 : 5);
-  // There are some 1,400 doubles without a name, so they wait until zoomed in.
-  if (target.kind === 'Double star') return fieldDeg < 25 && (fieldDeg < 8 || target.mag <= 6);
-  // Messier objects are the familiar showpieces, so they appear sooner. The thousands
-  // of NGC and IC objects only appear once zoomed in on them.
-  if (/^M\d/.test(target.id)) return target.mag <= (fieldDeg >= 60 ? 7 : 99);
-  return target.mag <= (fieldDeg >= 60 ? 4.5 : fieldDeg >= 15 ? 7 : fieldDeg >= 8 ? 10 : 99);
-}
 
 /**
  * The sky map, reticle, guidance and eyepiece view. The user aims by moving the phone
@@ -654,9 +519,9 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
           [attr.data-field]="viewField()"
           [attr.data-target]="state.selectedTargetId()"
           (pointerdown)="pointerDown($event)"
-          (pointermove)="pointerMove($event)"
-          (pointerup)="pointerUp($event)"
-          (pointercancel)="pointerUp($event)"
+          (pointermove)="gestures.move($event)"
+          (pointerup)="gestures.up($event)"
+          (pointercancel)="gestures.up($event)"
           (wheel)="wheel($event)"
         ></canvas>
         <!-- Tapping the rings, red or green, plate solves there. This hidden button does the same for screen readers. -->
@@ -1019,8 +884,10 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   protected readonly maxField = MAX_FIELD_DEG;
   protected readonly zoomStep = ZOOM_STEP;
   protected readonly designationText = designationText;
-  protected readonly stars = signal<Star[]>([]);
-  protected readonly constellations = signal<Constellation[]>([]);
+  /** The map's background stars and constellations: see StarFieldService. */
+  private readonly starField = inject(StarFieldService);
+  protected readonly stars = this.starField.stars;
+  protected readonly constellations = this.starField.constellations;
   protected readonly showDetails = signal(false);
   protected readonly isIconUrl = isIconUrl;
   /** AstroTurboMaxiSolver's own icon for the selected target, or null for kinds without one. */
@@ -1032,42 +899,6 @@ export class SkyPage implements AfterViewInit, OnDestroy {
 
   protected readonly showEquipment = signal(false);
 
-  /**
-   * The double stars' own stars. Only changes when the doubles load, not each minute as
-   * the planets move, so the stars below aren't sorted again for nothing.
-   */
-  private readonly doubleStars = computed(() => doubleComponents(this.state.targets().filter((t) => t.double)), {
-    equal: (a, b) => a.length === b.length,
-  });
-
-  /**
-   * Every star to draw, brightest first: the map's stars, with each double star's stars
-   * at their precise places instead of the map's rounded or blended copies.
-   */
-  private readonly allStars = computed(() => {
-    const components = this.doubleStars();
-    if (components.length === 0) return this.stars();
-    const toStar = ({ raDeg, decDeg, mag, bv }: ComponentStar): Star => ({
-      raDeg,
-      decDeg,
-      vector: equatorialVector(raDeg, decDeg),
-      mag,
-      colorIndex: starTintIndex(bv),
-    });
-    return [...withoutDoubleCopies(this.stars(), components), ...components.map(toStar)].sort((a, b) => a.mag - b.mag);
-  });
-
-  /** Stars grouped into cells of right ascension and declination. */
-  private readonly starGrid = computed(() => {
-    const grid = new Map<number, Star[]>();
-    for (const star of this.allStars()) {
-      const key = this.cellKey(star.raDeg, star.decDeg);
-      const cell = grid.get(key);
-      if (cell) cell.push(star);
-      else grid.set(key, [star]);
-    }
-    return grid;
-  });
   protected readonly equipmentLabel = equipmentLabel;
   protected readonly telescopeLabel = telescopeLabel;
   protected readonly eyepieceLabel = eyepieceLabel;
@@ -1149,14 +980,19 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   /** The view's centre across the screen, and the pixels its field of view spans: see viewLayout. */
   private viewCentreX = 0;
   private viewSpanPx = 0;
-  private baseStarsLoaded: Promise<void> = Promise.resolve();
-  private deepStarsRequested = false;
 
-  // Fingers currently on the screen. One drags and two pinch.
-  private readonly pointers = new Map<number, Point>();
-  private dragStart?: Point & { altDeg: number; azDeg: number };
-  /** Where and when a single finger went down, to tell a tap from a drag. */
-  private tapStart?: Point & { time: number };
+  /** Where the map pointed, and how wide it was, when the drag or pinch in progress started. */
+  private gestureStart = { altDeg: 0, azDeg: 0, fieldDeg: DEFAULT_FIELD_DEG };
+  /** One finger drags or taps, two pinch: see MapGestures. */
+  protected readonly gestures = new MapGestures({
+    start: () => (this.gestureStart = { ...this.state.pointing(), fieldDeg: this.fieldDeg() }),
+    drag: (dx, dy) => this.dragBy(dx, dy),
+    // The eyepiece sets its own field, so a pinch does nothing there.
+    pinch: (spread) => {
+      if (this.mode() !== 'eyepiece') this.setField(this.gestureStart.fieldDeg / spread);
+    },
+    tap: (event) => this.tapped(event),
+  });
   /** The largest ring's radius on screen, in CSS pixels, so a tap on the rings can be found. */
   private reticleRadiusPx = 0;
   /** True while a tap's plate solve runs, so a second tap does nothing. */
@@ -1167,7 +1003,6 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   private idleTimer?: ReturnType<typeof setTimeout>;
   /** A shutter remote's press plate solves: see shutterPressed. */
   private readonly onKey = (event: KeyboardEvent): void => this.shutterPressed(event);
-  private pinchStart?: { distance: number; fieldDeg: number };
 
   constructor() {
     addIcons({
@@ -1193,12 +1028,10 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       phoneLandscapeOutline,
       listOutline,
     });
-    this.baseStarsLoaded = this.loadStars();
     // The faint stars are a large file, so they only load once the eyepiece view opens.
     effect(() => {
-      if (this.mode() === 'eyepiece') void this.loadDeepStars();
+      if (this.mode() === 'eyepiece') void this.starField.loadDeepStars();
     });
-    void this.loadConstellations();
 
     // Every failed automatic plate solve, or one started by tapping the rings, is told
     // with a toast. Successes only when the debugging setting asks for them, and with a soft
@@ -1254,7 +1087,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       this.state.now();
       this.mode();
       this.fieldDeg();
-      this.allStars();
+      this.starField.allStars();
       this.constellations();
       this.queueDraw();
     });
@@ -1367,40 +1200,14 @@ export class SkyPage implements AfterViewInit, OnDestroy {
 
   protected pointerDown(event: PointerEvent): void {
     // A finder phone's map takes no touches while linked: the screen phone is for that.
-    if (this.state.finderMode()) return;
-    (event.target as HTMLElement).setPointerCapture(event.pointerId);
-    this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-    // Only a single finger can tap. A second one makes it a pinch.
-    this.tapStart =
-      this.pointers.size === 1 ? { x: event.clientX, y: event.clientY, time: performance.now() } : undefined;
-    this.restartGesture();
+    if (!this.state.finderMode()) this.gestures.down(event);
   }
 
-  protected pointerMove(event: PointerEvent): void {
-    if (!this.pointers.has(event.pointerId)) return;
-    this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-    if (this.pinchStart) this.pinch();
-    else if (this.dragStart) this.drag(event);
-  }
-
-  protected pointerUp(event: PointerEvent): void {
-    (event.target as HTMLElement).releasePointerCapture?.(event.pointerId);
-    const start = this.tapStart;
-    const isTap =
-      event.type === 'pointerup' &&
-      !!start &&
-      this.pointers.size === 1 &&
-      Math.hypot(event.clientX - start.x, event.clientY - start.y) < TAP_MAX_MOVE_PX &&
-      performance.now() - start.time < TAP_MAX_MS;
-    this.tapStart = undefined;
-    this.pointers.delete(event.pointerId);
-    this.restartGesture();
-    // A tap on the rings plate solves there. Anywhere else it opens or closes the menu.
-    if (isTap && this.isOnReticle(event)) void this.solveHere();
-    else if (isTap) {
-      if (this.moreOpen()) this.moreOpen.set(false);
-      else this.openMenu();
-    }
+  /** A tap on the rings plate solves there. Anywhere else it opens or closes the menu. */
+  private tapped(event: PointerEvent): void {
+    if (this.isOnReticle(event)) void this.solveHere();
+    else if (this.moreOpen()) this.moreOpen.set(false);
+    else this.openMenu();
   }
 
   /** Whether a tap landed on the rings, or close enough to them for a finger. */
@@ -1429,33 +1236,16 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     }
   }
 
-  /** Starts a drag or pinch from the current fingers, so the map doesn't jump. */
-  private restartGesture(): void {
-    const fingers = [...this.pointers.values()];
-    this.dragStart = fingers.length === 1 ? { ...fingers[0], ...this.state.pointing() } : undefined;
-    this.pinchStart =
-      fingers.length === 2 && this.mode() !== 'eyepiece'
-        ? { distance: Math.hypot(fingers[0].x - fingers[1].x, fingers[0].y - fingers[1].y), fieldDeg: this.fieldDeg() }
-        : undefined;
-  }
-
-  private pinch(): void {
-    const [a, b] = [...this.pointers.values()];
-    if (!this.pinchStart || !a || !b) return;
-    const distance = Math.hypot(a.x - b.x, a.y - b.y);
-    this.setField((this.pinchStart.fieldDeg * this.pinchStart.distance) / Math.max(distance, 1));
-  }
-
   /** Dragging moves the sky with the finger, so aiming moves the opposite way. */
-  private drag(event: PointerEvent): void {
-    if (!this.dragStart || this.state.sensorsActive()) return; // The sensors are steering
+  private dragBy(dx: number, dy: number): void {
+    if (this.state.sensorsActive()) return; // The sensors are steering
     const { x: flipX, y: flipY } = this.imageFlip();
     const degPerPixel = this.viewField() / Math.max(this.viewSpanPx || this.canvasRef().nativeElement.clientWidth, 1);
-    const altDeg = this.dragStart.altDeg + flipY * (event.clientY - this.dragStart.y) * degPerPixel;
+    const altDeg = this.gestureStart.altDeg + flipY * dy * degPerPixel;
     const clampedAlt = Math.max(MIN_ALTITUDE_DEG, Math.min(MAX_ALTITUDE_DEG, altDeg));
     // A sideways drag covers more azimuth high in the sky, where its circles are smaller.
     const azScale = 1 / Math.max(Math.cos((clampedAlt * Math.PI) / 180), 0.1);
-    const azDeg = this.dragStart.azDeg - flipX * (event.clientX - this.dragStart.x) * degPerPixel * azScale;
+    const azDeg = this.gestureStart.azDeg - flipX * dx * degPerPixel * azScale;
     this.state.pointing.set({ altDeg: clampedAlt, azDeg: ((azDeg % 360) + 360) % 360 });
   }
 
@@ -1470,93 +1260,6 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   private imageFlip(): Point {
     if (this.mode() !== 'eyepiece') return { x: 1, y: 1 };
     return { x: -1, y: this.state.equipment().telescopeType === 'newtonian' ? -1 : 1 };
-  }
-
-  private async loadStars(): Promise<void> {
-    try {
-      const response = await fetch('assets/data/stars.json');
-      const rows = (await response.json()) as [number, number, number, number][];
-      this.stars.set(
-        rows.map(([ra, dec, mag, colorIndex]) => ({
-          raDeg: ra,
-          decDeg: dec,
-          vector: equatorialVector(ra, dec),
-          mag,
-          colorIndex: starTintIndex(colorIndex),
-        })),
-      );
-    } catch {
-      // The map still shows targets and the horizon without its background stars.
-      this.stars.set([]);
-    }
-  }
-
-  private cellKey(raDeg: number, decDeg: number): number {
-    const row = Math.floor((decDeg + 90) / STAR_CELL_DEG);
-    const column = Math.floor((((raDeg % 360) + 360) % 360) / STAR_CELL_DEG);
-    return row * 1000 + column;
-  }
-
-  /** Stars within a field of where the view points, from the grid cells that can hold them. */
-  private starsNear(fieldDeg: number): Star[] {
-    const { raDeg, decDeg } = this.state.pointingEquatorial();
-    const radius = fieldDeg * 0.75 + STAR_CELL_DEG; // Half the diagonal, plus a cell's width
-    const grid = this.starGrid();
-    const found: Star[] = [];
-    const lowDec = Math.max(-90, decDeg - radius);
-    const highDec = Math.min(90, decDeg + radius);
-    // Lines of right ascension crowd together towards the poles, so cover more of them there.
-    const widestDec = Math.min(89.9, Math.max(Math.abs(lowDec), Math.abs(highDec)));
-    const raRadius =
-      highDec >= 89.9 || lowDec <= -89.9 ? 180 : Math.min(180, radius / Math.cos((widestDec * Math.PI) / 180));
-    const columns = Math.min(360 / STAR_CELL_DEG, Math.ceil((2 * raRadius) / STAR_CELL_DEG) + 1);
-    const firstColumn = Math.floor((raDeg - raRadius) / STAR_CELL_DEG);
-    for (let dec = lowDec; dec <= highDec + STAR_CELL_DEG; dec += STAR_CELL_DEG) {
-      const clampedDec = Math.min(89.99, dec);
-      for (let c = 0; c < columns; c++) {
-        found.push(...(grid.get(this.cellKey((firstColumn + c) * STAR_CELL_DEG, clampedDec)) ?? []));
-      }
-    }
-    return found;
-  }
-
-  /** Adds the faint stars after the bright ones, keeping the brightest-first order. */
-  private async loadDeepStars(): Promise<void> {
-    if (this.deepStarsRequested) return;
-    this.deepStarsRequested = true;
-    try {
-      await this.baseStarsLoaded;
-      const response = await fetch('assets/data/stars-deep.json');
-      const rows = (await response.json()) as [number, number, number, number][];
-      const deep = rows.map(([ra, dec, mag, colorIndex]) => ({
-        raDeg: ra,
-        decDeg: dec,
-        vector: equatorialVector(ra, dec),
-        mag,
-        colorIndex: starTintIndex(colorIndex),
-      }));
-      this.stars.update((current) => [...current, ...deep]);
-    } catch {
-      // The eyepiece view still works with the brighter stars only.
-      this.deepStarsRequested = false;
-    }
-  }
-
-  private async loadConstellations(): Promise<void> {
-    try {
-      const response = await fetch('assets/data/constellations.json');
-      const rows = (await response.json()) as ConstellationRow[];
-      this.constellations.set(
-        rows.map(({ name, label, lines }) => ({
-          name,
-          label: equatorialVector(label[0], label[1]),
-          lines: lines.map((line) => line.map(([ra, dec]) => equatorialVector(ra, dec))),
-        })),
-      );
-    } catch {
-      // Constellation lines are a help, not a requirement.
-      this.constellations.set([]);
-    }
   }
 
   /** Where a target is at the frame being drawn, the same moment as the stars around it. */
@@ -1656,7 +1359,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-    Object.assign(COLOR, this.state.settings().nightMode ? NIGHT_COLOR : DAY_COLOR);
+    useColors(this.state.settings().nightMode);
     ctx.fillStyle = COLOR.sky;
     ctx.fillRect(0, 0, width, height);
 
@@ -1693,19 +1396,39 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       return { x: centreX + flip.x * x * scale, y: centreY - flip.y * y * scale };
     };
 
+    const frame: Frame = {
+      ctx,
+      width,
+      height,
+      project,
+      scale,
+      centreX,
+      centreY,
+      toLocal: this.frameRotation,
+      textScale: this.state.textScale(),
+      isEyepiece,
+    };
     if (!isEyepiece) {
-      this.drawGrid(ctx, project);
-      this.drawConstellationLines(ctx, project);
+      drawGrid(frame);
+      drawConstellationLines(frame, this.constellations());
     }
-    this.drawStars(ctx, project, width, height);
-    this.drawHorizon(ctx, project);
-    const labels = this.drawTargets(ctx, project, scale);
+    // The eyepiece only needs stars near where it points, which the star field finds quickly.
+    // The full list is sorted brightest first, so the sky map can stop at its limit.
+    if (isEyepiece) drawStars(frame, this.starField.starsNear(this.viewField()), this.state.starLimit());
+    else drawStars(frame, this.starField.allStars(), magnitudeLimit(this.fieldDeg()));
+    drawHorizon(frame);
+    const labels = drawTargets(frame, {
+      targets: this.state.targets(),
+      selected: this.state.selectedTarget(),
+      fieldDeg: this.viewField(),
+      sun: this.state.sunEquatorial(),
+    });
     if (isEyepiece) {
-      this.drawEyepieceMask(ctx, width, height, scale, centreY);
-      this.drawEyepieceGuide(ctx, width, centreY, scale);
+      drawEyepieceMask(frame, stereographicRadius(this.eyepieceField() / 2) * scale);
+      this.drawEyepieceGuide(frame);
     } else {
-      this.drawConstellationNames(ctx, project, labels);
-      this.drawReticle(ctx, project, width, height, scale);
+      drawConstellationNames(frame, this.constellations(), labels);
+      this.drawReticle(frame);
     }
   }
 
@@ -1730,419 +1453,36 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     return this.shownPointing;
   }
 
-  /** A canvas font at a size that follows the text size setting. Labels are semi-bold. */
-  private font(sizePx: number, style = ''): string {
-    return `${style} 600 ${Math.round(sizePx * this.textScale())}px sans-serif`.trim();
-  }
-
-  private textScale(): number {
-    return this.state.textScale();
-  }
-
-  /** Draws text with a dark outline, so it stays readable over lines and stars. */
-  private drawLabel(ctx: CanvasRenderingContext2D, text: string, x: number, y: number): void {
-    ctx.save();
-    ctx.lineJoin = 'round';
-    ctx.lineWidth = 4;
-    ctx.strokeStyle = COLOR.sky;
-    ctx.strokeText(text, x, y);
-    ctx.restore();
-    ctx.fillText(text, x, y);
-  }
-
-  /** Draws a line through points, lifting the pen wherever a point can't be shown. */
-  private drawCurve(ctx: CanvasRenderingContext2D, points: (Point | null)[]): void {
-    ctx.beginPath();
-    let penDown = false;
-    for (const point of points) {
-      if (!point) {
-        penDown = false;
-      } else if (penDown) {
-        ctx.lineTo(point.x, point.y);
-      } else {
-        ctx.moveTo(point.x, point.y);
-        penDown = true;
-      }
-    }
-    ctx.stroke();
-  }
-
-  /** Faint altitude and azimuth lines, which help judge distance and direction. */
-  private drawGrid(ctx: CanvasRenderingContext2D, project: Project): void {
-    ctx.strokeStyle = COLOR.grid;
-    ctx.lineWidth = 1;
-    for (const altDeg of GRID_ALTITUDES_DEG) {
-      const points = [];
-      for (let azDeg = 0; azDeg <= 360; azDeg += 3) points.push(project(horizontalVector({ altDeg, azDeg })));
-      this.drawCurve(ctx, points);
-    }
-    for (let azDeg = 0; azDeg < 360; azDeg += GRID_AZIMUTH_STEP_DEG) {
-      const points = [];
-      for (let altDeg = 0; altDeg <= 90; altDeg += 5) points.push(project(horizontalVector({ altDeg, azDeg })));
-      this.drawCurve(ctx, points);
-    }
-  }
-
-  private drawConstellationLines(ctx: CanvasRenderingContext2D, project: Project): void {
-    const toLocal = this.frameRotation;
-    // Two paths, so each is stroked once: above the horizon, and below it, faded.
-    const above = new Path2D();
-    const below = new Path2D();
-    const addSegment = (path: Path2D, a: Vector3, b: Vector3): void => {
-      const [pa, pb] = [project(a), project(b)];
-      if (!pa || !pb) return;
-      path.moveTo(pa.x, pa.y);
-      path.lineTo(pb.x, pb.y);
-    };
-    for (const { lines } of this.constellations()) {
-      for (const line of lines) {
-        const points = line.map((vector) => toApparent(toLocal, vector));
-        for (let i = 1; i < points.length; i++) {
-          const [a, b] = [points[i - 1], points[i]];
-          if (a[2] >= 0 && b[2] >= 0) addSegment(above, a, b);
-          else if (a[2] < 0 && b[2] < 0) addSegment(below, a, b);
-          else {
-            // The segment crosses the horizon: split it where it meets the horizon.
-            const t = a[2] / (a[2] - b[2]);
-            const crossing = normalize([a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1]), 0]);
-            addSegment(a[2] >= 0 ? above : below, a, crossing);
-            addSegment(b[2] >= 0 ? above : below, crossing, b);
-          }
-        }
-      }
-    }
-    ctx.strokeStyle = COLOR.constellationLine;
-    ctx.lineWidth = 1.5;
-    ctx.stroke(above);
-    ctx.globalAlpha = BELOW_HORIZON_OPACITY;
-    ctx.stroke(below);
-    ctx.globalAlpha = 1;
-  }
-
-  /** Constellation names go last and give way to anything already labelled. */
-  private drawConstellationNames(ctx: CanvasRenderingContext2D, project: Project, labels: Box[]): void {
-    const toLocal = this.frameRotation;
-    ctx.fillStyle = COLOR.constellationName;
-    ctx.font = this.font(14, 'italic');
-    ctx.textAlign = 'center';
-    for (const { name, label } of this.constellations()) {
-      const local = toApparent(toLocal, label);
-      const point = project(local);
-      if (!point) continue;
-      const halfWidth = ctx.measureText(name).width / 2;
-      const box: Box = {
-        left: point.x - halfWidth,
-        right: point.x + halfWidth,
-        top: point.y - 10 * this.textScale(),
-        bottom: point.y + 7 * this.textScale(),
-      };
-      if (labels.some((other) => this.overlaps(box, other))) continue;
-      labels.push(box);
-      ctx.globalAlpha = local[2] < 0 ? BELOW_HORIZON_OPACITY : 1;
-      this.drawLabel(ctx, name, point.x, point.y + 5 * this.textScale());
-    }
-    ctx.globalAlpha = 1;
-  }
-
-  private overlaps(a: Box, b: Box): boolean {
-    return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
-  }
-
-  private drawStars(ctx: CanvasRenderingContext2D, project: Project, width: number, height: number): void {
-    const toLocal = this.frameRotation;
-    const isEyepiece = this.mode() === 'eyepiece';
-    const limit = isEyepiece ? this.state.starLimit() : magnitudeLimit(this.fieldDeg());
-
-    // Filling stars of a similar brightness and colour as one shape is far faster than
-    // filling each on its own, which matters most on older phones.
-    const shapes = new Map<number, { path: Path2D; magGroup: number; tint: number; below: boolean }>();
-    // The eyepiece only needs stars near where it points, which the grid finds quickly.
-    // The full list is sorted brightest first, so the sky map can stop at its limit.
-    const candidates = isEyepiece ? this.starsNear(this.viewField()) : this.allStars();
-    for (const star of candidates) {
-      if (star.mag > limit) {
-        if (isEyepiece) continue;
-        break;
-      }
-      const local = toApparent(toLocal, star.vector);
-      // The sky map fades what is below the horizon. The eyepiece view also serves for
-      // planning ahead, so it shows those stars in full.
-      const below = local[2] < 0 && !isEyepiece;
-      const point = project(local);
-      if (!point || point.x < 0 || point.x > width || point.y < 0 || point.y > height) continue;
-
-      const magGroup = Math.floor(star.mag);
-      const key = (magGroup * 10 + star.colorIndex) * 2 + (below ? 1 : 0);
-      let shape = shapes.get(key);
-      if (!shape) {
-        shape = { path: new Path2D(), magGroup, tint: star.colorIndex, below };
-        shapes.set(key, shape);
-      }
-      const radius = Math.max(0.8, 3.4 - star.mag * 0.42);
-      shape.path.moveTo(point.x + radius, point.y);
-      shape.path.arc(point.x, point.y, radius, 0, 2 * Math.PI);
-    }
-
-    for (const { path, magGroup, tint, below } of shapes.values()) {
-      // Faint stars fade as well as shrink.
-      ctx.globalAlpha = Math.min(1, Math.max(0.55, 1.15 - magGroup * 0.1)) * (below ? BELOW_HORIZON_OPACITY : 1);
-      ctx.fillStyle = STAR_TINTS[tint];
-      ctx.fill(path);
-    }
-    ctx.globalAlpha = 1;
-  }
-
-  private drawHorizon(ctx: CanvasRenderingContext2D, project: Project): void {
-    ctx.strokeStyle = COLOR.horizon;
-    ctx.lineWidth = 2;
-    const points = [];
-    for (let azDeg = 0; azDeg <= 360; azDeg += 2) points.push(project(horizontalVector({ altDeg: 0, azDeg })));
-    this.drawCurve(ctx, points);
-
-    ctx.fillStyle = COLOR.cardinal;
-    ctx.font = this.font(17, 'bold');
-    ctx.textAlign = 'center';
-    for (const { label, azDeg } of CARDINALS) {
-      const point = project(horizontalVector({ altDeg: 0, azDeg }));
-      if (point) this.drawLabel(ctx, label, point.x, point.y + 22 * this.textScale());
-    }
-  }
-
-  /** Draws target markers and labels, and returns the space the labels took. */
-  private drawTargets(ctx: CanvasRenderingContext2D, project: Project, scale: number): Box[] {
-    const toLocal = this.frameRotation;
-    const selected = this.state.selectedTarget();
-    const fieldDeg = this.viewField();
-    const labels: Box[] = [];
-    const { clientWidth: screenWidth, clientHeight: screenHeight } = this.canvasRef().nativeElement;
-    ctx.font = this.font(15);
-    ctx.textAlign = 'left';
-    const sun = this.state.sunEquatorial();
-    const sunLocal = toApparent(toLocal, equatorialVector(sun.raDeg, sun.decDeg));
-
-    // The selected target goes first, so its label always wins a clash.
-    // Then those above the horizon, so their labels win a clash with faded ones below.
-    const others = this.state
-      .targets()
-      .filter((t) => t.id !== selected?.id && isShownAtField(t, fieldDeg))
-      .map((target) => ({ target, local: toApparent(toLocal, equatorialVector(target.raDeg, target.decDeg)) }))
-      .sort((a, b) => Number(a.local[2] < 0) - Number(b.local[2] < 0));
-    const ordered = selected
-      ? [{ target: selected, local: toApparent(toLocal, equatorialVector(selected.raDeg, selected.decDeg)) }, ...others]
-      : others;
-    for (const { target, local } of ordered) {
-      const isSelected = target === selected;
-      // The selected target always shows in full. The eyepiece view shows everything in full.
-      ctx.globalAlpha = local[2] < 0 && !isSelected && this.mode() !== 'eyepiece' ? BELOW_HORIZON_OPACITY : 1;
-      const point = project(local);
-      // Drawing markers and labels that are off screen wastes most of the frame's time.
-      if (!point || point.x < -OFF_SCREEN_MARGIN_PX || point.x > screenWidth + OFF_SCREEN_MARGIN_PX) continue;
-      if (point.y < -OFF_SCREEN_MARGIN_PX || point.y > screenHeight + OFF_SCREEN_MARGIN_PX) continue;
-
-      // A selected object keeps its own colour, so its kind stays clear. The crosshair marks it.
-      const isStar = target.kind === 'Star' || target.kind === 'Double star';
-      const color = target.body ? COLOR.solarSystem : isStar ? COLOR.starLabel : COLOR.deepSky;
-
-      // The object's real size, when it is large enough to see at this zoom.
-      // Only for the selected target and bright objects, since faint large ones crowd the view.
-      const showsSize = isSelected || !!target.body || /^M\d/.test(target.id) || target.mag <= MAX_SIZE_CIRCLE_MAG;
-      const sizeRadius = showsSize && target.sizeArcmin ? stereographicRadius(target.sizeArcmin / 60 / 2) * scale : 0;
-      // How far the marker reaches from the centre, to keep the label and selection clear of it.
-      let markerRadius = sizeRadius;
-      if (target.body) {
-        // Planets and the Moon show their own icon. It grows to the real size when zoomed
-        // in far enough, so the Moon's phase fills the eyepiece view as it would there.
-        const discPx = Math.max(sizeRadius, ICON_DISC_PX * this.textScale());
-        // A phase is drawn lit on the right, then turned so the lit side faces the Sun.
-        const icon = target.phase ? phaseIcon(target.phase.litFraction, true) : targetIcon(target);
-        const angle = target.phase ? this.directionOnScreen(local, sunLocal, point, project) : 0;
-        if (icon) this.drawIcon(ctx, icon, point, discPx, color, angle);
-        markerRadius = (discPx * ICON_GRID) / 2 / DISC_RADIUS;
-      } else if (sizeRadius >= MIN_SIZE_CIRCLE_PX) {
-        ctx.strokeStyle = isSelected ? color : COLOR.sizeCircle;
-        ctx.lineWidth = 1;
-        ctx.setLineDash([3, 3]);
-        ctx.beginPath();
-        ctx.arc(point.x, point.y, sizeRadius, 0, 2 * Math.PI);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      } else if (!isSelected && !isStar) {
-        // Stars are already drawn as dots, so only other objects need a small marker.
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.arc(point.x, point.y, 4, 0, 2 * Math.PI);
-        ctx.stroke();
-      }
-      if (isSelected) this.drawTargetMarker(ctx, point, Math.max(6, markerRadius + 3));
-
-      // A constellation's name is already written there, with its lines.
-      if (target.kind === 'Constellation') continue;
-      // The map labels each object with its best-known designation, such as C20 for NGC 7000.
-      const label = designations(target)[0];
-      // Skip a label that would overlap one already drawn.
-      const offset = Math.max(9, markerRadius + (isSelected ? 15 : 3));
-      ctx.fillStyle = color;
-      const box: Box = {
-        left: point.x + offset,
-        right: point.x + offset + ctx.measureText(label).width,
-        top: point.y - 10 * this.textScale(),
-        bottom: point.y + 7 * this.textScale(),
-      };
-      if (labels.some((other) => this.overlaps(box, other))) continue;
-      labels.push(box);
-      this.drawLabel(ctx, label, box.left, point.y + 5 * this.textScale());
-    }
-    ctx.globalAlpha = 1;
-    return labels;
-  }
-
   /**
-   * Draws one of AstroTurboMaxiSolver's line icons centred on a point, sized so its disc has the
-   * given radius, and turned by an angle in radians. A dark edge keeps it readable over
-   * stars and lines, like the map's labels.
+   * The reticle's rings at the view's centre, the three sizes of a Telrad finder or one the
+   * size of the eyepiece's field, and the guidance from them to the selected target.
    */
-  private drawIcon(
-    ctx: CanvasRenderingContext2D,
-    icon: readonly IconPath[],
-    { x, y }: Point,
-    discPx: number,
-    color: string,
-    angle: number,
-  ): void {
-    const scale = discPx / DISC_RADIUS;
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(angle);
-    ctx.scale(scale, scale);
-    ctx.translate(-ICON_GRID / 2, -ICON_GRID / 2);
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    // Lengths are in icon units here. Dividing by the scale keeps lines and dashes the
-    // same on screen at any size, so a large Moon in the eyepiece still has thin lines.
-    const lineWidth = ICON_LINE_PX / scale;
-    for (const [edgeColor, width] of [
-      [COLOR.sky, lineWidth + 3 / scale],
-      [color, lineWidth],
-    ] as const) {
-      ctx.strokeStyle = edgeColor;
-      ctx.fillStyle = edgeColor;
-      ctx.lineWidth = width;
-      for (const { d, fill, dashed } of icon) {
-        const path = iconPath(d);
-        ctx.setLineDash(dashed ? ICON_DASH.map((length) => (length * 2) / scale) : []);
-        if (fill) ctx.fill(path);
-        ctx.stroke(path);
-      }
-    }
-    ctx.restore();
-  }
-
-  /**
-   * The direction on screen from a point on the sky towards another, such as from the
-   * Moon towards the Sun, as an angle in radians. It takes a tiny step along the sky,
-   * so it works even when the Sun is far off screen or below the horizon.
-   */
-  private directionOnScreen(from: Vector3, towards: Vector3, point: Point, project: Project): number {
-    const along = towards[0] * from[0] + towards[1] * from[1] + towards[2] * from[2];
-    const nudge = (i: number): number => from[i] + 0.001 * (towards[i] - along * from[i]);
-    const step: Vector3 = [nudge(0), nudge(1), nudge(2)];
-    const next = project(step);
-    return next ? Math.atan2(next.y - point.y, next.x - point.x) : 0;
-  }
-
-  /**
-   * The selected target: a crosshair of four short rounded strokes, with a gap in the
-   * middle so the object itself stays visible. It uses the green the aiming rings turn
-   * when the telescope is on target.
-   */
-  private drawTargetMarker(ctx: CanvasRenderingContext2D, { x, y }: Point, gap: number): void {
-    // Each stroke runs out from the gap, which keeps clear of the object's icon or size.
-    const radius = gap + 10;
-    ctx.save();
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    for (const [dx, dy] of [
-      [0, -1],
-      [1, 0],
-      [0, 1],
-      [-1, 0],
-    ]) {
-      ctx.moveTo(x + dx * gap, y + dy * gap);
-      ctx.lineTo(x + dx * radius, y + dy * radius);
-    }
-    // A dark edge first, so the crosshair stands out over stars and lines.
-    ctx.strokeStyle = COLOR.sky;
-    ctx.lineWidth = 6;
-    ctx.stroke();
-    ctx.strokeStyle = COLOR.onTarget;
-    ctx.lineWidth = 3;
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  /**
-   * AstroTurboMaxiSolver's reticle: three rings at the sizes observers know from a Telrad finder.
-   */
-  private drawReticle(
-    ctx: CanvasRenderingContext2D,
-    project: Project,
-    width: number,
-    height: number,
-    scale: number,
-  ): void {
-    // The view's centre: right of the screen's middle on a phone on its side, and above it
-    // on an upright phone while the target's box takes the bottom of the screen.
-    const cx = this.viewCentreX || width / 2;
-    const cy = this.viewCentreY || height / 2;
-    const color = this.isOnTarget() ? COLOR.onTarget : COLOR.reticle;
+  private drawReticle(frame: Frame): void {
     // While plate solving, the reticle fades in and out, and keeps redrawing itself to do so.
     const opacity = this.state.plateSolving() ? pulseOpacity(performance.now()) : 1;
     this.canvasRef().nativeElement.dataset['reticleOpacity'] = opacity.toFixed(2);
     if (this.state.plateSolving()) this.queueDraw();
-    ctx.globalAlpha = opacity;
-    ctx.strokeStyle = color;
-    ctx.fillStyle = color;
-    ctx.lineWidth = 2.5;
-    ctx.font = this.font(13);
-    ctx.textAlign = 'left';
-
     const rings = this.mode() === 'ring' ? [this.eyepieceField()] : RETICLE_RINGS_DEG;
-    for (const diameterDeg of rings) {
-      const radius = stereographicRadius(diameterDeg / 2) * scale;
-      ctx.beginPath();
-      ctx.arc(cx, cy, radius, 0, 2 * Math.PI);
-      ctx.stroke();
-      // Small rings have no room for a label until zoomed in.
-      if (radius >= MIN_LABELLED_RING_PX) {
-        // Eyepiece fields such as 0.8333° read better rounded: "0.83°".
-        this.drawLabel(ctx, `${Number(diameterDeg.toFixed(2))}°`, cx + radius * 0.72 + 4, cy - radius * 0.72 - 4);
-      }
-    }
+    this.reticleRadiusPx = drawReticle(frame, rings, this.isOnTarget(), opacity);
 
-    // The guide starts just outside the largest ring.
-    const outerRadius = stereographicRadius(Math.max(...rings) / 2) * scale;
-    this.reticleRadiusPx = outerRadius;
-
-    ctx.globalAlpha = 1;
-
-    this.drawPointer(ctx, project, cx, cy, outerRadius + 24, width, height);
-  }
-
-  /** Points from the reticle to the selected target, with a guide line if it is visible. */
-  private drawPointer(
-    ctx: CanvasRenderingContext2D,
-    project: Project,
-    cx: number,
-    cy: number,
-    radius: number,
-    width: number,
-    height: number,
-  ): void {
+    // Points from the rings to the selected target, with a guide line if it is in view.
     const target = this.state.selectedTarget();
     if (!target || this.isOnTarget()) return;
     const position = this.framePositionOf(target);
+    drawPointer(
+      frame,
+      this.reticleRadiusPx + 24,
+      this.guideAngle(position),
+      frame.project(horizontalVector(position)),
+      this.targetDistance(),
+    );
+  }
 
+  /**
+   * Which way on screen the target lies from the view's centre, in radians from straight
+   * up, also noted on the canvas for tests.
+   */
+  private guideAngle(position: Horizontal): number {
     // Work in the view's own axes, which stay valid for a target behind the viewer.
     const [x, y] = toViewCoordinates(
       viewBasis(this.shownPointing ?? this.state.pointing()),
@@ -2150,23 +1490,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     );
     const angle = (guideAngleDeg(x, y, 1, 1, this.state.viewRollDeg()) * Math.PI) / 180;
     this.canvasRef().nativeElement.dataset['guideAngle'] = String(Math.round((angle * 180) / Math.PI));
-    const [dirX, dirY] = [Math.sin(angle), -Math.cos(angle)];
-
-    // A dashed line joins the rings to the target once it is in view.
-    const point = project(horizontalVector(position));
-    const isInView = !!point && point.x >= 0 && point.x <= width && point.y >= 0 && point.y <= height;
-    if (point && isInView && Math.hypot(point.x - cx, point.y - cy) > radius + 40) {
-      ctx.strokeStyle = COLOR.guide;
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([2, 5]);
-      ctx.beginPath();
-      ctx.moveTo(cx + dirX * (radius + 34), cy + dirY * (radius + 34));
-      ctx.lineTo(point.x, point.y);
-      ctx.stroke();
-      ctx.setLineDash([]);
-    }
-
-    this.drawChevrons(ctx, cx + dirX * (radius + 4), cy + dirY * (radius + 4), angle);
+    return angle;
   }
 
   /**
@@ -2175,65 +1499,23 @@ export class SkyPage implements AfterViewInit, OnDestroy {
    * of the telescope on purpose, so they point the way to move the tube, like the bottom bar
    * says. They turn with the phone, as the view does, so up stays towards the real sky.
    */
-  private drawEyepieceGuide(ctx: CanvasRenderingContext2D, width: number, centreY: number, scale: number): void {
+  private drawEyepieceGuide(frame: Frame): void {
     const target = this.state.selectedTarget();
-    const canvas = this.canvasRef().nativeElement;
     if (!target) return;
     const position = this.framePositionOf(target);
     const pointing = this.shownPointing ?? this.state.pointing();
     if (separationDeg(pointing, position) < this.eyepieceField() / 2) {
-      delete canvas.dataset['guideAngle'];
+      delete this.canvasRef().nativeElement.dataset['guideAngle'];
       return;
     }
-    const [x, y] = toViewCoordinates(viewBasis(pointing), horizontalVector(position));
-    const angle = (guideAngleDeg(x, y, 1, 1, this.state.viewRollDeg()) * Math.PI) / 180;
-    canvas.dataset['guideAngle'] = String(Math.round((angle * 180) / Math.PI));
-
-    const radius = stereographicRadius(this.eyepieceField() / 2) * scale + 8;
-    this.drawChevrons(ctx, this.viewCentreX + Math.sin(angle) * radius, centreY - Math.cos(angle) * radius, angle);
-  }
-
-  /** A trail of chevrons that brightens towards the target, so the eye follows it outwards. */
-  private drawChevrons(ctx: CanvasRenderingContext2D, x: number, y: number, angle: number): void {
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(angle);
-    ctx.strokeStyle = COLOR.guide;
-    ctx.lineWidth = 3.5;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    // Wide gaps mean the target is far away, so move quickly. Tight gaps mean slow down.
-    const spacing = chevronSpacingPx(this.targetDistance());
-    for (const [index, alpha] of CHEVRON_FADE.entries()) {
-      const tip = -index * spacing - CHEVRON_HEIGHT_PX;
-      ctx.globalAlpha = alpha;
-      ctx.beginPath();
-      ctx.moveTo(-CHEVRON_HALF_WIDTH_PX, tip + CHEVRON_HEIGHT_PX);
-      ctx.lineTo(0, tip);
-      ctx.lineTo(CHEVRON_HALF_WIDTH_PX, tip + CHEVRON_HEIGHT_PX);
-      ctx.stroke();
-    }
-    ctx.restore();
-  }
-
-  /** Blacks out everything outside the eyepiece's circular field. */
-  private drawEyepieceMask(
-    ctx: CanvasRenderingContext2D,
-    width: number,
-    height: number,
-    scale: number,
-    centreY: number,
-  ): void {
-    const radius = stereographicRadius(this.eyepieceField() / 2) * scale;
-    ctx.fillStyle = '#000000';
-    ctx.beginPath();
-    ctx.rect(0, 0, width, height);
-    ctx.arc(this.viewCentreX, centreY, radius, 0, 2 * Math.PI, true);
-    ctx.fill();
-    ctx.strokeStyle = '#3a4158';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.arc(this.viewCentreX, centreY, radius, 0, 2 * Math.PI);
-    ctx.stroke();
+    const angle = this.guideAngle(position);
+    const radius = stereographicRadius(this.eyepieceField() / 2) * frame.scale + 8;
+    drawChevrons(
+      frame.ctx,
+      frame.centreX + Math.sin(angle) * radius,
+      frame.centreY - Math.cos(angle) * radius,
+      angle,
+      this.targetDistance(),
+    );
   }
 }
