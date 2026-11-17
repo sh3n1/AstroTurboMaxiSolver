@@ -1,5 +1,6 @@
 // PWA behaviour that only exists in a production build, because the service
-// worker is disabled under the dev server. See the production project in
+// worker is disabled under the dev server, and the landing page, which only the build has.
+// The app is at /app/, the landing at the root: see the production project in
 // playwright.config.ts for how the build is served.
 import { expect, test } from '@playwright/test';
 
@@ -9,7 +10,7 @@ test('reloads from the service worker while offline', async ({ context, page }) 
   // Against a published copy the whole app, about 8 MB, comes over the internet first.
   test.setTimeout(120_000);
   // First visit: this is what installs the service worker.
-  await page.goto('/');
+  await page.goto('/app/');
   await expect(page.locator(starCanvas)).toBeAttached();
 
   // Wait until the worker is active and controlling this page.
@@ -26,7 +27,7 @@ test('reloads from the service worker while offline', async ({ context, page }) 
     .poll(
       () =>
         page.evaluate(async () => {
-          const manifest = await (await fetch('/ngsw.json?ngsw-cache-bust=' + Date.now())).json();
+          const manifest = await (await fetch('/app/ngsw.json?ngsw-cache-bust=' + Date.now())).json();
           const urls: string[] = manifest.assetGroups.find((group: { name: string }) => group.name === 'app').urls;
           const cached = await Promise.all(urls.map((url) => caches.match(url)));
           return cached.every(Boolean);
@@ -44,22 +45,22 @@ test('reloads from the service worker while offline', async ({ context, page }) 
 });
 
 test('offers no device test, which is only for developing the app', async ({ page }) => {
-  await page.goto('/tabs/settings');
+  await page.goto('/app/tabs/settings');
   await expect(page.getByTestId('app-version')).toBeVisible();
   await expect(page.getByTestId('open-device-test')).toHaveCount(0);
   // Its address goes to the map, like any address the app doesn't have.
-  await page.goto('/device-test');
-  await expect(page).toHaveURL(/tabs\/sky/);
+  await page.goto('/app/device-test');
+  await expect(page).toHaveURL(/app\/tabs\/sky/);
 });
 
 test('serves a complete web app manifest', async ({ page, request }) => {
   // Follow the link from the page, so this also fails if index.html loses it.
-  await page.goto('/');
+  await page.goto('/app/');
   const href = await page.locator('link[rel="manifest"]').getAttribute('href');
   expect(href).toBeTruthy();
 
   // These fields are what browsers need in order to offer installation.
-  const manifest = await (await request.get(`/${href}`)).json();
+  const manifest = await (await request.get(`/app/${href}`)).json();
   expect(manifest.name).toBe('AstroTurboMaxiSolver');
   expect(manifest.display).toBe('fullscreen');
   expect(manifest.icons.map((icon: { purpose: string }) => icon.purpose)).toEqual(
@@ -68,6 +69,30 @@ test('serves a complete web app manifest', async ({ page, request }) => {
 
   // A manifest can look valid while its icons are missing from the build.
   for (const icon of manifest.icons) {
-    expect((await request.get(`/${icon.src}`)).ok(), icon.src).toBe(true);
+    expect((await request.get(`/app/${icon.src}`)).ok(), icon.src).toBe(true);
   }
+});
+
+test('has a landing page at the root, for people and search engines, leading to the app', async ({ page, request }) => {
+  await page.goto('/');
+  await expect(page.locator('h1')).toHaveText('AstroTurboMaxiSolver');
+  // What search engines read, and what a shared link shows.
+  await expect(page.locator('meta[name=description]')).toHaveAttribute('content', /telescope finder/);
+  await expect(page.locator('meta[property="og:image"]')).toHaveAttribute('content', /share\.jpg$/);
+  expect(JSON.parse((await page.locator('script[type="application/ld+json"]').textContent())!).name).toBe(
+    'AstroTurboMaxiSolver',
+  );
+  await expect(page.getByText('personal project')).toBeVisible();
+  for (const image of await page.locator('img').all()) {
+    expect((await request.get(new URL((await image.getAttribute('src'))!, page.url()).pathname)).ok()).toBe(true);
+  }
+  expect((await request.get('/robots.txt')).ok()).toBe(true);
+  expect((await request.get('/sitemap.xml')).ok()).toBe(true);
+  // An address that is neither the landing nor the app is a real "not found".
+  expect((await request.get('/no-such-page')).status()).toBe(404);
+
+  // Its button opens the app.
+  await page.getByRole('link', { name: 'Open the app' }).first().click();
+  await expect(page).toHaveURL(/\/app\/tabs\/sky/);
+  await expect(page.locator(starCanvas)).toBeAttached();
 });

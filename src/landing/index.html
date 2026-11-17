@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AstroTurboMaxiSolver · Telescope finder for your phone</title>
+    <meta
+      name="description"
+      content="A free telescope finder for your phone. It reads the stars with the camera to know where your telescope points, and guides you to your target, even under a city sky and offline."
+    />
+    <link rel="canonical" href="https://astroturbomaxisolver.app/" />
+    <meta name="theme-color" content="#05070f" />
+    <meta name="color-scheme" content="dark" />
+    <link rel="icon" type="image/png" href="app/assets/icon/favicon.png" />
+    <link rel="apple-touch-icon" href="app/icons/apple-touch-icon.png" />
+    <link rel="stylesheet" href="styles.css" />
+
+    <!-- How the page looks when a link to it is shared. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://astroturbomaxisolver.app/" />
+    <meta property="og:title" content="AstroTurboMaxiSolver · Telescope finder for your phone" />
+    <meta
+      property="og:description"
+      content="Reads the stars with your phone's camera to know where your telescope points, and guides you to your target."
+    />
+    <meta property="og:image" content="https://astroturbomaxisolver.app/images/share.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <!-- What the app is, for search engines. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "AstroTurboMaxiSolver",
+        "url": "https://astroturbomaxisolver.app/app/",
+        "description": "A telescope finder for your phone: plate solving with the camera, sensor fusion and guidance to your target.",
+        "applicationCategory": "UtilitiesApplication",
+        "operatingSystem": "Android, iOS",
+        "isAccessibleForFree": true,
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
+        "screenshot": "https://astroturbomaxisolver.app/images/guidance.jpg"
+      }
+    </script>
+  </head>
+  <body>
+    <header class="hero">
+      <img class="logo" src="app/icons/icon-192x192.png" width="96" height="96" alt="" />
+      <h1>AstroTurboMaxiSolver</h1>
+      <p class="tagline">
+        A telescope finder in your phone. It reads the stars to know where your telescope points, and guides you to your
+        target.
+      </p>
+      <a class="button" href="app/">Open the app</a>
+      <p class="facts">Free · Works offline · Android and iPhone</p>
+    </header>
+
+    <main>
+      <section class="screens" aria-label="Screens of the app">
+        <figure>
+          <img
+            src="images/guidance.jpg"
+            width="780"
+            height="1688"
+            loading="lazy"
+            alt="The sky map, with arrows pointing the way to the Andromeda Galaxy"
+          />
+          <figcaption>Arrows lead the way to your target</figcaption>
+        </figure>
+        <figure>
+          <img
+            src="images/eyepiece.jpg"
+            width="780"
+            height="1688"
+            loading="lazy"
+            alt="The eyepiece view, centred on the Great Hercules Cluster"
+          />
+          <figcaption>See what your eyepiece will show</figcaption>
+        </figure>
+        <figure>
+          <img
+            src="images/night.jpg"
+            width="780"
+            height="1688"
+            loading="lazy"
+            alt="The sky map in red night mode, on Saturn, with the menu open"
+          />
+          <figcaption>Red night mode keeps your eyes dark-adapted</figcaption>
+        </figure>
+      </section>
+
+      <section>
+        <h2>What it does</h2>
+        <ul class="features">
+          <li>
+            <h3>Knows where you point</h3>
+            <p>
+              The phone's camera looks at the sky, finds the stars and works out where the telescope points: plate
+              solving, in your browser, with no internet needed.
+            </p>
+          </li>
+          <li>
+            <h3>Follows the telescope</h3>
+            <p>The motion sensors move the map as you move the telescope, and each plate solve corrects them.</p>
+          </li>
+          <li>
+            <h3>Guides you there</h3>
+            <p>Pick a target and follow the arrows until it is in the rings, then in your eyepiece.</p>
+          </li>
+          <li>
+            <h3>Lists for tonight</h3>
+            <p>
+              Messier, Caldwell, NGC and IC objects, planets, double stars, and what is best right now. Keep your own
+              lists and an observing log.
+            </p>
+          </li>
+          <li>
+            <h3>Two phones</h3>
+            <p>One phone on the telescope as the finder, another in your hand as the screen, linked directly.</p>
+          </li>
+          <li>
+            <h3>Made for city skies</h3>
+            <p>Designed to work under a bright city sky, with large text you can read at arm's length.</p>
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>How it works</h2>
+        <ol class="steps">
+          <li>Fix your phone to the telescope, with its camera looking at the sky.</li>
+          <li>Align once: centre a bright star in the eyepiece and tap.</li>
+          <li>Choose a target and follow the arrows.</li>
+        </ol>
+        <p class="note">
+          Best on Android with Chrome. iPhone with Safari works too, with some limits. From the app, install it on your
+          home screen to use it full screen.
+        </p>
+        <p class="warning">Never point your telescope or your phone's camera at the Sun.</p>
+      </section>
+
+      <section class="about">
+        <h2>About this project</h2>
+        <p>
+          AstroTurboMaxiSolver is a personal project. It was built with vibe coding, describing to an AI what to build,
+          and it is the first project I have made this way. I find it useful at the telescope, so I wanted to share it
+          with other amateur astronomers.
+        </p>
+        <p>It will be released as open source soon.</p>
+        <p class="disclaimer">
+          It is provided as is, without any warranty. Positions and guidance may be wrong: check them before relying on
+          them.
+        </p>
+      </section>
+
+      <p class="cta"><a class="button" href="app/">Open the app</a></p>
+    </main>
+
+    <footer>
+      <p>
+        Star and object data from OpenNGC and the HYG Database (CC BY-SA 4.0), the Washington Double Star Catalog, the
+        NASA/JPL Small-Body Database and others. Full credits are in the app's Settings.
+      </p>
+    </footer>
+  </body>
+</html>

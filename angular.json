@@ -20,7 +20,7 @@
           "options": {
             "outputPath": {
               "base": "www",
-              "browser": ""
+              "browser": "app"
             },
             "index": "src/index.html",
             "polyfills": [],
@@ -63,6 +63,7 @@
                 }
               ],
               "outputHashing": "all",
+              "baseHref": "/app/",
               "serviceWorker": "ngsw-config.json"
             },
             "development": {
