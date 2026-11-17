@@ -116,8 +116,9 @@ test('lists what is inside the reticle, following the telescope', async ({ page 
       [id, offsetDeg] as const,
     );
 
-  // Half a degree from Vega, it is in the list, and first, as nothing else is that close.
-  await aimNear('Vega', 0.5);
+  // A fifth of a degree from Vega, it is in the list, and first, as nothing else is that
+  // close: its nearest neighbour, the faint star XY Lyr, is two thirds of a degree from it.
+  await aimNear('Vega', 0.2);
   const rows = page.locator('app-list app-target-list ion-item');
   await expect(rows.first().locator('[data-testid=designations]')).toContainText('Vega');
 
@@ -372,11 +373,12 @@ test('shares a list through the share sheet as a text file, and never downloads 
 });
 
 test('plays a list on the sky map: next and previous, skipping what is below the horizon', async ({ page }) => {
-  // Far north, M81 and M97 never set and M42 never rises, whatever the time of the test.
+  // Near the pole, M81 and M97 never set and M42 never rises, whatever the time of the test.
+  // Not at 85° north: there M42 passes 0.4° under the horizon, and refraction lifts it over.
   await page.addInitScript(() =>
     localStorage.setItem(
       'astroturbomaxisolver.settings',
-      JSON.stringify({ latitudeDeg: 85, longitudeDeg: 0, locationSet: true }),
+      JSON.stringify({ latitudeDeg: 89, longitudeDeg: 0, locationSet: true }),
     ),
   );
   await page.goto('/tabs/lists');
