@@ -1,7 +1,24 @@
 import { describe, expect, it } from 'vitest';
 
 import type { LogConditions, LogEntry } from './observing-log';
-import { appearanceChoices, carriedDetails, cleanDetails, countLabel, exportLogCsv, exportLogJson, groupByNight, logTotals, mergeEntries, newEntry, nightKey, ordinal, parseLogJson, seenCounts, seenStates, timesSeen } from './observing-log';
+import {
+  appearanceChoices,
+  carriedDetails,
+  cleanDetails,
+  countLabel,
+  exportLogCsv,
+  exportLogJson,
+  groupByNight,
+  logTotals,
+  mergeEntries,
+  newEntry,
+  nightKey,
+  ordinal,
+  parseLogJson,
+  seenCounts,
+  seenStates,
+  timesSeen,
+} from './observing-log';
 
 const CONDITIONS: LogConditions = {
   latitudeDeg: 39.47,

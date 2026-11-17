@@ -29,5 +29,6 @@ export function targetSearchText(target: Target): string {
 
 /** Whether the text is exactly one of the target's designations, such as "M31" for M31. */
 export function isExactDesignation(target: Target, term: string): boolean {
-  return ` ${normalizeSearch(`${target.id} ${target.aliases ?? ''}`)} `.includes(` ${term} `);
+  // Other names may be separated by commas, as the star names from HYG are.
+  return ` ${normalizeSearch(`${target.id} ${target.aliases ?? ''}`.replace(/,/g, ' '))} `.includes(` ${term} `);
 }

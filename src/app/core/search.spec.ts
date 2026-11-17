@@ -13,6 +13,22 @@ const ANDROMEDA: Target = {
   mag: 3.4,
 };
 
+describe('isExactDesignation with comma-separated names', () => {
+  it('matches a name among other names separated by commas', () => {
+    const target = {
+      id: 'STF 2758',
+      name: 'Double star',
+      aliases: 'STF 2758, 61 Cyg, HR 8085',
+      kind: 'Double star' as const,
+      raDeg: 0,
+      decDeg: 0,
+      mag: 5,
+    };
+    expect(isExactDesignation(target, normalizeSearch('61 Cyg'))).toBe(true);
+    expect(isExactDesignation(target, normalizeSearch('1 Cyg'))).toBe(false);
+  });
+});
+
 describe('search', () => {
   it('ignores case, extra spaces and the space before a catalogue number', () => {
     expect(normalizeSearch('NGC 224')).toBe('ngc224');

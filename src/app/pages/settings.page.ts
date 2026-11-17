@@ -553,6 +553,19 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
               >Stars, star names and constellation lines from XHIP and the IAU, via d3-celestial.</ion-label
             >
           </ion-item>
+          <ion-item
+            data-testid="credit-hyg"
+            href="https://github.com/astronexus/HYG-Database"
+            target="_blank"
+            rel="noopener"
+            detail="false"
+          >
+            <ion-label class="ion-text-wrap credit">
+              Star catalogue names from the HYG Database by David Nash, CC BY-SA 4.0. Converted and filtered for this
+              app.
+            </ion-label>
+            <ion-icon slot="end" name="open-outline" aria-hidden="true"></ion-icon>
+          </ion-item>
           <ion-item>
             <ion-label class="ion-text-wrap credit">Messier data by H. Frommert, seds.org, via d3-celestial.</ion-label>
           </ion-item>

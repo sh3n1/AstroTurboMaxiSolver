@@ -31,6 +31,8 @@ import {
   resolveSelection,
 } from './equipment';
 import { EXTRA_TARGETS } from './extra-targets';
+import { joinHygStars } from './hyg-stars';
+import type { HygData } from './hyg-stars';
 import { LocalDb } from './local-db';
 import { MINOR_PLANETS, minorPlanet } from './minor-planets';
 import { telescopeLimit } from './sky-quality';
@@ -370,8 +372,11 @@ export class AppState {
   constructor() {
     setInterval(() => this.realMinute.set(new Date()), 60_000);
     setInterval(() => this.realSecond.set(new Date()), SKY_TIME_STEP_MS);
-    // Double stars go onto the named stars too, so they wait for them.
-    void this.loadCatalog('assets/data/targets.json').then(() => this.loadDoubles());
+    // Double stars go onto the named stars too, so they wait for them, and the HYG star
+    // names go onto both.
+    void this.loadCatalog('assets/data/targets.json')
+      .then(() => this.loadDoubles())
+      .then(() => this.loadHygStars());
     void this.loadCatalog('assets/data/openngc.json');
     void this.loadCaldwell();
     void this.loadConstellations();
@@ -520,6 +525,20 @@ export class AppState {
       ]);
     } catch {
       // Everything else works without the double stars.
+    }
+  }
+
+  /**
+   * Adds the stars' catalogue names from the HYG Database, and the naked-eye stars the app
+   * had no name for, so stars are found by the names other apps use. See hyg-stars.ts.
+   */
+  private async loadHygStars(): Promise<void> {
+    try {
+      const response = await fetch('assets/data/hyg.json');
+      const data = (await response.json()) as HygData;
+      this.catalog.update((current) => joinHygStars(current, data.stars));
+    } catch {
+      // Stars are still found by their proper names and double star numbers without it.
     }
   }
 
