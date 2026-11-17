@@ -60,7 +60,8 @@ Before finishing a change, run: `npm run lint`, `npm run test:unit` and `npm run
 - `spikes/` - feasibility experiments, not part of the app build
 - `src/app/core/` - shared state, astronomy maths and shared components
 - `src/app/pages/` - one file per tab
-- `src/app/core/sky-map/` - the sky map's drawing, star data, gestures and look, as plain code the sky page uses
+- `src/app/core/sky-map/` - the sky map: its canvas component, and its drawing, star data, gestures and look as plain code
+- `src/app/core/settings/` - sections of the Settings page, each its own component
 - `src/assets/data/` - generated star and target data, built by the scripts in `scripts/`
 
 ## PWA constraints

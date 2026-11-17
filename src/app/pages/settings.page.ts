@@ -1,8 +1,6 @@
-import { DecimalPipe } from '@angular/common';
-import { Component, computed, inject, isDevMode, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
-  IonBadge,
   IonButton,
   IonButtons,
   IonContent,
@@ -10,7 +8,6 @@ import {
   IonIcon,
   IonInput,
   IonItem,
-  IonItemDivider,
   IonLabel,
   IonList,
   IonListHeader,
@@ -21,50 +18,35 @@ import {
   IonTitle,
   IonToggle,
   IonToolbar,
-  ModalController,
-  ToastController,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
-  add,
-  apertureOutline,
   arrowBack,
   bluetoothOutline,
   cameraOutline,
-  chatbubbleEllipsesOutline,
-  chevronDown,
-  chevronUp,
-  createOutline,
-  desktopOutline,
-  flaskOutline,
   globeOutline,
   gridOutline,
-  listOutline,
   locateOutline,
   locationOutline,
   lockOpenOutline,
   moonOutline,
   navigateOutline,
-  openOutline,
   phonePortraitOutline,
   phoneLandscapeOutline,
   volumeLowOutline,
   textOutline,
-  trashOutline,
 } from 'ionicons/icons';
 
 import { APP_ICONS } from '../core/app-icons';
 import { AppState } from '../core/app-state.service';
 import type { Settings } from '../core/app-state.service';
 import { formatLocation } from '../core/astronomy';
-import type { KitItem, KitKind } from '../core/equipment';
-import { kitItemDetail, kitItemLabel } from '../core/equipment';
-import { EquipmentEditorComponent } from '../core/equipment-editor.component';
-import { listToastPlace } from '../core/list-toast';
-import { LiveSolverService } from '../core/live-solver.service';
-import { LocalTimePipe } from '../core/local-time.pipe';
 import { RemoteService } from '../core/remote.service';
 import { ScreenWakeService } from '../core/screen-wake.service';
+import { SettingsCreditsComponent } from '../core/settings/settings-credits.component';
+import { SettingsEquipmentComponent } from '../core/settings/settings-equipment.component';
+import { SETTINGS_ROW_STYLES } from '../core/settings/settings-styles';
+import { SettingsTestingComponent } from '../core/settings/settings-testing.component';
 import { BORTLE_CLASSES } from '../core/sky-quality';
 import { SoundService } from '../core/sound.service';
 
@@ -78,9 +60,9 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
 @Component({
   selector: 'app-settings',
   imports: [
-    LocalTimePipe,
-    DecimalPipe,
-    IonBadge,
+    SettingsCreditsComponent,
+    SettingsEquipmentComponent,
+    SettingsTestingComponent,
     IonButton,
     IonButtons,
     IonContent,
@@ -88,7 +70,6 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
     IonIcon,
     IonInput,
     IonItem,
-    IonItemDivider,
     IonLabel,
     IonList,
     IonListHeader,
@@ -100,85 +81,52 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
     IonToggle,
     IonToolbar,
   ],
-  styles: `
-    /* Section titles: small, bold and spaced, so the sections are easy to tell apart. */
-    ion-list {
-      margin-bottom: 4px;
-    }
-    /* Icons lead each row, in the app's light blue. */
-    ion-item > ion-icon[slot='start'] {
-      color: var(--ion-color-primary);
-      margin-inline-end: 16px;
-    }
-    /* Labels and hints wrap instead of being cut off, at the readable text sizes. */
-    ion-toggle::part(label),
-    ion-select::part(label) {
-      white-space: normal;
-      overflow: visible;
-    }
-    ion-toggle::part(supporting-text) {
-      color: var(--af-muted);
-      font-size: calc(14px * var(--af-scale, 1));
-      line-height: 1.35;
-    }
-    ion-label p {
-      color: var(--af-muted);
-    }
-    /* Text under a section, like the explanations under iOS settings groups. */
-    .section-note {
-      margin: 0 28px 12px;
-      color: var(--af-muted);
-      font-size: calc(14px * var(--af-scale, 1));
-      line-height: 1.4;
-    }
-    /* The text size choice: a label above three sample letters of growing size. */
-    .text-size {
-      width: 100%;
-      padding: 10px 0 12px;
-    }
-    .text-size ion-segment {
-      margin-top: 8px;
-    }
-    .text-size ion-segment-button {
-      min-height: 44px;
-      /* Ionic shows segment text in capitals. These are samples of the text, so keep them as typed. */
-      text-transform: none;
-    }
-    /* Latitude and longitude side by side, each taking half the row. */
-    .coordinates {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-      width: 100%;
-      padding-bottom: 8px;
-    }
-    ion-input::part(supporting-text) {
-      color: var(--af-muted);
-      font-size: calc(14px * var(--af-scale, 1));
-    }
-    .sample-standard {
-      font-size: 16px;
-    }
-    .sample-large {
-      font-size: 19px;
-    }
-    .sample-extra-large {
-      font-size: 23px;
-    }
-    .good {
-      color: var(--ion-color-success);
-    }
-    .warn {
-      color: var(--ion-color-warning);
-    }
-    /* Green has little red in it, so at night it would turn dark red. Full-strength there. */
-    :host-context(html.night) .good {
-      color: var(--af-text);
-    }
-    .credit {
-      font-size: calc(14px * var(--af-scale, 1));
-    }
-  `,
+  styles: [
+    SETTINGS_ROW_STYLES,
+    `
+      /* Text under a section, like the explanations under iOS settings groups. */
+      .section-note {
+        margin: 0 28px 12px;
+        color: var(--af-muted);
+        font-size: calc(14px * var(--af-scale, 1));
+        line-height: 1.4;
+      }
+      /* The text size choice: a label above three sample letters of growing size. */
+      .text-size {
+        width: 100%;
+        padding: 10px 0 12px;
+      }
+      .text-size ion-segment {
+        margin-top: 8px;
+      }
+      .text-size ion-segment-button {
+        min-height: 44px;
+        /* Ionic shows segment text in capitals. These are samples of the text, so keep them as typed. */
+        text-transform: none;
+      }
+      /* Latitude and longitude side by side, each taking half the row. */
+      .coordinates {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        width: 100%;
+        padding-bottom: 8px;
+      }
+      ion-input::part(supporting-text) {
+        color: var(--af-muted);
+        font-size: calc(14px * var(--af-scale, 1));
+      }
+      .sample-standard {
+        font-size: 16px;
+      }
+      .sample-large {
+        font-size: 19px;
+      }
+      .sample-extra-large {
+        font-size: 23px;
+      }
+    `,
+  ],
   template: `
     <ion-header>
       <ion-toolbar>
@@ -256,48 +204,7 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
         </div>
 
         <!-- The user's equipment, which the eyepiece view picks from. -->
-        <ion-list inset="true" id="equipment" data-testid="equipment">
-          <ion-list-header>Equipment</ion-list-header>
-          @for (group of kitGroups; track group.kind) {
-            <ion-item-divider>{{ group.title }}</ion-item-divider>
-            @let items = kitItems(group.kind);
-            @for (item of items; track item.id) {
-              <ion-item data-testid="kit-item">
-                <ion-label class="ion-text-wrap">
-                  <h2>{{ itemLabel(group.kind, item) }}</h2>
-                  @if (itemDetail(group.kind, item); as detail) {
-                    <p>{{ detail }}</p>
-                  }
-                </ion-label>
-                <ion-button
-                  slot="end"
-                  fill="clear"
-                  data-testid="kit-edit"
-                  [attr.aria-label]="'Edit ' + itemLabel(group.kind, item)"
-                  (click)="editKit(group.kind, item)"
-                >
-                  <ion-icon slot="icon-only" name="create-outline" aria-hidden="true"></ion-icon>
-                </ion-button>
-                <!-- In plain sight. The last telescope or eyepiece stays: the views need one. -->
-                <ion-button
-                  slot="end"
-                  fill="clear"
-                  color="danger"
-                  data-testid="kit-delete"
-                  [attr.aria-label]="'Delete ' + itemLabel(group.kind, item)"
-                  [disabled]="group.required && items.length === 1"
-                  (click)="removeKit(group.kind, item)"
-                >
-                  <ion-icon slot="icon-only" name="trash-outline" aria-hidden="true"></ion-icon>
-                </ion-button>
-              </ion-item>
-            }
-            <ion-item button detail="false" [attr.data-testid]="'kit-add-' + group.kind" (click)="editKit(group.kind)">
-              <ion-icon slot="start" name="add" aria-hidden="true"></ion-icon>
-              <ion-label>Add</ion-label>
-            </ion-item>
-          }
-        </ion-list>
+        <app-settings-equipment />
 
         <!-- How the phone sits on the telescope, and how it finds where it points. -->
         <ion-list inset="true">
@@ -443,208 +350,10 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
         </ion-list>
 
         <!-- For checking the app on a real phone and a real sky. -->
-        <ion-list inset="true">
-          <ion-list-header>Testing tools</ion-list-header>
-          <ion-item button detail="true" data-testid="open-device-test" (click)="openDeviceTest()">
-            <ion-icon slot="start" name="flask-outline" aria-hidden="true"></ion-icon>
-            <ion-label class="ion-text-wrap">
-              <h2>Device test</h2>
-              <p>Camera, sensors and plate solving</p>
-            </ion-label>
-          </ion-item>
-          <ion-item>
-            <ion-icon slot="start" name="chatbubble-ellipses-outline" aria-hidden="true"></ion-icon>
-            <ion-toggle
-              data-testid="success-toast"
-              helperText="Failures always show one."
-              [checked]="settings().solveSuccessToast"
-              (ionChange)="state.updateSettings({ solveSuccessToast: $any($event).detail.checked })"
-            >
-              Toast on successful solves
-            </ion-toggle>
-          </ion-item>
-          @if (devMode) {
-            <ion-item>
-              <ion-icon slot="start" name="desktop-outline" aria-hidden="true"></ion-icon>
-              <ion-toggle
-                data-testid="send-solves"
-                [checked]="settings().sendSolves"
-                (ionChange)="state.updateSettings({ sendSolves: $any($event).detail.checked })"
-              >
-                Send solves to this PC
-              </ion-toggle>
-            </ion-item>
-            <ion-item>
-              <ion-icon slot="start" name="aperture-outline" aria-hidden="true"></ion-icon>
-              <ion-select
-                label="Camera capture"
-                interface="popover"
-                data-testid="capture-mode"
-                [value]="settings().captureMode"
-                (ionChange)="state.updateSettings({ captureMode: $any($event).detail.value })"
-              >
-                <ion-select-option value="normal">Normal</ion-select-option>
-                <ion-select-option value="exposure">Force long exposure</ion-select-option>
-                <ion-select-option value="stack">Force stacking</ion-select-option>
-              </ion-select>
-            </ion-item>
-          }
-          <ion-item
-            button
-            detail="false"
-            data-testid="open-solve-log"
-            [attr.aria-expanded]="showSolveLog()"
-            (click)="showSolveLog.set(!showSolveLog())"
-          >
-            <ion-icon slot="start" name="list-outline" aria-hidden="true"></ion-icon>
-            <ion-label>Plate solving log</ion-label>
-            <ion-badge slot="end" color="medium">{{ liveSolver.log().length }}</ion-badge>
-            <ion-icon slot="end" aria-hidden="true" [name]="showSolveLog() ? 'chevron-up' : 'chevron-down'"></ion-icon>
-          </ion-item>
-          @if (showSolveLog()) {
-            <!-- The latest attempts in this session, newest first, for checking on a real sky. -->
-            @for (entry of liveSolver.log(); track entry.id) {
-              <ion-item data-testid="solve-log-entry">
-                <ion-label class="ion-text-wrap">
-                  <h3 [class.good]="entry.outcome === 'solved'">{{ entry.message }}</h3>
-                  <p>
-                    {{ entry.at | localTime: 'time-seconds' }} ·
-                    {{ entry.trigger === 'auto' ? 'Automatic' : entry.trigger === 'tap' ? 'Tapped' : 'Alignment' }} ·
-                    {{ entry.durationMs / 1000 | number: '1.1-1' }} s · ISO {{ entry.iso }}
-                    @if (entry.frames > 1) {
-                      · {{ entry.frames }} frames
-                    }
-                    @if (entry.starCount > 0) {
-                      · {{ entry.starCount }} stars found
-                    }
-                    @if (entry.sensorErrorDeg !== null) {
-                      · sensors were {{ entry.sensorErrorDeg | number: '1.1-1' }}° off
-                    }
-                  </p>
-                </ion-label>
-              </ion-item>
-            } @empty {
-              <ion-item data-testid="solve-log-empty">
-                <ion-label class="ion-text-wrap">
-                  <p>No plate solves yet. Turn sensors on and hold the phone still.</p>
-                </ion-label>
-              </ion-item>
-            }
-          }
-        </ion-list>
+        <app-settings-testing />
 
         <!-- The licences of the data require these credits. -->
-        <ion-list inset="true">
-          <ion-list-header>Data credits</ion-list-header>
-          <ion-item
-            data-testid="credit-openngc"
-            href="https://github.com/mattiaverga/OpenNGC"
-            target="_blank"
-            rel="noopener"
-            detail="false"
-          >
-            <ion-label class="ion-text-wrap credit">
-              NGC and IC objects from OpenNGC by Mattia Verga, CC BY-SA 4.0. Converted and filtered for this app.
-            </ion-label>
-            <ion-icon slot="end" name="open-outline" aria-hidden="true"></ion-icon>
-          </ion-item>
-          <ion-item>
-            <ion-label class="ion-text-wrap credit"
-              >Stars, star names and constellation lines from XHIP and the IAU, via d3-celestial.</ion-label
-            >
-          </ion-item>
-          <ion-item
-            data-testid="credit-hyg"
-            href="https://github.com/astronexus/HYG-Database"
-            target="_blank"
-            rel="noopener"
-            detail="false"
-          >
-            <ion-label class="ion-text-wrap credit">
-              Star catalogue names from the HYG Database by David Nash, CC BY-SA 4.0. Converted and filtered for this
-              app.
-            </ion-label>
-            <ion-icon slot="end" name="open-outline" aria-hidden="true"></ion-icon>
-          </ion-item>
-          <ion-item>
-            <ion-label class="ion-text-wrap credit">Messier data by H. Frommert, seds.org, via d3-celestial.</ion-label>
-          </ion-item>
-          <ion-item>
-            <ion-label class="ion-text-wrap credit">Caldwell catalogue compiled by Sir Patrick Moore.</ion-label>
-          </ion-item>
-          <ion-item>
-            <ion-label class="ion-text-wrap credit">
-              Herschel 400 selected by the Ancient City Astronomy Club, Herschel II by the Rose City Astronomers, as
-              observed in the Astronomical League's programmes.
-            </ion-label>
-          </ion-item>
-          <ion-item>
-            <ion-label class="ion-text-wrap credit">
-              110 Best NGC Objects by A. J. Crayon and Steve Coe, Saguaro Astronomy Club.
-            </ion-label>
-          </ion-item>
-          <ion-item>
-            <ion-label class="ion-text-wrap credit">
-              Finest NGC list by Alan Dyer, Royal Astronomical Society of Canada.
-            </ion-label>
-          </ion-item>
-          <ion-item>
-            <ion-label class="ion-text-wrap credit">
-              Deep-Sky Gems by David H. Levy and Explore the Universe, Royal Astronomical Society of Canada.
-            </ion-label>
-          </ion-item>
-          <ion-item>
-            <ion-label class="ion-text-wrap credit">
-              Urban Observing Program, Astronomical League. Top-100 Deepsky Objects, Astronomical Society of Southern
-              Africa.
-            </ion-label>
-          </ion-item>
-          <ion-item>
-            <ion-label class="ion-text-wrap credit">
-              Monthly lists from NASA's Hubble Night Sky Challenge. NASA does not endorse this app.
-            </ion-label>
-          </ion-item>
-          <ion-item>
-            <ion-label class="ion-text-wrap credit" data-testid="credit-wds"
-              >Double stars from the Washington Double Star Catalog, maintained at the U.S. Naval
-              Observatory.</ion-label
-            >
-          </ion-item>
-          <!-- Open-Meteo's data is CC BY 4.0, which asks for this credit. -->
-          <ion-item>
-            <ion-label class="ion-text-wrap credit" data-testid="credit-open-meteo"
-              >Weather forecast by Open-Meteo.com, CC BY 4.0, from NOAA's GFS model. Seeing worked out with the AXP
-              model of Trinquet and Vernin.</ion-label
-            >
-          </ion-item>
-          <ion-item>
-            <ion-label class="ion-text-wrap credit"
-              >Compass correction from the World Magnetic Model, NOAA and the British Geological Survey, via
-              geomagnetism by Natural Atlas, Apache License 2.0.</ion-label
-            >
-          </ion-item>
-          <ion-item>
-            <ion-label class="ion-text-wrap credit"
-              >Planets, Pluto, Moon and sky positions by Astronomy Engine, Don Cross.</ion-label
-            >
-          </ion-item>
-          <ion-item>
-            <ion-label class="ion-text-wrap credit"
-              >Log and lists saved with Dexie.js, David Fahlander, Apache License 2.0.</ion-label
-            >
-          </ion-item>
-          <ion-item>
-            <ion-label class="ion-text-wrap credit"
-              >Pairing codes made with QR Code Generator, Kazuhiko Arase, MIT License, and read with jsQR, Cosmo Wolfe,
-              Apache License 2.0. QR Code is a trademark of DENSO WAVE.</ion-label
-            >
-          </ion-item>
-          <ion-item lines="none" data-testid="credit-jpl">
-            <ion-label class="ion-text-wrap credit"
-              >Orbits of Ceres, Vesta, Pallas and Juno from the NASA/JPL Small-Body Database.</ion-label
-            >
-          </ion-item>
-        </ion-list>
+        <app-settings-credits />
       </div>
     </ion-content>
   `,
@@ -658,28 +367,12 @@ export class SettingsPage {
     void this.router.navigateByUrl('/tabs/sky');
   }
   protected readonly settings = this.state.settings;
-  protected readonly liveSolver = inject(LiveSolverService);
   protected readonly screenWake = inject(ScreenWakeService);
   private readonly sound = inject(SoundService);
-  protected readonly showSolveLog = signal(false);
-  /** Sending solves needs the dev server's proxy, so it is only offered in development. */
-  protected readonly devMode = isDevMode();
   protected readonly appIcons = APP_ICONS;
   protected readonly gpsMessage = signal('');
   protected readonly bortleClasses = BORTLE_CLASSES;
   private readonly route = inject(ActivatedRoute);
-  private readonly modals = inject(ModalController);
-  private readonly toasts = inject(ToastController);
-
-  /** The kinds of equipment, in the order a setup is put together. */
-  protected readonly kitGroups: readonly { kind: KitKind; title: string; required: boolean }[] = [
-    { kind: 'telescopes', title: 'Telescopes', required: true },
-    { kind: 'eyepieces', title: 'Eyepieces', required: true },
-    { kind: 'modifiers', title: 'Barlows and reducers', required: false },
-    { kind: 'filters', title: 'Filters', required: false },
-  ];
-  protected readonly itemLabel = kitItemLabel;
-  protected readonly itemDetail = kitItemDetail;
 
   /** The location in words, or a warning that the sky is shown for a neutral place. */
   protected readonly locationText = computed(() => {
@@ -694,57 +387,19 @@ export class SettingsPage {
     }
   }
 
-  protected kitItems(kind: KitKind): readonly KitItem[] {
-    return this.state.kit()[kind];
-  }
-
-  /** Adds an item, or changes one, in a sheet. Saved only when the sheet's tick is tapped. */
-  protected async editKit(kind: KitKind, item?: KitItem): Promise<void> {
-    const sheet = await this.modals.create({ component: EquipmentEditorComponent, componentProps: { kind, item } });
-    await sheet.present();
-    const { data, role } = await sheet.onWillDismiss<KitItem>();
-    if (role === 'save' && data) this.state.saveKitItem(kind, data);
-  }
-
-  /** Deletes an item at once, with Undo in the message, which puts the kit back as it was. */
-  protected async removeKit(kind: KitKind, item: KitItem): Promise<void> {
-    const { kitSelection } = this.settings();
-    if (!this.state.removeKitItem(kind, item.id)) return;
-    const toast = await this.toasts.create({
-      message: `Deleted ${kitItemLabel(kind, item)}`,
-      duration: 5000,
-      ...listToastPlace(),
-      cssClass: 'af-toast',
-      htmlAttributes: { 'data-testid': 'kit-deleted-toast' },
-      buttons: [{ text: 'Undo', handler: () => this.state.restoreKitItem(kind, item, kitSelection) }],
-    });
-    await toast.present();
-  }
-
   constructor() {
     addIcons({
       phoneLandscapeOutline,
-      add,
       arrowBack,
-      createOutline,
-      trashOutline,
-      apertureOutline,
       bluetoothOutline,
       cameraOutline,
-      chatbubbleEllipsesOutline,
-      chevronDown,
-      chevronUp,
-      desktopOutline,
-      flaskOutline,
       globeOutline,
       gridOutline,
-      listOutline,
       locateOutline,
       locationOutline,
       lockOpenOutline,
       moonOutline,
       navigateOutline,
-      openOutline,
       phonePortraitOutline,
       volumeLowOutline,
       textOutline,
@@ -765,10 +420,6 @@ export class SettingsPage {
   protected setSolveSound(on: boolean): void {
     this.state.updateSettings({ solveSound: on });
     if (on) this.sound.shutter();
-  }
-
-  protected openDeviceTest(): void {
-    void this.router.navigateByUrl('/device-test');
   }
 
   protected openAlignment(): void {

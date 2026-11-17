@@ -46,6 +46,8 @@ export interface Box {
 export const DEFAULT_FIELD_DEG = 20; // Close enough to read the stars and match a finder's view
 export const MIN_FIELD_DEG = 5;
 export const MAX_FIELD_DEG = 120;
+/** A sky map width kept within the zoom's limits. */
+export const clampField = (fieldDeg: number): number => Math.max(MIN_FIELD_DEG, Math.min(MAX_FIELD_DEG, fieldDeg));
 export const ZOOM_STEP = 1.5;
 export const MAX_ALTITUDE_DEG = 89; // Looking exactly straight up has no defined "right"
 export const MIN_ALTITUDE_DEG = -20;
