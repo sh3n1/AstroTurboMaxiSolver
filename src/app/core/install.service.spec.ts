@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { isAppleMobile } from './install.service';
+import { deviceKind } from './permission-help';
+
+const isAppleMobile = (ua: string, platform: string, touch: number): boolean =>
+  deviceKind(ua, platform, touch) === 'apple';
 
 const IPHONE =
   'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';

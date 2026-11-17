@@ -2,13 +2,14 @@ import type { AfterViewInit, ElementRef, OnDestroy } from '@angular/core';
 import { Component, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { IonContent, IonFabButton, IonIcon, ToastController } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { add, locationOutline, mapOutline, radioButtonOffOutline, remove } from 'ionicons/icons';
+import { add, downloadOutline, locationOutline, mapOutline, radioButtonOffOutline, remove } from 'ionicons/icons';
 
 import { APP_ICONS } from '../core/app-icons';
 import { AppState } from '../core/app-state.service';
 import { formatLocation } from '../core/astronomy';
 import { EyepiecePanelComponent } from '../core/eyepiece-panel.component';
 import { InstallNoticeComponent } from '../core/install-notice.component';
+import { InstallService } from '../core/install.service';
 import { LiveSolverService } from '../core/live-solver.service';
 import { MENU_TAP_GUARD_MS, MoreSheetComponent } from '../core/more-sheet.component';
 import { PermissionsService } from '../core/permissions.service';
@@ -81,7 +82,7 @@ const MENU_IDLE_MS = 10_000;
 
         <!-- A finder phone linked to a screen phone shows only the map: nothing to tap by accident. -->
         @if (!state.finderMode()) {
-          <!-- Offers to install the app, until it is installed or turned down. -->
+          <!-- The steps to install on iPhones, when the Install button asks for them. -->
           <app-install-notice />
           <!--
             Zoom, top right, shown with the menu. Not in the eyepiece view, where the eyepiece
@@ -139,6 +140,18 @@ const MENU_IDLE_MS = 10_000;
                   </button>
                 }
               }
+              <!-- Bottom right, like Set location on the left, until the app is installed. -->
+              @if (install.available()) {
+                <button
+                  type="button"
+                  class="readout location unset install"
+                  data-testid="install-app"
+                  (click)="install.install()"
+                >
+                  <ion-icon name="download-outline" aria-hidden="true"></ion-icon>
+                  Install app
+                </button>
+              }
             </div>
             @if (mode() === 'eyepiece') {
               <!-- The faintest stars shown, and the eyepiece and the rest of the kit in use. -->
@@ -163,6 +176,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   protected readonly state = inject(AppState);
   protected readonly sensors = inject(SensorService);
   private readonly permissions = inject(PermissionsService);
+  protected readonly install = inject(InstallService);
   protected readonly liveSolver = inject(LiveSolverService);
   private readonly sound = inject(SoundService);
   private readonly toasts = inject(ToastController);
@@ -214,7 +228,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
 
   constructor() {
     // Its own icons, and the two the menu's view tile is given by name.
-    addIcons({ add, locationOutline, mapOutline, radioButtonOffOutline, remove });
+    addIcons({ add, downloadOutline, locationOutline, mapOutline, radioButtonOffOutline, remove });
 
     // Every failed automatic plate solve, or one started by tapping the rings, is told
     // with a toast. Successes only when the debugging setting asks for them, and with a soft

@@ -117,6 +117,10 @@
   align-items: center;
   gap: 6px;
 }
+/* Install sits at the right end of the row. */
+.readout.location.install {
+  margin-left: auto;
+}
 .readout.location.unset ion-icon {
   flex: none;
   font-size: 20px;

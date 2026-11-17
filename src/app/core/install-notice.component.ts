@@ -1,14 +1,13 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { IonButton, IonIcon, IonModal } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { addCircleOutline, close, downloadOutline, shareOutline } from 'ionicons/icons';
+import { addCircleOutline, downloadOutline, shareOutline } from 'ionicons/icons';
 
 import { InstallService } from './install.service';
 
 /**
- * The notice offering to install the app, over the top of the map, until the user installs
- * it or says "not now". On iPhones and iPads it opens the steps, in a sheet that the menu's
- * Install tile opens too.
+ * The steps to install on iPhones and iPads, which have no install button, in a card. The
+ * map's Install button and the menu's Install tile open it there.
  */
 @Component({
   selector: 'app-install-notice',
@@ -17,36 +16,6 @@ import { InstallService } from './install.service';
   styles: `
     :host {
       display: contents;
-    }
-    .notice {
-      position: absolute;
-      /* Below the pointing readout, and clear of the zoom buttons on the right. */
-      top: calc(72px + var(--ion-safe-area-top, 0px));
-      left: 10px;
-      right: calc(70px + var(--ion-safe-area-right, 0px));
-      max-width: 420px;
-      z-index: 22;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      padding: 4px 4px 4px 12px;
-      border: 1px solid var(--af-edge);
-      border-radius: 12px;
-      background: var(--af-overlay);
-      color: var(--af-text);
-      font-size: calc(16px * var(--af-scale, 1));
-    }
-    /* With the phone on its side, bottom right, where nothing else is, clear of the rings. */
-    @media (orientation: landscape) and (max-height: 520px) {
-      .notice {
-        top: auto;
-        left: auto;
-        bottom: calc(10px + var(--ion-safe-area-bottom, 0px));
-        right: calc(10px + var(--ion-safe-area-right, 0px));
-      }
-    }
-    .notice span {
-      flex: 1;
     }
     .steps {
       padding: 8px 20px 20px;
@@ -76,22 +45,6 @@ import { InstallService } from './install.service';
     }
   `,
   template: `
-    @if (install.offered()) {
-      <div class="notice" data-testid="install-notice" role="status">
-        <span>Install the app</span>
-        <ion-button size="small" data-testid="install-app" (click)="install.install()">Install</ion-button>
-        <ion-button
-          fill="clear"
-          size="small"
-          aria-label="Not now"
-          data-testid="install-dismiss"
-          (click)="install.dismiss()"
-        >
-          <ion-icon slot="icon-only" name="close" aria-hidden="true"></ion-icon>
-        </ion-button>
-      </div>
-    }
-
     <!-- iPhones and iPads have no install button: the app is added from the Share menu. -->
     <!-- A card in the middle, as tall as its steps: see .install-steps-modal in global.scss. -->
     <ion-modal
@@ -128,6 +81,6 @@ export class InstallNoticeComponent {
   protected readonly install = inject(InstallService);
 
   constructor() {
-    addIcons({ addCircleOutline, close, downloadOutline, shareOutline });
+    addIcons({ addCircleOutline, downloadOutline, shareOutline });
   }
 }

@@ -20,38 +20,38 @@ async function offerInstall(page: Page, outcome: 'accepted' | 'dismissed' = 'acc
   }, outcome);
 }
 
-test('offers to install on Android, and shows Chrome its install dialog', async ({ page }) => {
+test('offers to install on Android, until it is installed', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('app-sky canvas')).toBeVisible();
   // Nothing until the browser says the app can be installed.
-  await expect(page.getByTestId('install-notice')).toHaveCount(0);
+  await expect(page.getByTestId('install-app')).toHaveCount(0);
 
   await offerInstall(page);
-  await expect(page.getByTestId('install-notice')).toContainText('Install the app');
-  await page.getByTestId('install-app').click();
+  const button = page.getByTestId('install-app');
+  await expect(button).toHaveText('Install app');
+  await button.click();
   expect(await page.evaluate(() => (window as unknown as { installDialogShown?: boolean }).installDialogShown)).toBe(
     true,
   );
   // Installed: nothing more to offer, here or in the menu.
-  await expect(page.getByTestId('install-notice')).toHaveCount(0);
+  await expect(button).toHaveCount(0);
   await expect(await moreTile(page, 'sensor-toggle')).toBeVisible();
   await expect(page.getByTestId('install-tile')).toHaveCount(0);
 });
 
-test('stops offering after "not now", but keeps Install in the menu', async ({ page }) => {
+test("offers it again on the next visit when Chrome's dialog was turned down", async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('app-sky canvas')).toBeVisible();
-  await offerInstall(page);
-  await page.getByTestId('install-dismiss').click();
-  await expect(page.getByTestId('install-notice')).toHaveCount(0);
+  await offerInstall(page, 'dismissed');
+  await page.getByTestId('install-app').click();
+  // Chrome's offer is used up until it makes another.
+  await expect(page.getByTestId('install-app')).toHaveCount(0);
 
-  // Not again, even when the browser offers once more after a reload.
   await page.reload();
   await expect(page.locator('app-sky canvas')).toBeVisible();
   await offerInstall(page);
-  await page.waitForTimeout(300);
-  await expect(page.getByTestId('install-notice')).toHaveCount(0);
-  // The menu still has it, for when the user changes their mind.
+  await expect(page.getByTestId('install-app')).toBeVisible();
+  // The menu has it too.
   await (await moreTile(page, 'install-tile')).click();
   expect(await page.evaluate(() => (window as unknown as { installDialogShown?: boolean }).installDialogShown)).toBe(
     true,
@@ -81,7 +81,7 @@ test.describe('on an iPhone', () => {
     await page.goto('/');
     await expect(page.locator('app-sky canvas')).toBeVisible();
     await page.waitForTimeout(300);
-    await expect(page.getByTestId('install-notice')).toHaveCount(0);
+    await expect(page.getByTestId('install-app')).toHaveCount(0);
     await expect(await moreTile(page, 'sensor-toggle')).toBeVisible();
     await expect(page.getByTestId('install-tile')).toHaveCount(0);
   });

@@ -30,5 +30,5 @@ test('says why first, waits after "Not now", and says how to allow it once block
   const help = page.getByTestId('permission-blocked');
   await expect(help).toContainText('Camera is off');
   await expect(help).toContainText('To turn it on');
-  await expect(help).toContainText('Permissions');
+  await expect(help).toContainText('Site settings');
 });
