@@ -10,7 +10,6 @@ import { azimuthChangeDeg, horizontalVector, normalize, vectorToHorizontal } fro
 export interface GlidePose {
   pointing: Horizontal;
   camera: Horizontal | null;
-  rollDeg: number;
 }
 
 /**
@@ -38,16 +37,12 @@ export function glideHorizontal(from: Horizontal, to: Horizontal, fraction: numb
   return vectorToHorizontal(normalize(mixed));
 }
 
-/** An angle part of the way to another, the short way round. */
-export const glideAngleDeg = (from: number, to: number, fraction: number): number =>
-  from + azimuthChangeDeg(from, to) * fraction;
-
 /** The largest change still to make, in degrees, to tell when the glide is done. */
 function remainingDeg(from: GlidePose, to: GlidePose): number {
-  const pointing =
+  return (
     Math.abs(from.pointing.altDeg - to.pointing.altDeg) +
-    Math.abs(azimuthChangeDeg(from.pointing.azDeg, to.pointing.azDeg));
-  return Math.max(pointing, Math.abs(azimuthChangeDeg(from.rollDeg, to.rollDeg)));
+    Math.abs(azimuthChangeDeg(from.pointing.azDeg, to.pointing.azDeg))
+  );
 }
 
 /** One frame's step from the shown pose towards the newest one. */
@@ -56,7 +51,6 @@ export function stepPose(shown: GlidePose, target: GlidePose, fraction: number):
     pointing: glideHorizontal(shown.pointing, target.pointing, fraction),
     // The camera's direction comes and goes with plate solving, so it only glides while both have one.
     camera: shown.camera && target.camera ? glideHorizontal(shown.camera, target.camera, fraction) : target.camera,
-    rollDeg: glideAngleDeg(shown.rollDeg, target.rollDeg, fraction),
   };
 }
 
