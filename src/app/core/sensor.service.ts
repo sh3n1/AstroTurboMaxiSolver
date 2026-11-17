@@ -16,7 +16,9 @@ import {
   rearCameraDirection,
 } from './attitude';
 import { cameraPointing, requestSensorPermission } from './device-orientation';
+import { InstallService } from './install.service';
 import { magneticDeclinationDeg } from './magnetic';
+import { NotNowError, PermissionsService } from './permissions.service';
 import { screenAngleDeg } from './sideways';
 
 /** Share of each orientation reading blended in when it is the only source of movement. */
@@ -42,6 +44,8 @@ type OrientationEventWithCompass = DeviceOrientationEvent & { webkitCompassHeadi
  */
 @Injectable({ providedIn: 'root' })
 export class SensorService {
+  private readonly install = inject(InstallService);
+  private readonly permissions = inject(PermissionsService);
   private readonly state = inject(AppState);
 
   readonly error = signal('');
@@ -128,12 +132,19 @@ export class SensorService {
     if (this.state.remoteFinder()) return;
     this.error.set('');
     try {
-      if (!(await requestSensorPermission())) {
-        this.error.set('Sensor access was not allowed.');
+      // Only iPhones ask for the motion sensors, so only they get the reason first.
+      const allowed = this.install.isApple
+        ? await this.permissions.ask('motion', requestSensorPermission)
+        : await requestSensorPermission();
+      if (!allowed) {
+        this.error.set('Motion sensors are off');
+        // How to allow them again, when the user asked for them: not on a start of the app's own.
+        if (!automatic) void this.permissions.showBlocked('motion');
         return;
       }
-    } catch {
-      if (!automatic) this.error.set('Sensor access could not be requested.');
+    } catch (error) {
+      // "Not now" was the user's own choice: nothing to say.
+      if (!automatic && !(error instanceof NotNowError)) this.error.set('Sensor access could not be requested.');
       return;
     }
 

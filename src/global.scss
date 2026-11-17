@@ -281,6 +281,11 @@ ion-modal.day-picker-modal .ion-page {
   display: block;
   contain: content;
 }
+/* How to allow a blocked permission again: one step a line. */
+ion-alert.af-steps-alert .alert-message {
+  white-space: pre-line;
+  text-align: start;
+}
 /* The steps to install on an iPhone: a card as tall as its steps, like the day picker. */
 ion-modal.install-steps-modal {
   --width: min(420px, calc(100% - 32px));

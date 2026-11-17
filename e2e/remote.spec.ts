@@ -12,7 +12,12 @@ test.use({ permissions: PERMISSIONS, launchOptions: { args: CAMERA_ARGS } });
 
 /** A second phone: a fresh browser context at the same address. */
 async function secondPhone(browser: Browser, baseURL: string): Promise<{ context: BrowserContext; page: Page }> {
-  const context = await browser.newContext({ ...devices['Pixel 7'], baseURL, permissions: PERMISSIONS });
+  const context = await browser.newContext({
+    ...devices['Pixel 7'],
+    baseURL,
+    permissions: PERMISSIONS,
+    storageState: 'e2e/storage-state.json',
+  });
   return { context, page: await context.newPage() };
 }
 

@@ -18,6 +18,8 @@ import {
   closeCamera,
   openRearCamera,
 } from './camera';
+import { isPermissionDenied } from './permission-help';
+import { NotNowError, PermissionsService } from './permissions.service';
 import { SensorService } from './sensor.service';
 import type { SolveInputs } from './solve-report';
 import { buildSolveReport, sendSolveReport } from './solve-report';
@@ -100,6 +102,7 @@ const FALLBACK_STACK_FRAMES = 6;
 @Injectable({ providedIn: 'root' })
 export class LiveSolverService {
   private readonly state = inject(AppState);
+  private readonly permissions = inject(PermissionsService);
   private readonly sensors = inject(SensorService);
 
   readonly status = signal<Status>('off');
@@ -123,6 +126,11 @@ export class LiveSolverService {
 
   private camera: OpenCamera | null = null;
   private opening = false;
+  /**
+   * The camera was refused, or put off with "Not now": automatic solving waits, rather than
+   * asking or failing again every few seconds, until the user asks for a solve themselves.
+   */
+  private readonly cameraRefused = signal(false);
   private iso = START_ISO;
   /** How pictures are taken, decided from the camera's limits when it opens. */
   private plan: CapturePlan = { frames: 1, frameSeconds: MAX_EXPOSURE_SECONDS, manual: false };
@@ -147,6 +155,7 @@ export class LiveSolverService {
         // A screen phone's own camera isn't on the telescope: the finder phone solves.
         !this.state.remoteFinder() &&
         this.state.settings().autoSolve &&
+        !this.cameraRefused() &&
         !this.state.planning();
       if (allowed && this.state.mapOnShow()) this.start();
       else if (allowed) this.rest();
@@ -276,7 +285,7 @@ export class LiveSolverService {
       this.finish(false, FAILED_PAUSE_MS);
     } catch (error) {
       this.lastAttemptPointing = before;
-      this.record({ ...entry, outcome: 'failed', message: cameraErrorMessage(error) });
+      this.record({ ...entry, outcome: 'failed', message: this.cameraFailed(error) });
       this.finish(false, FAILED_PAUSE_MS);
     }
   }
@@ -346,6 +355,8 @@ export class LiveSolverService {
    */
   async solveNow(trigger: Exclude<SolveTrigger, 'auto'> = 'alignment'): Promise<SolveNowResult> {
     if (this.remoteSolve) return this.remoteSolve(trigger);
+    // Asked for by the user: the camera may be asked for again, and automatic solving resumes.
+    this.cameraRefused.set(false);
     if (this.state.planning()) {
       return { ok: false, reason: 'Paused while showing another time. Go back to now to solve.' };
     }
@@ -426,16 +437,14 @@ export class LiveSolverService {
       report('solved', `Plate solved, ${response.solution.matched} stars matched`);
       return { ok: true, attitude, matched: response.solution.matched };
     } catch (error) {
-      this.record({
-        trigger,
-        startedAt,
-        iso: this.iso,
-        outcome: 'failed',
-        message: cameraErrorMessage(error),
-      });
+      const message = this.cameraFailed(error);
+      this.record({ trigger, startedAt, iso: this.iso, outcome: 'failed', message });
+      const refused = error instanceof NotNowError || isPermissionDenied(error);
       return {
         ok: false,
-        reason: `The camera could not be used. ${error instanceof Error ? error.message : ''}`.trim(),
+        reason: refused
+          ? message
+          : `The camera could not be used. ${error instanceof Error ? error.message : ''}`.trim(),
       };
     } finally {
       this.state.plateSolving.set(false);
@@ -508,6 +517,16 @@ export class LiveSolverService {
     }
   }
 
+  /**
+   * What to say when the camera couldn't be used. Refused or put off, automatic solving
+   * waits for the user, and a refusal shows how to allow the camera again.
+   */
+  private cameraFailed(error: unknown): string {
+    if (error instanceof NotNowError || isPermissionDenied(error)) this.cameraRefused.set(true);
+    if (isPermissionDenied(error)) void this.permissions.showBlocked('camera');
+    return cameraErrorMessage(error);
+  }
+
   private async ensureCamera(): Promise<OpenCamera> {
     const mode = this.state.settings().captureMode;
     if (this.camera && this.cameraMode === mode) return this.camera;
@@ -517,7 +536,11 @@ export class LiveSolverService {
     this.camera = null;
     this.opening = true;
     try {
-      const camera = await openRearCamera();
+      // The first time, a line says why the camera is needed. Not on a finder phone, whose
+      // screen is on the telescope: there the browser's own question has to do.
+      const camera = await (this.state.finderMode()
+        ? openRearCamera()
+        : this.permissions.ask('camera', openRearCamera));
       // Forced stacking leaves the exposure to the phone, like phones that don't allow
       // manual exposure, so that case can be tested on a phone that does.
       const longest = longestExposureSeconds(camera.track, MAX_EXPOSURE_SECONDS);
@@ -631,5 +654,7 @@ function failureMessage(starCount: number): string {
 
 /** What to tell the user when the camera could not take a picture. */
 function cameraErrorMessage(error: unknown): string {
+  if (error instanceof NotNowError) return 'Camera not in use yet';
+  if (isPermissionDenied(error)) return 'Camera is off';
   return error instanceof Error && error.message ? `Camera unavailable: ${error.message}` : 'Camera unavailable';
 }

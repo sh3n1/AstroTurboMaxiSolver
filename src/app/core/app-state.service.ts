@@ -31,6 +31,7 @@ import {
 import { EXTRA_TARGETS } from './extra-targets';
 import { LocalDb } from './local-db';
 import { MINOR_PLANETS, minorPlanet } from './minor-planets';
+import { LOCATION_BLOCKED, isPermissionDenied } from './permission-help';
 import { telescopeLimit } from './sky-quality';
 import { settingsWithoutKit } from './storage-migration';
 import { contentOf } from './sync-record';
@@ -413,7 +414,8 @@ export class AppState {
           });
           resolve('Location updated');
         },
-        () => resolve('Location unavailable'),
+        // Refused is told apart from no signal: only the phone's settings can undo a refusal.
+        (error) => resolve(isPermissionDenied(error) ? LOCATION_BLOCKED : 'Location unavailable'),
         { timeout: 15_000 },
       ),
     );

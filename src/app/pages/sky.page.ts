@@ -11,6 +11,7 @@ import { EyepiecePanelComponent } from '../core/eyepiece-panel.component';
 import { InstallNoticeComponent } from '../core/install-notice.component';
 import { LiveSolverService } from '../core/live-solver.service';
 import { MENU_TAP_GUARD_MS, MoreSheetComponent } from '../core/more-sheet.component';
+import { PermissionsService } from '../core/permissions.service';
 import { PointingReadoutComponent } from '../core/pointing-readout.component';
 import { SensorService } from '../core/sensor.service';
 import { isShutterPress } from '../core/shutter-remote';
@@ -161,6 +162,7 @@ const MENU_IDLE_MS = 10_000;
 export class SkyPage implements AfterViewInit, OnDestroy {
   protected readonly state = inject(AppState);
   protected readonly sensors = inject(SensorService);
+  private readonly permissions = inject(PermissionsService);
   protected readonly liveSolver = inject(LiveSolverService);
   private readonly sound = inject(SoundService);
   private readonly toasts = inject(ToastController);
@@ -181,9 +183,10 @@ export class SkyPage implements AfterViewInit, OnDestroy {
 
   protected async locate(): Promise<void> {
     this.locating.set('Finding location…');
-    const message = await this.state.locateWithGps();
+    const message = await this.permissions.locate();
     // On success the box shows the location instead, so only a problem needs saying.
-    this.locating.set(this.state.settings().locationSet ? '' : `${message} · tap to try again`);
+    // "Not now" leaves the button as it was.
+    this.locating.set(this.state.settings().locationSet || !message ? '' : `${message} · tap to try again`);
   }
 
   /** The observer's location, as set in Settings or from GPS, such as "39.47° N, 0.38° W". */
@@ -341,6 +344,9 @@ export class SkyPage implements AfterViewInit, OnDestroy {
    */
   ionViewDidEnter(): void {
     this.state.mapOnShow.set(true);
+    // The first time, offers to take the location, which the whole sky depends on. Not on a
+    // finder phone on the telescope, which takes its location from the screen phone.
+    if (!this.state.finderMode()) this.permissions.welcomeOnce();
   }
 
   /** Another tab is taking over. */

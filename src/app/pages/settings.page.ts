@@ -41,6 +41,7 @@ import { APP_ICONS } from '../core/app-icons';
 import { AppState } from '../core/app-state.service';
 import type { Settings } from '../core/app-state.service';
 import { formatLocation } from '../core/astronomy';
+import { PermissionsService } from '../core/permissions.service';
 import { RemoteService } from '../core/remote.service';
 import { ScreenWakeService } from '../core/screen-wake.service';
 import { SettingsCreditsComponent } from '../core/settings/settings-credits.component';
@@ -351,6 +352,7 @@ export class SettingsPage {
   protected readonly state = inject(AppState);
   protected readonly remote = inject(RemoteService);
   private readonly router = inject(Router);
+  private readonly permissions = inject(PermissionsService);
 
   protected backToMap(): void {
     void this.router.navigateByUrl('/tabs/sky');
@@ -421,7 +423,7 @@ export class SettingsPage {
 
   protected async useGps(): Promise<void> {
     this.gpsMessage.set('Finding location…');
-    const message = await this.state.locateWithGps();
+    const message = await this.permissions.locate();
     // On success the row shows the new location, so only a problem needs saying.
     this.gpsMessage.set(this.settings().locationSet && message === 'Location updated' ? '' : message);
   }
