@@ -117,9 +117,15 @@
   align-items: center;
   gap: 6px;
 }
-/* Install sits at the right end of the row. */
-.readout.location.install {
+/* Install and Update sit at the right end of the row, side by side. */
+.dock > .corner > .right {
   margin-left: auto;
+  display: flex;
+  gap: 8px;
+  pointer-events: none;
+}
+.dock > .corner > .right > * {
+  pointer-events: auto;
 }
 .readout.location.unset ion-icon {
   flex: none;

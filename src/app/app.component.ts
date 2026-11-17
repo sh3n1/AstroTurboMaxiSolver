@@ -3,6 +3,7 @@ import { IonApp, IonRouterOutlet } from '@ionic/angular';
 
 import { InstallService } from './core/install.service';
 import { ScreenWakeService } from './core/screen-wake.service';
+import { UpdateService } from './core/update.service';
 
 @Component({
   selector: 'app-root',
@@ -15,5 +16,7 @@ export class AppComponent {
     inject(ScreenWakeService);
     // Listens from the start for the browser's offer to install, which comes early.
     inject(InstallService);
+    // Listens from the start for a new version, which the service worker finds on opening.
+    inject(UpdateService);
   }
 }

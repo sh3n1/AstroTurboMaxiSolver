@@ -2,7 +2,15 @@ import type { AfterViewInit, ElementRef, OnDestroy } from '@angular/core';
 import { Component, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { IonContent, IonFabButton, IonIcon, ToastController } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { add, downloadOutline, locationOutline, mapOutline, radioButtonOffOutline, remove } from 'ionicons/icons';
+import {
+  add,
+  downloadOutline,
+  locationOutline,
+  mapOutline,
+  radioButtonOffOutline,
+  refreshOutline,
+  remove,
+} from 'ionicons/icons';
 
 import { APP_ICONS } from '../core/app-icons';
 import { AppState } from '../core/app-state.service';
@@ -21,6 +29,7 @@ import type { ViewMode } from '../core/sky-map/sky-style';
 import { DEFAULT_FIELD_DEG, MAX_FIELD_DEG, MIN_FIELD_DEG, ZOOM_STEP, clampField } from '../core/sky-map/sky-style';
 import { SoundService } from '../core/sound.service';
 import { TargetBarComponent } from '../core/target-bar.component';
+import { UpdateService } from '../core/update.service';
 
 /** The view each view comes before, as the view tile steps through them: see ViewMode. */
 const NEXT_VIEW: Record<ViewMode, ViewMode> = { sky: 'eyepiece', eyepiece: 'ring', ring: 'sky' };
@@ -140,18 +149,33 @@ const MENU_IDLE_MS = 10_000;
                   </button>
                 }
               }
-              <!-- Bottom right, like Set location on the left, until the app is installed. -->
-              @if (install.available()) {
-                <button
-                  type="button"
-                  class="readout location unset install"
-                  data-testid="install-app"
-                  (click)="install.install()"
-                >
-                  <ion-icon name="download-outline" aria-hidden="true"></ion-icon>
-                  Install app
-                </button>
-              }
+              <!-- Bottom right, like Set location on the left: installing, and a new version. -->
+              <div class="right">
+                <!-- Until the app is installed. -->
+                @if (install.available()) {
+                  <button
+                    type="button"
+                    class="readout location unset"
+                    data-testid="install-app"
+                    (click)="install.install()"
+                  >
+                    <ion-icon name="download-outline" aria-hidden="true"></ion-icon>
+                    Install app
+                  </button>
+                }
+                <!-- A new version is downloaded: one tap switches to it. -->
+                @if (update.ready()) {
+                  <button
+                    type="button"
+                    class="readout location unset"
+                    data-testid="update-app"
+                    (click)="update.apply()"
+                  >
+                    <ion-icon name="refresh-outline" aria-hidden="true"></ion-icon>
+                    Update app
+                  </button>
+                }
+              </div>
             </div>
             @if (mode() === 'eyepiece') {
               <!-- The faintest stars shown, and the eyepiece and the rest of the kit in use. -->
@@ -177,6 +201,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   protected readonly sensors = inject(SensorService);
   private readonly permissions = inject(PermissionsService);
   protected readonly install = inject(InstallService);
+  protected readonly update = inject(UpdateService);
   protected readonly liveSolver = inject(LiveSolverService);
   private readonly sound = inject(SoundService);
   private readonly toasts = inject(ToastController);
@@ -228,7 +253,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
 
   constructor() {
     // Its own icons, and the two the menu's view tile is given by name.
-    addIcons({ add, downloadOutline, locationOutline, mapOutline, radioButtonOffOutline, remove });
+    addIcons({ add, downloadOutline, locationOutline, mapOutline, radioButtonOffOutline, refreshOutline, remove });
 
     // Every failed automatic plate solve, or one started by tapping the rings, is told
     // with a toast. Successes only when the debugging setting asks for them, and with a soft
