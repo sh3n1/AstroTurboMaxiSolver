@@ -35,6 +35,7 @@ JSON over one reliable, ordered data channel (`remote-link.ts`):
 | Screen | `solveNow` | Plate solve now, for alignment or a tap on the rings. |
 | Screen | `night` | Red night mode, on or off, so the finder's screen matches. |
 | Screen | `fullscreen` | Full screen, on or off, so the finder's screen matches. |
+| Screen | `target` | The target chosen, or null when cleared, so the finder's map guides to it too. Sent once linked, and on every change. |
 | Both | `alignment` | An alignment made or removed on either phone. |
 
 ## How the app uses it
@@ -58,7 +59,7 @@ JSON over one reliable, ordered data channel (`remote-link.ts`):
     band offers to start them.
   - Full screen follows the screen phone. Leaving it always works, but browsers only enter
     full screen straight after a tap on that same phone, so when the finder's browser refuses,
-    its band says "Tap for full screen", and one tap there does it. An installed app that opens
+    its band says "Tap for full screen", and one tap anywhere on its screen does it. An installed app that opens
     full screen, and iPhones, which can't, are left as they are. Meanwhile the screen phone shows "Finder sensors off" rather
     than treating the position as live.
   - Showing another time is switched off when it links, since the finder must solve the real

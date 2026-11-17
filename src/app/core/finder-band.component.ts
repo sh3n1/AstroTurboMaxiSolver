@@ -59,7 +59,7 @@ import { SensorService } from './sensor.service';
   template: `
     <div class="band" data-testid="finder-band" [attr.data-steering]="state.sensorsActive()">
       @if (remote.fullscreenWanted() && !fullscreen.active()) {
-        <!-- The screen phone went full screen: the browser needs a tap here to follow. -->
+        <!-- The screen phone went full screen: the browser needs a tap here, anywhere, to follow. -->
         <button
           class="band-text"
           type="button"

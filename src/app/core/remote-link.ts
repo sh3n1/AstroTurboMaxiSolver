@@ -53,7 +53,9 @@ export type ScreenMessage =
   /** Red night mode, turned on or off on the screen phone, so the finder's screen matches. */
   | { t: 'night'; on: boolean }
   /** Full screen, entered or left on the screen phone, so the finder's screen matches. */
-  | { t: 'fullscreen'; on: boolean };
+  | { t: 'fullscreen'; on: boolean }
+  /** The target chosen on the screen phone, or null when cleared, so the finder guides to it too. */
+  | { t: 'target'; id: string | null };
 
 export type RemoteMessage = FinderMessage | ScreenMessage;
 
@@ -137,6 +139,7 @@ const MESSAGE_TYPES = new Set([
   'solveNow',
   'night',
   'fullscreen',
+  'target',
 ]);
 
 /**

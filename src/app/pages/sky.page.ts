@@ -6,11 +6,9 @@ import { IonButton, IonChip, IonContent, IonFabButton, IonIcon, IonRange, ToastC
 import { addIcons } from 'ionicons';
 import {
   add,
-  ellipsisHorizontal,
   listOutline,
   eye,
   eyeOutline,
-  compassOutline,
   close,
   contractOutline,
   expandOutline,
@@ -87,7 +85,7 @@ const NEXT_VIEW: Record<ViewMode, ViewMode> = { sky: 'eyepiece', eyepiece: 'ring
 const VIEW_BUTTONS: Record<ViewMode, { icon: string; label: string }> = {
   sky: { icon: 'map-outline', label: 'Sky map' },
   eyepiece: { icon: APP_ICONS.eyepiece, label: 'Eyepiece view' },
-  ring: { icon: 'radio-button-off-outline', label: 'Sky map with the eyepiece field' },
+  ring: { icon: 'radio-button-off-outline', label: 'Field ring' },
 };
 type Point = { x: number; y: number };
 type Project = (v: Vector3) => Point | null;
@@ -189,7 +187,7 @@ const MIN_TAP_RADIUS_PX = 48;
  * With the sensors steering and no touch for this long, the round buttons fade away and
  * leave the sky clear, as a car's navigation screen does. Any touch brings them back.
  */
-const RAIL_IDLE_MS = 10_000;
+const MENU_IDLE_MS = 10_000;
 
 // The app's own colours for its sky map and guidance. Night mode turns everything red by
 // brightness, so its faint lines and greys are brightened there to stay visible.
@@ -319,35 +317,26 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
       background: rgb(5 7 15 / 92%);
       pointer-events: none;
     }
-    /* A column of round buttons in the top right corner. */
-    .controls {
+    /* Zoom: a column of two round buttons in the top right corner. */
+    .zoom {
       position: absolute;
       top: calc(4px + var(--ion-safe-area-top, 0px));
-      right: 4px;
+      right: calc(4px + var(--ion-safe-area-right, 0px));
       display: flex;
       flex-direction: column;
-    }
-    /* Fades away while idle, and takes no taps then: a touch on the map brings it back. */
-    .controls,
-    .zoom {
       transition: opacity 0.2s;
     }
-    .controls.faded,
+    /* Comes and goes with the menu, and takes no taps while hidden: a tap on the map brings both. */
     .zoom.faded {
       opacity: 0;
       transition: opacity 0.8s;
     }
-    .controls.faded ion-fab-button,
     .zoom.faded ion-fab-button {
       pointer-events: none;
     }
     /* Big enough to hit in the dark at arm's length, and set a little apart. */
-    .controls ion-fab-button,
     .zoom ion-fab-button {
       margin: 4px;
-    }
-    .controls ion-fab-button,
-    .zoom ion-fab-button {
       --background: rgb(10 14 28 / 85%);
       --background-activated: #232a3d;
       --color: var(--af-text);
@@ -355,24 +344,6 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
       --border-width: 1px;
       --border-style: solid;
       --box-shadow: none;
-    }
-    /* A status button's colour says the state at a glance. */
-    .controls ion-fab-button.warn {
-      --color: var(--ion-color-warning);
-    }
-    .controls ion-fab-button.good {
-      --color: var(--ion-color-success);
-    }
-    /*
-     * At night every colour becomes red by its brightness, so the green of a button that
-     * is on would turn a weaker red than the white of one that is off. Buttons that are
-     * on get a full-strength icon and a lit ring and fill instead, so they stand out.
-     */
-    :host-context(html.night) .controls ion-fab-button.on {
-      --color: #ffffff;
-      --background: #6b6b6b;
-      --border-color: #ffffff;
-      --border-width: 2px;
     }
     /* A sensor problem, in a small box at the bottom of the map. */
     .message {
@@ -424,14 +395,14 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
       bottom: calc(10px + var(--af-tab-bar-height, 0px));
       display: flex;
       flex-direction: column;
-      /* The empty space beside the zoom buttons still lets the map be dragged. */
+      /* The empty space beside the location still lets the map be dragged. */
       pointer-events: none;
     }
     .dock > * {
       pointer-events: auto;
     }
     /*
-     * A row along the bottom: location on the left, zoom on the right. Only what is in it
+     * A row along the bottom, with the location on the left. Only what is in it
      * takes taps. Named with the dock, to win over the dock's own rule above: the bare row
      * once took every tap across its width, and so covered the round buttons beside it.
      */
@@ -464,12 +435,6 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
       flex: none;
       font-size: 20px;
       color: var(--ion-color-warning);
-    }
-    .zoom {
-      margin-left: auto;
-      display: flex;
-      flex-direction: column;
-      margin-right: -6px;
     }
     /* Nearly solid, like the readout at the top, so map labels behind it barely show. */
     .bar {
@@ -554,27 +519,9 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
     }
     /*
      * A phone on its side: the map is wide and short. The boxes keep to the bottom left,
-     * and the round buttons to the right edge, so the reticle in the middle stays clear.
+     * and zoom to the top right corner, so the reticle in the middle stays clear.
      */
     @media (orientation: landscape) and (max-height: 520px) {
-      /*
-       * The round buttons fill the right edge from the top, and start a second column
-       * beside the first when the screen is too short for all of them in one.
-       */
-      .controls {
-        top: calc(4px + var(--ion-safe-area-top, 0px));
-        bottom: calc(4px + var(--af-tab-bar-height, 0px));
-        right: calc(4px + var(--ion-safe-area-right, 0px));
-        display: grid;
-        grid-auto-flow: column;
-        grid-template-rows: repeat(auto-fill, 64px);
-        direction: rtl;
-        /* Only the buttons take taps: the map can be dragged between and under them. */
-        pointer-events: none;
-      }
-      .controls ion-fab-button {
-        pointer-events: auto;
-      }
       /* Clear of a notch or camera hole at the left edge. */
       .readout {
         left: calc(10px + var(--ion-safe-area-left, 0px));
@@ -589,14 +536,6 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
       }
       .corner {
         align-self: stretch;
-      }
-      /* Zoom lies in a row at the bottom, beside the column of buttons instead of under it. */
-      .zoom {
-        position: absolute;
-        right: 64px;
-        bottom: 0;
-        flex-direction: row;
-        margin: 0;
       }
       /*
        * The boxes keep to the bottom left corner, narrow enough to leave the reticle in
@@ -705,7 +644,7 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
   template: `
     <!-- No header, so the map fills the whole screen. -->
     <ion-content [scrollY]="false" [fullscreen]="true">
-      <!-- Any touch brings back the round buttons, after they fade away while idle. -->
+      <!-- Any touch keeps the menu and zoom open a while longer: see wake. -->
       <div class="stage" (pointerdown)="wake()">
         <canvas
           #canvas
@@ -713,6 +652,7 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
           [attr.data-star-count]="stars().length"
           [attr.data-constellation-count]="constellations().length"
           [attr.data-field]="viewField()"
+          [attr.data-target]="state.selectedTargetId()"
           (pointerdown)="pointerDown($event)"
           (pointermove)="pointerMove($event)"
           (pointerup)="pointerUp($event)"
@@ -756,57 +696,42 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
         <!-- A finder phone linked to a screen phone shows only the map: nothing to tap by accident. -->
         @if (!state.finderMode()) {
           <!--
-            The big round buttons, down the right edge: only what is used all the time at the
-            telescope. Everything else is under More. They fade while idle: see RAIL_IDLE_MS.
+            Zoom, top right, shown with the menu. Not in the eyepiece view, where the eyepiece
+            sets the field. Pinching zooms too.
           -->
-          <div class="controls" data-testid="controls" [class.faded]="railHidden()">
-            <!--
-              Green while the motion sensors steer the view. On a screen phone, the finder phone
-              on the telescope steers it, and this opens the link.
-            -->
-            @if (state.remoteFinder()) {
-              <ion-fab-button data-testid="sensor-toggle" class="good on" (click)="openRemote()">
-                <ion-icon name="phone-landscape-outline" aria-hidden="true"></ion-icon>
-                <span class="visually-hidden">Steered by the finder phone</span>
-              </ion-fab-button>
-            } @else {
+          @if (mode() !== 'eyepiece') {
+            <div class="zoom" [class.faded]="!moreOpen()">
               <ion-fab-button
-                data-testid="sensor-toggle"
-                [class.good]="state.sensorsActive()"
-                [class.on]="state.sensorsActive()"
-                (click)="toggleSensors()"
+                aria-label="Zoom in"
+                data-testid="zoom-in"
+                [disabled]="fieldDeg() <= minField"
+                (click)="zoomBy(1 / zoomStep)"
               >
-                <ion-icon name="compass-outline" aria-hidden="true"></ion-icon>
-                <span class="visually-hidden">{{ state.sensorsActive() ? 'Sensors on' : 'Use sensors' }}</span>
+                <ion-icon name="add" aria-hidden="true"></ion-icon>
               </ion-fab-button>
-            }
-            <!-- Steps through the sky map, the eyepiece view and the eyepiece ring, showing the view it switches to. -->
-            <ion-fab-button data-testid="view-mode" [attr.data-mode]="mode()" (click)="mode.set(nextView())">
-              <ion-icon
-                aria-hidden="true"
-                [name]="isIconUrl(viewButtons[nextView()].icon) ? undefined : viewButtons[nextView()].icon"
-                [src]="isIconUrl(viewButtons[nextView()].icon) ? viewButtons[nextView()].icon : undefined"
-              ></ion-icon>
-              <span class="visually-hidden">{{ viewButtons[nextView()].label }}</span>
-            </ion-fab-button>
-            <!--
-              Amber while something under it needs seeing to: the telescope isn't aligned, or
-              the map shows another time.
-            -->
-            <ion-fab-button
-              data-testid="more"
-              [class.warn]="state.planning() || !state.alignment()"
-              [attr.aria-expanded]="moreOpen()"
-              (click)="moreOpen.set(!moreOpen())"
-            >
-              <ion-icon name="ellipsis-horizontal" aria-hidden="true"></ion-icon>
-              <span class="visually-hidden">More</span>
-            </ion-fab-button>
-          </div>
-
-          <!-- What is needed less at the telescope: big tiles with words, over the map. -->
+              <ion-fab-button
+                aria-label="Zoom out"
+                data-testid="zoom-out"
+                [disabled]="fieldDeg() >= maxField"
+                (click)="zoomBy(zoomStep)"
+              >
+                <ion-icon name="remove" aria-hidden="true"></ion-icon>
+              </ion-fab-button>
+            </div>
+          }
+          <!--
+            The menu: big tiles with words over the bottom of the map. A tap on the map opens
+            it, and it goes after a while without a touch: see MENU_IDLE_MS. This hidden
+            button opens it for screen readers.
+          -->
+          <button class="visually-hidden" type="button" data-testid="open-menu" (click)="openMenu()">Menu</button>
           @if (moreOpen()) {
-            <app-more-sheet (closed)="moreOpen.set(false)"></app-more-sheet>
+            <app-more-sheet
+              [mode]="mode()"
+              [view]="viewButtons[nextView()]"
+              (nextView)="mode.set(nextView())"
+              (closed)="moreOpen.set(false)"
+            ></app-more-sheet>
           }
         }
 
@@ -825,26 +750,6 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
                     {{ locating() || 'Set location' }}
                   </button>
                 }
-              }
-              @if (mode() !== 'eyepiece') {
-                <div class="zoom" [class.faded]="railHidden()">
-                  <ion-fab-button
-                    aria-label="Zoom in"
-                    data-testid="zoom-in"
-                    [disabled]="fieldDeg() <= minField"
-                    (click)="zoomBy(1 / zoomStep)"
-                  >
-                    <ion-icon name="add" aria-hidden="true"></ion-icon>
-                  </ion-fab-button>
-                  <ion-fab-button
-                    aria-label="Zoom out"
-                    data-testid="zoom-out"
-                    [disabled]="fieldDeg() >= maxField"
-                    (click)="zoomBy(zoomStep)"
-                  >
-                    <ion-icon name="remove" aria-hidden="true"></ion-icon>
-                  </ion-fab-button>
-                </div>
               }
             </div>
             @if (mode() === 'eyepiece') {
@@ -1053,7 +958,13 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
                         [name]="showDetails() ? 'information-circle' : 'information-circle-outline'"
                       ></ion-icon>
                     </ion-button>
-                    <ion-button fill="clear" size="small" aria-label="Clear target" (click)="clearTarget()">
+                    <ion-button
+                      fill="clear"
+                      size="small"
+                      aria-label="Clear target"
+                      data-testid="clear-target"
+                      (click)="clearTarget()"
+                    >
                       <ion-icon slot="icon-only" name="close" aria-hidden="true"></ion-icon>
                     </ion-button>
                   </div>
@@ -1250,18 +1161,10 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   private reticleRadiusPx = 0;
   /** True while a tap's plate solve runs, so a second tap does nothing. */
   protected readonly solvingHere = signal(false);
-  /** Whether the More sheet is open. */
+  /** Whether the menu is open. */
   protected readonly moreOpen = signal(false);
-  /** No touch for a while: see RAIL_IDLE_MS. */
-  private readonly idle = signal(false);
+  /** Closes the menu after a while without a touch: see MENU_IDLE_MS. */
   private idleTimer?: ReturnType<typeof setTimeout>;
-  /**
-   * The round buttons fade only while the sensors steer, since then the hands are on the
-   * telescope. Not while the More sheet or the time control is open.
-   */
-  protected readonly railHidden = computed(
-    () => this.idle() && this.state.sensorsActive() && !this.moreOpen() && !this.state.timeControlOpen(),
-  );
   /** A shutter remote's press plate solves: see shutterPressed. */
   private readonly onKey = (event: KeyboardEvent): void => this.shutterPressed(event);
   private pinchStart?: { distance: number; fieldDeg: number };
@@ -1271,7 +1174,6 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       add,
       eye,
       eyeOutline,
-      compassOutline,
       close,
       contractOutline,
       expandOutline,
@@ -1289,7 +1191,6 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       locationOutline,
       settingsOutline,
       phoneLandscapeOutline,
-      ellipsisHorizontal,
       listOutline,
     });
     this.baseStarsLoaded = this.loadStars();
@@ -1385,11 +1286,19 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     window.removeEventListener('keydown', this.onKey);
   }
 
-  /** A touch: the round buttons come back, until the next while without one. */
+  /**
+   * A touch: the menu, if open, stays until the next while without one. Then it goes away
+   * with the zoom buttons, leaving the sky clear.
+   */
   protected wake(): void {
-    this.idle.set(false);
     clearTimeout(this.idleTimer);
-    this.idleTimer = setTimeout(() => this.idle.set(true), RAIL_IDLE_MS);
+    this.idleTimer = setTimeout(() => this.moreOpen.set(false), MENU_IDLE_MS);
+  }
+
+  /** Opens the menu, for its while: see wake. */
+  protected openMenu(): void {
+    this.moreOpen.set(true);
+    this.wake();
   }
 
   /**
@@ -1420,15 +1329,6 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   /** Opens Settings at the equipment, to add or change what the eyepiece view picks from. */
   protected editEquipment(): void {
     void this.router.navigate(['/tabs/settings'], { fragment: 'equipment' });
-  }
-
-  protected toggleSensors(): void {
-    if (this.state.sensorsActive()) this.sensors.stop();
-    else void this.sensors.start();
-  }
-
-  protected openRemote(): void {
-    void this.router.navigateByUrl('/remote');
   }
 
   /** Opens the target's observations: the newest, or a blank form for the first. */
@@ -1495,7 +1395,12 @@ export class SkyPage implements AfterViewInit, OnDestroy {
     this.tapStart = undefined;
     this.pointers.delete(event.pointerId);
     this.restartGesture();
+    // A tap on the rings plate solves there. Anywhere else it opens or closes the menu.
     if (isTap && this.isOnReticle(event)) void this.solveHere();
+    else if (isTap) {
+      if (this.moreOpen()) this.moreOpen.set(false);
+      else this.openMenu();
+    }
   }
 
   /** Whether a tap landed on the rings, or close enough to them for a finger. */
@@ -1730,7 +1635,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       .map((selector) => (selector ? edge(selector, 'right') : undefined))
       .filter((right): right is number => right !== undefined);
     const left = panels.length > 0 ? Math.max(...panels) : edge('.dock', 'left');
-    const right = edge('.controls', 'left');
+    const right = edge('.zoom', 'left') ?? canvas.clientWidth;
     if (left === undefined || right === undefined) return undefined;
     return { left: left + CLEAR_MARGIN_PX, right: right - CLEAR_MARGIN_PX };
   }

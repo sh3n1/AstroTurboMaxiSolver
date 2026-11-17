@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 
-import { openPage, moreTile, tapMore } from './navigation';
+import { openMenu, openPage, moreTile, tapMore } from './navigation';
 
 /** Chooses a type in the Targets tab's filter sheet, then closes the sheet. */
 async function filterTargetsByType(page: Page, type: string | RegExp): Promise<void> {
@@ -13,10 +13,19 @@ async function filterTargetsByType(page: Page, type: string | RegExp): Promise<v
 
 test('visits the app root url', async ({ page }) => {
   await page.goto('/');
-  await expect(page.locator('[data-testid=view-mode]')).toBeVisible();
-  // The map is home: no tab bar, and Lists is under its More button.
-  await expect(page.getByTestId('more')).toBeVisible();
+  // The map is home: no tab bar and no buttons. A tap on the map opens the menu, with zoom.
+  await expect(page.getByTestId('more-sheet')).toHaveCount(0);
   await expect(page.getByRole('tab')).toHaveCount(0);
+  await page.locator('app-sky canvas').click({ position: { x: 20, y: 120 } });
+  await expect(page.getByTestId('more-sheet')).toBeVisible();
+  await expect(page.getByTestId('more-sheet').getByTestId('open-lists')).toBeVisible();
+  await expect(page.locator('app-sky .zoom')).not.toHaveClass(/faded/);
+  // Another tap on the map closes it, and so does a while without a touch.
+  await page.locator('app-sky canvas').click({ position: { x: 20, y: 120 } });
+  await expect(page.getByTestId('more-sheet')).toHaveCount(0);
+  await expect(page.locator('app-sky .zoom')).toHaveClass(/faded/);
+  await page.locator('app-sky canvas').click({ position: { x: 20, y: 120 } });
+  await expect(page.getByTestId('more-sheet')).toHaveCount(0, { timeout: 15_000 });
 });
 
 test('opens on a close zoom with the sky data loaded', async ({ page }) => {
@@ -26,7 +35,8 @@ test('opens on a close zoom with the sky data loaded', async ({ page }) => {
   await expect(page.locator('app-sky canvas:not([data-constellation-count="0"])')).toBeAttached();
   await expect(page.locator('[data-testid=pointing]')).toContainText('Alt');
 
-  // Zoom changes what the canvas shows.
+  // Zoom, shown with the menu, changes what the canvas shows.
+  await openMenu(page);
   await page.locator('[data-testid=zoom-out]').click();
   await expect(canvas).toHaveAttribute('data-field', '30');
 });
@@ -210,7 +220,7 @@ test('finds a target, guides to it and shows it in the eyepiece', async ({ page 
   await expect(page.locator('[data-testid=guidance]')).toContainText('0.0° away');
 
   // The eyepiece view opens with its stars.
-  await page.locator('[data-testid=view-mode]').click();
+  await tapMore(page, 'view-mode');
   await expect(page.locator('app-sky canvas:not([data-star-count="0"])')).toBeAttached();
 });
 
@@ -240,14 +250,18 @@ test('goes full screen and back from the sky map', async ({ page }) => {
   await expect.poll(isFullscreen).toBe(false);
 });
 
-test('keeps the zoom buttons above the target bar', async ({ page }) => {
+test('keeps the zoom buttons in the top right corner, clear of the target bar', async ({ page }) => {
   await page.goto('/tabs/targets');
   await page.locator('app-targets ion-searchbar input').fill('Vega');
   await expect(page.locator('app-targets ion-item').first()).toContainText('Vega');
   await page.locator('app-targets ion-item').first().click();
+  await openMenu(page);
   const zoom = await page.locator('[data-testid=zoom-out]').boundingBox();
   const bar = await page.locator('[data-testid=target-bar]').boundingBox();
+  const width = page.viewportSize()!.width;
   expect(zoom!.y + zoom!.height).toBeLessThanOrEqual(bar!.y);
+  expect(zoom!.y).toBeLessThan(200);
+  expect(zoom!.x + zoom!.width).toBeGreaterThan(width - 20);
 });
 
 test('aligns the telescope on a suggested star', async ({ page }) => {
@@ -491,7 +505,7 @@ test('fades the reticle in and out only while plate solving', async ({ page }) =
 
 test('sets star visibility and equipment in the eyepiece view', async ({ page }) => {
   await page.goto('/');
-  await page.locator('[data-testid=view-mode]').click();
+  await tapMore(page, 'view-mode');
   const label = page.locator('[data-testid=star-limit-label]');
 
   // A suburban sky, class 5 by default, with the default 130 mm telescope.
@@ -571,7 +585,7 @@ test('turns the telescope and eyepieces saved before the kit existed into its fi
   await page.goto('/tabs/settings');
   await expect(page.getByTestId('kit-item')).toHaveText([/102\/900/, /25 mm/, /10 mm/]);
   await openPage(page, 'Sky');
-  await page.locator('[data-testid=view-mode]').click();
+  await tapMore(page, 'view-mode');
   await expect(page.getByTestId('equipment-toggle')).toContainText('102/900 · 10 mm · 90×');
 
   // The kit is now in the database, and the settings keep only what is in use, by UUID.
@@ -580,7 +594,7 @@ test('turns the telescope and eyepieces saved before the kit existed into its fi
   expect(settings.telescopeFocalMm).toBeUndefined();
   expect(settings.kitSelection.telescopeId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-/);
   await page.reload();
-  await page.locator('[data-testid=view-mode]').click();
+  await tapMore(page, 'view-mode');
   await expect(page.getByTestId('equipment-toggle')).toContainText('102/900 · 10 mm · 90×');
 });
 
@@ -594,7 +608,7 @@ test('sets sky darkness in Settings, which changes the eyepiece view', async ({ 
     select.dispatchEvent(new CustomEvent('ionChange', { detail: { value: 3 }, bubbles: true }));
   });
   await openPage(page, 'Sky');
-  await page.locator('[data-testid=view-mode]').click();
+  await tapMore(page, 'view-mode');
   // A rural sky, class 3, with 130 mm: 6.8 plus 6.3 for the aperture.
   await expect(page.locator('[data-testid=star-limit-label]')).toContainText('13.1');
 });
@@ -657,7 +671,7 @@ test('guides the tube the same way in the eyepiece view as on the sky map', asyn
   await expect(canvas).toHaveAttribute('data-guide-angle', /^(0|1|2|358|359|360)$/);
 
   // The default Newtonian turns the image upside down, but the guide still says raise the tube.
-  await page.locator('[data-testid=view-mode]').click();
+  await tapMore(page, 'view-mode');
   await expect(canvas).toHaveAttribute('data-guide-angle', /^(0|1|2|358|359|360)$/);
 
   // Once the target is in the eyepiece, the guide goes away.
@@ -667,7 +681,7 @@ test('guides the tube the same way in the eyepiece view as on the sky map', asyn
 
 test('steps through the sky map, the eyepiece view and the eyepiece ring', async ({ page }) => {
   await page.goto('/');
-  const button = page.locator('[data-testid=view-mode]');
+  const button = await moreTile(page, 'view-mode');
   const ring = page.locator('[data-testid=ring-readout]');
 
   // The sky map, with the Telrad rings and zoom.
@@ -731,7 +745,7 @@ test('lays out for a phone on its side: the map full screen, and big buttons tha
   await page.setViewportSize({ width: 860, height: 380 });
   await page.goto('/');
   const box = async (selector: string) => (await page.locator(selector).boundingBox())!;
-  const rail = ['sensor-toggle', 'view-mode', 'more'];
+  const zoom = ['zoom-in', 'zoom-out'];
 
   // The map keeps the whole screen: there is no tab bar.
   const map = await box('app-sky canvas');
@@ -740,36 +754,38 @@ test('lays out for a phone on its side: the map full screen, and big buttons tha
   expect(map.height).toBeGreaterThan(370);
   await expect(page.getByRole('tab')).toHaveCount(0);
 
-  // In the eyepiece view, the panel and the buttons leave the circle's place clear.
-  await page.locator('[data-testid=view-mode]').click();
+  // In the eyepiece view, the panel leaves the circle's place clear.
+  await tapMore(page, 'view-mode');
   const panel = await box('[data-testid=eyepiece-panel]');
   expect(panel.x + panel.width).toBeLessThan(860 / 2 + 40);
-  // Every big button takes its tap there, and is big enough to find in the dark.
-  for (const id of rail) {
+  // The menu's tiles all fit on the screen, big enough to find in the dark.
+  for (const id of ['sensor-toggle', 'view-mode', 'open-lists', 'open-settings']) {
+    const tile = await box(`[data-testid=more-sheet] [data-testid=${id}]`);
+    expect(tile.height, id).toBeGreaterThanOrEqual(56);
+    expect(tile.y, id).toBeGreaterThanOrEqual(0);
+    expect(tile.y + tile.height, id).toBeLessThanOrEqual(380);
+  }
+  await tapMore(page, 'view-mode');
+  await tapMore(page, 'view-mode');
+
+  // With the menu, zoom lies in the top right corner, takes its taps, and is big enough to find.
+  for (const id of zoom) {
     const onTop = await page.evaluate((testid) => {
       const button = document.querySelector(`[data-testid=${testid}]`)!;
       const { x, y, width, height } = button.getBoundingClientRect();
       return button.contains(document.elementFromPoint(x + width / 2, y + height / 2));
     }, id);
     expect(onTop, id).toBe(true);
-    expect((await box(`[data-testid=${id}]`)).height, id).toBeGreaterThanOrEqual(56);
+    const button = await box(`[data-testid=${id}]`);
+    expect(button.height, id).toBeGreaterThanOrEqual(56);
+    expect(button.x + button.width, id).toBeGreaterThan(860 - 20);
   }
-  await page.locator('[data-testid=view-mode]').click();
-  await page.locator('[data-testid=view-mode]').click();
 
-  // Zoom lies beside the column of buttons, not under it, and all are on screen.
-  const zoomOut = await box('[data-testid=zoom-out]');
-  const more = await box('[data-testid=more]');
-  expect(zoomOut.x + zoomOut.width).toBeLessThanOrEqual(more.x + 1);
-  expect(more.y + more.height).toBeLessThanOrEqual(380);
-  // The zoom buttons are as big as the others.
-  expect(zoomOut.height).toBeCloseTo(more.height, 0);
-
-  // With the time control open the map is shorter, and the buttons still all fit above it.
+  // With the time control open the map is shorter, and zoom still fits above it.
   await tapMore(page, 'open-time');
   await expect(page.locator('[data-testid=time-ruler]')).toBeVisible();
   const ruler = await box('[data-testid=time-ruler]');
-  for (const id of [...rail, 'zoom-in']) {
+  for (const id of zoom) {
     const button = await box(`[data-testid=${id}]`);
     expect(button.y, id).toBeGreaterThanOrEqual(0);
     expect(button.y + button.height, id).toBeLessThanOrEqual(ruler.y + 1);

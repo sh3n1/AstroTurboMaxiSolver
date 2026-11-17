@@ -22,9 +22,7 @@ export async function openPage(page: Page, name: MainPage): Promise<void> {
   }
   if (name === 'Settings') {
     if (!onSky) await openPage(page, 'Sky');
-    await wakeMap(page);
-    await page.getByTestId('more').click();
-    await page.getByTestId('open-settings').click();
+    await tapMore(page, 'open-settings');
     return;
   }
   // Lists and its search. The map's button goes back to the page of Lists left last.
@@ -40,26 +38,28 @@ export async function openPage(page: Page, name: MainPage): Promise<void> {
 }
 
 /**
- * With the sensors on, the map's buttons fade after a while without a touch, and take no
- * taps until the map is touched. A touch away from the reticle brings them back.
+ * Opens the sky map's menu, unless it is open already. A user taps the map; this uses the
+ * hidden button screen readers have, so a test never lands its tap on something drawn there.
  */
-export async function wakeMap(page: Page): Promise<void> {
-  const controls = page.getByTestId('controls');
-  if ((await controls.count()) === 0) return;
-  if (!(await controls.evaluate((element) => element.classList.contains('faded')))) return;
-  await page.locator('app-sky canvas').click({ position: { x: 20, y: 200 } });
-  await controls.and(page.locator(':not(.faded)')).waitFor();
+export async function openMenu(page: Page): Promise<void> {
+  if (await page.getByTestId('more-sheet').isVisible()) return;
+  await page.getByTestId('open-menu').dispatchEvent('click');
+  await page.getByTestId('more-sheet').waitFor();
+}
+
+/** Closes the sky map's menu with a tap on the map, away from the rings, as a user would. */
+export async function closeMenu(page: Page): Promise<void> {
+  if (!(await page.getByTestId('more-sheet').isVisible())) return;
+  await page.locator('app-sky canvas').click({ position: { x: 20, y: 120 } });
+  await page.getByTestId('more-sheet').waitFor({ state: 'detached' });
 }
 
 /**
- * One of the sky map's tiles under More, such as Lists, alignment, night or the time. Opens
- * More first, unless it is open already.
+ * One of the tiles in the sky map's menu, such as the sensors, the view, Lists or the time.
+ * Opens the menu first, unless it is open already.
  */
 export async function moreTile(page: Page, testId: string): Promise<Locator> {
-  if (!(await page.getByTestId('more-sheet').isVisible())) {
-    await wakeMap(page);
-    await page.getByTestId('more').click();
-  }
+  await openMenu(page);
   return page.getByTestId('more-sheet').getByTestId(testId);
 }
 

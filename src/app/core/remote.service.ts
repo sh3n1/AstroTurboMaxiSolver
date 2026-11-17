@@ -81,6 +81,14 @@ export class RemoteService {
   private sharedSite = '';
 
   constructor() {
+    // While the finder waits for a tap to follow the screen into full screen, a tap anywhere
+    // on it does: the band's words are a small target on a phone fixed to a telescope.
+    effect((onCleanup) => {
+      if (!this.fullscreenWanted()) return;
+      const tapped = (): void => void this.enterWantedFullscreen();
+      document.addEventListener('click', tapped, true);
+      onCleanup(() => document.removeEventListener('click', tapped, true));
+    });
     // The finder sends where it points whenever it changes.
     effect(() => {
       if (!this.isLinked('finder')) return;
@@ -118,6 +126,11 @@ export class RemoteService {
     effect(() => {
       const on = this.fullscreen.active();
       if (this.isLinked('screen')) this.send({ t: 'fullscreen', on });
+    });
+    // The target follows the screen phone, chosen or cleared, so the finder's map guides to it too.
+    effect(() => {
+      const id = this.state.selectedTargetId();
+      if (this.isLinked('screen')) this.send({ t: 'target', id });
     });
     // An alignment made on either phone goes to the other.
     effect(() => {
@@ -256,6 +269,7 @@ export class RemoteService {
       this.liveSolver.remoteSolve = (trigger) => this.requestSolve(trigger);
       this.send({ t: 'night', on: this.state.settings().nightMode });
       this.send({ t: 'fullscreen', on: this.fullscreen.active() });
+      this.send({ t: 'target', id: this.state.selectedTargetId() });
       this.expectMessages();
     }
   }
@@ -312,6 +326,9 @@ export class RemoteService {
         break;
       case 'fullscreen':
         void this.followFullscreen(message.on);
+        break;
+      case 'target':
+        this.state.selectedTargetId.set(message.id);
         break;
     }
   }

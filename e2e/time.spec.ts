@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { openPage, tapMore } from './navigation';
+import { closeMenu, moreTile, openPage, tapMore } from './navigation';
 
 /** Lets the app know where the test phone is, in Madrid, so the sky has a place. */
 test.beforeEach(async ({ page, context }) => {
@@ -43,8 +43,9 @@ test('plans for another time from the sky map, and goes back to now', async ({ p
   // Closed, a band says which time is on show, on every tab.
   await page.locator('[data-testid=close-time]').click();
   await expect(page.locator('[data-testid=planning-band]')).toContainText('Showing');
-  // The More button, where the clock is, is amber while the map shows another time.
-  await expect(page.getByTestId('more')).toHaveClass(/warn/);
+  // The menu's clock is amber while the map shows another time.
+  await expect(await moreTile(page, 'open-time')).toHaveClass(/warn/);
+  await closeMenu(page);
   await page.screenshot({ path: 'test-results/time-control-band.png' });
   await openPage(page, 'Search');
   await expect(page.locator('[data-testid=planning-band]')).toBeVisible();

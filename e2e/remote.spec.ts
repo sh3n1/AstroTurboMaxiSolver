@@ -1,7 +1,7 @@
 import type { Browser, BrowserContext, Page } from '@playwright/test';
 import { devices, expect, test } from '@playwright/test';
 
-import { tapMore } from './navigation';
+import { moreTile, openPage, tapMore } from './navigation';
 
 // Two phones are two browsers here, each with its own storage, linked by real WebRTC on
 // this machine. The codes are pasted rather than scanned. Chromium's fake camera stands in
@@ -54,6 +54,17 @@ test('links two phones: the screen follows the finder, and aligns through it', a
   const { context, page: screen } = await secondPhone(browser, String(testInfo.project.use.baseURL));
   await noAutoSolve(finder);
   await noAutoSolve(screen);
+  // Like a phone's browser, the finder refuses full screen unless it was just tapped. The
+  // test browser would allow it anyway.
+  await finder.addInitScript(() => {
+    let tappedAt = -Infinity;
+    window.addEventListener('click', () => (tappedAt = performance.now()), true);
+    const enter = Element.prototype.requestFullscreen;
+    Element.prototype.requestFullscreen = function (options) {
+      if (performance.now() - tappedAt > 1000) return Promise.reject(new TypeError('Needs a tap'));
+      return enter.call(this, options);
+    };
+  });
 
   // The finder shows its code, the screen pastes it and shows a reply, the finder pastes that.
   await finder.goto('/remote');
@@ -66,15 +77,15 @@ test('links two phones: the screen follows the finder, and aligns through it', a
   await paste(finder, reply);
 
   // Linked, both go to the sky map. The screen's sensor button now stands for the finder.
-  const screenSensors = screen.getByTestId('sensor-toggle');
-  await expect(screenSensors).toContainText('Steered by the finder phone', { timeout: 20_000 });
+  await expect(screen).toHaveURL(/tabs\/sky/, { timeout: 20_000 });
+  await expect(await moreTile(screen, 'sensor-toggle')).toContainText('Finder steers');
   await expect(finder).toHaveURL(/tabs\/sky/, { timeout: 20_000 });
 
   // The finder shows only the map, with its band in place of the time band and tabs.
   const band = finder.getByTestId('finder-band');
   await expect(band).toContainText('remote mode');
-  await expect(finder.getByTestId('sensor-toggle')).toHaveCount(0);
-  await expect(finder.getByTestId('more')).toHaveCount(0);
+  await expect(finder.getByTestId('open-menu')).toHaveCount(0);
+  await expect(finder.getByTestId('zoom-in')).toHaveCount(0);
 
   // Where the finder's sensors point, the screen shows.
   await sendOrientation(finder, 0, 90, 0);
@@ -89,17 +100,28 @@ test('links two phones: the screen follows the finder, and aligns through it', a
   await expect(finder.locator('html')).not.toHaveClass(/night/);
 
   // Full screen on the screen phone: the finder follows. Browsers usually want a tap on the
-  // finder itself before it may go full screen, and then its band asks for one.
+  // finder itself before it may go full screen, so its band asks for one.
   const finderFullscreen = (): Promise<boolean> => finder.evaluate(() => document.fullscreenElement !== null);
   const askTap = finder.getByTestId('finder-fullscreen');
   await tapMore(screen, 'fullscreen-toggle');
-  await expect.poll(async () => (await finderFullscreen()) || (await askTap.isVisible())).toBe(true);
-  if (await askTap.isVisible()) await askTap.click();
+  await expect(askTap).toBeVisible();
+  expect(await finderFullscreen()).toBe(false);
+  // A tap anywhere on the finder does it, not only on the band.
+  await finder.locator('app-sky canvas').click({ position: { x: 40, y: 200 } });
   await expect.poll(finderFullscreen).toBe(true);
   await expect(askTap).toHaveCount(0);
   // Leaving it needs no tap on the finder.
   await tapMore(screen, 'fullscreen-toggle');
   await expect.poll(finderFullscreen).toBe(false);
+
+  // A target chosen on the screen is the finder's target too, and clearing it clears both.
+  await openPage(screen, 'Search');
+  await screen.locator('app-targets ion-searchbar input').fill('Vega');
+  await screen.locator('app-targets ion-item').first().click();
+  await expect(screen.locator('app-sky canvas')).toHaveAttribute('data-target', 'Vega');
+  await expect(finder.locator('app-sky canvas')).toHaveAttribute('data-target', 'Vega');
+  await screen.getByTestId('clear-target').click();
+  await expect(finder.locator('app-sky canvas')).not.toHaveAttribute('data-target', /.*/);
 
   // Alignment is done on the screen. The plate solve runs on the finder, whose fake camera
   // sees no stars, and the screen hears why.
@@ -122,9 +144,9 @@ test('links two phones: the screen follows the finder, and aligns through it', a
   // and the screen says the finder is gone, and gets its own sensors back.
   await finder.getByTestId('finder-exit').click();
   await expect(band).toHaveCount(0);
-  await expect(finder.getByTestId('sensor-toggle')).toBeVisible();
+  await expect(finder.getByTestId('open-menu')).toBeAttached();
   await expect(screen.getByTestId('remote-toast')).toContainText('Finder phone disconnected', { timeout: 20_000 });
-  await expect(screenSensors).toContainText('Use sensors');
+  await expect(await moreTile(screen, 'sensor-toggle')).toContainText('Use sensors');
   await context.close();
 });
 
