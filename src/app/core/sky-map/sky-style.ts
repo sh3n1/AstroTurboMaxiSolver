@@ -8,7 +8,7 @@ import { THEME } from '../theme';
 
 /**
  * The three views the view button steps through, in this order: the sky map with the
- * Telrad rings, the eyepiece view, and the sky map with one ring the size of the
+ * three rings, the eyepiece view, and the sky map with one ring the size of the
  * eyepiece's field, to see what will fit in the eyepiece while finding the way there.
  */
 export type ViewMode = 'sky' | 'eyepiece' | 'ring';

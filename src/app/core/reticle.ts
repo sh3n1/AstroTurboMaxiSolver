@@ -2,7 +2,7 @@
 
 import type { Vector3 } from './astronomy';
 
-/** The reticle's rings, as diameters in degrees: the same sizes as a Telrad finder. */
+/** The reticle's rings, as diameters in degrees: 0.5°, 2° and 4°. */
 export const RETICLE_RINGS_DEG = [0.5, 2, 4] as const;
 
 /** How far from the centre the outer ring reaches. */
