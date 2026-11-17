@@ -18,7 +18,15 @@ export default defineConfig({
     storageState: 'e2e/storage-state.json',
   },
   projects: publishedURL
-    ? [{ name: 'published', testMatch: 'pwa.spec.ts', use: { ...devices['Pixel 7'], baseURL: publishedURL } }]
+    ? [
+        {
+          name: 'published',
+          testMatch: 'pwa.spec.ts',
+          use: { ...devices['Pixel 7'], baseURL: publishedURL },
+          // Over the internet, a first visit also downloads the whole app for offline use.
+          expect: { timeout: 20_000 },
+        },
+      ]
     : [
         {
           name: 'Mobile Chrome',
