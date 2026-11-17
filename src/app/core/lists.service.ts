@@ -312,13 +312,15 @@ export class ListsService {
    * Returns how many lists were added, and the objects of other apps' files that the app
    * doesn't know. Throws a readable error for a file it can't use.
    */
-  import(text: string, fileName = ''): { lists: number; missing: string[] } {
+  async import(text: string, fileName = ''): Promise<{ lists: number; missing: string[] }> {
     // JSON is only ever the app's own format, which says clearly when a file isn't one.
     if (/^\s*[{[]/.test(text)) {
       const imported = parseImport(text);
       for (const { name, targetIds } of imported) this.create(name, targetIds);
       return { lists: imported.length, missing: [] };
     }
+    // Every object must be in, or an NGC object would be called missing in the first seconds.
+    await this.state.catalogComplete;
     const { name, targetIds, missing } = readListFile(text, fileName, this.state.targets());
     this.create(name, targetIds);
     return { lists: 1, missing };
