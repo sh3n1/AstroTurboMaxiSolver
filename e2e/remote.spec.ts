@@ -74,6 +74,12 @@ test('links two phones: the screen follows the finder, and aligns through it', a
   await screen.getByTestId('remote-as-screen').click();
   await paste(screen, offer);
   const reply = await shownCode(screen);
+  // Scanning the reply hides the finder's own code, and going back shows it again.
+  await finder.getByTestId('remote-scan').click();
+  await expect(finder.getByTestId('remote-code')).toHaveCount(0);
+  await expect(finder.getByText('1. Scan this with the screen phone')).toHaveCount(0);
+  await finder.getByTestId('remote-scan-cancel').click();
+  await expect(finder.getByTestId('remote-code')).toBeVisible();
   await paste(finder, reply);
 
   // Linked, both go to the sky map. The screen's sensor button now stands for the finder.
