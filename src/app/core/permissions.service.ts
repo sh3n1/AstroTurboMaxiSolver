@@ -80,7 +80,7 @@ export class PermissionsService {
 
   /** How to allow a blocked permission again, in this phone's own settings. */
   async showBlocked(kind: PermissionKind): Promise<void> {
-    const { header, steps } = blockedHelp(kind, this.install.isApple);
+    const { header, steps } = blockedHelp(kind, this.install.device);
     const alert = await this.alerts.create({
       header,
       // Each step on its own line: Ionic shows the message as text with line breaks kept.

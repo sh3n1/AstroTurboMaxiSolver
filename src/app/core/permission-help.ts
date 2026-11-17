@@ -8,6 +8,16 @@ export const LOCATION_BLOCKED = 'Location off';
 /** The permissions the app asks for, each when it is first needed. */
 export type PermissionKind = 'camera' | 'location' | 'motion';
 
+/** Where the app runs, since each keeps its permissions in a different place. */
+export type DeviceKind = 'apple' | 'android' | 'desktop';
+
+/** iPhones and iPads, Android phones, or a computer, from what the browser says it is. */
+export function deviceKind(userAgent: string, platform: string, touchPoints: number): DeviceKind {
+  // iPads ask for the desktop site, so they say they are Macs, with touch.
+  if (/iPhone|iPad|iPod/.test(userAgent) || (platform === 'MacIntel' && touchPoints > 1)) return 'apple';
+  return /Android/.test(userAgent) ? 'android' : 'desktop';
+}
+
 /** Why each permission is needed, in a line, shown before the browser asks. */
 export const PERMISSION_REASONS: Record<PermissionKind, { header: string; message: string }> = {
   camera: {
@@ -36,9 +46,9 @@ const SETTING_NAMES: Record<PermissionKind, string> = {
  * its settings can change it. iPhones keep the setting in the phone's Settings app. Said
  * calmly: nothing is wrong, the app just can't use it until it is turned on.
  */
-export function blockedHelp(kind: PermissionKind, apple: boolean): { header: string; steps: string[] } {
+export function blockedHelp(kind: PermissionKind, device: DeviceKind): { header: string; steps: string[] } {
   const header = `${SETTING_NAMES[kind]} is off`;
-  if (apple) {
+  if (device === 'apple') {
     const steps: Record<PermissionKind, string[]> = {
       camera: ['iPhone Settings › Apps › Safari › Camera › Allow', 'Then open the app again'],
       location: [
@@ -50,12 +60,16 @@ export function blockedHelp(kind: PermissionKind, apple: boolean): { header: str
     };
     return { header, steps: steps[kind] };
   }
+  if (device === 'android') {
+    // Chrome's site settings, which the installed app shares with the browser.
+    const steps = [`In Chrome: ⋮ › Settings › Site settings › ${SETTING_NAMES[kind]}`, 'Tap this site › Allow'];
+    // The phone's own location switch can be off too, for every app.
+    if (kind === 'location') steps.push('Check Location is on in Android Settings');
+    return { header, steps: [...steps, 'Then open the app again'] };
+  }
   return {
     header,
-    steps: [
-      `In Chrome: tap the icon left of the address › Permissions › ${SETTING_NAMES[kind]}`,
-      `Installed app: hold its icon › App info › Permissions › ${SETTING_NAMES[kind]}`,
-    ],
+    steps: [`Click the icon left of the address › ${SETTING_NAMES[kind]} › Allow`, 'Then reload the page'],
   };
 }
 

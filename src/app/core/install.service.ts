@@ -1,13 +1,13 @@
 import { Injectable, computed, signal } from '@angular/core';
 
+import type { DeviceKind } from './permission-help';
+import { deviceKind } from './permission-help';
+
 /** Chrome's install event: kept to show its install dialog when the user asks. */
 interface InstallPromptEvent extends Event {
   prompt(): Promise<void>;
   readonly userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
-
-/** Saved once the user says "not now" to the install notice, so it isn't offered again. */
-const DISMISSED_KEY = 'astroturbomaxisolver.install-dismissed';
 
 /** Whether the app already runs installed, from the home screen, rather than in a browser tab. */
 function runsInstalled(): boolean {
@@ -15,22 +15,6 @@ function runsInstalled(): boolean {
   const displayed = typeof matchMedia === 'function' && modes.some((m) => matchMedia(`(display-mode: ${m})`).matches);
   // Safari on iPhones says so in its own way.
   return displayed || (navigator as Navigator & { standalone?: boolean }).standalone === true;
-}
-
-/**
- * iPhones and iPads, where no browser offers an install button: the app is added from the
- * Share menu instead. iPads ask for the desktop site, so they say they are Macs, with touch.
- */
-export function isAppleMobile(userAgent: string, platform: string, touchPoints: number): boolean {
-  return /iPhone|iPad|iPod/.test(userAgent) || (platform === 'MacIntel' && touchPoints > 1);
-}
-
-function readDismissed(): boolean {
-  try {
-    return localStorage.getItem(DISMISSED_KEY) === 'true';
-  } catch {
-    return false;
-  }
 }
 
 /**
@@ -45,19 +29,17 @@ function readDismissed(): boolean {
 export class InstallService {
   /** Already on the home screen: nothing to offer. */
   readonly installed = signal(runsInstalled());
+  /** The kind of device, which says where its settings are, and how to install. */
+  readonly device: DeviceKind = deviceKind(navigator.userAgent, navigator.platform, navigator.maxTouchPoints);
   /** An iPhone or iPad, where installing means following steps. */
-  readonly isApple = isAppleMobile(navigator.userAgent, navigator.platform, navigator.maxTouchPoints);
+  readonly isApple = this.device === 'apple';
   /** Chrome's install event, while it can still be used. */
   private readonly prompt = signal<InstallPromptEvent | null>(null);
-  /** The user said "not now" to the notice once. The menu still offers installing. */
-  readonly dismissed = signal(readDismissed());
   /** The steps for iPhones and iPads are on show. */
   readonly stepsOpen = signal(false);
 
   /** Whether installing can be offered here: Chrome's dialog is ready, or the steps on iPhones. */
   readonly available = computed(() => !this.installed() && (!!this.prompt() || this.isApple));
-  /** Whether to show the notice on the map: available, and not turned down before. */
-  readonly offered = computed(() => this.available() && !this.dismissed());
 
   constructor() {
     window.addEventListener('beforeinstallprompt', (event) => {
@@ -83,15 +65,5 @@ export class InstallService {
     const { outcome } = await prompt.userChoice;
     this.prompt.set(null);
     if (outcome === 'accepted') this.installed.set(true);
-  }
-
-  /** "Not now": the notice isn't shown again on this device. */
-  dismiss(): void {
-    this.dismissed.set(true);
-    try {
-      localStorage.setItem(DISMISSED_KEY, 'true');
-    } catch {
-      // Storage may be blocked: then it is only for this visit.
-    }
   }
 }
