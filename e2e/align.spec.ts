@@ -103,3 +103,30 @@ test('aligns with a Bluetooth shutter remote, when switched on in Settings', asy
   await pressRemote();
   await expect(page.locator('[data-testid=alignment-failed]')).toBeVisible();
 });
+
+test('offers a sync on the target once aligned, which needs a plate solve', async ({ page }) => {
+  // A star the page suggests, so it is surely above the horizon now.
+  await page.goto('/align');
+  const name = (await page.locator('[data-testid=alignment-star] h2').first().textContent())!.trim();
+  await page.goto('/tabs/targets');
+  await page.locator('app-targets ion-searchbar input').fill(name);
+  await expect(page.locator('app-targets ion-item').first()).toContainText(name);
+  await page.locator('app-targets ion-item').first().click();
+  // Not aligned yet: nothing to correct.
+  await expect(page.getByTestId('target-bar')).toBeVisible();
+  await expect(page.getByTestId('sync-target')).toHaveCount(0);
+
+  await tapMore(page, 'alignment-status');
+  await page.locator('[data-testid=align-selected-target]').click();
+  await page.locator('[data-testid=confirm-centred]').click();
+  await page.locator('[data-testid=align-simulated]').click();
+  await page.locator('[data-testid=alignment-done]').click();
+
+  // Aligned, the target's bar offers a sync. This browser has no camera, so the plate solve
+  // fails, says so, and leaves the alignment as it was.
+  await page.getByTestId('sync-target').click();
+  await expect(page.getByTestId('sync-toast')).toContainText('Not synced');
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('astroturbomaxisolver.alignment') ?? '{}'));
+  expect(saved.value.syncs).toBeUndefined();
+  expect(saved.value.position.altDeg).toBeGreaterThan(0);
+});

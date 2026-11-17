@@ -2,8 +2,17 @@ import { DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { IonButton, IonIcon } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { close, eye, eyeOutline, informationCircle, informationCircleOutline, scanOutline } from 'ionicons/icons';
+import {
+  close,
+  eye,
+  eyeOutline,
+  informationCircle,
+  informationCircleOutline,
+  locateOutline,
+  scanOutline,
+} from 'ionicons/icons';
 
+import { AlignmentSyncService } from './alignment-sync.service';
 import { AppState } from './app-state.service';
 import { designationText } from './designations';
 import { countLabel } from './observing-log';
@@ -207,6 +216,22 @@ import type { Target } from './targets';
               <span class="af-count" data-testid="seen-count" aria-hidden="true">{{ countLabel(seenCount()) }}</span>
             }
           </span>
+          <!--
+            Sync: the target is centred in the eyepiece, so a plate solve now corrects the
+            alignment here. Only once aligned, and for a target above the horizon.
+          -->
+          @if (state.alignment() && !targetBelowHorizon()) {
+            <ion-button
+              fill="clear"
+              size="small"
+              aria-label="Sync: target centred in the eyepiece"
+              data-testid="sync-target"
+              [disabled]="sync.syncing()"
+              (click)="sync.syncOn(target)"
+            >
+              <ion-icon slot="icon-only" name="locate-outline" aria-hidden="true"></ion-icon>
+            </ion-button>
+          }
           <!-- Turns the map to the target: a frame closing in on it. -->
           <ion-button
             fill="clear"
@@ -256,6 +281,7 @@ export class TargetBarComponent {
   private readonly seenActions = inject(SeenActionsService);
   private readonly log = inject(ObservingLogService);
   private readonly guidance = inject(TargetGuidanceService);
+  protected readonly sync = inject(AlignmentSyncService);
 
   protected readonly designationText = designationText;
   protected readonly countLabel = countLabel;
@@ -283,7 +309,7 @@ export class TargetBarComponent {
   });
 
   constructor() {
-    addIcons({ close, eye, eyeOutline, informationCircle, informationCircleOutline, scanOutline });
+    addIcons({ close, eye, eyeOutline, informationCircle, informationCircleOutline, locateOutline, scanOutline });
   }
 
   /** Opens the target's observations: the newest, or a blank form for the first. */
