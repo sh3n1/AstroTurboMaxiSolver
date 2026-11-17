@@ -20,7 +20,7 @@ Features:
 .
 
 - **Platform:** PWA only. Do not add native iOS or Android projects, native plugins, or anything that needs an app store build.
-- **Hosting:** development versions are published on the project's own domain, on Cloudflare, over HTTPS.
+- **Hosting:** development versions are published on the project's own domain, on Cloudflare, over HTTPS. The code must not depend on the host: no host's files or settings in the project. What any host must do, and how to publish, is in `docs/deploy.md`.
 - **Current state:** Work in progress
 - **Target users:** Amateur astronomers
 - **Supported devices and browsers:** Only pwa, targeted on smartphones
@@ -50,6 +50,8 @@ Features:
 | Fix lint and formatting | `npm run lint:fix` |
 | Unit tests | `npm run test:unit` |
 | End-to-end tests (ports 4210 and 4211, includes a production build) | `npm run test:e2e` |
+| Publish a development version (ask first; see `docs/deploy.md`) | `npm run deploy` |
+| Check a published copy is hosted as the app needs | `npm run deploy:check -- <address>` |
 
 Before finishing a change, run: `npm run lint`, `npm run test:unit` and `npm run test:e2e`
 
@@ -107,6 +109,7 @@ Keep on-screen text short. Don't over-explain: say what matters in a few words, 
 - File size: aim for under 500 lines a file, and never grow one past 800. Before adding to a big file, split it: logic into plain functions in their own files, parts of a screen into their own components. `docs/sky-page-split.md` shows how `sky.page.ts` was split.
 - Colours: use the `--af-*` variables in `src/theme/variables.scss`, never a colour written out in a component. Canvases take theirs from `src/app/core/theme.ts`, which repeats a few of the variables and is checked against them by an end-to-end test.
 - Naming: Angular defaults
+- Language: code comments, documentation and every Markdown file are in English, whatever language the conversation is in.
 - Testing expectations: Unit tests for astronomy, solver and fusion logic. End-to-end tests for main flows.
 - Dependencies: Ask before adding one. Prefer a well-maintained, permissively licensed library over custom code.
 

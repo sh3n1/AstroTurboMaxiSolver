@@ -1,5 +1,5 @@
 import { DecimalPipe } from '@angular/common';
-import { Component, inject, isDevMode, signal } from '@angular/core';
+import { Component, computed, inject, isDevMode, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import {
   IonBadge,
@@ -20,6 +20,7 @@ import {
   chevronUp,
   desktopOutline,
   flaskOutline,
+  informationCircleOutline,
   listOutline,
 } from 'ionicons/icons';
 
@@ -28,6 +29,15 @@ import { LiveSolverService } from '../live-solver.service';
 import { LocalTimePipe } from '../local-time.pipe';
 
 import { SETTINGS_SECTION_STYLES } from './settings-styles';
+
+/** What scripts/build-info.mjs writes before each production build. */
+interface BuildInfo {
+  version: string;
+  commit: string;
+  /** Built with changes not yet committed. */
+  changed: boolean;
+  builtAt: string;
+}
 
 /** Tools for checking the app on a real phone and a real sky, as a section of Settings. */
 @Component({
@@ -49,6 +59,14 @@ import { SETTINGS_SECTION_STYLES } from './settings-styles';
   template: `
     <ion-list inset="true">
       <ion-list-header>Testing tools</ion-list-header>
+      <!-- Which version this is, to tell whether a phone has the latest one published. -->
+      <ion-item data-testid="app-version">
+        <ion-icon slot="start" name="information-circle-outline" aria-hidden="true"></ion-icon>
+        <ion-label class="ion-text-wrap">
+          <h2>Version</h2>
+          <p>{{ versionText() }}</p>
+        </ion-label>
+      </ion-item>
       <ion-item button detail="true" data-testid="open-device-test" (click)="openDeviceTest()">
         <ion-icon slot="start" name="flask-outline" aria-hidden="true"></ion-icon>
         <ion-label class="ion-text-wrap">
@@ -148,7 +166,9 @@ export class SettingsTestingComponent {
   protected readonly devMode = isDevMode();
 
   constructor() {
+    void this.loadBuildInfo();
     addIcons({
+      informationCircleOutline,
       apertureOutline,
       chatbubbleEllipsesOutline,
       chevronDown,
@@ -157,6 +177,24 @@ export class SettingsTestingComponent {
       flaskOutline,
       listOutline,
     });
+  }
+
+  /** This build's version, commit and time, from scripts/build-info.mjs. Null under the dev server. */
+  private readonly buildInfo = signal<BuildInfo | null>(null);
+  protected readonly versionText = computed(() => {
+    const info = this.buildInfo();
+    if (!info) return 'Development';
+    const built = new LocalTimePipe().transform(new Date(info.builtAt), 'date-time');
+    return `${info.version} · ${info.commit}${info.changed ? '+' : ''} · ${built}`;
+  });
+
+  private async loadBuildInfo(): Promise<void> {
+    try {
+      const response = await fetch('assets/build-info.json');
+      if (response.ok) this.buildInfo.set((await response.json()) as BuildInfo);
+    } catch {
+      // Under the dev server there is none: "Development" stays.
+    }
   }
 
   protected openDeviceTest(): void {
