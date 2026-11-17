@@ -1,7 +1,7 @@
 // What every record saved on the device carries so that it can be synced between devices
 // later: who changed it last and when, how many times, a hash of its content, and a
 // deletion mark instead of a real deletion. Pure helpers with no Angular dependency.
-// The rules a future sync will follow are written up in docs/local-data.md.
+// How a sync uses them is in sync-merge.ts and docs/sync-plan.md.
 
 /** The bookkeeping kept next to a record's content. */
 export interface SyncMeta {
@@ -22,6 +22,30 @@ export interface SyncMeta {
   deletedAt: number | null;
   /** 1 when it changed since the last sync, so a sync knows what to send. 0 once sent. */
   pending: 0 | 1;
+  /**
+   * The revisions this one replaced, newest first, as revision ids (see revId), up to
+   * HISTORY_LENGTH of them. A sync uses them to tell a newer version of a record from an
+   * older one, and both from two edits made apart, as CouchDB does. Missing on records made
+   * before sync, which is the same as empty.
+   */
+  history?: string[];
+}
+
+/** How many earlier revisions a record remembers. Plenty for phones that sync now and then. */
+export const HISTORY_LENGTH = 50;
+
+/**
+ * A revision's id: its number and its content hash, as CouchDB writes its _rev, such as
+ * "3-0a1b2c3d4e5f60". Two devices that make the same change from the same revision make the
+ * same id, so they don't count as a conflict.
+ */
+export function revId(record: Pick<SyncMeta, 'rev' | 'hash'>): string {
+  return `${record.rev}-${record.hash}`;
+}
+
+/** The history of a record that replaces this one: this revision, then its own history. */
+function historyAfter(record: SyncMeta): string[] {
+  return [revId(record), ...(record.history ?? [])].slice(0, HISTORY_LENGTH);
 }
 
 /** A record as saved: its content and its bookkeeping, side by side. */
@@ -36,6 +60,7 @@ const META_KEYS: readonly (keyof SyncMeta)[] = [
   'hash',
   'deletedAt',
   'pending',
+  'history',
 ];
 
 /**
@@ -175,11 +200,20 @@ export function changeRecord<T>(record: Synced<T>, content: T, deviceId: string,
     hash,
     deletedAt: null,
     pending: 1,
+    history: historyAfter(record),
   };
 }
 
 /** The record marked deleted, or null if it already is. */
 export function deleteRecord<T>(record: Synced<T>, deviceId: string, now: number): Synced<T> | null {
   if (record.deletedAt !== null) return null;
-  return { ...record, updatedAt: now, deviceId, rev: record.rev + 1, deletedAt: now, pending: 1 };
+  return {
+    ...record,
+    updatedAt: now,
+    deviceId,
+    rev: record.rev + 1,
+    deletedAt: now,
+    pending: 1,
+    history: historyAfter(record),
+  };
 }

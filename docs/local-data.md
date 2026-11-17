@@ -75,6 +75,7 @@ Every record holds its content and the same bookkeeping (`SyncMeta` in
 | `hash` | cyrb53 hash of the content, without the bookkeeping, keys sorted |
 | `deletedAt` | When it was deleted, or null. Deleted records stay as tombstones. |
 | `pending` | 1 when changed since the last sync |
+| `history` | The revisions it replaced, newest first, as `"<rev>-<hash>"`, up to 50. Missing on records from before sync |
 
 Rules every write follows:
 
@@ -145,6 +146,7 @@ On the first start with the database, `LocalDb` moves the old data in one transa
 A failure leaves localStorage untouched for the next start.
 
 Database version 2 added the `kit` table and turned version 1's non-UUID ids into UUIDs.
+Version 3 added the `conflicts` table, for log entry versions that lost a sync conflict.
 
 ## Future sync (not built)
 

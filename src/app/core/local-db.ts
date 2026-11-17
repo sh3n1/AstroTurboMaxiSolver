@@ -21,6 +21,21 @@ interface MetaRow {
   value: unknown;
 }
 
+/**
+ * A version of a record that lost a sync conflict, kept so that nothing the user wrote is
+ * lost silently (see sync/sync-merge.ts). Only log entries keep theirs. Not synced: every
+ * device finds the same conflicts by itself.
+ */
+export interface ConflictRow {
+  /** The record type, its id and the losing revision, so the same conflict is kept once. */
+  key: string;
+  type: string;
+  recordId: string;
+  record: Synced<{ id: string }>;
+  /** When this device found it. */
+  foundAt: number;
+}
+
 /** How long opening may take before the app starts without the database, rather than hang. */
 const OPEN_TIMEOUT_MS = 4000;
 
@@ -31,6 +46,7 @@ export class AstroTurboMaxiSolverDb extends Dexie {
   lists!: Table<Synced<ListRecord>, string>;
   listItems!: Table<Synced<ListItem>, string>;
   kit!: Table<Synced<KitRecord>, string>;
+  conflicts!: Table<ConflictRow, string>;
 
   constructor() {
     super('astroturbomaxisolver');
@@ -46,6 +62,8 @@ export class AstroTurboMaxiSolverDb extends Dexie {
     this.version(2)
       .stores({ kit: 'id, kind, updatedAt, pending' })
       .upgrade((tx) => upgradeToUuids(tx));
+    // Versions that lost a sync conflict.
+    this.version(3).stores({ conflicts: 'key, recordId' });
   }
 }
 

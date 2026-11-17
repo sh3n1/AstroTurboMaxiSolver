@@ -1,6 +1,7 @@
 # Sync between devices (plan, not built)
 
-Status: design discussed on 2026-11-16, nothing built yet. This note keeps what was decided,
+Status: design discussed on 2026-11-16; work started on 2026-11-17 on the `sync` branch,
+Google Drive first. This note keeps what was decided,
 what was proposed, and what is still open, so the work can be picked up later. The record
 format it builds on is in `local-data.md`.
 
@@ -25,72 +26,83 @@ device, as listed in `local-data.md`.
 The core of this was agreed: **one writer per folder** avoids the cloud drives' "conflicted
 copy" files entirely, because no two devices ever write the same file.
 
-## Proposed design
+## Design
 
-### Folder layout
+The core is built and unit tested, with no drive yet: `src/app/core/sync/`.
+
+| File | What it does |
+| --- | --- |
+| `sync-merge.ts` | Merges a received record with this device's copy: the rules below |
+| `sync-engine.ts` | One sync: sends this device's changes, reads the others', checkpoints. The `SyncStorage` and `SyncLocal` interfaces |
+| `sync-local-db.ts` | `SyncLocal` on the Dexie database, in transactions |
+| `memory-sync-storage.ts` | A drive in memory, for tests |
+| `sync-provider.ts` | `SyncProvider`: what each drive implements (sign in, renew, sign out, its `SyncStorage`) |
+
+Google Drive, Dropbox and OneDrive differ in how they sign in and in their file APIs, and
+in nothing else the app sees. Each one is a class implementing `SyncProvider`, and the rest
+of the app, the engine, the service and Settings, only uses that interface. Adding a drive is
+writing that class.
+
+### Files
+
+The app folder holds flat file names, which every drive handles the same way:
 
 ```
 <app folder>/
-  devices/
-    <deviceId>/
-      device.json        name, app version, data format version, last write time
-      changes/
-        000001.json      numbered change files, each a batch of changed records
-        000002.json
-      snapshot.json      now and then: everything this device has written, so old
-                         change files can be removed
+  <deviceId>.device.json             format, last change file number, last write time
+  <deviceId>.000001.changes.json     numbered change files, each a batch of changed records
+  <deviceId>.000002.changes.json
 ```
+
+A change file is `{ format, deviceId, seq, writtenAt, changes: [{ type, record }] }`, where
+`type` is `logEntry`, `list`, `listItem` or `kit`, and `record` is the whole record without
+`pending`. A reader skips damaged files, leaves out records whose hash doesn't match their
+content, and stops at a format newer than it knows. Snapshots, so old change files can be
+removed, come later.
 
 ### Each device writes only its own changes
 
-Proposed instead of copying other devices' items into one's own folder (point 3 above, as
-first worded): a device writes what it created or edited, including edits to records another
-device made, as newer revisions of the same record id. Readers merge every folder.
+A device writes what it created or edited, including edits to records another device made,
+as newer revisions of the same record id. Readers merge every device's files.
 
 - Copying everything into every folder would multiply the data by the number of devices, and
   echo changes back and forth.
-- A device that is gone (reset, replaced) still has its folder, so its data isn't lost.
-- The occasional `snapshot.json` gives each folder a complete backup of its own writes.
-- **Open:** the user to confirm this over "copy what's missing into my own folder".
+- A device that is gone (reset, replaced) still has its files, so its data isn't lost.
 
 ### Incremental sync, like CouchDB's change feed
 
-- Each device numbers its change files in order (its "sequence").
-- Each device remembers, per other device, the last change number it has read: a
-  checkpoint, kept in the local `meta` table, like CouchDB's `_local` replication documents.
-- A sync: list `devices/`, then for each other device download only the change files after
-  its checkpoint (or its snapshot, the first time), merge, move the checkpoint on. Then write
-  this device's pending records (`pending = 1`) as one new change file.
+- Each device numbers its change files in order (`syncSeq` in the local `meta` table).
+- Each device remembers, per other device, the last change file it has read
+  (`syncRead:<deviceId>` in `meta`), like CouchDB's `_local` replication documents.
+- A sync first writes this device's pending records (`pending = 1`) as one new change file,
+  so a conflict is seen by both devices, then marks them sent unless they changed meanwhile.
+  It then lists the folder and reads each other device's change files after its checkpoint.
 
 ### Record header
 
-What records already have (`sync-record.ts`): `id` (UUID), `createdAt`, `updatedAt`,
-`deviceId` (last writer), `rev` (a counter), `hash` (cyrb53 of the content), `deletedAt`
-(tombstone), `pending`.
+Records keep the bookkeeping they had (`sync-record.ts`): `id` (UUID), `createdAt`,
+`updatedAt`, `deviceId` (last writer), `rev` (a counter), `hash` (cyrb53 of the content),
+`deletedAt` (tombstone), `pending`. Sync adds one field:
 
-| Purpose | Notes / CouchDB | Today | Proposed |
-| --- | --- | --- | --- |
-| Item id, the same on every device | Notes UNID, CouchDB `_id` | `id` | keep |
-| Which collection ("resource") | | separate tables | add `type`: `logEntry`, `list`, `listItem`, `kit` |
-| Who made it, who changed it last | | `deviceId` (last writer) | split into `createdBy` and `updatedBy` |
-| Revision | CouchDB `_rev` = `n-hash`, revision tree | `rev` + `hash` | `rev` as `"3-<hash>"`, plus `prevRev` (the revision it replaced) |
-| Deleted | CouchDB `_deleted`, Notes deletion stub | `deletedAt` | keep |
-| Data format | | per table | `schema` number in each change file |
+- `history`: the revisions this one replaced, newest first, as revision ids `"<rev>-<hash>"`
+  (CouchDB's `_rev` form), up to 50. Records from before sync have none.
 
-Changing these is a Dexie version upgrade (see "Changing the schema" in `local-data.md`).
+The record type isn't stored in the record: each table is one type, and the change files say
+it. `createdBy` and `updatedBy` weren't needed for merging, so `deviceId` stays as it is.
 
 ### Picking the winner, without trusting phone clocks
 
-The current plan in `local-data.md` lets the newer `updatedAt` win, which depends on each
-phone's clock. Proposed instead, as CouchDB does:
+As CouchDB does, with no clocks involved (`sync-merge.ts`):
 
-1. The same `hash`: no conflict.
-2. The higher revision number wins; on a tie, the higher hash. Every device picks the same
-   winner with no clocks involved.
-3. With `prevRev`, two edits made from the same starting revision are seen as a **real
-   conflict**. For log entries, keep the losing version (Notes calls these "replication
-   conflict" documents) and show a small "edited on two phones" mark, since losing someone's
-   observing notes silently is the worst outcome. Lists and kit can just take the winner.
+1. The same revision, or one in this copy's history: an older version, keep this copy.
+2. This copy's revision in the received one's history: a newer version, take it.
+3. Otherwise both changed apart. With the same content it isn't a real conflict: the higher
+   revision is taken quietly.
+4. A **real conflict**: a version that still exists beats a deletion, then the higher
+   revision number, then the higher hash. Every device picks the same winner.
+5. For log entries the losing version is kept, in the `conflicts` table (database version
+   3), since losing someone's observing notes silently is the worst outcome. A mark on the
+   entry ("edited on two phones") is still to do. Lists and kit just take the winner.
 
 List membership is already one `listItems` record per target, so adding targets to the same
 list on two phones merges without conflict.
@@ -150,22 +162,26 @@ app is in "testing" mode, Google only lets listed accounts sign in.
 **Open:** how to handle the redirect address for phone testing (USB forwarding, or a fixed
 tunnel and which).
 
-## Open decisions
+## Decisions
 
-1. Each device writes only its own changes (proposed), or copies everything it is missing
-   into its own folder (first idea)?
-2. Which provider first: Dropbox, Google Drive or OneDrive?
-3. The redirect address for phone testing: Android USB port forwarding, a Cloudflare named
-   tunnel (needs a domain), or Tailscale Funnel?
-4. Keep losing versions of log entries as conflicts (proposed), or always take the winner?
+- **First provider: Google Drive** (decided 2026-11-17).
+- **Redirect addresses:** the published site, `https://astroturbomaxisolver.app/app/`, and
+  `http://localhost` for the dev server, so no tunnel is needed. The Google client id is
+  public by design (sign-in uses PKCE or Google's token flow, with no secret), but it is still
+  kept outside the code's logic as configuration, so the code doesn't depend on one account.
+
+- **Each device writes only its own changes**; readers merge every device's folder.
+- **Log entry conflicts keep both versions:** the losing one is kept and the entry is marked.
+  Lists and kit just take the winner.
+- **Google Drive's hidden `appDataFolder`** (scope `drive.appdata`), so files can't be moved
+  or deleted by mistake.
 
 ## Suggested order of work
 
-1. Record header changes (`type`, `createdBy`/`updatedBy`, `rev` as `n-hash`, `prevRev`) as a
-   Dexie version upgrade, with unit tests for the merge rules: winner, conflict, tombstone.
-2. A storage interface with an in-memory fake, and the whole sync (folders, change files,
-   snapshot, checkpoints) tested against it, with no network.
-3. The first provider: sign-in, then list, read and write in its app folder.
+1. Done: the `history` field, the merge rules, and the conflicts table, with unit tests.
+2. Done: the storage interface with an in-memory drive, and the sync (change files,
+   checkpoints) tested against it, with no network. Snapshots later.
+3. The first provider, Google Drive: sign-in, then list, read and write in its app folder.
 4. Settings: connect and disconnect, last sync time, "Sync now". Sync on start, on
    reconnecting, and a while after a change.
 5. End-to-end test with two browser contexts sharing the fake storage, as the two-phone test
