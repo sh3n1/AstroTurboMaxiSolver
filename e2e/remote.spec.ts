@@ -70,7 +70,9 @@ test('links two phones: the screen follows the finder, and aligns through it', a
   await finder.goto('/remote');
   await finder.getByTestId('remote-as-finder').click();
   const offer = await shownCode(finder);
-  await screen.goto('/remote');
+  // The screen opens Two phones from the map, as a user does, so the page is a fresh one each time.
+  await screen.goto('/');
+  await tapMore(screen, 'more-remote');
   await screen.getByTestId('remote-as-screen').click();
   await paste(screen, offer);
   const reply = await shownCode(screen);
@@ -86,6 +88,14 @@ test('links two phones: the screen follows the finder, and aligns through it', a
   await expect(screen).toHaveURL(/tabs\/sky/, { timeout: 20_000 });
   await expect(await moreTile(screen, 'sensor-toggle')).toContainText('Finder steers');
   await expect(finder).toHaveURL(/tabs\/sky/, { timeout: 20_000 });
+
+  // Opening Two phones again while linked stays there, to pause or unlink, and doesn't jump back to the map.
+  await tapMore(screen, 'more-remote');
+  await expect(screen.getByTestId('remote-pause')).toBeVisible();
+  await screen.waitForTimeout(1000);
+  await expect(screen).toHaveURL(/remote/);
+  await screen.getByTestId('remote-open-sky').click();
+  await expect(screen).toHaveURL(/tabs\/sky/);
 
   // The finder shows only the map, with its band in place of the time band and tabs.
   const band = finder.getByTestId('finder-band');
