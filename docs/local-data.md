@@ -36,6 +36,8 @@ stays in localStorage and is never synced.
 | The observer's name for OAL log files | `astroturbomaxisolver.observer` | Filled in for the next export. Would join a synced profile if one is made. |
 | The list being observed through (playlist) | `astroturbomaxisolver.playlist` | Where this phone is in a list tonight, like the selected target. |
 | Weather forecast | `astroturbomaxisolver.forecast` | Throwaway cache. |
+| Which drive sync uses, and when it last synced | `astroturbomaxisolver.sync` | This device's connection. The drive's access itself is kept in memory only. |
+| Sync shown in Settings (five taps on the title) | `astroturbomaxisolver.syncUnlocked` | Hidden while sync is tried out. |
 
 App code and the star and target data are in the service worker cache (`ngsw-config.json`)
 for offline start. They aren't user data.
@@ -75,6 +77,7 @@ Every record holds its content and the same bookkeeping (`SyncMeta` in
 | `hash` | cyrb53 hash of the content, without the bookkeeping, keys sorted |
 | `deletedAt` | When it was deleted, or null. Deleted records stay as tombstones. |
 | `pending` | 1 when changed since the last sync |
+| `history` | The revisions it replaced, newest first, as `"<rev>-<hash>"`, up to 50. Missing on records from before sync |
 
 Rules every write follows:
 
@@ -145,6 +148,7 @@ On the first start with the database, `LocalDb` moves the old data in one transa
 A failure leaves localStorage untouched for the next start.
 
 Database version 2 added the `kit` table and turned version 1's non-UUID ids into UUIDs.
+Version 3 added the `conflicts` table, for log entry versions that lost a sync conflict.
 
 ## Future sync (not built)
 
