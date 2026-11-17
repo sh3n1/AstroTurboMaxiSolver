@@ -1,26 +1,35 @@
 # Publishing the app
 
-The app is a set of static files. `npm run build` puts them in `www/`: HTML, scripts,
-styles, icons and the star and object catalogues. Nothing in the code knows where it will be
-hosted, and it should stay that way: any static host that meets the rules below will do, and
-moving to another one means only changing this computer's upload command.
+The site is a set of static files. `npm run build` puts them in `www/`:
+
+- `www/` itself: the landing page, plain HTML and CSS from `src/landing/`, for people and
+  search engines. It is what the site's address shows.
+- `www/app/`: the app, built by Angular with `/app/` as its base address, with its service
+  worker, manifest, scripts and the star and object catalogues.
+
+Nothing in the code knows where it will be hosted, and it should stay that way: any static
+host that meets the rules below will do, and moving to another one means only changing this
+computer's upload command.
 
 ## What any host must do
 
 | Rule | Why |
 | --- | --- |
 | Serve over HTTPS | Browsers only give the camera and motion sensors to secure pages. |
-| Serve `index.html` for any address inside the app, such as `/tabs/sky` | The app has its own addresses. Reloading or opening one must load the app, not a "not found" page. |
-| Serve `/index.html` as itself, without redirecting it to `/` | The service worker downloads it to keep the app for offline use. With a redirect it keeps an incomplete app, which fails without a connection. |
-| Never cache `index.html`, `ngsw.json` or `ngsw-worker.js` for long (at most 10 minutes) | They name the current version. Kept longer, phones keep running an old version. |
-| Serve `manifest.webmanifest` as JSON | Browsers read it to offer installing the app. |
+| Serve the landing, `/index.html`, at `/` with a 200 | It is what search engines index and what a shared link shows. |
+| Serve `/app/index.html`, with a 200, for any address under `/app/` that has no file, such as `/app/tabs/sky` | The app has its own addresses. Reloading or opening one must load the app, not a "not found" page. |
+| Serve `/404.html` with a 404 for any other address that has no file | So search engines don't index addresses that don't exist. |
+| Serve `/app/index.html` as itself, without redirecting it to `/app/` | The service worker downloads it to keep the app for offline use. With a redirect it keeps an incomplete app, which fails without a connection. |
+| Never cache `app/index.html`, `app/ngsw.json` or `app/ngsw-worker.js` for long (at most 10 minutes) | They name the current version. Kept longer, phones keep running an old version. |
+| Serve `app/manifest.webmanifest` as JSON | Browsers read it to offer installing the app. |
 
 Every other file has a fingerprint in its name, or is listed by the service worker with its
 own fingerprint, so caching it for long is fine.
 
-The rules need no files in the project. Static hosts usually meet them with default settings,
-or with a setting in their dashboard: a "single-page application" option for the second rule,
-for example.
+The rules need no files in the project. Static hosts meet the first and third with default
+settings, and most can meet the second with a rewrite rule for `/app/*`. A host's plain
+"single-page application" setting is not enough: it sends every unknown address to the
+landing instead. `e2e/serve-www.mjs` shows the rules as a small server.
 
 What belongs to the host, such as the domain, HTTPS certificates, or keeping the site private
 to a few people, is set up in the host's dashboard, not in the project.
@@ -47,9 +56,11 @@ its account and the address stay on this computer.
 | A server of your own | `scp -r www/* user@server:/var/www/app/` |
 
 Keep any host's own configuration outside the project too. For Cloudflare, its
-`wrangler.jsonc` sets `assets.directory` to the full path of `www`, and
-`not_found_handling` to `single-page-application`, so addresses inside the app load it,
-and `html_handling` to `none`, so `/index.html` isn't redirected to `/`.
+`wrangler.jsonc` sets `assets.directory` to the full path of `www`, `html_handling` to
+`none`, so `/app/index.html` isn't redirected, and `not_found_handling` to `none`. A small
+routing script beside it, its `main`, answers only the addresses no file matches, by the
+rules above: a folder gets its `index.html`, an address under `/app/` gets the app, and
+anything else the 404 page.
 Never run a host's tool in a way that lets it pick the folder or write files into the project:
 on 2026-11-17, `wrangler pages project create` wrote a config pointing at `src/` and
 published the source code, until it was taken down. The checks below now look for that.
@@ -84,4 +95,8 @@ Settings, under Testing tools, shows the version, the commit and when it was bui
 yet committed. Under the dev server it says "Development".
 
 A phone gets a new version the next time it opens the app after it was published, as the
-service worker finds it, and runs it once the app is reloaded.
+service worker finds it. An "Update app" button then shows bottom right on the map, and a tap
+switches to it.
+
+Installed copies made before the app moved to `/app/` open the landing page instead. Delete
+them and install again from the app.

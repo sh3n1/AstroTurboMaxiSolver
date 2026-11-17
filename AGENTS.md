@@ -21,6 +21,7 @@ Features:
 
 - **Platform:** PWA only. Do not add native iOS or Android projects, native plugins, or anything that needs an app store build.
 - **Hosting:** development versions are published on the project's own domain, on Cloudflare, over HTTPS. The code must not depend on the host: no host's files or settings in the project. What any host must do, and how to publish, is in `docs/deploy.md`.
+- **Site layout:** a static landing page at `/`, for people and search engines, and the app at `/app/` (Angular's base address in production builds). The dev server still serves the app at `/`.
 - **Current state:** Work in progress
 - **Target users:** Amateur astronomers
 - **Supported devices and browsers:** Only pwa, targeted on smartphones
@@ -65,6 +66,7 @@ Before finishing a change, run: `npm run lint`, `npm run test:unit` and `npm run
 - `src/app/core/sky-map/` - the sky map: its canvas component, and its drawing, star data, gestures and look as plain code
 - `src/app/core/settings/` - sections of the Settings page, each its own component
 - `src/assets/data/` - generated star and target data, built by the scripts in `scripts/`
+- `src/landing/` - the landing page: plain HTML, CSS and pictures, copied to the root of `www/` by the build
 
 ## PWA constraints
 

@@ -1,0 +1,170 @@
+/*
+ * The landing page: plain CSS, no framework, in the app's own colours (src/theme/variables.scss),
+ * repeated here since the landing is a separate, static page. Large text, for reading at arm's
+ * length, as in the app.
+ */
+:root {
+  --sky: #05070f;
+  --surface: #0d1220;
+  --edge: #232a3d;
+  --text: #e8ebf5;
+  --muted: #a8b0c6;
+  --accent: #8fb7ff;
+  --warning: #ffb454;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--sky);
+  color: var(--text);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 18px;
+  line-height: 1.55;
+}
+
+main,
+.hero,
+footer {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.2;
+}
+
+h2 {
+  margin-top: 56px;
+  font-size: 28px;
+}
+
+/* The top: the name, what it is, and the way in. */
+.hero {
+  padding-top: 56px;
+  padding-bottom: 24px;
+  text-align: center;
+}
+.logo {
+  border-radius: 22px;
+}
+.hero h1 {
+  margin: 16px 0 8px;
+  font-size: clamp(28px, 7vw, 46px);
+  word-break: break-word;
+}
+.tagline {
+  max-width: 640px;
+  margin: 0 auto 28px;
+  color: var(--text);
+  font-size: 21px;
+}
+.facts {
+  color: var(--muted);
+}
+
+.button {
+  display: inline-block;
+  padding: 14px 32px;
+  border-radius: 12px;
+  background: var(--accent);
+  color: var(--sky);
+  font-size: 20px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.button:focus-visible,
+.button:hover {
+  outline: 3px solid var(--text);
+  outline-offset: 3px;
+}
+
+/* Three screens side by side, or one under another on a phone. */
+.screens {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 24px;
+  margin-top: 32px;
+}
+.screens figure {
+  margin: 0;
+  text-align: center;
+}
+.screens img {
+  width: 100%;
+  max-width: 300px;
+  height: auto;
+  border: 1px solid var(--edge);
+  border-radius: 20px;
+}
+.screens figcaption {
+  margin-top: 8px;
+  color: var(--muted);
+}
+
+.features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  padding: 0;
+  list-style: none;
+}
+.features li {
+  padding: 4px 20px 12px;
+  border: 1px solid var(--edge);
+  border-radius: 14px;
+  background: var(--surface);
+}
+.features h3 {
+  margin-bottom: 4px;
+  color: var(--accent);
+  font-size: 20px;
+}
+.features p {
+  margin-top: 0;
+  color: var(--muted);
+}
+
+.steps {
+  padding-left: 24px;
+}
+.steps li {
+  margin: 8px 0;
+}
+.note {
+  color: var(--muted);
+}
+.warning {
+  padding: 12px 16px;
+  border: 1px solid var(--warning);
+  border-radius: 12px;
+  color: var(--warning);
+  font-weight: 600;
+}
+
+.about p {
+  max-width: 720px;
+}
+.disclaimer {
+  color: var(--muted);
+}
+
+.cta {
+  margin: 48px 0;
+  text-align: center;
+}
+
+footer {
+  padding-top: 24px;
+  padding-bottom: 40px;
+  border-top: 1px solid var(--edge);
+  color: var(--muted);
+  font-size: 15px;
+}

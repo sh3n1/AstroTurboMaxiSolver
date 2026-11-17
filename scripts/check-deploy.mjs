@@ -36,45 +36,54 @@ async function get(path) {
 try {
   report(base.startsWith('https://'), 'Served over HTTPS, which the camera and sensors need');
 
+  // The landing page at the root, for people and search engines.
   const home = await get('/');
   const homeText = await home.text();
-  report(home.ok && homeText.includes('<app-root'), 'The app loads at the address');
+  report(home.ok && homeText.includes('<h1>'), 'The landing page loads at the address, with a 200');
+  report(!homeText.includes('<app-root'), 'The landing page is the landing, not the app');
+  for (const path of ['/robots.txt', '/sitemap.xml']) report((await get(path)).ok, `${path} is there`);
+  report((await get('/no-such-page')).status === 404, 'An address that is neither gets a real 404');
 
-  // A page opened or reloaded at an address inside the app must get the app too.
-  const deep = await get('/tabs/sky');
-  report(deep.ok && (await deep.text()).includes('<app-root'), 'Addresses inside the app, such as /tabs/sky, load it');
+  // The app at /app/. A page opened or reloaded at an address inside it must get the app too.
+  const app = await get('/app/');
+  report(app.ok && (await app.text()).includes('<app-root'), 'The app loads at /app/');
+  const deep = await get('/app/tabs/sky');
+  report(
+    deep.ok && (await deep.text()).includes('<app-root'),
+    'Addresses inside the app, such as /app/tabs/sky, load it, with a 200',
+  );
 
-  // The service worker downloads /index.html to keep the app for offline use, and a redirect
-  // to / leaves it without one.
-  const index = await fetch(`${base}/index.html`, { redirect: 'manual', headers: { 'cache-control': 'no-cache' } });
-  report(index.status === 200, `/index.html is served as itself, not redirected (${index.status})`);
+  // The service worker downloads /app/index.html to keep the app for offline use, and a
+  // redirect to /app/ leaves it without one.
+  const index = await fetch(`${base}/app/index.html`, { redirect: 'manual', headers: { 'cache-control': 'no-cache' } });
+  report(index.status === 200, `/app/index.html is served as itself, not redirected (${index.status})`);
 
   // These name the current version: kept too long, phones would miss new versions.
-  for (const path of ['/index.html', '/ngsw.json', '/ngsw-worker.js']) {
+  for (const path of ['/app/index.html', '/app/ngsw.json', '/app/ngsw-worker.js']) {
     const response = await get(path);
     const header = response.headers.get('cache-control');
     report(response.ok && !cachedTooLong(header), `${path} is not cached for long (${header ?? 'no Cache-Control'})`);
   }
 
   // Only the build may be published, never the project's files: the code is closed source.
-  // With the app's addresses all loading index.html, a published file shows by its content.
+  // With the app's addresses all loading its index.html, a published file shows by its content.
   let sourceShown = false;
-  for (const path of ['/package.json', '/src/app/app.routes.ts', '/app/app.routes.ts', '/AGENTS.md']) {
+  for (const path of ['/package.json', '/src/app/app.routes.ts', '/app/app.routes.ts', '/app/package.json', '/AGENTS.md']) {
     const text = await (await get(path)).text();
     if (/"devDependencies"|export const routes|# AGENTS\.md/.test(text)) sourceShown = true;
   }
   report(!sourceShown, "The project's own files, such as its source code, are not published");
 
-  const manifest = await get('/manifest.webmanifest');
+  const manifest = await get('/app/manifest.webmanifest');
   const type = manifest.headers.get('content-type') ?? '';
   report(manifest.ok && /json/.test(type), `The web app manifest is served as JSON (${type || 'no type'})`);
 
-  const info = await get('/assets/build-info.json');
+  const info = await get('/app/assets/build-info.json');
   if (info.ok) {
     const { version, commit, builtAt } = await info.json();
     console.log(`\n  Published: version ${version}, commit ${commit}, built ${builtAt}`);
   } else {
-    report(false, 'The build says which version it is (assets/build-info.json)');
+    report(false, 'The build says which version it is (app/assets/build-info.json)');
   }
 } catch (error) {
   report(false, `Could not reach ${base}: ${error.message}`);
