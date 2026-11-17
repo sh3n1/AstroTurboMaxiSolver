@@ -209,20 +209,6 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
         <!-- How the phone sits on the telescope, and how it finds where it points. -->
         <ion-list inset="true">
           <ion-list-header>Telescope and alignment</ion-list-header>
-          <ion-item>
-            <ion-icon slot="start" name="phone-portrait-outline" aria-hidden="true"></ion-icon>
-            <ion-select
-              label="Phone mount"
-              interface="popover"
-              data-testid="mount"
-              [value]="settings().mount"
-              (ionChange)="state.updateSettings({ mount: $any($event).detail.value })"
-            >
-              <ion-select-option value="direct">Camera at the sky</ion-select-option>
-              <ion-select-option value="clip-on">Camera with small telescope</ion-select-option>
-              <ion-select-option value="mirror">Parallel with mirror</ion-select-option>
-            </ion-select>
-          </ion-item>
           <ion-item button detail="true" data-testid="open-alignment" (click)="openAlignment()">
             <ion-icon slot="start" name="locate-outline" aria-hidden="true"></ion-icon>
             <ion-label class="ion-text-wrap">

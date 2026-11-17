@@ -39,7 +39,6 @@ import type { Target, TargetKind } from './targets';
 import { PHASED_BODIES, SOLAR_SYSTEM_BODIES } from './targets';
 
 export type { TelescopeType } from './equipment';
-export type MountType = 'direct' | 'clip-on' | 'mirror';
 export type TextSize = 'standard' | 'large' | 'extra-large';
 
 /** How much larger than standard each text size is. */
@@ -59,7 +58,6 @@ export interface Settings {
    * eyepiece view. The kit itself is in the database (AppState.kit), shared by the devices.
    */
   kitSelection: KitSelection;
-  mount: MountType;
   nightMode: boolean;
   /** How large text is shown. */
   textSize: TextSize;
@@ -93,11 +91,13 @@ export interface Settings {
 /** How an alignment measured the camera's direction. Plate solving is the accurate one. */
 export type AlignmentMethod = 'plate-solve' | 'sensors' | 'simulated';
 
-/** A completed alignment. It stays valid while the phone stays fixed in its mount. */
+/**
+ * A completed alignment. It stays valid while the phone stays fixed on the telescope. The
+ * phone's camera always looks straight at the sky, with no mirror or add-on lens.
+ */
 export interface Alignment {
   starId: string;
   alignedAt: string; // ISO date
-  mount: MountType;
   offset: Vector3; // The telescope's direction in the camera's axes
   /** Missing on alignments saved before plate solving existed, which used the sensors. */
   method?: AlignmentMethod;
@@ -114,7 +114,6 @@ const DEFAULT_SETTINGS: Settings = {
   longitudeDeg: 0,
   locationSet: false,
   kitSelection: DEFAULT_SELECTION,
-  mount: 'direct',
   nightMode: false,
   // Larger than usual by default, because many observers are past forty.
   textSize: 'large',
@@ -140,6 +139,16 @@ const SETTINGS_KEY = 'astroturbomaxisolver.settings';
 /** How often the live sky's time moves on. The sky turns about 0.004° in a second. */
 const SKY_TIME_STEP_MS = 1000;
 const ALIGNMENT_KEY = 'astroturbomaxisolver.alignment';
+
+/**
+ * A saved alignment, unless it was made with the mirror or add-on lens mounts the app once
+ * offered: the camera sat differently then, so it no longer fits.
+ */
+function directAlignment(saved: unknown): Alignment | null {
+  if (!saved || typeof saved !== 'object') return null;
+  const { mount, ...alignment } = saved as Alignment & { mount?: string };
+  return mount === undefined || mount === 'direct' ? alignment : null;
+}
 
 // Browser storage can be blocked or cleared, so the app must work without it.
 function load<T extends object>(key: string, fallback: T): T {
@@ -266,7 +275,7 @@ export class AppState {
   readonly selectedTarget = computed(() => this.targets().find((t) => t.id === this.selectedTargetId()) ?? null);
 
   readonly alignment = signal<Alignment | null>(
-    load<{ value: Alignment | null }>(ALIGNMENT_KEY, { value: null }).value,
+    directAlignment(load<{ value: unknown }>(ALIGNMENT_KEY, { value: null }).value),
   );
 
   private lastRotation?: { key: string; rotation: ReturnType<typeof skyRotation> };
@@ -384,9 +393,6 @@ export class AppState {
   }
 
   updateSettings(changes: Partial<Settings>): void {
-    // A different mount puts the camera at a different angle to the telescope.
-    const alignment = this.alignment();
-    if (changes.mount && alignment && changes.mount !== alignment.mount) this.alignment.set(null);
     this.settings.update((current) => ({ ...current, ...changes }));
   }
 

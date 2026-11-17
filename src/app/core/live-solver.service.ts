@@ -137,8 +137,7 @@ export class LiveSolverService {
   private readonly pending = new Map<number, (response: SolveResponse) => void>();
 
   constructor() {
-    // Run only while the sensors are on, automatic solving is allowed, and the camera
-    // looks straight at the sky. Mirror and clip-on mounts need their own geometry first.
+    // Run only while the sensors are on and automatic solving is allowed.
     // Not while planning: the camera sees the real sky, not the one at the chosen time.
     // Not while another tab is on show either: a solve only corrects the map, and the
     // camera and the solving would slow the page the user is on and drain the battery.
@@ -148,7 +147,6 @@ export class LiveSolverService {
         // A screen phone's own camera isn't on the telescope: the finder phone solves.
         !this.state.remoteFinder() &&
         this.state.settings().autoSolve &&
-        this.state.settings().mount === 'direct' &&
         !this.state.planning();
       if (allowed && this.state.mapOnShow()) this.start();
       else if (allowed) this.rest();
@@ -350,9 +348,6 @@ export class LiveSolverService {
     if (this.remoteSolve) return this.remoteSolve(trigger);
     if (this.state.planning()) {
       return { ok: false, reason: 'Paused while showing another time. Go back to now to solve.' };
-    }
-    if (this.state.settings().mount !== 'direct') {
-      return { ok: false, reason: 'Only works with the camera pointing straight at the sky, for now.' };
     }
     // Let an automatic solve that is already running finish first.
     for (let waited = 0; this.status() === 'solving' && waited < 10_000; waited += 100) {
@@ -602,8 +597,6 @@ export class LiveSolverService {
       width,
       height,
       focalPx: FOCAL_SHARE_OF_LONG_SIDE * Math.max(width, height) * this.state.settings().cameraFocalFactor,
-      // A mirror mount flips the image.
-      flipped: this.state.settings().mount === 'mirror',
       hint: this.hint(),
       timeLimitMs,
     };

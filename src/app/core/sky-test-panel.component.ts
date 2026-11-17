@@ -195,7 +195,6 @@ export class SkyTestPanelComponent {
       kind: 'sky-test',
       time: new Date().toISOString(),
       browser: navigator.userAgent,
-      mount: this.state.settings().mount,
       location: { latitudeDeg: this.state.settings().latitudeDeg, longitudeDeg: this.state.settings().longitudeDeg },
       steps: this.reports(),
     }),
@@ -230,7 +229,6 @@ export class SkyTestPanelComponent {
       const starRows = (await response.json()) as number[][];
       const results = await runSkyTest({
         starRows,
-        flipped: this.state.settings().mount === 'mirror',
         sensorDirection: () => this.sensorDirection(),
         onProgress: (text) => this.progress.set(text),
         focalFactor: this.state.settings().cameraFocalFactor,

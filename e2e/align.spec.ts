@@ -61,22 +61,21 @@ test('aligns on the selected target, and sums up the alignment on one line', asy
   await expect(await moreTile(page, 'alignment-status')).toContainText('Not aligned');
 });
 
-test('asks for alignment again after the mount changes', async ({ page }) => {
-  await page.goto('/align');
-  await page.locator('[data-testid=alignment-star]').first().click();
-  await page.locator('[data-testid=confirm-centred]').click();
-  await page.locator('[data-testid=align-simulated]').click();
-  await page.locator('[data-testid=alignment-done]').click();
-
+test('has no phone mount to choose, and drops an alignment made with the old mirror mount', async ({ page }) => {
+  // The camera always looks straight at the sky. An alignment saved with a mirror, when the
+  // app still offered one, measured a camera that sat differently, so it no longer counts.
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      'astroturbomaxisolver.alignment',
+      JSON.stringify({
+        value: { starId: 'Vega', alignedAt: '2026-11-10T22:00:00.000Z', mount: 'mirror', offset: [0, 0.7, 0.7] },
+      }),
+    ),
+  );
+  await page.goto('/');
   await openPage(page, 'Settings');
-  await expect(page.locator('[data-testid=open-alignment]')).toContainText('Aligned on');
-  await page.evaluate(() => {
-    // Selecting through the native picker is slow to drive, so set the value directly.
-    document
-      .querySelector('[data-testid=mount]')!
-      .dispatchEvent(new CustomEvent('ionChange', { detail: { value: 'mirror' }, bubbles: true }));
-  });
   await expect(page.locator('[data-testid=open-alignment]')).toContainText('Not aligned');
+  await expect(page.locator('[data-testid=mount]')).toHaveCount(0);
 });
 
 test('aligns with a Bluetooth shutter remote, when switched on in Settings', async ({ page }) => {

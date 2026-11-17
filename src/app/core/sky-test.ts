@@ -153,7 +153,6 @@ export interface PreviewStretch {
 
 export interface SkyTestOptions {
   starRows: readonly (readonly number[])[];
-  flipped: boolean;
   /** The sensors' camera direction in J2000, if they are on. */
   sensorDirection: () => Vector3 | null;
   onProgress: (text: string) => void;
@@ -326,7 +325,6 @@ async function runStep(
       width,
       height,
       focalPx: FOCAL_SHARE_OF_LONG_SIDE * Math.max(width, height) * options.focalFactor,
-      flipped: options.flipped,
     };
     const index = buildSolverIndex(stars, geometry);
     const started = performance.now();

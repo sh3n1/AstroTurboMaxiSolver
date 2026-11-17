@@ -23,8 +23,6 @@ export interface FrameGeometry {
   height: number;
   /** Focal length in pixels, which sets the field of view. */
   focalPx: number;
-  /** True for a mirror mount, which reverses the image. */
-  flipped?: boolean;
 }
 
 export interface SolveHint {
@@ -288,8 +286,7 @@ function invertTranspose(m: number[][]): number[][] | null {
 
 /** The direction in the camera's axes for a point in the image. */
 export function imageToCamera({ x, y }: ImageStar, geometry: FrameGeometry): Vector3 {
-  const dx = (x - geometry.width / 2) * (geometry.flipped ? -1 : 1);
-  return normalize([dx / geometry.focalPx, (y - geometry.height / 2) / geometry.focalPx, 1]);
+  return normalize([(x - geometry.width / 2) / geometry.focalPx, (y - geometry.height / 2) / geometry.focalPx, 1]);
 }
 
 /** Tries one focal length. The image stars must be sorted brightest first. */
@@ -452,7 +449,7 @@ export function measureDepth(
     const z = dot(star.vector, axisZ);
     if (z <= 0) continue;
     const cameraX = (frame.focalPx * dot(star.vector, axisX)) / z;
-    const x = frame.width / 2 + cameraX * (frame.flipped ? -1 : 1);
+    const x = frame.width / 2 + cameraX;
     const y = frame.height / 2 + (frame.focalPx * dot(star.vector, axisY)) / z;
     if (x < 0 || x >= frame.width || y < 0 || y >= frame.height) continue;
     const mag = Math.floor(star.mag);

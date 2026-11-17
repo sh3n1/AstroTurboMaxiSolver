@@ -74,23 +74,16 @@ Before finishing a change, run: `npm run lint`, `npm run test:unit` and `npm run
 
 ## Domain
 
-- **Mounting:** The camera always looks at the sky, not through the eyepiece. Support these setups:
-  - Camera pointing directly at the sky, with or without a small add-on phone telescope, so the field of view varies by setup.
-  - Phone parallel to the tube with a mirror, like the Celestron StarSense Explorer. The mirror flips the image, and the camera points at a large angle to the telescope.
+- **Mounting:** The phone's main camera always looks straight at the sky, fixed to the telescope: never through the eyepiece, and with no mirror or add-on lens. There is no mount setting.
 - **Plate solving approach:** Must run in the browser and work offline. Astrometry.net can't be used because its distribution is GPL. tetra3 and cedar-solve are Apache-2.0 candidates. TODO: final choice after the solver spike.
   - Use a strict confidence check. Weak frames can produce wrong matches, and the app must never show an unverified position as correct.
-  - Record in each mount profile whether the image is flipped, so the solver doesn't have to try both.
-  - Patents (checked 2026-11-08, not legal advice). Ask before changing the solver's matching method, and before publishing outside localhost:
-    - US 8,401,307 (Celestron, until about 2031, US only) claims solving from a star-group signature, such as sorted pair distances divided by the largest, with a database search and an affine fit. That is close to tetra3/cedar-solve pattern hashing. The current solver (sensor hint, star pairs, match counting) doesn't work that way.
-    - US 11,181,606 (Celestron StarSense Explorer, until about 2038, US only) claims a mirror holder with an adjustable phone whose rear camera sees the sky, plus plate solving and guidance. It concerns the mirror mount, not the camera-straight-up setup.
-    - EP 2472471 (Celestron auto-align, until about 2031, granted in Europe) adjusts time and latitude to fit a mount model. The app takes time and location from the phone instead.
 - **Camera approach:** Simulated, not yet measured. See `spikes/sky-sim/RESULTS.md`.
   - Default to the main camera. The telephoto and ultrawide needed much longer exposures in simulation, and Chrome on the Magic5 Pro only offers one rear camera anyway.
   - Aim for at least 1/8 s per frame, with stacked frames as the fallback. The Honor Magic5 Pro allows up to 1/3 s in Chrome, measured.
   - Design for a bright city sky. The reference case is central Valencia, about 17.5 mag/arcsec², on an Honor Magic5 Pro.
 - **Alignment:** Uses a plate solve to measure where the camera points. The sensors are only a marked, less accurate fallback.
 - **Sync:** with a target centred in the eyepiece, a tap in its bar plate solves and corrects the alignment there. Syncs are kept for the night where they were made, and the nearest count most, to follow the holder bending across the sky (`alignment-sync.ts`).
-- **Live plate solving:** `live-solver.service.ts` solves in a Web Worker whenever sensors are on and the phone is still, then corrects the sensors and learns the compass error. It only runs with the camera pointing straight at the sky for now.
+- **Live plate solving:** `live-solver.service.ts` solves in a Web Worker whenever sensors are on and the phone is still, then corrects the sensors and learns the compass error.
 - **Two phones:** one phone can be the finder on the telescope (sensors and plate solving) and another the screen in the hand, linked by WebRTC after swapping QR codes, with no server. Alignment and tap-to-solve work from the screen. See `docs/two-phones.md`.
 - **Sensor fusion approach:** A complementary filter in `src/app/core/attitude.ts`. The gyroscope follows movement, and compass-based orientation slowly corrects drift. Plate solves will correct it when the phone is still. Treat the compass as a coarse hint only. Phones report magnetic headings, so `sensor.service.ts` turns them to true north with the World Magnetic Model (the `geomagnetism` library, Apache-2.0) once a location is set.
 - **Coordinate systems and units:** Catalogue positions are J2000. `astronomy-engine` converts them to the local sky, including precession. Angles are in degrees, and azimuth runs from north through east. Local positions include atmospheric refraction (astronomy-engine's `normal` model): `toApparent`, `refract` and `unrefract` in `astronomy.ts` convert between real and apparent directions.

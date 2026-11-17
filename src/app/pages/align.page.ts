@@ -584,7 +584,6 @@ export class AlignPage {
     this.state.alignment.set({
       starId: star.id,
       alignedAt: new Date().toISOString(),
-      mount: this.state.settings().mount,
       offset: cameraOffset(camera, position),
       position,
       method,
