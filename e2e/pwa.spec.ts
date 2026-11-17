@@ -6,6 +6,8 @@ import { expect, test } from '@playwright/test';
 const starCanvas = 'app-sky canvas:not([data-star-count="0"])';
 
 test('reloads from the service worker while offline', async ({ context, page }) => {
+  // Against a published copy the whole app, about 8 MB, comes over the internet first.
+  test.setTimeout(120_000);
   // First visit: this is what installs the service worker.
   await page.goto('/');
   await expect(page.locator(starCanvas)).toBeAttached();
@@ -29,7 +31,7 @@ test('reloads from the service worker while offline', async ({ context, page }) 
           const cached = await Promise.all(urls.map((url) => caches.match(url)));
           return cached.every(Boolean);
         }),
-      { timeout: 30_000 },
+      { timeout: 90_000 },
     )
     .toBe(true);
 

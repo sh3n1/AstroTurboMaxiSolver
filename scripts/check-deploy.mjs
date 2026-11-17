@@ -44,6 +44,11 @@ try {
   const deep = await get('/tabs/sky');
   report(deep.ok && (await deep.text()).includes('<app-root'), 'Addresses inside the app, such as /tabs/sky, load it');
 
+  // The service worker downloads /index.html to keep the app for offline use, and a redirect
+  // to / leaves it without one.
+  const index = await fetch(`${base}/index.html`, { redirect: 'manual', headers: { 'cache-control': 'no-cache' } });
+  report(index.status === 200, `/index.html is served as itself, not redirected (${index.status})`);
+
   // These name the current version: kept too long, phones would miss new versions.
   for (const path of ['/index.html', '/ngsw.json', '/ngsw-worker.js']) {
     const response = await get(path);
