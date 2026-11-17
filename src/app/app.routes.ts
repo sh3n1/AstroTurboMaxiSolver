@@ -1,3 +1,4 @@
+import { isDevMode } from '@angular/core';
 import type { Routes } from '@angular/router';
 
 export const routes: Routes = [
@@ -28,8 +29,16 @@ export const routes: Routes = [
       { path: '', redirectTo: 'sky', pathMatch: 'full' },
     ],
   },
-  { path: 'device-test', loadComponent: () => import('./pages/device-test.page').then((m) => m.DeviceTestPage) },
+  // For developing the app only: a published version has no device test, and its address
+  // goes to the map like any other unknown one.
+  {
+    path: 'device-test',
+    canMatch: [(): boolean => isDevMode()],
+    loadComponent: () => import('./pages/device-test.page').then((m) => m.DeviceTestPage),
+  },
   { path: 'align', loadComponent: () => import('./pages/align.page').then((m) => m.AlignPage) },
   { path: 'remote', loadComponent: () => import('./pages/remote.page').then((m) => m.RemotePage) },
   { path: '', redirectTo: 'tabs/sky', pathMatch: 'full' },
+  // Anything else, such as an old link or the device test in a published version: the map.
+  { path: '**', redirectTo: 'tabs/sky' },
 ];

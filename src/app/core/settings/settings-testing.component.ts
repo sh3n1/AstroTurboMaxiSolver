@@ -67,13 +67,16 @@ interface BuildInfo {
           <p>{{ versionText() }}</p>
         </ion-label>
       </ion-item>
-      <ion-item button detail="true" data-testid="open-device-test" (click)="openDeviceTest()">
-        <ion-icon slot="start" name="flask-outline" aria-hidden="true"></ion-icon>
-        <ion-label class="ion-text-wrap">
-          <h2>Device test</h2>
-          <p>Camera, sensors and plate solving</p>
-        </ion-label>
-      </ion-item>
+      <!-- For developing the app, with the phone reporting to this PC: not in published versions. -->
+      @if (devMode) {
+        <ion-item button detail="true" data-testid="open-device-test" (click)="openDeviceTest()">
+          <ion-icon slot="start" name="flask-outline" aria-hidden="true"></ion-icon>
+          <ion-label class="ion-text-wrap">
+            <h2>Device test</h2>
+            <p>Camera, sensors and plate solving</p>
+          </ion-label>
+        </ion-item>
+      }
       <ion-item>
         <ion-icon slot="start" name="chatbubble-ellipses-outline" aria-hidden="true"></ion-icon>
         <ion-toggle
@@ -162,7 +165,10 @@ export class SettingsTestingComponent {
   protected readonly liveSolver = inject(LiveSolverService);
   private readonly router = inject(Router);
   protected readonly showSolveLog = signal(false);
-  /** Sending solves needs the dev server's proxy, so it is only offered in development. */
+  /**
+   * The device test and sending solves are for developing the app: they report to the dev
+   * server on this PC, so they are only offered there, never in a published version.
+   */
   protected readonly devMode = isDevMode();
 
   constructor() {
