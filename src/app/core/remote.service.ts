@@ -18,9 +18,10 @@ import { SensorService } from './sensor.service';
  * - showing-answer: a screen phone showing its reply, waiting for the finder to read it.
  * - connecting: both codes read, the phones are finding each other.
  * - connected: linked.
+ * - paused: linked underneath, but each phone works on its own until resumed.
  * - lost: the link was there and dropped.
  */
-export type RemoteStatus = 'idle' | 'showing-offer' | 'showing-answer' | 'connecting' | 'connected' | 'lost';
+export type RemoteStatus = 'idle' | 'showing-offer' | 'showing-answer' | 'connecting' | 'connected' | 'paused' | 'lost';
 
 /** At most one pose message in this time, so a moving phone doesn't flood the link. */
 const POSE_INTERVAL_MS = 50;
@@ -212,9 +213,29 @@ export class RemoteService {
     }
   }
 
-  /** Ends the link, on purpose. */
+  /** Ends the link, on purpose. Linking again needs new codes. */
   disconnect(): void {
     this.reset();
+  }
+
+  /**
+   * Pauses the link, on purpose: each phone goes back to working on its own, while the link
+   * stays open underneath, so either phone can resume it without new codes. It lasts while
+   * both phones keep the app open: closed or reloaded, the link is gone.
+   */
+  pause(): void {
+    if (this.status() !== 'connected') return;
+    this.send({ t: 'pause' });
+    this.stopLinkedMode();
+    this.status.set('paused');
+  }
+
+  /** Resumes a paused link, or says it is gone if it dropped meanwhile. */
+  resume(): void {
+    if (this.status() !== 'paused') return;
+    if (this.channel?.readyState !== 'open') return this.lose();
+    this.send({ t: 'resume' });
+    this.startLinkedMode();
   }
 
   private isLinked(role: RemoteRole): boolean {
@@ -272,9 +293,14 @@ export class RemoteService {
   }
 
   private opened(): void {
-    this.status.set('connected');
     this.code.set('');
     this.error.set('');
+    this.startLinkedMode();
+  }
+
+  /** Each phone takes its part: the finder steers and solves, the screen shows and asks. */
+  private startLinkedMode(): void {
+    this.status.set('connected');
     this.sharedAlignment = alignmentKey(this.state.alignment());
     if (this.role() === 'finder') {
       // The finder shows the real sky, now, with no buttons to change it by accident.
@@ -303,6 +329,20 @@ export class RemoteService {
   }
 
   private receive(message: RemoteMessage): void {
+    // The other phone paused or resumed the link.
+    if (message.t === 'pause') {
+      if (this.status() === 'connected') {
+        this.stopLinkedMode();
+        this.status.set('paused');
+      }
+      return;
+    }
+    if (message.t === 'resume') {
+      if (this.status() === 'paused') this.startLinkedMode();
+      return;
+    }
+    // Paused, each phone works on its own, so nothing else from the other one counts.
+    if (this.status() !== 'connected') return;
     if (this.role() === 'screen') this.receiveAsScreen(message as FinderMessage);
     else this.receiveAsFinder(message as ScreenMessage);
   }
@@ -435,8 +475,9 @@ export class RemoteService {
 
   /** The link dropped without being ended on purpose. */
   private lose(): void {
-    if (this.status() !== 'connected' && this.status() !== 'connecting') return;
-    const wasScreen = this.role() === 'screen';
+    if (this.status() !== 'connected' && this.status() !== 'connecting' && this.status() !== 'paused') return;
+    // Paused, the screen isn't following the finder, so there is nothing to warn about now.
+    const wasScreen = this.role() === 'screen' && this.status() !== 'paused';
     this.close();
     this.status.set('lost');
     if (wasScreen) void this.tell('Finder phone disconnected');
@@ -479,10 +520,7 @@ export class RemoteService {
   }
 
   private close(): void {
-    clearTimeout(this.poseTimer);
-    clearTimeout(this.silenceTimer);
-    clearInterval(this.heartbeat);
-    this.poseTimer = undefined;
+    this.stopLinkedMode();
     const channel = this.channel;
     const poseChannel = this.poseChannel;
     const connection = this.connection;
@@ -492,9 +530,20 @@ export class RemoteService {
     channel?.close();
     poseChannel?.close();
     this.poseNumber = 0;
-    this.glide.stop();
     connection?.close();
     this.code.set('');
+  }
+
+  /**
+   * Each phone back on its own: the finder's map and buttons return, and the screen phone
+   * gets its own sensors and camera back. The link itself is left as it is.
+   */
+  private stopLinkedMode(): void {
+    clearTimeout(this.poseTimer);
+    clearTimeout(this.silenceTimer);
+    clearInterval(this.heartbeat);
+    this.poseTimer = undefined;
+    this.glide.stop();
     for (const resolve of this.pendingSolves.values()) resolve({ ok: false, reason: 'The finder phone disconnected.' });
     this.pendingSolves.clear();
     this.lastLogSent = this.liveSolver.log()[0]?.id ?? 0;

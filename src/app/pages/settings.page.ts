@@ -245,6 +245,9 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
                     {{ remote.role() === 'finder' ? 'This phone is the finder' : 'Linked to the finder' }}
                   </p>
                 }
+                @case ('paused') {
+                  <p>Link paused</p>
+                }
                 @case ('lost') {
                   <p class="warn">Link lost</p>
                 }
