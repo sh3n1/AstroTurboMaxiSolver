@@ -43,6 +43,8 @@ describe('link messages', () => {
   it('reads known messages and ignores anything else', () => {
     expect(parseMessage('{"t":"solveNow","id":1,"trigger":"tap"}')).toEqual({ t: 'solveNow', id: 1, trigger: 'tap' });
     expect(parseMessage('{"t":"fullscreen","on":true}')).toEqual({ t: 'fullscreen', on: true });
+    expect(parseMessage('{"t":"target","id":"M 31"}')).toEqual({ t: 'target', id: 'M 31' });
+    expect(parseMessage('{"t":"target","id":null}')).toEqual({ t: 'target', id: null });
     expect(parseMessage('{"t":"somethingNew"}')).toBeNull();
     expect(parseMessage('not json')).toBeNull();
     expect(parseMessage('null')).toBeNull();
