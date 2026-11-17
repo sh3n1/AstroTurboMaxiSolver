@@ -37,7 +37,6 @@ export type FinderMessage =
       n?: number;
       pointing: Horizontal;
       camera: Horizontal | null;
-      rollDeg: number;
       solving: boolean;
       steering: boolean;
     }

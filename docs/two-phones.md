@@ -28,7 +28,7 @@ JSON over one reliable, ordered data channel (`remote-link.ts`):
 | From | Message | When |
 | --- | --- | --- |
 | Finder | `hello` | Once linked: its alignment and location. |
-| Finder | `pose` | Where the telescope and camera point, the roll (from the phone's top, so each phone turns it for its own screen), whether it is solving, and whether its sensors are steering. On every change, at most every 50 ms, and every second anyway. Numbered, on a channel of its own that never resends a lost one, so a lost pose never holds back the next. The screen drops any pose older than the last it used, and glides the map towards the newest one. |
+| Finder | `pose` | Where the telescope and camera point, whether it is solving, and whether its sensors are steering. On every change, at most every 50 ms, and every second anyway. Numbered, on a channel of its own that never resends a lost one, so a lost pose never holds back the next. The screen drops any pose older than the last it used, and glides the map towards the newest one. |
 | Finder | `site` | Its location, when it changes. The screen uses it, since both are at the same telescope. |
 | Finder | `solveLog` | Each plate solve attempt, so the screen shows the same toasts and log. |
 | Finder | `solveResult` | The answer to a `solveNow`. |
@@ -41,7 +41,7 @@ JSON over one reliable, ordered data channel (`remote-link.ts`):
 ## How the app uses it
 
 - **On the screen phone:**
-  - `RemoteService` sets `pointing`, `cameraPointing`, `viewRollDeg` and `plateSolving` from
+  - `RemoteService` sets `pointing`, `cameraPointing` and `plateSolving` from
     the finder's messages. The rest of the app doesn't know the difference.
   - `state.remoteFinder` is true, which keeps the phone's own sensors and automatic solving
     off.

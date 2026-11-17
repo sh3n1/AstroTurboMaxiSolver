@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { separationDeg } from './astronomy';
-import { glideAngleDeg, glideFraction, glideHorizontal, stepPose } from './pose-glide';
+import { glideFraction, glideHorizontal, stepPose } from './pose-glide';
 
 describe('pose glide', () => {
   it('covers more of the way the longer a frame took, never more than all of it', () => {
@@ -36,18 +36,12 @@ describe('pose glide', () => {
     expect(glideHorizontal({ altDeg: 0, azDeg: 0 }, { altDeg: 0, azDeg: 180 }, 0.5)).toEqual({ altDeg: 0, azDeg: 180 });
   });
 
-  it('turns the roll the short way round', () => {
-    expect(glideAngleDeg(170, -170, 0.5)).toBeCloseTo(180, 10);
-    expect(glideAngleDeg(10, 30, 0.25)).toBeCloseTo(15, 10);
-  });
-
   it('only glides the camera while both poses have one', () => {
-    const shown = { pointing: { altDeg: 40, azDeg: 90 }, camera: null, rollDeg: 0 };
-    const target = { pointing: { altDeg: 50, azDeg: 90 }, camera: { altDeg: 60, azDeg: 90 }, rollDeg: 10 };
+    const shown = { pointing: { altDeg: 40, azDeg: 90 }, camera: null };
+    const target = { pointing: { altDeg: 50, azDeg: 90 }, camera: { altDeg: 60, azDeg: 90 } };
     const step = stepPose(shown, target, 0.5);
     expect(step.camera).toEqual(target.camera);
     expect(step.pointing.altDeg).toBeCloseTo(45, 1);
-    expect(step.rollDeg).toBeCloseTo(5, 10);
     expect(stepPose(step, { ...target, camera: null }, 0.5).camera).toBeNull();
   });
 });
