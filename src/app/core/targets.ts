@@ -48,6 +48,12 @@ export interface Target {
   body?: string;
   /** Set for the Moon and Venus, which show phases that matter at the eyepiece. */
   phase?: TargetPhase;
+  /**
+   * Set for stars known only by catalogue names, such as "33 Cyg" or "HR 7633", from the
+   * HYG names. The sky map labels only the brighter of them with a Greek letter, as printed
+   * charts do, so the labels don't crowd out the named stars and deep-sky objects.
+   */
+  unnamed?: true;
 }
 
 /** A double or multiple star: its pairs, as the WDS lists them. See double-stars.ts. */

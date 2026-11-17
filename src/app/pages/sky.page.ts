@@ -159,6 +159,8 @@ function iconPath(d: string): Path2D {
   }
   return path;
 }
+/** Stars known only by catalogue names are labelled to this magnitude: see isShownAtField. */
+const UNNAMED_STAR_LABEL_MAG = 4.5;
 /** Fainter than this, an object's size circle only shows when it is the selected target. */
 const MAX_SIZE_CIRCLE_MAG = 6;
 /**
@@ -245,6 +247,11 @@ function isShownAtField(target: Target, fieldDeg: number): boolean {
   if (target.kind === 'Moon' || target.kind === 'Planet') return true;
   // The map already writes each constellation's name among its lines.
   if (target.kind === 'Constellation') return false;
+  // Stars known only by catalogue names are labelled only zoomed in, and only the brighter
+  // ones with a Greek letter, such as "κ Cyg": "HR 7633" and "33 Cyg" would crowd the map.
+  if (target.unnamed) {
+    return fieldDeg < 25 && target.mag <= UNNAMED_STAR_LABEL_MAG && /^\p{Script=Greek}/u.test(target.id);
+  }
   if (target.kind === 'Star') return target.mag <= (fieldDeg >= 60 ? 1.5 : fieldDeg >= 25 ? 3 : 5);
   // There are some 1,400 doubles without a name, so they wait until zoomed in.
   if (target.kind === 'Double star') return fieldDeg < 25 && (fieldDeg < 8 || target.mag <= 6);

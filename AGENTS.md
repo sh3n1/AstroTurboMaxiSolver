@@ -29,6 +29,7 @@ Features:
   - The browser floor is in `.browserslistrc` (currently Chrome, Edge and Firefox 119+, Safari and iOS 17+).
 - **Licence:** Closed source. Never add GPL, AGPL or other copyleft code or data. Check the licence of every library and catalogue before using it, and keep required attributions.
   - One approved exception: OpenNGC data (CC-BY-SA-4.0). Keep it in its own file, `src/assets/data/openngc.json`, which is itself CC-BY-SA, and keep its credit in Settings. Don't merge other data into that file.
+  - A second approved exception: the HYG Database's star names (CC-BY-SA-4.0), in its own file, `src/assets/data/hyg.json`, built by `scripts/build-hyg.mjs`, with its credit in Settings. The same rules apply: only HYG data in that file.
 
 ## Stack
 
@@ -126,7 +127,7 @@ Agents must ask before:
 
 Agents must never:
 
-- Add copyleft code or data, apart from the OpenNGC exception under Licence
+- Add copyleft code or data, apart from the OpenNGC and HYG exceptions under Licence
 - Deploy
 - Commit secrets
 - Force-push `main`
