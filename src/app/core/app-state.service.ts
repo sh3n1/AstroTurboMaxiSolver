@@ -13,12 +13,9 @@ import {
   solarSystemPosition,
   sunPosition,
 } from './astronomy';
-import type { CaldwellData } from './caldwell';
 import { joinCaldwell } from './caldwell';
 import type { CaptureMode } from './camera';
-import { constellationTargets } from './constellations';
-import type { ConstellationRow } from './constellations';
-import type { DoubleRow } from './double-stars';
+import { CatalogLoaderService } from './catalog-loader.service';
 import type { KitItem, KitKind, KitRecord, KitSelection } from './equipment';
 import {
   DEFAULT_SELECTION,
@@ -31,8 +28,6 @@ import {
   resolveSelection,
 } from './equipment';
 import { EXTRA_TARGETS } from './extra-targets';
-import { joinHygStars } from './hyg-stars';
-import type { HygData } from './hyg-stars';
 import { LocalDb } from './local-db';
 import { MINOR_PLANETS, minorPlanet } from './minor-planets';
 import { telescopeLimit } from './sky-quality';
@@ -243,11 +238,12 @@ export class AppState {
 
   readonly selectedTargetId = signal<string | null>(null);
 
-  /** Fixed objects from the catalogue files. Empty until they have loaded. */
-  private readonly catalog = signal<Target[]>([]);
-
+  /** The catalogue files, which load in the background so the map comes first: see CatalogLoaderService. */
+  private readonly loader = inject(CatalogLoaderService);
+  /** Fixed objects from the catalogue files. It grows as they load. */
+  private readonly catalog = this.loader.catalog;
   /** The Caldwell catalogue, which adds its numbers to NGC and IC objects. Null until loaded. */
-  private readonly caldwell = signal<CaldwellData | null>(null);
+  private readonly caldwell = this.loader.caldwell;
 
   /**
    * The catalogue objects with their Caldwell numbers, plus the Caldwell objects that
@@ -372,14 +368,6 @@ export class AppState {
   constructor() {
     setInterval(() => this.realMinute.set(new Date()), 60_000);
     setInterval(() => this.realSecond.set(new Date()), SKY_TIME_STEP_MS);
-    // Double stars go onto the named stars too, so they wait for them, and the HYG star
-    // names go onto both.
-    void this.loadCatalog('assets/data/targets.json')
-      .then(() => this.loadDoubles())
-      .then(() => this.loadHygStars());
-    void this.loadCatalog('assets/data/openngc.json');
-    void this.loadCaldwell();
-    void this.loadConstellations();
     effect(() => save(SETTINGS_KEY, this.settings()));
     effect(() => save(ALIGNMENT_KEY, { value: this.alignment() }));
     // CSS in global.scss turns the whole app red when this class is present.
@@ -491,76 +479,6 @@ export class AppState {
     const { latitudeDeg, longitudeDeg } = this.settings();
     const { raDeg, decDeg } = target.body ? solarSystemPosition(target.body, date, latitudeDeg, longitudeDeg) : target;
     return equatorialToHorizontal(this.rotationAt(date), raDeg, decDeg);
-  }
-
-  /** Each file loads on its own, so one failing still leaves the others usable. */
-  private async loadCatalog(path: string): Promise<void> {
-    try {
-      const response = await fetch(path);
-      const targets = (await response.json()) as Target[];
-      this.catalog.update((current) => [...current, ...targets]);
-    } catch {
-      // Planets and the Moon still work without the catalogue files.
-    }
-  }
-
-  /**
-   * Adds the double stars. Those whose main star is a named star, such as Albireo, are
-   * added to that star, so it stays one target. Without them, every object still works.
-   */
-  private async loadDoubles(): Promise<void> {
-    try {
-      const response = await fetch('assets/data/doubles.json');
-      const rows = (await response.json()) as DoubleRow[];
-      const toStar = new Map(rows.filter((row) => row.starId).map((row) => [row.starId, row]));
-      const own = rows.filter((row): row is DoubleRow & Target => !row.starId);
-      this.catalog.update((current) => [
-        ...current.map((target) => {
-          const row = toStar.get(target.id);
-          if (!row || target.kind !== 'Star') return target;
-          const aliases = [target.aliases, row.aliases].filter(Boolean).join(' ');
-          return { ...target, aliases, double: row.double };
-        }),
-        ...own,
-      ]);
-    } catch {
-      // Everything else works without the double stars.
-    }
-  }
-
-  /**
-   * Adds the stars' catalogue names from the HYG Database, and the naked-eye stars the app
-   * had no name for, so stars are found by the names other apps use. See hyg-stars.ts.
-   */
-  private async loadHygStars(): Promise<void> {
-    try {
-      const response = await fetch('assets/data/hyg.json');
-      const data = (await response.json()) as HygData;
-      this.catalog.update((current) => joinHygStars(current, data.stars));
-    } catch {
-      // Stars are still found by their proper names and double star numbers without it.
-    }
-  }
-
-  /** Adds the constellations as targets. Without them, every object still works. */
-  private async loadConstellations(): Promise<void> {
-    try {
-      const response = await fetch('assets/data/constellations.json');
-      const targets = constellationTargets((await response.json()) as ConstellationRow[]);
-      this.catalog.update((current) => [...current, ...targets]);
-    } catch {
-      // Searching for objects works the same without them.
-    }
-  }
-
-  /** Loads the Caldwell list. Without it, everything still works, just without Caldwell numbers. */
-  private async loadCaldwell(): Promise<void> {
-    try {
-      const response = await fetch('assets/data/caldwell.json');
-      this.caldwell.set((await response.json()) as CaldwellData);
-    } catch {
-      // Search by NGC and IC numbers still finds every Caldwell object.
-    }
   }
 
   /**
