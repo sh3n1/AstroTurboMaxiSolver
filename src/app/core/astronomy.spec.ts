@@ -1,4 +1,4 @@
-import { Body, Equator, Horizon, Observer } from 'astronomy-engine';
+import { Body, Equator, Horizon, Observer, Refraction } from 'astronomy-engine';
 
 import {
   apparentAxes,
@@ -28,6 +28,7 @@ import {
   toApparent,
   toViewCoordinates,
   trueFieldDeg,
+  inverseRefractionDeg,
   unrefract,
   vectorToHorizontal,
   viewBasis,
@@ -161,6 +162,19 @@ describe('astronomy', () => {
       for (const altDeg of [-0.4, 0, 3, 20, 60]) {
         const v = horizontalVector({ altDeg, azDeg: 250 });
         expect(vectorToHorizontal(unrefract(refract(v))).altDeg).toBeCloseTo(altDeg, 6);
+      }
+    });
+
+    it('undoes the lift deep below the horizon, where the library never finished', () => {
+      // Two heights for which astronomy-engine's InverseRefraction stepped for ever.
+      for (const altDeg of [-89.9407944169415, -64.00684409943914]) {
+        const real = altDeg + inverseRefractionDeg(altDeg);
+        expect(real + Refraction('normal', real)).toBeCloseTo(altDeg, 8);
+      }
+      // And every height comes back, from the nadir to the zenith.
+      for (let altDeg = -90; altDeg <= 90; altDeg += 0.37) {
+        const real = altDeg + inverseRefractionDeg(altDeg);
+        expect(real + Refraction('normal', real)).toBeCloseTo(altDeg, 8);
       }
     });
 
