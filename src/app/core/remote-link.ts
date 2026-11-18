@@ -7,6 +7,7 @@
 import type { Alignment } from './app-state.service';
 import type { Horizontal } from './astronomy';
 import type { SolveLogEntry, SolveNowResult } from './live-solver.service';
+import type { DataMessage } from './sync/link-sync';
 
 /** The finder phone sits on the telescope. The screen phone is the one the user looks at. */
 export type RemoteRole = 'finder' | 'screen';
@@ -67,7 +68,8 @@ export type ScreenMessage =
   /** The target chosen on the screen phone, or null when cleared, so the finder guides to it too. */
   | { t: 'target'; id: string | null };
 
-export type RemoteMessage = FinderMessage | ScreenMessage;
+/** Either phone may also send the user's data, when both have link sync on (sync/link-sync.ts). */
+export type RemoteMessage = FinderMessage | ScreenMessage | DataMessage;
 
 /** What a pairing code carries: one side's half of the WebRTC handshake. */
 export interface PairingPayload {
@@ -140,6 +142,9 @@ export async function decodePairingCode(code: string): Promise<PairingPayload> {
 }
 
 const MESSAGE_TYPES = new Set([
+  'dataOn',
+  'dataManifest',
+  'dataRecords',
   'hello',
   'pose',
   'site',

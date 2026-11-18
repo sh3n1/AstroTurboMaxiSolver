@@ -39,6 +39,20 @@ JSON over one reliable, ordered data channel (`remote-link.ts`):
 | Either | `pause` | The link is paused: each phone works on its own, and the link stays open underneath. Two phones offers Reconnect, which sends `resume` and needs no new codes. While paused, silence doesn't count as the link being lost. It lasts while both phones keep the app open. |
 | Either | `resume` | The paused link is back: each phone takes its part again, and the finder sends `hello`. |
 | Both | `alignment` | An alignment made or removed on either phone. |
+| Either | `dataOn` | Whether "Sync with the linked phone" is on there. Sent once linked and on every change. Link sync runs only while both are on. |
+| Either | `dataManifest` | Link sync: every record's type, id and revision, in parts, the last one marked. |
+| Either | `dataRecords` | Link sync: records the other phone lacks, or has in another revision, up to 100 a message, and each change as it happens. |
+
+### Link sync
+
+With "Sync with the linked phone" on in Settings on both phones (in the Sync section, hidden
+for now behind five taps on the Settings title), the log, lists and kit sync straight over
+the link, with no drive. Off by default, since a phone linked for a night may be someone
+else's. Each phone sends its manifest, then the records the other lacks, then each change as
+it happens, and remembers which revision the other has of each record so nothing goes twice.
+Records merge by the same rules as a drive sync. Code: `sync/link-sync.ts` (messages, plain
+functions) and `sync/link-sync.service.ts`, which uses `RemoteService`'s `dataHandler` and
+`sendData`.
 
 ## How the app uses it
 

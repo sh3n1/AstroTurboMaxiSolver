@@ -1,8 +1,7 @@
-# Sync between devices (plan, not built)
+# Sync between devices
 
-Status: design discussed on 2026-11-16; Google Drive sync built on 2026-11-18, on the `sync`
-branch. This note keeps what was decided,
-what was proposed, and what is still open, so the work can be picked up later. The record
+Status: design discussed on 2026-11-16; Google Drive sync and link sync built on 2026-11-18.
+This note keeps what was decided, what was built, and what is still to do. The record
 format it builds on is in `local-data.md`.
 
 ## Goal
@@ -177,5 +176,8 @@ While the app is in "testing" mode, Google only lets listed accounts sign in.
 5. Done: `e2e/sync.spec.ts`, two devices through a fake Drive, with Google's script faked.
    Sync is hidden while it is tried out: five quick taps on the Settings title show it on
    that device (`astroturbomaxisolver.syncUnlocked`), and it stays shown while connected.
-6. To do: the "edited on two phones" mark on log entries with a kept conflict; then Dropbox
+6. Done: link sync, straight between two phones linked in Two phones, when both have it on
+   (see "Link sync" in `two-phones.md`). Records received that way are kept as already
+   synced: each phone sends only its own changes to the drive.
+7. To do: the "edited on two phones" mark on log entries with a kept conflict; then Dropbox
    and OneDrive; then tombstone purging and snapshots.

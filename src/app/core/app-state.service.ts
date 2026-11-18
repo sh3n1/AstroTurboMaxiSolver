@@ -87,6 +87,8 @@ export interface Settings {
    * specs. Learnt from the first successful plate solve, so later solves start from it.
    */
   cameraFocalFactor: number;
+  /** Sync the log, lists and kit with the linked phone, when it has this on too. */
+  linkSync: boolean;
 }
 
 /** How an alignment measured the camera's direction. Plate solving is the accurate one. */
@@ -134,6 +136,8 @@ const DEFAULT_SETTINGS: Settings = {
   bortle: 5,
   eyepieceStarLimit: null,
   cameraFocalFactor: 1,
+  // Off by default: a phone linked for one night may belong to someone else.
+  linkSync: false,
 };
 
 const SETTINGS_KEY = 'astroturbomaxisolver.settings';
