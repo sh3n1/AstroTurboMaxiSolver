@@ -135,6 +135,53 @@ h2 {
   font-size: 28px;
 }
 
+/* The link to the source code: a corner in the top right, with the Octocat cut out of it. */
+.source-link {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 1;
+}
+.source-link svg {
+  display: block;
+  fill: var(--sky);
+}
+.source-link .corner {
+  fill: var(--accent);
+}
+.source-link .octo-arm {
+  transform-origin: 130px 106px;
+}
+.source-link:hover .octo-arm,
+.source-link:focus-visible .octo-arm {
+  animation: octocat-wave 560ms ease-in-out;
+}
+@keyframes octocat-wave {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  20%,
+  60% {
+    transform: rotate(-25deg);
+  }
+  40%,
+  80% {
+    transform: rotate(10deg);
+  }
+}
+/* Phones have no hover: the Octocat waves once when the page opens. */
+@media (hover: none) {
+  .source-link .octo-arm {
+    animation: octocat-wave 560ms ease-in-out 1s;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .source-link .octo-arm {
+    animation: none !important;
+  }
+}
+
 /* The top: the name, what it is, and the way in. */
 .hero {
   padding-top: 56px;
