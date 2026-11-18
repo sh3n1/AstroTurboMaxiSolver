@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import { IonIcon, IonItem, IonLabel, IonList, IonListHeader } from '@ionic/angular';
+import { IonIcon, IonItem, IonLabel, IonList } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { openOutline } from 'ionicons/icons';
 
@@ -10,7 +10,7 @@ import { SETTINGS_SECTION_STYLES } from './settings-styles';
 /** The credits the licences of the app's data and libraries require, as a section of Settings. */
 @Component({
   selector: 'app-settings-credits',
-  imports: [IonIcon, IonItem, IonLabel, IonList, IonListHeader],
+  imports: [IonIcon, IonItem, IonLabel, IonList],
   styles: [
     SETTINGS_SECTION_STYLES,
     `
@@ -126,19 +126,47 @@ import { SETTINGS_SECTION_STYLES } from './settings-styles';
       </ion-item>
       <ion-item>
         <ion-label class="ion-text-wrap credit"
-          >Log and lists saved with Dexie.js, David Fahlander, Apache License 2.0.</ion-label
-        >
-      </ion-item>
-      <ion-item>
-        <ion-label class="ion-text-wrap credit"
           >Pairing codes made with QR Code Generator, Kazuhiko Arase, MIT License, and read with jsQR, Cosmo Wolfe,
           Apache License 2.0. QR Code is a trademark of DENSO WAVE.</ion-label
         >
       </ion-item>
-      <ion-item lines="none" data-testid="credit-jpl">
+      <ion-item data-testid="credit-jpl">
         <ion-label class="ion-text-wrap credit"
           >Orbits of Ceres, Vesta, Pallas and Juno from the NASA/JPL Small-Body Database.</ion-label
         >
+      </ion-item>
+      <!-- Dexie's Apache-2.0 NOTICE file, which must be passed on with the app. -->
+      <ion-item>
+        <ion-label class="ion-text-wrap credit"
+          >Log and lists saved with Dexie.js, Copyright (c) 2014-2017 David Fahlander, Apache License 2.0.</ion-label
+        >
+      </ion-item>
+      <!-- The atlas is CC BY-NC 4.0 and asks for both citations: see its LICENSE.txt. -->
+      <ion-item
+        data-testid="credit-falchi"
+        href="https://doi.org/10.5880/GFZ.1.4.2016.001"
+        target="_blank"
+        rel="noopener"
+        detail="false"
+      >
+        <ion-label class="ion-text-wrap credit">
+          Sky darkness from the New World Atlas of Artificial Night Sky Brightness, Falchi et al., GFZ Data Services,
+          2016, and Science Advances 2(6) e1600377. CC BY-NC 4.0, non-commercial use only. Averaged and converted for
+          this app.
+        </ion-label>
+        <ion-icon slot="end" name="open-outline" aria-hidden="true"></ion-icon>
+      </ion-item>
+      <!-- Every library's licence, gathered by the production build. -->
+      <ion-item
+        lines="none"
+        data-testid="software-licences"
+        href="/3rdpartylicenses.txt"
+        target="_blank"
+        rel="noopener"
+        detail="false"
+      >
+        <ion-label class="ion-text-wrap credit">Software licences of the libraries in the app</ion-label>
+        <ion-icon slot="end" name="open-outline" aria-hidden="true"></ion-icon>
       </ion-item>
     </ion-list>
   `,

@@ -25,9 +25,9 @@ export interface CatalogFiles {
 export const CATALOG_PATHS: Record<keyof CatalogFiles, string> = {
   targets: 'targets.json',
   constellations: 'constellations.json',
-  openngc: 'openngc.json',
+  openngc: 'aggregate/openngc/openngc.json',
   doubles: 'doubles.json',
-  hyg: 'hyg.json',
+  hyg: 'aggregate/hyg/hyg.json',
 };
 
 /**

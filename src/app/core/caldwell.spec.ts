@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import openNgcFile from '../../assets/data/aggregate/openngc/openngc.json';
 import caldwellFile from '../../assets/data/caldwell.json';
-import openNgcFile from '../../assets/data/openngc.json';
 
 import type { CaldwellData } from './caldwell';
 import { joinCaldwell } from './caldwell';

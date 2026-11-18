@@ -1,0 +1,22 @@
+The files in this folder (index.json and the *.bin tiles) are licensed under the Creative
+Commons Attribution-NonCommercial 4.0 International licence (CC BY-NC 4.0):
+https://creativecommons.org/licenses/by-nc/4.0/
+
+They may not be used for commercial purposes. They are not covered by AstroTurboMaxiSolver's
+GNU GPL: they are a separate work that the app reads if it is there, and the app works
+without them. Anyone distributing the app commercially must remove this folder.
+
+They are adapted from the World Atlas of Artificial Night Sky Brightness, which must be
+cited as:
+
+1) Falchi, Fabio; Cinzano, Pierantonio; Duriscoe, Dan; Kyba, Christopher C. M.; Elvidge,
+   Christopher D.; Baugh, Kimberly; Portnov, Boris; Rybnikova, Nataliya A.; Furgoni,
+   Riccardo (2016): Supplement to: The New World Atlas of Artificial Night Sky Brightness.
+   GFZ Data Services. https://doi.org/10.5880/GFZ.1.4.2016.001
+
+2) Falchi F, Cinzano P, Duriscoe D, Kyba CC, Elvidge CD, Baugh K, Portnov BA, Rybnikova NA,
+   Furgoni R. The new world atlas of artificial night sky brightness. Science Advances.
+   2016 Jun 1;2(6):e1600377. https://doi.org/10.1126/sciadv.1600377
+
+Changes: averaged to 1′ cells, converted to total sky brightness, stored as bytes in
+10° tiles. See SOURCE.md.

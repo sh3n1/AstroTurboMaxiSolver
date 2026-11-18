@@ -80,5 +80,5 @@ const invalid = targets.filter((t) => !Number.isFinite(t.raDeg) || !Number.isFin
 if (invalid.length > 0) throw new Error(`Invalid entries: ${invalid.map((t) => t.id).join(', ')}`);
 if (targets.length < 10_000) throw new Error(`Expected at least 10,000 objects, found ${targets.length}`);
 
-writeFileSync('src/assets/data/openngc.json', JSON.stringify(targets));
+writeFileSync('src/assets/data/aggregate/openngc/openngc.json', JSON.stringify(targets));
 console.log(`Wrote ${targets.length} NGC and IC objects`);

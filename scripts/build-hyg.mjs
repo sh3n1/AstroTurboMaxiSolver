@@ -1,4 +1,4 @@
-// Builds src/assets/data/hyg.json, the stars' catalogue names, from the HYG Database.
+// Builds src/assets/data/aggregate/hyg/hyg.json, the stars' catalogue names, from the HYG Database.
 // Usage: node scripts/build-hyg.mjs <hygdata_v41.csv>
 //
 // The HYG Database, version 4.1, by David Nash (astronexus), combines Hipparcos, the Yale
@@ -134,5 +134,5 @@ const out = {
   fields: ['names, best known first, separated by |', 'proper name', 'raDeg J2000', 'decDeg J2000', 'mag', 'B-V'],
   stars,
 };
-writeFileSync('src/assets/data/hyg.json', JSON.stringify(out));
-console.log(`Wrote ${stars.length} stars to src/assets/data/hyg.json`);
+writeFileSync('src/assets/data/aggregate/hyg/hyg.json', JSON.stringify(out));
+console.log(`Wrote ${stars.length} stars to src/assets/data/aggregate/hyg/hyg.json`);

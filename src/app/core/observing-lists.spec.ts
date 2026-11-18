@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
+import openNgcFile from '../../assets/data/aggregate/openngc/openngc.json';
 import caldwellFile from '../../assets/data/caldwell.json';
 import doublesFile from '../../assets/data/doubles.json';
-import openNgcFile from '../../assets/data/openngc.json';
 import targetsFile from '../../assets/data/targets.json';
 
 import { AL_URBAN } from './al-urban';

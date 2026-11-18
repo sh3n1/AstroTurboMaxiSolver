@@ -49,6 +49,7 @@ import { SettingsAboutComponent } from '../core/settings/settings-about.componen
 import { SETTINGS_ROW_STYLES } from '../core/settings/settings-styles';
 import { SettingsSyncComponent } from '../core/settings/settings-sync.component';
 import { SettingsTestingComponent } from '../core/settings/settings-testing.component';
+import { SkyBrightnessService } from '../core/sky-brightness.service';
 import { BORTLE_CLASSES } from '../core/sky-quality';
 import { SoundService } from '../core/sound.service';
 import { SyncService } from '../core/sync/sync.service';
@@ -196,9 +197,13 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
                 label="Sky darkness"
                 interface="popover"
                 data-testid="bortle"
-                [value]="settings().bortle"
-                (ionChange)="state.updateSettings({ bortle: $any($event).detail.value })"
+                [value]="bortleValue()"
+                (ionChange)="setBortle($any($event).detail.value)"
               >
+                <!-- Auto, from the light pollution atlas, where the app has it: see sky-brightness.service.ts. -->
+                @if (skyBrightness.available()) {
+                  <ion-select-option value="auto" data-testid="bortle-auto">{{ autoLabel() }}</ion-select-option>
+                }
                 @for (option of bortleClasses; track option.value) {
                   <ion-select-option [value]="option.value">{{ option.label }}</ion-select-option>
                 }
@@ -206,6 +211,11 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
             </ion-item>
           </ion-list>
           <p class="section-note">Bortle: 1 dark site · 5 suburbs · 9 city centre</p>
+          @if (skyBrightness.reading(); as reading) {
+            <p class="section-note" data-testid="sky-brightness">
+              Light pollution atlas: {{ reading.magnitude.toFixed(1) }} mag/arcsec²
+            </p>
+          }
         </div>
 
         <!-- The user's equipment, which the eyepiece view picks from, on a page of its own. -->
@@ -391,6 +401,18 @@ export class SettingsPage {
   protected readonly appIcons = APP_ICONS;
   protected readonly gpsMessage = signal('');
   protected readonly bortleClasses = BORTLE_CLASSES;
+  protected readonly skyBrightness = inject(SkyBrightnessService);
+
+  /** The sky darkness chosen: "auto" while it follows the atlas, otherwise the class. */
+  protected readonly bortleValue = computed(() =>
+    this.settings().bortleAuto && this.skyBrightness.available() ? 'auto' : this.settings().bortle,
+  );
+
+  /** Auto with the class the atlas gives here, once known: "Auto · 9: inner city sky". */
+  protected readonly autoLabel = computed(() => {
+    const reading = this.skyBrightness.reading();
+    return reading ? `Auto · ${BORTLE_CLASSES[reading.bortle - 1].label}` : 'Auto, from location';
+  });
 
   /** The location in words, or a warning that the sky is shown for a neutral place. */
   protected readonly locationText = computed(() => {
@@ -426,6 +448,11 @@ export class SettingsPage {
       // A typed location counts as set, just like one from GPS.
       this.state.updateSettings({ [key]: value, locationSet: true } as Partial<Settings>);
     }
+  }
+
+  /** Auto follows the atlas again; a class chosen by hand stops it. */
+  protected setBortle(value: number | 'auto'): void {
+    this.state.updateSettings(value === 'auto' ? { bortleAuto: true } : { bortle: value, bortleAuto: false });
   }
 
   /** Turning the shutter sound on plays it once, so it can be heard without a solve. */

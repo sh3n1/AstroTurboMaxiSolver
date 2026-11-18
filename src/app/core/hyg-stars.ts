@@ -1,4 +1,4 @@
-// Joins the HYG Database's star names (assets/data/hyg.json, CC BY-SA 4.0, from
+// Joins the HYG Database's star names (assets/data/aggregate/hyg/hyg.json, CC BY-SA 4.0, from
 // scripts/build-hyg.mjs) to the app's stars, so stars can be found by the names observers
 // and other apps use: "ζ Psc", "61 Cyg", "HR 7001", "HD 110914", "R Lep". Plain functions,
 // so they can be tested without the app.
