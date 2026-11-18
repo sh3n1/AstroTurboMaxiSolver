@@ -2,7 +2,13 @@ import { Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { IonIcon, IonItem, IonLabel, IonList, IonListHeader } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { documentTextOutline, openOutline, ribbonOutline, shieldCheckmarkOutline } from 'ionicons/icons';
+import {
+  codeSlashOutline,
+  documentTextOutline,
+  openOutline,
+  ribbonOutline,
+  shieldCheckmarkOutline,
+} from 'ionicons/icons';
 
 import { SETTINGS_SECTION_STYLES } from './settings-styles';
 
@@ -34,6 +40,20 @@ import { SETTINGS_SECTION_STYLES } from './settings-styles';
         <ion-icon slot="end" name="open-outline" aria-hidden="true"></ion-icon>
       </ion-item>
       <ion-item
+        data-testid="licence-link"
+        href="https://www.gnu.org/licenses/gpl-3.0.html"
+        target="_blank"
+        rel="noopener"
+        detail="false"
+      >
+        <ion-icon slot="start" name="code-slash-outline" aria-hidden="true"></ion-icon>
+        <ion-label class="ion-text-wrap">
+          <h2>Free software, GNU GPL 3</h2>
+          <p>© 2026 The AstroTurboMaxiSolver authors</p>
+        </ion-label>
+        <ion-icon slot="end" name="open-outline" aria-hidden="true"></ion-icon>
+      </ion-item>
+      <ion-item
         lines="none"
         data-testid="terms-link"
         href="https://astroturbomaxisolver.app/terms.html"
@@ -50,6 +70,6 @@ import { SETTINGS_SECTION_STYLES } from './settings-styles';
 })
 export class SettingsAboutComponent {
   constructor() {
-    addIcons({ documentTextOutline, openOutline, ribbonOutline, shieldCheckmarkOutline });
+    addIcons({ codeSlashOutline, documentTextOutline, openOutline, ribbonOutline, shieldCheckmarkOutline });
   }
 }
