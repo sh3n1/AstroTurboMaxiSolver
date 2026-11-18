@@ -163,7 +163,8 @@ export function parseChangeFile(text: string): Change[] | null {
   return file['changes'].filter(isValidChange).map(({ type, record }) => ({ type, record: { ...record, pending: 0 } }));
 }
 
-function isValidChange(change: unknown): change is Change {
+/** Whether a received change is a well-formed record of a known type whose hash matches its content. */
+export function isValidChange(change: unknown): change is Change {
   if (!isObject(change) || !RECORD_TYPES.includes(change['type'] as RecordType)) return false;
   const r = change['record'];
   return (

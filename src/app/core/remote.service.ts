@@ -10,6 +10,8 @@ import { PoseGlide } from './pose-glide';
 import type { FinderMessage, RemoteMessage, RemoteRole, RemoteSite, ScreenMessage } from './remote-link';
 import { alignmentKey, decodePairingCode, encodePairingCode, parseMessage, toRemoteEntry } from './remote-link';
 import { SensorService } from './sensor.service';
+import { isDataMessage } from './sync/link-sync';
+import type { DataMessage } from './sync/link-sync';
 
 /**
  * Where the link is:
@@ -73,6 +75,9 @@ export class RemoteService {
    * here before it can follow. The finder's band then offers it.
    */
   readonly fullscreenWanted = signal(false);
+
+  /** Takes the user's data from the other phone: link sync (sync/link-sync.service.ts) sets it. */
+  dataHandler: ((message: DataMessage) => void) | null = null;
 
   private connection: RTCPeerConnection | null = null;
   private channel: RTCDataChannel | null = null;
@@ -341,6 +346,11 @@ export class RemoteService {
       if (this.status() === 'paused') this.startLinkedMode();
       return;
     }
+    // The user's data, for link sync, only while the phones work as one.
+    if (isDataMessage(message)) {
+      if (this.status() === 'connected') this.dataHandler?.(message);
+      return;
+    }
     // Paused, each phone works on its own, so nothing else from the other one counts.
     if (this.status() !== 'connected') return;
     if (this.role() === 'screen') this.receiveAsScreen(message as FinderMessage);
@@ -456,6 +466,11 @@ export class RemoteService {
       solving: this.state.plateSolving(),
       steering: this.state.sensorsActive(),
     });
+  }
+
+  /** Sends the user's data to the other phone, for link sync, while the phones work as one. */
+  sendData(message: DataMessage): void {
+    if (this.status() === 'connected') this.send(message);
   }
 
   /** Sends a message to the other phone: poses on their own channel while it is open. */

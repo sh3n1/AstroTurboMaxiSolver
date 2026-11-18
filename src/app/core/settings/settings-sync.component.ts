@@ -1,9 +1,11 @@
 import { Component, computed, inject } from '@angular/core';
-import { IonIcon, IonItem, IonLabel, IonList, IonListHeader, ToastController } from '@ionic/angular';
+import { IonIcon, IonItem, IonLabel, IonList, IonListHeader, IonToggle, ToastController } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { cloudOutline, logOutOutline, syncOutline } from 'ionicons/icons';
+import { cloudOutline, logOutOutline, phonePortraitOutline, syncOutline } from 'ionicons/icons';
 
+import { AppState } from '../app-state.service';
 import { listToastPlace } from '../list-toast';
+import { LinkSyncService } from '../sync/link-sync.service';
 import { SyncService } from '../sync/sync.service';
 
 import { SETTINGS_SECTION_STYLES } from './settings-styles';
@@ -11,7 +13,7 @@ import { SETTINGS_SECTION_STYLES } from './settings-styles';
 /** Syncing the log, lists and kit through the user's Google Drive, as a section of Settings. */
 @Component({
   selector: 'app-settings-sync',
-  imports: [IonIcon, IonItem, IonLabel, IonList, IonListHeader],
+  imports: [IonIcon, IonItem, IonLabel, IonList, IonListHeader, IonToggle],
   styles: [SETTINGS_SECTION_STYLES],
   template: `
     <ion-list inset="true" id="sync" data-testid="sync">
@@ -46,11 +48,31 @@ import { SETTINGS_SECTION_STYLES } from './settings-styles';
           </ion-label>
         </ion-item>
       }
+      <!-- Straight between two phones linked in Two phones, with no drive. Both must have it on. -->
+      <ion-item>
+        <ion-icon slot="start" name="phone-portrait-outline" aria-hidden="true"></ion-icon>
+        <ion-toggle
+          data-testid="link-sync"
+          [checked]="state.settings().linkSync"
+          (ionChange)="state.updateSettings({ linkSync: $any($event).detail.checked })"
+        >
+          Sync with the linked phone
+        </ion-toggle>
+      </ion-item>
+      @if (linkSync.active()) {
+        <ion-item lines="none">
+          <ion-label class="ion-text-wrap">
+            <p class="good" data-testid="link-sync-active">Syncing with the linked phone</p>
+          </ion-label>
+        </ion-item>
+      }
     </ion-list>
   `,
 })
 export class SettingsSyncComponent {
   protected readonly sync = inject(SyncService);
+  protected readonly linkSync = inject(LinkSyncService);
+  protected readonly state = inject(AppState);
   private readonly toasts = inject(ToastController);
 
   /** Where sync stands, in a few words. */
@@ -86,7 +108,7 @@ export class SettingsSyncComponent {
   }
 
   constructor() {
-    addIcons({ cloudOutline, logOutOutline, syncOutline });
+    addIcons({ cloudOutline, logOutOutline, phonePortraitOutline, syncOutline });
   }
 }
 
