@@ -111,6 +111,8 @@ test('has a landing page at the root, for people and search engines, leading to 
     'AstroTurboMaxiSolver',
   );
   await expect(page.getByText('personal project')).toBeVisible();
+  // The GPL needs the source code to be reachable from where the app is published.
+  await expect(page.locator('a.source-link')).toHaveAttribute('href', /^https:\/\/github\.com\//);
   for (const image of await page.locator('img').all()) {
     expect((await request.get(new URL((await image.getAttribute('src'))!, page.url()).pathname)).ok()).toBe(true);
   }
