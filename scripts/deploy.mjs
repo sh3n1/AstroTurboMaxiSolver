@@ -20,6 +20,8 @@ const CONFIG_FILE = 'deploy.local.json';
 const DEFAULT_TARGET = 'dev';
 /** Targets that ask before publishing. */
 const CONFIRMED_TARGETS = ['prod'];
+/** The branch that holds released versions, the only one production gets. */
+const RELEASE_BRANCH = 'main';
 
 /** Runs a command in this folder, showing its output, and stops everything if it fails. */
 function run(title, command, env = {}) {
@@ -49,6 +51,25 @@ const name = process.argv[2] ?? DEFAULT_TARGET;
 const target = config[name];
 if (!target?.command) {
   stop(`${CONFIG_FILE} has no "${name}" target with a "command". Targets there: ${Object.keys(config).join(', ')}.`);
+}
+
+/** The output of a git command, trimmed, or '' if it fails. */
+function git(args) {
+  const { stdout, status } = spawnSync('git', args, { encoding: 'utf8' });
+  return status === 0 ? stdout.trim() : '';
+}
+
+// Production only gets released versions: the release branch, committed and pushed, so the
+// source of every public version is public too, as the GPL requires.
+if (name === 'prod') {
+  if (git(['branch', '--show-current']) !== RELEASE_BRANCH) {
+    stop(`Production is published only from ${RELEASE_BRANCH}. Merge develop into it and check it out first.`);
+  }
+  if (git(['status', '--porcelain'])) stop('There are uncommitted changes. Commit them, or set them aside, first.');
+  run('Fetch the public repository', 'git fetch --quiet origin');
+  if (git(['rev-parse', 'HEAD']) !== git(['rev-parse', `origin/${RELEASE_BRANCH}`])) {
+    stop(`${RELEASE_BRANCH} isn't the same as on the public repository. Push it (or pull) first.`);
+  }
 }
 
 if (CONFIRMED_TARGETS.includes(name)) {

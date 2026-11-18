@@ -143,7 +143,9 @@ Keep on-screen text short. Don't over-explain: say what matters in a few words, 
 
 ## Git
 
-- Branching: `main` plus short-lived feature branches
+- Branching:
+  - `develop` is where work goes, published to the private dev copy. Short-lived feature branches start from it and merge back into it.
+  - `main` holds only released versions, published to production. A release merges `develop` into `main`, and production can only be published from `main`, pushed to the public repository.
 - Commit messages: Short and imperative
 
 ## Boundaries
@@ -159,4 +161,4 @@ Agents must never:
 
 - Add code or data whose licence isn't compatible with GPL-3.0-only, except data kept apart as aggregate data (see Licence)
 - Commit secrets
-- Force-push `main`
+- Force-push `main` or `develop`
