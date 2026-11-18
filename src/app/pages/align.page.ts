@@ -24,18 +24,18 @@ import {
 import { addIcons } from 'ionicons';
 import { checkmark, checkmarkCircleOutline, locateOutline, refresh, timeOutline, trashOutline } from 'ionicons/icons';
 
-import { cameraOffset, offsetAngleDeg, suggestAlignmentStars } from '../core/alignment';
+import { cameraOffset, offsetAngleDeg, suggestAlignmentStars } from '../core/alignment/alignment';
 import type { AlignmentMethod } from '../core/app-state.service';
 import { AppState } from '../core/app-state.service';
-import type { Horizontal } from '../core/astronomy';
-import { compassPoint } from '../core/astronomy';
-import { rearCameraDirection } from '../core/attitude';
-import { cameraPointing } from '../core/device-orientation';
-import { LiveSolverService } from '../core/live-solver.service';
+import type { Horizontal } from '../core/astronomy/astronomy';
+import { compassPoint } from '../core/astronomy/astronomy';
+import type { Target } from '../core/catalog/targets';
 import { LocalTimePipe } from '../core/local-time.pipe';
-import { isShutterPress } from '../core/shutter-remote';
-import { alignmentStarLimit } from '../core/sky-quality';
-import type { Target } from '../core/targets';
+import { rearCameraDirection } from '../core/sensors/attitude';
+import { cameraPointing } from '../core/sensors/device-orientation';
+import { isShutterPress } from '../core/sensors/shutter-remote';
+import { alignmentStarLimit } from '../core/sky-conditions/sky-quality';
+import { LiveSolverService } from '../core/solver/live-solver.service';
 
 type Step = 'choose' | 'centre' | 'solving' | 'failed' | 'done';
 

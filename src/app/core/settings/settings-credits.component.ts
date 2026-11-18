@@ -3,7 +3,7 @@ import { IonIcon, IonItem, IonLabel, IonList } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import { openOutline } from 'ionicons/icons';
 
-import { RESERVED_LISTS } from '../target-lists';
+import { RESERVED_LISTS } from '../lists/target-lists';
 
 import { SETTINGS_SECTION_STYLES } from './settings-styles';
 

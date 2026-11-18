@@ -67,10 +67,26 @@ Before finishing a change, run: `npm run lint`, `npm run test:unit` and `npm run
 - `src/app/` - application code
 - `e2e/` - Playwright tests
 - `spikes/` - feasibility experiments, not part of the app build
-- `src/app/core/` - shared state, astronomy maths and shared components
-- `src/app/pages/` - one file per tab
-- `src/app/core/sky-map/` - the sky map: its canvas component, and its drawing, star data, gestures and look as plain code
-- `src/app/core/settings/` - sections of the Settings page, each its own component
+- `src/app/pages/` - one file per page
+- `src/app/core/` - everything the pages share, in one folder per feature. Only the app-wide state (`app-state.service.ts`), icons, theme colours and the local time pipe sit at its top. A new file goes in the folder of its feature, with its spec beside it; add a folder only when no existing one fits.
+  - `alignment/` - telescope alignment and syncs
+  - `astronomy/` - sky positions and projections, the planets, Moon and asteroids, double stars
+  - `catalog/` - the targets: loading and joining the catalogue files, searching, names, details and icons
+  - `dev-tools/` - the device test and the clear-sky test, for development
+  - `equipment/` - telescopes, eyepieces and the rest of the kit
+  - `lists/` - the user's lists, the shared list view, the playlist; `lists/programs/` holds the observing programmes' lists
+  - `log/` - the observing log and its export
+  - `planning/` - tonight's visibility and the planning chart
+  - `platform/` - the browser's features: install, updates, full screen, screen wake, permissions and sounds
+  - `remote/` - the two-phone link
+  - `sensors/` - sensor fusion and the phone's orientation
+  - `settings/` - sections of the Settings page, each its own component
+  - `sky-conditions/` - weather forecast, seeing, sky brightness and how faint the eye and telescope reach
+  - `sky-map/` - the sky map: its canvas component, and its drawing, star data, gestures and look as plain code
+  - `sky-page/` - the parts around the sky map on the home page: target bar, details, menu, time control, eyepiece panel, reticle and guidance
+  - `solver/` - star detection, plate solving, its worker and the camera
+  - `storage/` - the database on the device and its sync-ready records
+  - `sync/` - device sync through the user's cloud storage or the two-phone link
 - `src/assets/data/` - generated star and target data, built by the scripts in `scripts/`
 - `src/assets/data/aggregate/` - data under its own licence, not the GPL, one folder per source (see Licence)
 - `src/landing/` - the landing page: plain HTML, CSS and pictures, copied to the root of `www/` by the build
@@ -98,13 +114,13 @@ Before finishing a change, run: `npm run lint`, `npm run test:unit` and `npm run
 - **Live plate solving:** `live-solver.service.ts` solves in a Web Worker whenever sensors are on and the phone is still, then corrects the sensors and learns the compass error.
 - **Sky darkness:** the Bortle class is set from the location with the light pollution atlas in `src/assets/data/aggregate/falchi/` (`sky-brightness.service.ts`), only the 10° tile for the location being downloaded. Auto is the default, and choosing a class by hand in Settings turns it off. Without the atlas the class is chosen by hand.
 - **Two phones:** one phone can be the finder on the telescope (sensors and plate solving) and another the screen in the hand, linked by WebRTC after swapping QR codes, with no server. Alignment and tap-to-solve work from the screen. See `docs/two-phones.md`.
-- **Sensor fusion approach:** A complementary filter in `src/app/core/attitude.ts`. The gyroscope follows movement, and compass-based orientation slowly corrects drift. Plate solves will correct it when the phone is still. Treat the compass as a coarse hint only. Phones report magnetic headings, so `sensor.service.ts` turns them to true north with the World Magnetic Model (the `geomagnetism` library, Apache-2.0) once a location is set.
+- **Sensor fusion approach:** A complementary filter in `src/app/core/sensors/attitude.ts`. The gyroscope follows movement, and compass-based orientation slowly corrects drift. Plate solves will correct it when the phone is still. Treat the compass as a coarse hint only. Phones report magnetic headings, so `sensor.service.ts` turns them to true north with the World Magnetic Model (the `geomagnetism` library, Apache-2.0) once a location is set.
 - **Coordinate systems and units:** Catalogue positions are J2000. `astronomy-engine` converts them to the local sky, including precession. Angles are in degrees, and azimuth runs from north through east. Local positions include atmospheric refraction (astronomy-engine's `normal` model): `toApparent`, `refract` and `unrefract` in `astronomy.ts` convert between real and apparent directions.
 - **Accuracy and performance targets:** Target within 0.5° of centre, so it lands in a low-power eyepiece field. About 2 s to solve on a still phone using the sensor hint. Live sensor updates while moving. Revisit after the feasibility spikes.
 
 ## Visual design
 
-The app has its own look, not a copy of other astronomy apps. Other apps may inform what is useful, but not how it looks. The reticle is three plain rings at 0.5°, 2° and 4°. Its rings fade in and out while plate solving. The selected target is marked by a crosshair of four short rounded strokes with a gap in the middle, in the same green the rings turn when on target. The selected object keeps its own colour, such as yellow for planets. Guidance is a trail of fading chevrons with a dashed guide line, in light blue. Galaxies, nebulae, the planets, Pluto, Ceres, the bright asteroids and the Moon have the app's own line icons, in `src/app/core/target-icons.ts`. The Moon and Venus show their current phase, turned towards the Sun on the map. Avoid orange guidance, which other apps use. The chevrons spread further apart the farther away the target is.
+The app has its own look, not a copy of other astronomy apps. Other apps may inform what is useful, but not how it looks. The reticle is three plain rings at 0.5°, 2° and 4°. Its rings fade in and out while plate solving. The selected target is marked by a crosshair of four short rounded strokes with a gap in the middle, in the same green the rings turn when on target. The selected object keeps its own colour, such as yellow for planets. Guidance is a trail of fading chevrons with a dashed guide line, in light blue. Galaxies, nebulae, the planets, Pluto, Ceres, the bright asteroids and the Moon have the app's own line icons, in `src/app/core/catalog/target-icons.ts`. The Moon and Venus show their current phase, turned towards the Sun on the map. Avoid orange guidance, which other apps use. The chevrons spread further apart the farther away the target is.
 
 The layout works like a car's navigation screen, since the phone is often on the telescope: the sky map is home, with no tab bar. The map shows no buttons until it is tapped. A tap on the map, away from the rings, opens the menu: big tiles with words over the bottom of the map (sensors, view, Lists, alignment, night, time, full screen, two phones, Settings), with the zoom buttons top right. Another tap on the map closes both, and they go by themselves after a while without a touch. Lists and Settings open full screen, with an arrow back to the map. Searching every target is part of Lists. Tapping a target in any list plays that list on the map, like a music playlist, with buttons to the next and previous target above the horizon (`playlist.service.ts`). Keep it working in portrait and landscape.
 

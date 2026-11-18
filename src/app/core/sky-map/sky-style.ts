@@ -2,8 +2,8 @@
 // which stars and labels a view is wide or narrow enough for. Plain values and functions,
 // shared by the drawing code and the sky page, so they can be tested without the app.
 
-import type { Vector3 } from '../astronomy';
-import type { Target } from '../targets';
+import type { Vector3 } from '../astronomy/astronomy';
+import type { Target } from '../catalog/targets';
 import { THEME } from '../theme';
 
 /**

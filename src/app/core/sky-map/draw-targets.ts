@@ -2,13 +2,13 @@
 // and labels, the crosshair on the selected one, the reticle's rings, and the guidance from
 // the rings to the target. Plain functions that keep nothing between frames: see Frame.
 
-import type { Vector3 } from '../astronomy';
-import { equatorialVector, stereographicRadius, toApparent } from '../astronomy';
-import { designations } from '../designations';
-import { chevronSpacingPx } from '../reticle';
-import type { IconPath } from '../target-icons';
-import { DISC_RADIUS, ICON_DASH, ICON_GRID, phaseIcon, targetIcon } from '../target-icons';
-import type { Target } from '../targets';
+import type { Vector3 } from '../astronomy/astronomy';
+import { equatorialVector, stereographicRadius, toApparent } from '../astronomy/astronomy';
+import { designations } from '../catalog/designations';
+import type { IconPath } from '../catalog/target-icons';
+import { DISC_RADIUS, ICON_DASH, ICON_GRID, phaseIcon, targetIcon } from '../catalog/target-icons';
+import type { Target } from '../catalog/targets';
+import { chevronSpacingPx } from '../sky-page/reticle';
 
 import type { Frame } from './draw-sky';
 import { drawLabel, font, overlaps } from './draw-sky';

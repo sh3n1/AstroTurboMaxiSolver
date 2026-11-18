@@ -1,0 +1,41 @@
+// Messages between the page and the solver worker.
+
+import type { Vector3 } from '../astronomy/astronomy';
+
+import type { SolveHint } from './plate-solver';
+import type { DetectedStar } from './star-detector';
+
+export type SolveRequest =
+  | { type: 'init'; starRows: number[][] }
+  | {
+      type: 'solve';
+      id: number;
+      pixels: Float32Array;
+      width: number;
+      height: number;
+      focalPx: number;
+      hint: SolveHint | null;
+      timeLimitMs: number;
+    };
+
+export interface SolveResponse {
+  id: number;
+  starCount: number;
+  /** The stars found, brightest first, for debugging reports. */
+  stars: DetectedStar[];
+  /** Median sky brightness and noise, on the image's 0 to 255 scale. */
+  background: number;
+  noise: number;
+  /** How long finding stars and solving took, in milliseconds. */
+  detectMs: number;
+  solveMs: number;
+  solution: {
+    raDeg: number;
+    decDeg: number;
+    matched: number;
+    checked: number;
+    focalPx: number;
+    /** Where the image's x (right), y (down) and z (forward) axes point, in J2000. */
+    axes: [Vector3, Vector3, Vector3];
+  } | null;
+}

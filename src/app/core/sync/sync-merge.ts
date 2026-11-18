@@ -4,8 +4,8 @@
 // record remembers the revisions it replaced (SyncMeta.history), which tells a newer version
 // from an older one, and both from two edits made apart. The design is in docs/sync-plan.md.
 
-import { revId } from '../sync-record';
-import type { Synced } from '../sync-record';
+import { revId } from '../storage/sync-record';
+import type { Synced } from '../storage/sync-record';
 
 /** Any synced record: its content is only known to have an id. */
 export type AnyRecord = Synced<{ id: string }>;

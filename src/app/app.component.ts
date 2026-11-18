@@ -1,11 +1,11 @@
 import { Component, inject } from '@angular/core';
 import { IonApp, IonRouterOutlet } from '@ionic/angular';
 
-import { InstallService } from './core/install.service';
-import { ScreenWakeService } from './core/screen-wake.service';
-import { SkyBrightnessService } from './core/sky-brightness.service';
+import { InstallService } from './core/platform/install.service';
+import { ScreenWakeService } from './core/platform/screen-wake.service';
+import { UpdateService } from './core/platform/update.service';
+import { SkyBrightnessService } from './core/sky-conditions/sky-brightness.service';
 import { LinkSyncService } from './core/sync/link-sync.service';
-import { UpdateService } from './core/update.service';
 
 @Component({
   selector: 'app-root',

@@ -25,8 +25,8 @@ import {
 } from 'ionicons/icons';
 
 import { AppState } from '../app-state.service';
-import { LiveSolverService } from '../live-solver.service';
 import { LocalTimePipe } from '../local-time.pipe';
+import { LiveSolverService } from '../solver/live-solver.service';
 
 import { SETTINGS_SECTION_STYLES } from './settings-styles';
 

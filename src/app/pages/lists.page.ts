@@ -35,9 +35,9 @@ import {
 } from 'ionicons/icons';
 
 import { isIconUrl } from '../core/app-icons';
-import { ListsService } from '../core/lists.service';
-import { ObservingLogService } from '../core/observing-log.service';
-import { fixedListEntries } from '../core/target-lists';
+import { ListsService } from '../core/lists/lists.service';
+import { fixedListEntries } from '../core/lists/target-lists';
+import { ObservingLogService } from '../core/log/observing-log.service';
 
 /**
  * Lists, opened from the sky map: a search of every target first, then tonight's

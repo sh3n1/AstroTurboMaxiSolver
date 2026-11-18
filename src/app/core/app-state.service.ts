@@ -1,7 +1,7 @@
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
 
-import type { AlignmentSync } from './alignment-sync';
-import type { Horizontal, Vector3 } from './astronomy';
+import type { AlignmentSync } from './alignment/alignment-sync';
+import type { Horizontal, Vector3 } from './astronomy/astronomy';
 import {
   equatorialToHorizontal,
   horizontalVector,
@@ -13,11 +13,14 @@ import {
   skyRotation,
   solarSystemPosition,
   sunPosition,
-} from './astronomy';
-import { joinCaldwell } from './caldwell';
-import type { CaptureMode } from './camera';
-import { CatalogLoaderService } from './catalog-loader.service';
-import type { KitItem, KitKind, KitRecord, KitSelection } from './equipment';
+} from './astronomy/astronomy';
+import { MINOR_PLANETS, minorPlanet } from './astronomy/minor-planets';
+import { joinCaldwell } from './catalog/caldwell';
+import { CatalogLoaderService } from './catalog/catalog-loader.service';
+import { EXTRA_TARGETS } from './catalog/extra-targets';
+import type { Target, TargetKind } from './catalog/targets';
+import { PHASED_BODIES, SOLAR_SYSTEM_BODIES } from './catalog/targets';
+import type { KitItem, KitKind, KitRecord, KitSelection } from './equipment/equipment';
 import {
   DEFAULT_SELECTION,
   activeEquipment,
@@ -27,19 +30,16 @@ import {
   kitFromRecords,
   newKitId,
   resolveSelection,
-} from './equipment';
-import { EXTRA_TARGETS } from './extra-targets';
-import { LocalDb } from './local-db';
-import { MINOR_PLANETS, minorPlanet } from './minor-planets';
-import { LOCATION_BLOCKED, isPermissionDenied } from './permission-help';
-import { telescopeLimit } from './sky-quality';
-import { settingsWithoutKit } from './storage-migration';
-import { contentOf } from './sync-record';
-import { SyncedStore } from './synced-store';
-import type { Target, TargetKind } from './targets';
-import { PHASED_BODIES, SOLAR_SYSTEM_BODIES } from './targets';
+} from './equipment/equipment';
+import { LOCATION_BLOCKED, isPermissionDenied } from './platform/permission-help';
+import { telescopeLimit } from './sky-conditions/sky-quality';
+import type { CaptureMode } from './solver/camera';
+import { LocalDb } from './storage/local-db';
+import { settingsWithoutKit } from './storage/storage-migration';
+import { contentOf } from './storage/sync-record';
+import { SyncedStore } from './storage/synced-store';
 
-export type { TelescopeType } from './equipment';
+export type { TelescopeType } from './equipment/equipment';
 export type TextSize = 'standard' | 'large' | 'extra-large';
 
 /** How much larger than standard each text size is. */

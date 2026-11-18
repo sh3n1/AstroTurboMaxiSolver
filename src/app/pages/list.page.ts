@@ -32,14 +32,14 @@ import {
 import { map } from 'rxjs';
 
 import { AppState } from '../core/app-state.service';
-import { ListRowsComponent } from '../core/list-rows.component';
-import { ListToolsComponent } from '../core/list-tools.component';
-import { ListViewService } from '../core/list-view.service';
-import { ListsService } from '../core/lists.service';
-import { ObservingLogService } from '../core/observing-log.service';
-import { programFor } from '../core/observing-programs';
-import { ProgramCardComponent } from '../core/program-card.component';
-import { exportFileName, exportLists } from '../core/target-lists';
+import { ListRowsComponent } from '../core/lists/list-rows.component';
+import { ListToolsComponent } from '../core/lists/list-tools.component';
+import { ListViewService } from '../core/lists/list-view.service';
+import { ListsService } from '../core/lists/lists.service';
+import { programFor } from '../core/lists/observing-programs';
+import { ProgramCardComponent } from '../core/lists/program-card.component';
+import { exportFileName, exportLists } from '../core/lists/target-lists';
+import { ObservingLogService } from '../core/log/observing-log.service';
 
 /**
  * One list of targets: a catalogue, a collection or one of the user's own. It has the same

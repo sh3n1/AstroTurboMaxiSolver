@@ -2,7 +2,7 @@ import type { AfterViewInit, ElementRef, OnDestroy } from '@angular/core';
 import { Component, computed, effect, inject, input, model, output, viewChild } from '@angular/core';
 
 import { AppState } from '../app-state.service';
-import type { Horizontal } from '../astronomy';
+import type { Horizontal } from '../astronomy/astronomy';
 import {
   equatorialToHorizontal,
   horizontalVector,
@@ -12,14 +12,19 @@ import {
   stereographicRadius,
   toViewCoordinates,
   viewBasis,
-} from '../astronomy';
-import { RETICLE_RINGS_DEG, guideAngleDeg, pulseOpacity } from '../reticle';
-import { sideways } from '../sideways';
-import { TargetGuidanceService } from '../target-guidance.service';
-import type { Target } from '../targets';
-import type { ClearSpan } from '../view-layout';
-import { EYEPIECE_VIEW_SCALE, viewLayout } from '../view-layout';
-import { EYEPIECE_SMOOTHING_MS, SKY_MAP_SMOOTHING_MS, smoothPointing, smoothingFactor } from '../view-smoothing';
+} from '../astronomy/astronomy';
+import type { Target } from '../catalog/targets';
+import { sideways } from '../sensors/sideways';
+import {
+  EYEPIECE_SMOOTHING_MS,
+  SKY_MAP_SMOOTHING_MS,
+  smoothPointing,
+  smoothingFactor,
+} from '../sensors/view-smoothing';
+import { RETICLE_RINGS_DEG, guideAngleDeg, pulseOpacity } from '../sky-page/reticle';
+import { TargetGuidanceService } from '../sky-page/target-guidance.service';
+import type { ClearSpan } from '../sky-page/view-layout';
+import { EYEPIECE_VIEW_SCALE, viewLayout } from '../sky-page/view-layout';
 
 import type { Frame } from './draw-sky';
 import {

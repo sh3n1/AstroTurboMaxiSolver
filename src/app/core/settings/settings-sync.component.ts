@@ -4,7 +4,7 @@ import { addIcons } from 'ionicons';
 import { cloudOutline, logOutOutline, phonePortraitOutline, syncOutline } from 'ionicons/icons';
 
 import { AppState } from '../app-state.service';
-import { listToastPlace } from '../list-toast';
+import { listToastPlace } from '../lists/list-toast';
 import { LinkSyncService } from '../sync/link-sync.service';
 import { SyncService } from '../sync/sync.service';
 

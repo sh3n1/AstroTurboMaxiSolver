@@ -8,7 +8,7 @@
 // Nothing here knows which drive is used, or the database: both come in through the small
 // interfaces below, so the whole sync is tested with in-memory stand-ins.
 
-import { contentHash, contentOf } from '../sync-record';
+import { contentHash, contentOf } from '../storage/sync-record';
 
 import type { AnyRecord } from './sync-merge';
 

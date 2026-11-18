@@ -43,7 +43,7 @@ App code and the star and target data are in the service worker cache (`ngsw-con
 for offline start. They aren't user data.
 
 IndexedDB is used through [Dexie](https://dexie.org) 4 (Apache-2.0). The database is called
-`astroturbomaxisolver` and its schema is in `src/app/core/local-db.ts`.
+`astroturbomaxisolver` and its schema is in `src/app/core/storage/local-db.ts`.
 
 ## How the app uses it
 
@@ -65,7 +65,7 @@ IndexedDB is used through [Dexie](https://dexie.org) 4 (Apache-2.0). The databas
 ## Records
 
 Every record holds its content and the same bookkeeping (`SyncMeta` in
-`src/app/core/sync-record.ts`):
+`src/app/core/storage/sync-record.ts`):
 
 | Field | Meaning |
 | --- | --- |
@@ -137,7 +137,7 @@ edited or deleted later. The ids let observations be found by telescope or eyepi
 ## Moving from localStorage
 
 On the first start with the database, `LocalDb` moves the old data in one transaction
-(`src/app/core/storage-migration.ts`). Each part has its own flag in `meta`, so it moves once:
+(`src/app/core/storage/storage-migration.ts`). Each part has its own flag in `meta`, so it moves once:
 
 - `migratedFromLocalStorage` covers `astroturbomaxisolver.log`, `astroturbomaxisolver.lists` and the older
   `astroturbomaxisolver.plan`. Their keys are removed only after the transaction commits.

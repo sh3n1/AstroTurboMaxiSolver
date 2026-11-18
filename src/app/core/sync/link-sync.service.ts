@@ -6,9 +6,9 @@ import { computed, effect, inject, Injectable, signal, untracked } from '@angula
 import { liveQuery } from 'dexie';
 
 import { AppState } from '../app-state.service';
-import { LocalDb } from '../local-db';
-import { RemoteService } from '../remote.service';
-import { revId } from '../sync-record';
+import { RemoteService } from '../remote/remote.service';
+import { LocalDb } from '../storage/local-db';
+import { revId } from '../storage/sync-record';
 
 import type { DataMessage } from './link-sync';
 import { manifestMessages, receivedChanges, recordKey, recordMessages, recordsToSend } from './link-sync';

@@ -3,8 +3,8 @@ import { Component, ElementRef, effect, inject, signal, viewChild } from '@angul
 import { IonTabBar, IonTabButton, IonTabs } from '@ionic/angular';
 
 import { AppState } from '../core/app-state.service';
-import { FinderBandComponent } from '../core/finder-band.component';
-import { TimeControlComponent } from '../core/time-control.component';
+import { FinderBandComponent } from '../core/sky-page/finder-band.component';
+import { TimeControlComponent } from '../core/sky-page/time-control.component';
 
 /**
  * The app's main pages. The sky map is home, as in a car's navigation screen: there is no

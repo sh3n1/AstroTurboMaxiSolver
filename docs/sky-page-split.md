@@ -31,9 +31,9 @@ New folder `src/app/core/sky-map/`.
 | `sky-map/draw-sky.ts` | `drawGrid`, `drawHorizon`, `drawStars`, `drawConstellationLines`, `drawConstellationNames`, `drawLabel`, `drawCurve`. | ~300 |
 | `sky-map/draw-targets.ts` | `drawTargets`, `drawTargetMarker`, `drawEyepieceGuide`, `drawChevrons`, the icon path cache. | ~350 |
 | `sky-map/map-gestures.ts` | Pointers, tap or drag or pinch, wheel. It calls back with `tap`, `dragTo`, `zoomTo`. | ~130 |
-| `core/pointing-readout.component.ts` | The top-left readout, with its styles. | ~90 |
-| `core/eyepiece-panel.component.ts` | The eyepiece panel, with its styles and the star limit and equipment actions. | ~300 |
-| `core/target-bar.component.ts` | The target bar, with its styles and the log, clear and aim actions. | ~300 |
+| `core/sky-page/pointing-readout.component.ts` | The top-left readout, with its styles. | ~90 |
+| `core/sky-page/eyepiece-panel.component.ts` | The eyepiece panel, with its styles and the star limit and equipment actions. | ~300 |
+| `core/sky-page/target-bar.component.ts` | The target bar, with its styles and the log, clear and aim actions. | ~300 |
 | `pages/sky.page.ts` | What is left: the canvas, the view mode, the layout, the draw loop, the menu and zoom. | ~500 |
 
 The drawing functions are plain functions. Each takes the canvas context and one `Frame`
@@ -92,7 +92,7 @@ from the page's stage, its host's parent. The page watches the dock's size and a
 canvas to redraw.
 
 Two more things changed from the plan: the styles went to `sky.page.css`, and
-`core/target-guidance.service.ts` holds how far the target is and which way to move, shared
+`core/sky-page/target-guidance.service.ts` holds how far the target is and which way to move, shared
 by the map and the target bar.
 
 One thing changed in behaviour: the target bar now owns whether its details are open, so

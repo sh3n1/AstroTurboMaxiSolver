@@ -14,10 +14,10 @@ import { addIcons } from 'ionicons';
 import { add, createOutline, trashOutline } from 'ionicons/icons';
 
 import { AppState } from '../app-state.service';
-import type { KitItem, KitKind } from '../equipment';
-import { kitItemDetail, kitItemLabel } from '../equipment';
-import { EquipmentEditorComponent } from '../equipment-editor.component';
-import { listToastPlace } from '../list-toast';
+import type { KitItem, KitKind } from '../equipment/equipment';
+import { kitItemDetail, kitItemLabel } from '../equipment/equipment';
+import { EquipmentEditorComponent } from '../equipment/equipment-editor.component';
+import { listToastPlace } from '../lists/list-toast';
 
 import { SETTINGS_SECTION_STYLES } from './settings-styles';
 

@@ -10,9 +10,9 @@ import { join } from 'node:path';
 
 import { test } from 'vitest';
 
-import { FOCAL_SHARE_OF_LONG_SIDE } from '../../src/app/core/camera';
-import { buildSolverIndex, catalogFromRows, solveFrame } from '../../src/app/core/plate-solver';
-import { detectStars } from '../../src/app/core/star-detector';
+import { FOCAL_SHARE_OF_LONG_SIDE } from '../../src/app/core/solver/camera';
+import { buildSolverIndex, catalogFromRows, solveFrame } from '../../src/app/core/solver/plate-solver';
+import { detectStars } from '../../src/app/core/solver/star-detector';
 
 const FOLDER = 'device-reports';
 

@@ -4,8 +4,8 @@
 
 import type { Table } from 'dexie';
 
-import type { AstroTurboMaxiSolverDb } from '../local-db';
-import { revId } from '../sync-record';
+import type { AstroTurboMaxiSolverDb } from '../storage/local-db';
+import { revId } from '../storage/sync-record';
 
 import type { Change, RecordType, SyncLocal } from './sync-engine';
 import { RECORD_TYPES } from './sync-engine';

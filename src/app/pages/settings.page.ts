@@ -41,17 +41,17 @@ import {
 import { APP_ICONS } from '../core/app-icons';
 import { AppState } from '../core/app-state.service';
 import type { Settings } from '../core/app-state.service';
-import { formatLocation } from '../core/astronomy';
-import { PermissionsService } from '../core/permissions.service';
-import { RemoteService } from '../core/remote.service';
-import { ScreenWakeService } from '../core/screen-wake.service';
+import { formatLocation } from '../core/astronomy/astronomy';
+import { PermissionsService } from '../core/platform/permissions.service';
+import { ScreenWakeService } from '../core/platform/screen-wake.service';
+import { SoundService } from '../core/platform/sound.service';
+import { RemoteService } from '../core/remote/remote.service';
 import { SettingsAboutComponent } from '../core/settings/settings-about.component';
 import { SETTINGS_ROW_STYLES } from '../core/settings/settings-styles';
 import { SettingsSyncComponent } from '../core/settings/settings-sync.component';
 import { SettingsTestingComponent } from '../core/settings/settings-testing.component';
-import { SkyBrightnessService } from '../core/sky-brightness.service';
-import { BORTLE_CLASSES } from '../core/sky-quality';
-import { SoundService } from '../core/sound.service';
+import { SkyBrightnessService } from '../core/sky-conditions/sky-brightness.service';
+import { BORTLE_CLASSES } from '../core/sky-conditions/sky-quality';
 import { SyncService } from '../core/sync/sync.service';
 
 type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
