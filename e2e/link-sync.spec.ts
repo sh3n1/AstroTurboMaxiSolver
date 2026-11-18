@@ -4,7 +4,7 @@ import { devices, expect, test } from '@playwright/test';
 import { openPage } from './navigation';
 
 // Link sync: two phones linked in Two phones sync their lists straight over the link, only
-// once both have "Sync with the linked phone" on. Two phones are two browsers here, linked by
+// once both have "Sync over Two phones link" on. Two phones are two browsers here, linked by
 // real WebRTC on this machine, with the codes pasted rather than scanned.
 
 /** The code a phone shows as a QR code. */

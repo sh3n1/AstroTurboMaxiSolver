@@ -56,13 +56,13 @@ import { SETTINGS_SECTION_STYLES } from './settings-styles';
           [checked]="state.settings().linkSync"
           (ionChange)="state.updateSettings({ linkSync: $any($event).detail.checked })"
         >
-          Sync with the linked phone
+          Sync over Two phones link
         </ion-toggle>
       </ion-item>
       @if (linkSync.active()) {
         <ion-item lines="none">
           <ion-label class="ion-text-wrap">
-            <p class="good" data-testid="link-sync-active">Syncing with the linked phone</p>
+            <p class="good" data-testid="link-sync-active">Syncing over Two phones link</p>
           </ion-label>
         </ion-item>
       }

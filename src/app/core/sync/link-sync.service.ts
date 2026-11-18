@@ -1,5 +1,5 @@
 // Runs link sync (link-sync.ts): the user's log, lists and kit, synced straight between two
-// phones linked for Two phones, when both have "Sync with the linked phone" on in Settings.
+// phones linked for Two phones, when both have "Sync over Two phones link" on in Settings.
 // The link itself is RemoteService's; this only uses its data hooks.
 
 import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
