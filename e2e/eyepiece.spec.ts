@@ -80,12 +80,15 @@ test('sets star visibility and equipment in the eyepiece view', async ({ page })
   await page.getByTestId('pick-modifier').filter({ hasText: '2× Barlow' }).click();
   await expect(toggle).toContainText('200/1000 · 10 mm · 2× Barlow · 200×');
 
-  // Deleting the telescope in use goes back to the first, and Undo brings it back.
+  // Deleting the telescope in use goes back to the first, and Undo brings it back. The
+  // equipment has a page of its own in Settings.
   await openPage(page, 'Settings');
+  await page.getByTestId('open-equipment').click();
   await page.getByRole('button', { name: 'Delete 200/1000' }).click();
   await openPage(page, 'Sky');
   await expect(label).toContainText('12.1');
   await openPage(page, 'Settings');
+  await page.getByTestId('open-equipment').click();
   await page.getByTestId('kit-deleted-toast').getByRole('button', { name: 'Undo' }).click();
   await openPage(page, 'Sky');
   await expect(label).toContainText('13.1');
@@ -102,7 +105,7 @@ test('turns the telescope and eyepieces saved before the kit existed into its fi
       JSON.stringify({ ...old, eyepieceFocalMm: 10, recentEquipment: [{ ...old, eyepieceFocalMm: 25 }] }),
     );
   });
-  await page.goto('/tabs/settings');
+  await page.goto('/tabs/settings/equipment');
   await expect(page.getByTestId('kit-item')).toHaveText([/102\/900/, /25 mm/, /10 mm/]);
   await openPage(page, 'Sky');
   await tapMore(page, 'view-mode');

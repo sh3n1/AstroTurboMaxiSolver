@@ -21,7 +21,6 @@ import { SETTINGS_SECTION_STYLES } from './settings-styles';
   ],
   template: `
     <ion-list inset="true">
-      <ion-list-header>Data credits</ion-list-header>
       <ion-item
         data-testid="credit-openngc"
         href="https://github.com/mattiaverga/OpenNGC"
@@ -140,32 +139,6 @@ import { SETTINGS_SECTION_STYLES } from './settings-styles';
         <ion-label class="ion-text-wrap credit"
           >Orbits of Ceres, Vesta, Pallas and Juno from the NASA/JPL Small-Body Database.</ion-label
         >
-      </ion-item>
-    </ion-list>
-
-    <!-- On the site, so they read the same in the app and for Google's sign-in. -->
-    <ion-list inset="true">
-      <ion-list-header>About</ion-list-header>
-      <ion-item
-        data-testid="privacy-link"
-        href="https://astroturbomaxisolver.app/privacy.html"
-        target="_blank"
-        rel="noopener"
-        detail="false"
-      >
-        <ion-label>Privacy policy</ion-label>
-        <ion-icon slot="end" name="open-outline" aria-hidden="true"></ion-icon>
-      </ion-item>
-      <ion-item
-        lines="none"
-        data-testid="terms-link"
-        href="https://astroturbomaxisolver.app/terms.html"
-        target="_blank"
-        rel="noopener"
-        detail="false"
-      >
-        <ion-label>Terms of use</ion-label>
-        <ion-icon slot="end" name="open-outline" aria-hidden="true"></ion-icon>
       </ion-item>
     </ion-list>
   `,
