@@ -11,6 +11,13 @@ if (!base) {
   process.exit(2);
 }
 
+/**
+ * Headers sent with every request, as JSON in DEPLOY_HEADERS: for a copy kept private
+ * behind a login, the host's credentials for automated checks. See docs/deploy.md.
+ */
+const extraHeaders = JSON.parse(process.env.DEPLOY_HEADERS || '{}');
+const headers = { 'cache-control': 'no-cache', ...extraHeaders };
+
 /** Longest a file that names the current version may be kept by browsers, in seconds. */
 const MAX_FRESH_SECONDS = 600;
 let failures = 0;
@@ -30,7 +37,7 @@ function cachedTooLong(header) {
 }
 
 async function get(path) {
-  return fetch(`${base}${path}`, { redirect: 'follow', headers: { 'cache-control': 'no-cache' } });
+  return fetch(`${base}${path}`, { redirect: 'follow', headers });
 }
 
 try {
@@ -55,7 +62,7 @@ try {
 
   // The service worker downloads /app/index.html to keep the app for offline use, and a
   // redirect to /app/ leaves it without one.
-  const index = await fetch(`${base}/app/index.html`, { redirect: 'manual', headers: { 'cache-control': 'no-cache' } });
+  const index = await fetch(`${base}/app/index.html`, { redirect: 'manual', headers });
   report(index.status === 200, `/app/index.html is served as itself, not redirected (${index.status})`);
 
   // These name the current version: kept too long, phones would miss new versions.
