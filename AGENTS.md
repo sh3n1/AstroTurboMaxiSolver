@@ -28,9 +28,15 @@ Features:
   - Android Chrome is the priority. iOS Safari must also be supported, and any feature it can't fully do must degrade gracefully.
   - Support phones as old as possible without the experience becoming frustrating. Set the exact minimum by measuring performance on real phones.
   - The browser floor is in `.browserslistrc` (currently Chrome, Edge and Firefox 119+, Safari and iOS 17+).
-- **Licence:** Closed source. Never add GPL, AGPL or other copyleft code or data. Check the licence of every library and catalogue before using it, and keep required attributions.
-  - One approved exception: OpenNGC data (CC-BY-SA-4.0). Keep it in its own file, `src/assets/data/openngc.json`, which is itself CC-BY-SA, and keep its credit in Settings. Don't merge other data into that file.
-  - A second approved exception: the HYG Database's star names (CC-BY-SA-4.0), in its own file, `src/assets/data/hyg.json`, built by `scripts/build-hyg.mjs`, with its credit in Settings. The same rules apply: only HYG data in that file.
+- **Licence:** GNU GPL version 3 only (`GPL-3.0-only`, in `LICENSE`), copyright "The AstroTurboMaxiSolver authors". Decided on 2026-11-18; until then the project was closed source.
+  - The app's code reaches every user's browser, which under the GPL is distributing it: whenever a version is published, its full source must be available to its users, from a public repository linked in the app and on the landing page. TODO: create that repository; until then, ask before publishing.
+  - Any library or code, and any data built into the app, must have a licence compatible with GPL-3.0-only: permissive ones (MIT, BSD, Apache-2.0, CC0, CC BY), the GPL-3.0 itself or "GPL-2.0-or-later". Never use code that is "non-commercial", "GPL-2.0-only", or under any extra restriction: it can't be combined with the GPL. Check the licence before using anything, and keep required attributions.
+  - **Aggregate data:** data under another licence (CC BY-SA, or non-commercial such as CC BY-NC) may travel with the app only as a separate work, which the GPL calls an "aggregate":
+    - Each source has its own folder under `src/assets/data/aggregate/`, holding only that source's data, with a `LICENSE.txt` (its licence and required credits) and a `SOURCE.md` (where it comes from, when it was downloaded, the script that builds it and what was changed).
+    - The app only reads it, and must keep working without it. Non-commercial data must be optional: the feature it serves goes away, nothing else does.
+    - Its credit is in Settings, under Data credits.
+    - Today: `openngc/` (OpenNGC, CC BY-SA 4.0), `hyg/` (the HYG Database's star names, CC BY-SA 4.0) and `falchi/` (the light pollution atlas for automatic Bortle, CC BY-NC 4.0).
+  - Non-commercial data binds the whole site: while any is in the app, nothing about the site or the app may earn money (no ads, sales or paid features). The Open-Meteo forecast is under the same condition. If that ever changes, replace the data first: the Bortle tiles could be rebuilt in the same format from NASA's public domain Black Marble data.
 
 ## Stack
 
@@ -66,6 +72,7 @@ Before finishing a change, run: `npm run lint`, `npm run test:unit` and `npm run
 - `src/app/core/sky-map/` - the sky map: its canvas component, and its drawing, star data, gestures and look as plain code
 - `src/app/core/settings/` - sections of the Settings page, each its own component
 - `src/assets/data/` - generated star and target data, built by the scripts in `scripts/`
+- `src/assets/data/aggregate/` - data under its own licence, not the GPL, one folder per source (see Licence)
 - `src/landing/` - the landing page: plain HTML, CSS and pictures, copied to the root of `www/` by the build
 
 ## PWA constraints
@@ -89,6 +96,7 @@ Before finishing a change, run: `npm run lint`, `npm run test:unit` and `npm run
 - **Sync:** with a target centred in the eyepiece, a tap in its bar plate solves and corrects the alignment there. Syncs are kept for the night where they were made, and the nearest count most, to follow the holder bending across the sky (`alignment-sync.ts`).
 - **Device sync:** the log, lists and kit sync between a user's devices through their own Google Drive (Dropbox and OneDrive to follow, behind the `SyncProvider` interface), with no server of ours. Two linked phones can also sync straight over their link, when both have it on (`docs/two-phones.md`). Code in `src/app/core/sync/`, design in `docs/sync-plan.md`.
 - **Live plate solving:** `live-solver.service.ts` solves in a Web Worker whenever sensors are on and the phone is still, then corrects the sensors and learns the compass error.
+- **Sky darkness:** the Bortle class is set from the location with the light pollution atlas in `src/assets/data/aggregate/falchi/` (`sky-brightness.service.ts`), only the 10° tile for the location being downloaded. Auto is the default, and choosing a class by hand in Settings turns it off. Without the atlas the class is chosen by hand.
 - **Two phones:** one phone can be the finder on the telescope (sensors and plate solving) and another the screen in the hand, linked by WebRTC after swapping QR codes, with no server. Alignment and tap-to-solve work from the screen. See `docs/two-phones.md`.
 - **Sensor fusion approach:** A complementary filter in `src/app/core/attitude.ts`. The gyroscope follows movement, and compass-based orientation slowly corrects drift. Plate solves will correct it when the phone is still. Treat the compass as a coarse hint only. Phones report magnetic headings, so `sensor.service.ts` turns them to true north with the World Magnetic Model (the `geomagnetism` library, Apache-2.0) once a location is set.
 - **Coordinate systems and units:** Catalogue positions are J2000. `astronomy-engine` converts them to the local sky, including precession. Angles are in degrees, and azimuth runs from north through east. Local positions include atmospheric refraction (astronomy-engine's `normal` model): `toApparent`, `refract` and `unrefract` in `astronomy.ts` convert between real and apparent directions.
@@ -132,6 +140,6 @@ Agents must ask before:
 
 Agents must never:
 
-- Add copyleft code or data, apart from the OpenNGC and HYG exceptions under Licence
+- Add code or data whose licence isn't compatible with GPL-3.0-only, except data kept apart as aggregate data (see Licence)
 - Commit secrets
 - Force-push `main`

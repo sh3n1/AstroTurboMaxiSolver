@@ -3,6 +3,7 @@ import { IonApp, IonRouterOutlet } from '@ionic/angular';
 
 import { InstallService } from './core/install.service';
 import { ScreenWakeService } from './core/screen-wake.service';
+import { SkyBrightnessService } from './core/sky-brightness.service';
 import { LinkSyncService } from './core/sync/link-sync.service';
 import { UpdateService } from './core/update.service';
 
@@ -21,5 +22,7 @@ export class AppComponent {
     inject(UpdateService);
     // Listens for a linked phone's data, for link sync, whenever two phones link.
     inject(LinkSyncService);
+    // Sets the Bortle class from the location, while Auto is on, wherever the location is set.
+    inject(SkyBrightnessService);
   }
 }

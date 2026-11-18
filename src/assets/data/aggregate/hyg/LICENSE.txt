@@ -1,0 +1,7 @@
+hyg.json is licensed under the Creative Commons Attribution-ShareAlike 4.0
+International licence (CC BY-SA 4.0): https://creativecommons.org/licenses/by-sa/4.0/
+
+It is not covered by AstroTurboMaxiSolver's GNU GPL: it is a separate work that the app
+reads, kept in this folder with only the HYG Database's data.
+
+Credit: the HYG Database by David Nash (astronexus), https://github.com/astronexus/HYG-Database

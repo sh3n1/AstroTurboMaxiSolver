@@ -80,6 +80,8 @@ export interface Settings {
   captureMode: CaptureMode;
   /** How dark the observer's sky is, on the Bortle scale from 1 (darkest) to 9. */
   bortle: number;
+  /** Set the Bortle class from the location, with the light pollution atlas: see sky-brightness.service.ts. */
+  bortleAuto: boolean;
   /** The faintest stars the eyepiece view shows, or null to work it out from the sky. */
   eyepieceStarLimit: number | null;
   /**
@@ -134,6 +136,8 @@ const DEFAULT_SETTINGS: Settings = {
   shutterAligns: false,
   // The middle of the scale, a suburban sky, until the user sets their own.
   bortle: 5,
+  // On by default: the atlas knows the sky better than a guess, and choosing a class turns it off.
+  bortleAuto: true,
   eyepieceStarLimit: null,
   cameraFocalFactor: 1,
   // Off by default: a phone linked for one night may belong to someone else.

@@ -6,7 +6,24 @@
       "name": "app",
       "installMode": "prefetch",
       "resources": {
-        "files": ["/assets/icon/favicon.png", "/index.html", "/manifest.webmanifest", "/assets/build-info.json", "/*.css", "/*.js", "/assets/data/*.json"]
+        "files": [
+          "/assets/icon/favicon.png",
+          "/index.html",
+          "/manifest.webmanifest",
+          "/assets/build-info.json",
+          "/*.css",
+          "/*.js",
+          "/assets/data/*.json",
+          "/assets/data/aggregate/*/*.json"
+        ]
+      }
+    },
+    {
+      "name": "sky-brightness",
+      "installMode": "lazy",
+      "updateMode": "lazy",
+      "resources": {
+        "files": ["/assets/data/aggregate/falchi/*.bin"]
       }
     },
     {

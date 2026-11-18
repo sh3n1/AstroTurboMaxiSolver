@@ -1,0 +1,7 @@
+openngc.json is licensed under the Creative Commons Attribution-ShareAlike 4.0
+International licence (CC BY-SA 4.0): https://creativecommons.org/licenses/by-sa/4.0/
+
+It is not covered by AstroTurboMaxiSolver's GNU GPL: it is a separate work that the app
+reads, kept in this folder with only OpenNGC's data.
+
+Credit: OpenNGC by Mattia Verga, https://github.com/mattiaverga/OpenNGC
