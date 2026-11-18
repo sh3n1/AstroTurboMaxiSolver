@@ -69,6 +69,31 @@ const ICONS = [
   { file: 'src/assets/icon/favicon.png', size: 64, rounded: true, scale: 1 },
 ];
 
+/**
+ * iPhones show a launch screen while an installed web app opens, but don't make one from the
+ * manifest as Android does: without these, a white flash, bad at night. One per iPhone screen,
+ * portrait, as CSS width × height at its pixel ratio. src/index.html links each one with a
+ * media query for its screen; keep the two lists together.
+ */
+const LAUNCH_SCREENS = [
+  { width: 375, height: 667, ratio: 2 }, // iPhone SE (2nd and 3rd), 8
+  { width: 414, height: 736, ratio: 3 }, // iPhone 8 Plus
+  { width: 375, height: 812, ratio: 3 }, // iPhone X, XS, 11 Pro, 12 mini, 13 mini
+  { width: 414, height: 896, ratio: 2 }, // iPhone XR, 11
+  { width: 414, height: 896, ratio: 3 }, // iPhone XS Max, 11 Pro Max
+  { width: 390, height: 844, ratio: 3 }, // iPhone 12, 13, 14, 12 Pro, 13 Pro
+  { width: 428, height: 926, ratio: 3 }, // iPhone 12 Pro Max, 13 Pro Max, 14 Plus
+  { width: 393, height: 852, ratio: 3 }, // iPhone 14 Pro, 15, 15 Pro, 16
+  { width: 430, height: 932, ratio: 3 }, // iPhone 14 Pro Max, 15 Plus, 15 Pro Max, 16 Plus
+  { width: 402, height: 874, ratio: 3 }, // iPhone 16 Pro
+  { width: 440, height: 956, ratio: 3 }, // iPhone 16 Pro Max
+];
+
+/** A launch screen's file name, by its size in pixels. */
+export function launchScreenFile({ width, height, ratio }) {
+  return `splash/launch-${width * ratio}x${height * ratio}.png`;
+}
+
 const browser = await chromium.launch();
 const page = await browser.newPage();
 for (const icon of ICONS) {
@@ -78,4 +103,35 @@ for (const icon of ICONS) {
   await page.locator('svg').screenshot({ path: icon.file, omitBackground: true });
   console.log(`${icon.file} (${icon.size} px)`);
 }
+
+// The launch screens: the icon in the middle of the app's background, a third of the width.
+for (const screen of LAUNCH_SCREENS) {
+  await page.setViewportSize({ width: screen.width, height: screen.height });
+  const side = Math.round(screen.width / 3);
+  const drawing = svg({ rounded: true, scale: 1 }).replace(
+    'width="100" height="100">',
+    `width="${side}" height="${side}">`,
+  );
+  await page.setContent(
+    `<html><body style="margin:0;height:100vh;display:grid;place-items:center;background:${NIGHT_BOTTOM}">${drawing}</body></html>`,
+  );
+  const file = `public/${launchScreenFile(screen)}`;
+  // At the phone's own pixel ratio, so it is sharp on its screen.
+  const shot = await browser.newPage({
+    viewport: { width: screen.width, height: screen.height },
+    deviceScaleFactor: screen.ratio,
+  });
+  await shot.setContent(await page.content());
+  await shot.screenshot({ path: file });
+  await shot.close();
+  console.log(file);
+}
 await browser.close();
+
+// The tags for src/index.html, printed so they can be pasted in when the list changes.
+console.log('\nFor src/index.html:');
+for (const screen of LAUNCH_SCREENS) {
+  console.log(
+    `    <link rel="apple-touch-startup-image" href="${launchScreenFile(screen)}" media="(device-width: ${screen.width}px) and (device-height: ${screen.height}px) and (-webkit-device-pixel-ratio: ${screen.ratio}) and (orientation: portrait)" />`,
+  );
+}
