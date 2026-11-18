@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import { THEME, THEME_VARIABLES } from '../src/app/core/theme';
 
-import { openMenu, openPage, tapMore } from './navigation';
+import { moreTile, openMenu, openPage, tapMore } from './navigation';
 
 // The sky map itself and the settings that change how the app looks.
 
@@ -137,6 +137,18 @@ test('goes full screen and back from the sky map', async ({ page }) => {
   await expect.poll(isFullscreen).toBe(true);
   await tapMore(page, 'fullscreen-toggle');
   await expect.poll(isFullscreen).toBe(false);
+});
+
+test('greys out full screen in the installed app, which opens full screen already', async ({ page }) => {
+  // The installed app, as the manifest opens it.
+  await page.addInitScript(() => {
+    const real = window.matchMedia.bind(window);
+    window.matchMedia = (query: string) =>
+      query === '(display-mode: fullscreen)' ? ({ ...real(query), matches: true } as MediaQueryList) : real(query);
+  });
+  await page.goto('/');
+  // It keeps its place in the menu, so the tiles after it don't move, but can't be tapped.
+  await expect(await moreTile(page, 'fullscreen-toggle')).toBeDisabled();
 });
 
 test('keeps the zoom buttons in the top right corner, clear of the target bar', async ({ page }) => {

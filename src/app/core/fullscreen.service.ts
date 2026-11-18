@@ -6,7 +6,7 @@ import { Injectable, signal } from '@angular/core';
  *
  * Installed as an app, the manifest already opens it full screen, so the button is only
  * needed in a browser tab, or where the phone opens installed apps with their bars.
- * iPhones don't let web pages go full screen, so there the button is hidden.
+ * iPhones don't let web pages go full screen. In both cases the button shows greyed out.
  */
 @Injectable({ providedIn: 'root' })
 export class FullscreenService {

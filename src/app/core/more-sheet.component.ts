@@ -115,6 +115,13 @@ export interface ViewTile {
     :host-context(html.night) .tile.good ion-icon {
       color: var(--af-bright);
     }
+    /*
+     * A tile that can't be used here keeps its place, with its words and icon faded. The
+     * tile itself stays solid, so the map doesn't show through it.
+     */
+    .tile:disabled {
+      color: color-mix(in srgb, var(--af-text) 35%, transparent);
+    }
     /* A switch that is on, such as night mode, has a lit frame. */
     .tile[aria-pressed='true'] {
       border-color: var(--ion-color-primary);
@@ -188,19 +195,22 @@ export interface ViewTile {
         <ion-icon name="time-outline" aria-hidden="true"></ion-icon>
         Time
       </button>
-      <!-- Full screen hides the browser bars. Not offered where the browser can't, as on iPhones. -->
-      @if (fullscreen.supported) {
-        <button
-          type="button"
-          class="tile"
-          data-testid="fullscreen-toggle"
-          [attr.aria-pressed]="fullscreen.active()"
-          (click)="toggleFullscreen()"
-        >
-          <ion-icon [name]="fullscreen.active() ? 'contract-outline' : 'expand-outline'" aria-hidden="true"></ion-icon>
-          Full screen
-        </button>
-      }
+      <!--
+        Full screen hides the browser bars. Where it can't be used, in the installed app that
+        is full screen already or on iPhones, it stays in place but greyed out, so the other
+        tiles keep their places on every phone.
+      -->
+      <button
+        type="button"
+        class="tile"
+        data-testid="fullscreen-toggle"
+        [disabled]="!fullscreen.supported"
+        [attr.aria-pressed]="fullscreen.active()"
+        (click)="toggleFullscreen()"
+      >
+        <ion-icon [name]="fullscreen.active() ? 'contract-outline' : 'expand-outline'" aria-hidden="true"></ion-icon>
+        Full screen
+      </button>
       <button type="button" class="tile" data-testid="more-remote" (click)="go('/remote')">
         <ion-icon name="phone-landscape-outline" aria-hidden="true"></ion-icon>
         Two phones
