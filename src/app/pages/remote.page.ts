@@ -16,9 +16,9 @@ import {
 import { addIcons } from 'ionicons';
 import { phonePortraitOutline, scanOutline, telescopeOutline } from 'ionicons/icons';
 
-import { QrCodeComponent } from '../core/qr-code.component';
-import { QrScannerComponent } from '../core/qr-scanner.component';
-import { RemoteService } from '../core/remote.service';
+import { QrCodeComponent } from '../core/remote/qr-code.component';
+import { QrScannerComponent } from '../core/remote/qr-scanner.component';
+import { RemoteService } from '../core/remote/remote.service';
 
 /**
  * Links two phones: one on the telescope as the finder, one in the hand as the screen.

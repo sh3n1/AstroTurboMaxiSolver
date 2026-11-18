@@ -7,8 +7,8 @@ import { join } from 'node:path';
 
 import { test } from 'vitest';
 
-import { buildSolverIndex, catalogFromRows, solveFrame } from '../../src/app/core/plate-solver';
-import { detectStars } from '../../src/app/core/star-detector';
+import { buildSolverIndex, catalogFromRows, solveFrame } from '../../src/app/core/solver/plate-solver';
+import { detectStars } from '../../src/app/core/solver/star-detector';
 
 const FOLDER = 'device-reports';
 

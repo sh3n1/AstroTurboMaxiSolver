@@ -1,10 +1,10 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 
 import { AppState } from '../app-state.service';
-import { equatorialVector } from '../astronomy';
-import type { ConstellationRow } from '../constellations';
-import type { ComponentStar } from '../double-stars';
-import { doubleComponents, withoutDoubleCopies } from '../double-stars';
+import { equatorialVector } from '../astronomy/astronomy';
+import type { ComponentStar } from '../astronomy/double-stars';
+import { doubleComponents, withoutDoubleCopies } from '../astronomy/double-stars';
+import type { ConstellationRow } from '../catalog/constellations';
 
 import type { Constellation, Star } from './sky-style';
 import { starTintIndex } from './sky-style';

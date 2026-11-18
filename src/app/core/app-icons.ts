@@ -2,8 +2,8 @@
 // icons: thin lines on the same 24 × 24 grid. Each means one thing everywhere it appears,
 // so no Ionic icon has to stand for two ideas. Ready as image URLs for an ion-icon's src.
 
-import type { IconPath } from './target-icons';
-import { CONSTELLATION, circle, iconDataUrl } from './target-icons';
+import type { IconPath } from './catalog/target-icons';
+import { CONSTELLATION, circle, iconDataUrl } from './catalog/target-icons';
 
 /** The app's reticle: three rings, as on the sky map. For "In the reticle". */
 const RETICLE: IconPath[] = [{ d: circle(12, 12, 2) }, { d: circle(12, 12, 6) }, { d: circle(12, 12, 10.5) }];

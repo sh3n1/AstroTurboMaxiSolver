@@ -14,9 +14,9 @@ import { addIcons } from 'ionicons';
 import { timeOutline } from 'ionicons/icons';
 
 import { AppState } from '../core/app-state.service';
-import { ListRowsComponent } from '../core/list-rows.component';
-import { ListToolsComponent } from '../core/list-tools.component';
-import { ListViewService } from '../core/list-view.service';
+import { ListRowsComponent } from '../core/lists/list-rows.component';
+import { ListToolsComponent } from '../core/lists/list-tools.component';
+import { ListViewService } from '../core/lists/list-view.service';
 
 /**
  * Search every target by designation, name or type, opened from the top of Lists. It is a

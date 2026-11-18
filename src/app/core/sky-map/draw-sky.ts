@@ -2,8 +2,8 @@
 // constellations. Plain functions that keep nothing between frames: each takes a Frame, the
 // one description of the drawing in progress, which the sky page builds once per frame.
 
-import type { Matrix3, Vector3 } from '../astronomy';
-import { horizontalVector, normalize, toApparent } from '../astronomy';
+import type { Matrix3, Vector3 } from '../astronomy/astronomy';
+import { horizontalVector, normalize, toApparent } from '../astronomy/astronomy';
 
 import type { Box, Constellation, Point, Project, Star } from './sky-style';
 import { BELOW_HORIZON_OPACITY, COLOR, STAR_TINTS } from './sky-style';

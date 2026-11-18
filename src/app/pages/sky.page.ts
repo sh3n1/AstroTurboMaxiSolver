@@ -15,23 +15,23 @@ import {
 
 import { APP_ICONS } from '../core/app-icons';
 import { AppState } from '../core/app-state.service';
-import { formatLocation } from '../core/astronomy';
-import { EyepiecePanelComponent } from '../core/eyepiece-panel.component';
-import { InstallNoticeComponent } from '../core/install-notice.component';
-import { InstallService } from '../core/install.service';
-import { LiveSolverService } from '../core/live-solver.service';
-import { MENU_TAP_GUARD_MS, MoreSheetComponent } from '../core/more-sheet.component';
-import { PermissionsService } from '../core/permissions.service';
-import { PointingReadoutComponent } from '../core/pointing-readout.component';
-import { SensorService } from '../core/sensor.service';
-import { isShutterPress } from '../core/shutter-remote';
+import { formatLocation } from '../core/astronomy/astronomy';
+import { InstallNoticeComponent } from '../core/platform/install-notice.component';
+import { InstallService } from '../core/platform/install.service';
+import { PermissionsService } from '../core/platform/permissions.service';
+import { SoundService } from '../core/platform/sound.service';
+import { UpdateService } from '../core/platform/update.service';
+import { SensorService } from '../core/sensors/sensor.service';
+import { isShutterPress } from '../core/sensors/shutter-remote';
 import { SkyCanvasComponent } from '../core/sky-map/sky-canvas.component';
 import type { ViewMode } from '../core/sky-map/sky-style';
 import { DEFAULT_FIELD_DEG, MAX_FIELD_DEG, MIN_FIELD_DEG, ZOOM_STEP, clampField } from '../core/sky-map/sky-style';
-import { SoundService } from '../core/sound.service';
+import { EyepiecePanelComponent } from '../core/sky-page/eyepiece-panel.component';
+import { MENU_TAP_GUARD_MS, MoreSheetComponent } from '../core/sky-page/more-sheet.component';
+import { PointingReadoutComponent } from '../core/sky-page/pointing-readout.component';
+import { TargetBarComponent } from '../core/sky-page/target-bar.component';
+import { LiveSolverService } from '../core/solver/live-solver.service';
 import { SyncService } from '../core/sync/sync.service';
-import { TargetBarComponent } from '../core/target-bar.component';
-import { UpdateService } from '../core/update.service';
 
 /** The view each view comes before, as the view tile steps through them: see ViewMode. */
 const NEXT_VIEW: Record<ViewMode, ViewMode> = { sky: 'eyepiece', eyepiece: 'ring', ring: 'sky' };

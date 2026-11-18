@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { changeRecord, createRecord, deleteRecord, revId } from '../sync-record';
-import type { Synced } from '../sync-record';
+import { changeRecord, createRecord, deleteRecord, revId } from '../storage/sync-record';
+import type { Synced } from '../storage/sync-record';
 
 import { beats, mergeBatch, mergeRecord } from './sync-merge';
 import type { AnyRecord } from './sync-merge';

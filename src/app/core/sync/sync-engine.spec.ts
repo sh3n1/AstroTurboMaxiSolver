@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { changeRecord, contentOf, createRecord, deleteRecord, newUuid, revId } from '../sync-record';
-import type { Synced } from '../sync-record';
+import { changeRecord, contentOf, createRecord, deleteRecord, newUuid, revId } from '../storage/sync-record';
+import type { Synced } from '../storage/sync-record';
 
 import { MemorySyncStorage } from './memory-sync-storage';
 import { changeFileName, parseChangeFile, RECORD_TYPES, runSync } from './sync-engine';

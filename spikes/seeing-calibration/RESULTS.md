@@ -1,7 +1,7 @@
 # Seeing forecast calibration
 
 The time control's forecast rows show seeing worked out from Open-Meteo's GFS forecast
-by `src/app/core/seeing.ts`. This spike checks it against 7Timer and meteoblue, and fits
+by `src/app/core/sky-conditions/seeing.ts`. This spike checks it against 7Timer and meteoblue, and fits
 its three constants.
 
 ## Model

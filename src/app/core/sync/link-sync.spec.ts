@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { changeRecord, createRecord, revId } from '../sync-record';
-import type { Synced } from '../sync-record';
+import { changeRecord, createRecord, revId } from '../storage/sync-record';
+import type { Synced } from '../storage/sync-record';
 
 import {
   ENTRIES_PER_MESSAGE,

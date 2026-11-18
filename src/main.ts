@@ -13,8 +13,8 @@ import { IonicRouteStrategy, provideIonicAngular } from '@ionic/angular';
 import { AppComponent } from './app/app.component';
 import { routes } from './app/app.routes';
 import { AppState } from './app/core/app-state.service';
-import { ListsService } from './app/core/lists.service';
-import { ObservingLogService } from './app/core/observing-log.service';
+import { ListsService } from './app/core/lists/lists.service';
+import { ObservingLogService } from './app/core/log/observing-log.service';
 
 bootstrapApplication(AppComponent, {
   providers: [

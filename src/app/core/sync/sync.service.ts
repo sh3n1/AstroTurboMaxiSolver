@@ -10,7 +10,7 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { liveQuery } from 'dexie';
 
-import { LocalDb } from '../local-db';
+import { LocalDb } from '../storage/local-db';
 
 import { GoogleDriveProvider } from './google-drive-provider';
 import { GOOGLE_CLIENT_ID } from './sync-config';

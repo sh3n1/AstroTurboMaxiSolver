@@ -10,9 +10,9 @@ import {
   IonToolbar,
 } from '@ionic/angular';
 
-import type { CameraReport, SensorReport } from '../core/device-test';
-import { runCameraTest, runSensorTest } from '../core/device-test';
-import { SkyTestPanelComponent } from '../core/sky-test-panel.component';
+import type { CameraReport, SensorReport } from '../core/dev-tools/device-test';
+import { runCameraTest, runSensorTest } from '../core/dev-tools/device-test';
+import { SkyTestPanelComponent } from '../core/dev-tools/sky-test-panel.component';
 
 const SENSOR_TEST_SECONDS = 30;
 

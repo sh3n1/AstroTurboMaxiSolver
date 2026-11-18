@@ -3,8 +3,8 @@
 //   node spikes/seeing-calibration/fit.ts [data folder ...]   (default: every folder in data/)
 import { readdirSync, readFileSync } from 'node:fs';
 
-import type { AirLevel, GroundAir, SeeingTuning } from '../../src/app/core/seeing.ts';
-import { SEEING_TUNING, seeingArcsec, seeingClass } from '../../src/app/core/seeing.ts';
+import type { AirLevel, GroundAir, SeeingTuning } from '../../src/app/core/sky-conditions/seeing.ts';
+import { SEEING_TUNING, seeingArcsec, seeingClass } from '../../src/app/core/sky-conditions/seeing.ts';
 
 const LEVELS = [
   1000, 975, 950, 925, 900, 850, 800, 750, 700, 650, 600, 550, 500, 450, 400, 350, 300, 250, 200, 150, 100, 70, 50, 30,

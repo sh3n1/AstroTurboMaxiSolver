@@ -9,7 +9,7 @@
 // 3. From then on, each sends a record whenever it changes.
 // Each phone remembers which revision the other has of each record, so nothing goes twice.
 
-import { revId } from '../sync-record';
+import { revId } from '../storage/sync-record';
 
 import type { Change, RecordType } from './sync-engine';
 import { isValidChange } from './sync-engine';

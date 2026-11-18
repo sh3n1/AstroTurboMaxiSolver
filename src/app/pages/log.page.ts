@@ -23,13 +23,13 @@ import {
 import { addIcons } from 'ionicons';
 import { folderOpenOutline, saveOutline, swapVerticalOutline } from 'ionicons/icons';
 
-import { equipmentLabel } from '../core/equipment';
+import { normalizeSearch } from '../core/catalog/search';
+import { equipmentLabel } from '../core/equipment/equipment';
 import { LocalTimePipe } from '../core/local-time.pipe';
-import type { LogEntry, LogNight } from '../core/observing-log';
-import { RATINGS, entryMatches, groupByNight, logTotals, wasSeen } from '../core/observing-log';
-import { ObservingLogService } from '../core/observing-log.service';
-import { normalizeSearch } from '../core/search';
-import { SeenActionsService } from '../core/seen-actions.service';
+import type { LogEntry, LogNight } from '../core/log/observing-log';
+import { RATINGS, entryMatches, groupByNight, logTotals, wasSeen } from '../core/log/observing-log';
+import { ObservingLogService } from '../core/log/observing-log.service';
+import { SeenActionsService } from '../core/log/seen-actions.service';
 
 /** A night's date, short, in the phone's language: "Thu 12 Nov". */
 const NIGHT_DATE = new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric', month: 'short' });

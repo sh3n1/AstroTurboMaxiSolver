@@ -8,10 +8,10 @@ import { join } from 'node:path';
 
 import { test } from 'vitest';
 
-import type { Vector3 } from '../../src/app/core/astronomy';
-import { buildSolverIndex, catalogFromRows, solveFrame } from '../../src/app/core/plate-solver';
-import type { DetectedStar } from '../../src/app/core/star-detector';
-import { detectStars } from '../../src/app/core/star-detector';
+import type { Vector3 } from '../../src/app/core/astronomy/astronomy';
+import { buildSolverIndex, catalogFromRows, solveFrame } from '../../src/app/core/solver/plate-solver';
+import type { DetectedStar } from '../../src/app/core/solver/star-detector';
+import { detectStars } from '../../src/app/core/solver/star-detector';
 
 const FOLDER = 'device-reports';
 

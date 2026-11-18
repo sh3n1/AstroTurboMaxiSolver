@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Target } from '../targets';
+import type { Target } from '../catalog/targets';
 
 import { COLOR, isShownAtField, magnitudeLimit, starTintIndex, useColors } from './sky-style';
 

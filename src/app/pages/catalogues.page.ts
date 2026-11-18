@@ -18,13 +18,13 @@ import { bookOutline, calendarOutline, flowerOutline, leafOutline, snowOutline, 
 
 import { isIconUrl } from '../core/app-icons';
 import { AppState } from '../core/app-state.service';
-import { currentFirst } from '../core/list-order';
-import { ListsService } from '../core/lists.service';
-import { ObservingLogService } from '../core/observing-log.service';
-import { programFor } from '../core/observing-programs';
-import { ProgramCardComponent } from '../core/program-card.component';
-import type { FixedListSection } from '../core/target-lists';
-import { CATALOGUE_GROUPS, fixedListEntries, isReserved } from '../core/target-lists';
+import { currentFirst } from '../core/lists/list-order';
+import { ListsService } from '../core/lists/lists.service';
+import { programFor } from '../core/lists/observing-programs';
+import { ProgramCardComponent } from '../core/lists/program-card.component';
+import type { FixedListSection } from '../core/lists/target-lists';
+import { CATALOGUE_GROUPS, fixedListEntries, isReserved } from '../core/lists/target-lists';
+import { ObservingLogService } from '../core/log/observing-log.service';
 
 /** The split catalogues shown: not those whose publishers reserve their rights, for now. */
 const SHOWN_GROUPS = CATALOGUE_GROUPS.filter((group) => !isReserved(group));
