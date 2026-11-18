@@ -6,6 +6,9 @@ Fix the phone to the telescope with its camera looking at the sky, and the app s
 
 Move the telescope and the phone's sensors move the map with it. Every plate solve from the camera fine-tunes the position.
 
+**Try it:** open [astroturbomaxisolver.app/app/](https://astroturbomaxisolver.app/app/) in your phone's
+browser, and install it from there. More about it at [astroturbomaxisolver.app](https://astroturbomaxisolver.app).
+
 ## What it does
 
 - **Plate solving** in the browser, with no server and no internet, designed for bright city skies.

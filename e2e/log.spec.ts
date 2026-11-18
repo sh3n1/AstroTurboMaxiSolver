@@ -383,7 +383,10 @@ test('saves the log as OpenAstronomyLog for other apps, with the observer named'
   // Great is 1 on the Deep Sky Liste scale.
   expect(text).toContain('<rating>1</rating>');
 
-  // The name is offered again next time.
+  // The name is offered again next time. Wait for the first menu and the name dialog to finish
+  // closing, or their buttons would still be found beside the new ones on a slow machine.
+  await expect(page.locator('ion-action-sheet')).toHaveCount(0);
+  await expect(page.getByTestId('oal-name')).toHaveCount(0);
   await page.getByTestId('log-transfer').click();
   await page.locator('ion-action-sheet button', { hasText: 'Save for other apps (OAL)' }).click();
   await expect(page.getByTestId('oal-name').locator('input').first()).toHaveValue('Ada');

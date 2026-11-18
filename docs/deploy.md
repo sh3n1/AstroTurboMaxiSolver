@@ -92,6 +92,11 @@ npm run deploy -- prod     # to production, after typing "yes"
 ```
 
 A plain `npm run deploy` always goes to dev, so production is never published by mistake.
+Dev usually gets the `develop` branch, where work goes. Production only gets the `main` branch,
+which holds released versions: publishing there stops unless `main` is checked out, with no
+uncommitted changes, and pushed to the public repository, so the source of every public
+version is public too, as the GPL requires.
+
 It runs, in order, stopping at the first failure:
 
 1. Lint and unit tests, so a broken version is never published.
