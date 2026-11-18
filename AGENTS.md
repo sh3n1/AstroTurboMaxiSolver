@@ -20,7 +20,7 @@ Features:
 .
 
 - **Platform:** PWA only. Do not add native iOS or Android projects, native plugins, or anything that needs an app store build.
-- **Hosting:** development versions are published on the project's own domain, on Cloudflare, over HTTPS. The code must not depend on the host: no host's files or settings in the project. What any host must do, and how to publish, is in `docs/deploy.md`.
+- **Hosting:** on the project's own domain, on Cloudflare, over HTTPS, as two copies: dev (`dev.astroturbomaxisolver.app`, private behind Cloudflare Access, for trying versions on phones) and production (`astroturbomaxisolver.app`, public). The code must not depend on the host: no host's files or settings in the project. What any host must do, and how to publish, is in `docs/deploy.md`.
 - **Site layout:** a static landing page at `/`, for people and search engines, and the app at `/app/` (Angular's base address in production builds). The dev server still serves the app at `/`.
 - **Current state:** Work in progress
 - **Target users:** Amateur astronomers
@@ -29,7 +29,7 @@ Features:
   - Support phones as old as possible without the experience becoming frustrating. Set the exact minimum by measuring performance on real phones.
   - The browser floor is in `.browserslistrc` (currently Chrome, Edge and Firefox 119+, Safari and iOS 17+).
 - **Licence:** GNU GPL version 3 only (`GPL-3.0-only`, in `LICENSE`), copyright "The AstroTurboMaxiSolver authors". Decided on 2026-11-18; until then the project was closed source.
-  - The app's code reaches every user's browser, which under the GPL is distributing it: whenever a version is published, its full source must be available to its users, from a public repository linked in the app and on the landing page. TODO: create that repository; until then, ask before publishing.
+  - The app's code reaches every user's browser, which under the GPL is distributing it: whenever a version is published, its full source must be available to its users, from a public repository linked in the app and on the landing page. TODO: create that repository; until then, publish only to the private dev copy, which no one else can open.
   - Any library or code, and any data built into the app, must have a licence compatible with GPL-3.0-only: permissive ones (MIT, BSD, Apache-2.0, CC0, CC BY), the GPL-3.0 itself or "GPL-2.0-or-later". Never use code that is "non-commercial", "GPL-2.0-only", or under any extra restriction: it can't be combined with the GPL. Check the licence before using anything, and keep required attributions.
   - **Aggregate data:** data under another licence (CC BY-SA, or non-commercial such as CC BY-NC) may travel with the app only as a separate work, which the GPL calls an "aggregate":
     - Each source has its own folder under `src/assets/data/aggregate/`, holding only that source's data, with a `LICENSE.txt` (its licence and required credits) and a `SOURCE.md` (where it comes from, when it was downloaded, the script that builds it and what was changed).
@@ -57,7 +57,8 @@ Features:
 | Fix lint and formatting | `npm run lint:fix` |
 | Unit tests | `npm run test:unit` |
 | End-to-end tests (ports 4210 and 4211, includes a production build) | `npm run test:e2e` |
-| Publish a development version (ask first; see `docs/deploy.md`) | `npm run deploy` |
+| Publish to the private dev copy (ask first; see `docs/deploy.md`) | `npm run deploy` |
+| Publish to production (ask first; it asks you to type yes) | `npm run deploy -- prod` |
 | Check a published copy is hosted as the app needs | `npm run deploy:check -- <address>` |
 
 Before finishing a change, run: `npm run lint`, `npm run test:unit` and `npm run test:e2e`

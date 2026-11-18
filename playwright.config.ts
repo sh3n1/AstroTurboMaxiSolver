@@ -22,7 +22,13 @@ export default defineConfig({
         {
           name: 'published',
           testMatch: 'pwa.spec.ts',
-          use: { ...devices['Pixel 7'], baseURL: publishedURL },
+          use: {
+            ...devices['Pixel 7'],
+            baseURL: publishedURL,
+            // For a copy kept private behind a login: the host's credentials for automated
+            // checks. The service worker's downloads get them in pwa.spec.ts.
+            extraHTTPHeaders: JSON.parse(process.env['DEPLOY_HEADERS'] || '{}') as Record<string, string>,
+          },
           // Over the internet, a first visit also downloads the whole app for offline use.
           expect: { timeout: 20_000 },
         },

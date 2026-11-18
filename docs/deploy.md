@@ -34,15 +34,34 @@ landing instead. `e2e/serve-www.mjs` shows the rules as a small server.
 What belongs to the host, such as the domain, HTTPS certificates, or keeping the site private
 to a few people, is set up in the host's dashboard, not in the project.
 
+## Two copies: dev and production
+
+There are two published copies, each a target of its own:
+
+- **dev**, for trying a version out on real phones. Kept private: only the developer can open
+  it, behind the host's login. Being private, it isn't distributed to anyone, so it may run
+  code that isn't public yet, and search engines can't reach it.
+- **prod**, the public site. Only versions tried on dev go there.
+
+Each is its own address, so phones keep a separate installed app and separate saved data for
+each: trying dev never touches the log and lists in the real app.
+
 ## Publishing a version
 
-Once only: create `deploy.local.json` in the project's folder. Git ignores it, so the host,
-its account and the address stay on this computer.
+Once only: create `deploy.local.json` in the project's folder. Git ignores it, so the hosts,
+the accounts, the addresses and any credentials stay on this computer.
 
 ```json
 {
-  "command": "the host's command to upload the folder in DEPLOY_DIR",
-  "url": "https://the published address"
+  "dev": {
+    "command": "the host's command to upload the folder in DEPLOY_DIR to the dev copy",
+    "url": "https://the dev address",
+    "headers": { "Header-Name": "credentials for automated checks, if dev is behind a login" }
+  },
+  "prod": {
+    "command": "the host's command to upload the folder in DEPLOY_DIR to production",
+    "url": "https://the published address"
+  }
 }
 ```
 
@@ -68,9 +87,11 @@ published the source code, until it was taken down. The checks below now look fo
 Then, for each version:
 
 ```
-npm run deploy
+npm run deploy             # to dev
+npm run deploy -- prod     # to production, after typing "yes"
 ```
 
+A plain `npm run deploy` always goes to dev, so production is never published by mistake.
 It runs, in order, stopping at the first failure:
 
 1. Lint and unit tests, so a broken version is never published.
@@ -81,13 +102,31 @@ It runs, in order, stopping at the first failure:
    hosting checks (`scripts/check-deploy.mjs`), including that none of
    the project's own files, such as its source code, can be read there. Then the PWA end-to-end
    tests against the published copy: it loads, installs its service worker, and works
-   offline. A site kept private behind a login can't be checked this way: leave `url` out.
+   offline. A copy kept private behind a login is checked with the target's `headers`,
+   which every check request sends: the host's credentials for automated checks.
 
 The checks can also run on their own, against any address:
 
 ```
 npm run deploy:check -- https://the published address
 ```
+
+For a private copy, give them the headers as JSON in `DEPLOY_HEADERS`.
+
+### Keeping dev private on Cloudflare
+
+Cloudflare Access, in the Zero Trust dashboard, puts a login in front of the dev address, set
+up there once, before the first upload to dev:
+
+1. An Access application of the self-hosted kind, for the dev address.
+2. A policy that allows only the developer's email, with a one-time code by email, and a
+   session long enough not to be asked often, such as a month.
+3. A service token, with a second policy of the Service Auth kind that allows it. Its client
+   id and secret go in the dev target's `headers`, as `CF-Access-Client-Id` and
+   `CF-Access-Client-Secret`, so the checks after each upload can get in.
+
+The dev copy is its own Worker, from a second `wrangler.jsonc` kept beside the first,
+outside the project, with its own name and the dev address as its custom domain.
 
 ## Which version a phone has
 

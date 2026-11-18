@@ -6,6 +6,20 @@ import { expect, test } from '@playwright/test';
 
 const starCanvas = 'app-sky canvas:not([data-star-count="0"])';
 
+/**
+ * For a published copy kept private behind a login: the host's credentials for automated
+ * checks, from scripts/deploy.mjs. They go on every request through a route, because the
+ * browser's extra headers don't reach the service worker's own downloads, and without them
+ * it would get the login page instead of the app.
+ */
+const deployHeaders = JSON.parse(process.env['DEPLOY_HEADERS'] || '{}') as Record<string, string>;
+test.beforeEach(async ({ context }) => {
+  if (Object.keys(deployHeaders).length === 0) return;
+  await context.route('**/*', (route) =>
+    route.continue({ headers: { ...route.request().headers(), ...deployHeaders } }),
+  );
+});
+
 test('reloads from the service worker while offline', async ({ context, page }) => {
   // Against a published copy the whole app, about 8 MB, comes over the internet first.
   test.setTimeout(120_000);
