@@ -1,7 +1,7 @@
 # Local data
 
-How AstroTurboMaxiSolver keeps the user's data on the phone, and how it is ready to be synced between
-devices later. Sync itself is not built.
+How AstroTurboMaxiSolver keeps the user's data on the phone, and how it syncs between devices
+(through Google Drive, or between two linked phones; see `sync-plan.md`).
 
 ## Where each thing is kept
 
@@ -150,11 +150,11 @@ A failure leaves localStorage untouched for the next start.
 Database version 2 added the `kit` table and turned version 1's non-UUID ids into UUIDs.
 Version 3 added the `conflicts` table, for log entry versions that lost a sync conflict.
 
-## Future sync (not built)
+## Sync
 
-The plan for syncing through the user's Google Drive, OneDrive or Dropbox, with one folder
-per device, is in `sync-plan.md`. It refines the outline below, which came first, in places:
-winners by revision rather than by clock, and more header fields.
+Sync is built, and described in `sync-plan.md`: through the user's Google Drive (Dropbox and
+OneDrive to follow), and between two linked phones. The outline below came first;
+`sync-plan.md` replaces it where they differ, notably winners by revision rather than by clock.
 
 The intended protocol, which the fields above support:
 

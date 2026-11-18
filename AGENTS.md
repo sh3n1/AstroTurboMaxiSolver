@@ -79,7 +79,7 @@ Before finishing a change, run: `npm run lint`, `npm run test:unit` and `npm run
 ## Domain
 
 - **Mounting:** The phone's main camera always looks straight at the sky, fixed to the telescope: never through the eyepiece, and with no mirror or add-on lens. There is no mount setting.
-- **Plate solving approach:** Must run in the browser and work offline. Astrometry.net can't be used because its distribution is GPL. tetra3 and cedar-solve are Apache-2.0 candidates. TODO: final choice after the solver spike.
+- **Plate solving approach:** Must run in the browser and work offline. Astrometry.net can't be used because its distribution is GPL. In use: the app's own triangle-matching solver (`plate-solver.ts`, in a Web Worker), which solves real city skies on the Honor Magic5 Pro. tetra3 and cedar-solve (Apache-2.0) are still to be evaluated before a final choice.
   - Use a strict confidence check. Weak frames can produce wrong matches, and the app must never show an unverified position as correct.
 - **Camera approach:** Simulated, not yet measured. See `spikes/sky-sim/RESULTS.md`.
   - Default to the main camera. The telephoto and ultrawide needed much longer exposures in simulation, and Chrome on the Magic5 Pro only offers one rear camera anyway.
@@ -87,7 +87,7 @@ Before finishing a change, run: `npm run lint`, `npm run test:unit` and `npm run
   - Design for a bright city sky. The reference case is central Valencia, about 17.5 mag/arcsec², on an Honor Magic5 Pro.
 - **Alignment:** Uses a plate solve to measure where the camera points. The sensors are only a marked, less accurate fallback.
 - **Sync:** with a target centred in the eyepiece, a tap in its bar plate solves and corrects the alignment there. Syncs are kept for the night where they were made, and the nearest count most, to follow the holder bending across the sky (`alignment-sync.ts`).
-- **Device sync:** the log, lists and kit sync between a user's devices through their own Google Drive (Dropbox and OneDrive to follow, behind the `SyncProvider` interface), with no server of ours. Code in `src/app/core/sync/`, design in `docs/sync-plan.md`.
+- **Device sync:** the log, lists and kit sync between a user's devices through their own Google Drive (Dropbox and OneDrive to follow, behind the `SyncProvider` interface), with no server of ours. Two linked phones can also sync straight over their link, when both have it on (`docs/two-phones.md`). Code in `src/app/core/sync/`, design in `docs/sync-plan.md`.
 - **Live plate solving:** `live-solver.service.ts` solves in a Web Worker whenever sensors are on and the phone is still, then corrects the sensors and learns the compass error.
 - **Two phones:** one phone can be the finder on the telescope (sensors and plate solving) and another the screen in the hand, linked by WebRTC after swapping QR codes, with no server. Alignment and tap-to-solve work from the screen. See `docs/two-phones.md`.
 - **Sensor fusion approach:** A complementary filter in `src/app/core/attitude.ts`. The gyroscope follows movement, and compass-based orientation slowly corrects drift. Plate solves will correct it when the phone is still. Treat the compass as a coarse hint only. Phones report magnetic headings, so `sensor.service.ts` turns them to true north with the World Magnetic Model (the `geomagnetism` library, Apache-2.0) once a location is set.
