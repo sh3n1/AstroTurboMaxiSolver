@@ -226,6 +226,6 @@ export class EyepiecePanelComponent {
 
   /** Opens Settings at the equipment, to add or change what the eyepiece view picks from. */
   protected editEquipment(): void {
-    void this.router.navigate(['/tabs/settings'], { fragment: 'equipment' });
+    void this.router.navigateByUrl('/tabs/settings/equipment');
   }
 }

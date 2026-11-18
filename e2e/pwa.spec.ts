@@ -67,10 +67,24 @@ test('serves a complete web app manifest', async ({ page, request }) => {
     expect.arrayContaining(['any', 'maskable']),
   );
 
-  // A manifest can look valid while its icons are missing from the build.
-  for (const icon of manifest.icons) {
-    expect((await request.get(`/app/${icon.src}`)).ok(), icon.src).toBe(true);
+  // A permanent identity, the address the app had before there was one, so installed copies
+  // stay the same app.
+  expect(manifest.id).toBe('/app/');
+  expect(manifest.start_url).toBe('./');
+
+  // A manifest can look valid while its icons are missing from the build. The screenshots,
+  // which Android shows in its install dialog, are the landing page's, next to the app.
+  const manifestUrl = new URL(`/app/${href}`, page.url());
+  const files = [
+    ...manifest.icons,
+    ...manifest.screenshots,
+    ...manifest.shortcuts.flatMap((s: { icons: [] }) => s.icons),
+  ];
+  for (const file of files as { src: string }[]) {
+    const address = new URL(file.src, manifestUrl).pathname;
+    expect((await request.get(address)).ok(), address).toBe(true);
   }
+  expect(manifest.screenshots.every((s: { form_factor: string }) => s.form_factor === 'narrow')).toBe(true);
 });
 
 test('has a landing page at the root, for people and search engines, leading to the app', async ({ page, request }) => {

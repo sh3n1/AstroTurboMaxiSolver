@@ -1,8 +1,12 @@
 {
+  "id": "/app/",
   "name": "AstroTurboMaxiSolver",
   "short_name": "AstroTurboMaxiSolver",
   "description": "Smartphone telescope finder using plate solving and sensor fusion",
+  "lang": "en",
+  "categories": ["utilities", "education"],
   "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
   "scope": "./",
   "start_url": "./",
   "theme_color": "#0b1026",
@@ -12,5 +16,58 @@
     { "src": "icons/icon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "icons/maskable-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
     { "src": "icons/maskable-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "screenshots": [
+    {
+      "src": "../images/guidance.jpg",
+      "sizes": "780x1688",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Follow the arrows to your target"
+    },
+    {
+      "src": "../images/align.jpg",
+      "sizes": "780x1688",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Align once, on a bright star it picks for you"
+    },
+    {
+      "src": "../images/eyepiece.jpg",
+      "sizes": "780x1688",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "See what your eyepiece will show"
+    },
+    {
+      "src": "../images/time.jpg",
+      "sizes": "780x1688",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Clouds and seeing, hour by hour"
+    },
+    {
+      "src": "../images/lists.jpg",
+      "sizes": "780x1688",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Lists for tonight, ready to go"
+    },
+    {
+      "src": "../images/night.jpg",
+      "sizes": "780x1688",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Red night mode"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Lists",
+      "short_name": "Lists",
+      "description": "Tonight's best, your lists and the observing log",
+      "url": "./tabs/lists",
+      "icons": [{ "src": "icons/icon-192x192.png", "sizes": "192x192", "type": "image/png" }]
+    }
   ]
 }

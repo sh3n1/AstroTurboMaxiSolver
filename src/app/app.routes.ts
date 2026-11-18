@@ -26,6 +26,12 @@ export const routes: Routes = [
       // The Lists tab replaced the session plan.
       { path: 'plan', redirectTo: 'lists', pathMatch: 'full' },
       { path: 'settings', loadComponent: () => import('./pages/settings.page').then((m) => m.SettingsPage) },
+      // Parts of Settings on pages of their own, with a back arrow.
+      {
+        path: 'settings/equipment',
+        loadComponent: () => import('./pages/equipment.page').then((m) => m.EquipmentPage),
+      },
+      { path: 'settings/credits', loadComponent: () => import('./pages/credits.page').then((m) => m.CreditsPage) },
       { path: '', redirectTo: 'sky', pathMatch: 'full' },
     ],
   },

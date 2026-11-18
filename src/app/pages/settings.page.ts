@@ -1,5 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import {
   IonButton,
   IonButtons,
@@ -34,6 +34,7 @@ import {
   phonePortraitOutline,
   phoneLandscapeOutline,
   volumeLowOutline,
+  telescopeOutline,
   textOutline,
 } from 'ionicons/icons';
 
@@ -44,8 +45,7 @@ import { formatLocation } from '../core/astronomy';
 import { PermissionsService } from '../core/permissions.service';
 import { RemoteService } from '../core/remote.service';
 import { ScreenWakeService } from '../core/screen-wake.service';
-import { SettingsCreditsComponent } from '../core/settings/settings-credits.component';
-import { SettingsEquipmentComponent } from '../core/settings/settings-equipment.component';
+import { SettingsAboutComponent } from '../core/settings/settings-about.component';
 import { SETTINGS_ROW_STYLES } from '../core/settings/settings-styles';
 import { SettingsSyncComponent } from '../core/settings/settings-sync.component';
 import { SettingsTestingComponent } from '../core/settings/settings-testing.component';
@@ -63,8 +63,8 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
 @Component({
   selector: 'app-settings',
   imports: [
-    SettingsCreditsComponent,
-    SettingsEquipmentComponent,
+    RouterLink,
+    SettingsAboutComponent,
     SettingsSyncComponent,
     SettingsTestingComponent,
     IonButton,
@@ -208,8 +208,16 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
           <p class="section-note">Bortle: 1 dark site · 5 suburbs · 9 city centre</p>
         </div>
 
-        <!-- The user's equipment, which the eyepiece view picks from. -->
-        <app-settings-equipment />
+        <!-- The user's equipment, which the eyepiece view picks from, on a page of its own. -->
+        <ion-list inset="true">
+          <ion-item button detail="true" data-testid="open-equipment" routerLink="/tabs/settings/equipment">
+            <ion-icon slot="start" name="telescope-outline" aria-hidden="true"></ion-icon>
+            <ion-label class="ion-text-wrap">
+              <h2>Equipment</h2>
+              <p>Telescopes, eyepieces, Barlows and filters</p>
+            </ion-label>
+          </ion-item>
+        </ion-list>
 
         <!-- The log, lists and kit, the same on all the user's devices. Hidden for now. -->
         @if (sync.visible()) {
@@ -351,8 +359,8 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
         <!-- For checking the app on a real phone and a real sky. -->
         <app-settings-testing />
 
-        <!-- The licences of the data require these credits. -->
-        <app-settings-credits />
+        <!-- The data credits, on a page of their own, and the privacy policy and terms. -->
+        <app-settings-about />
       </div>
     </ion-content>
   `,
@@ -383,20 +391,12 @@ export class SettingsPage {
   protected readonly appIcons = APP_ICONS;
   protected readonly gpsMessage = signal('');
   protected readonly bortleClasses = BORTLE_CLASSES;
-  private readonly route = inject(ActivatedRoute);
 
   /** The location in words, or a warning that the sky is shown for a neutral place. */
   protected readonly locationText = computed(() => {
     const { latitudeDeg, longitudeDeg, locationSet } = this.settings();
     return locationSet ? formatLocation(latitudeDeg, longitudeDeg) : 'Not set. Use GPS or enter it below.';
   });
-
-  /** Opened from the eyepiece view's Edit equipment: scrolls to the equipment. */
-  ionViewDidEnter(): void {
-    if (this.route.snapshot.fragment === 'equipment') {
-      document.getElementById('equipment')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  }
 
   constructor() {
     addIcons({
@@ -413,6 +413,7 @@ export class SettingsPage {
       navigateOutline,
       phonePortraitOutline,
       volumeLowOutline,
+      telescopeOutline,
       textOutline,
     });
   }

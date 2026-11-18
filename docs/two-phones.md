@@ -14,6 +14,7 @@ per session, before the finder goes on the tube (Settings → Two phones):
 3. The finder reads the reply.
 
 A code can also be pasted, for when a camera can't read it.
+
 - **What a code holds:** the session description with all its network candidates, compressed
   (`deflate-raw`) and in base64url, behind the prefix `AF1:` (`remote-link.ts`).
 - **No STUN or TURN servers:** the phones only use their own addresses. So they must be on
@@ -25,27 +26,27 @@ A code can also be pasted, for when a camera can't read it.
 
 JSON over one reliable, ordered data channel (`remote-link.ts`):
 
-| From | Message | When |
-| --- | --- | --- |
-| Finder | `hello` | Once linked: its alignment and location. |
-| Finder | `pose` | Where the telescope and camera point, whether it is solving, and whether its sensors are steering. On every change, at most every 50 ms, and every second anyway. Numbered, on a channel of its own that never resends a lost one, so a lost pose never holds back the next. The screen drops any pose older than the last it used, and glides the map towards the newest one. |
-| Finder | `site` | Its location, when it changes. The screen uses it, since both are at the same telescope. |
-| Finder | `solveLog` | Each plate solve attempt, so the screen shows the same toasts and log. |
-| Finder | `solveResult` | The answer to a `solveNow`. |
-| Screen | `solveNow` | Plate solve now, for alignment or a tap on the rings. |
-| Screen | `night` | Red night mode, on or off, so the finder's screen matches. |
-| Screen | `fullscreen` | Full screen, on or off, so the finder's screen matches. |
-| Screen | `target` | The target chosen, or null when cleared, so the finder's map guides to it too. Sent once linked, and on every change. |
-| Either | `pause` | The link is paused: each phone works on its own, and the link stays open underneath. Two phones offers Reconnect, which sends `resume` and needs no new codes. While paused, silence doesn't count as the link being lost. It lasts while both phones keep the app open. |
-| Either | `resume` | The paused link is back: each phone takes its part again, and the finder sends `hello`. |
-| Both | `alignment` | An alignment made or removed on either phone. |
-| Either | `dataOn` | Whether "Sync with the linked phone" is on there. Sent once linked and on every change. Link sync runs only while both are on. |
-| Either | `dataManifest` | Link sync: every record's type, id and revision, in parts, the last one marked. |
-| Either | `dataRecords` | Link sync: records the other phone lacks, or has in another revision, up to 100 a message, and each change as it happens. |
+| From   | Message        | When                                                                                                                                                                                                                                                                                                                                                                           |
+| ------ | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Finder | `hello`        | Once linked: its alignment and location.                                                                                                                                                                                                                                                                                                                                       |
+| Finder | `pose`         | Where the telescope and camera point, whether it is solving, and whether its sensors are steering. On every change, at most every 50 ms, and every second anyway. Numbered, on a channel of its own that never resends a lost one, so a lost pose never holds back the next. The screen drops any pose older than the last it used, and glides the map towards the newest one. |
+| Finder | `site`         | Its location, when it changes. The screen uses it, since both are at the same telescope.                                                                                                                                                                                                                                                                                       |
+| Finder | `solveLog`     | Each plate solve attempt, so the screen shows the same toasts and log.                                                                                                                                                                                                                                                                                                         |
+| Finder | `solveResult`  | The answer to a `solveNow`.                                                                                                                                                                                                                                                                                                                                                    |
+| Screen | `solveNow`     | Plate solve now, for alignment or a tap on the rings.                                                                                                                                                                                                                                                                                                                          |
+| Screen | `night`        | Red night mode, on or off, so the finder's screen matches.                                                                                                                                                                                                                                                                                                                     |
+| Screen | `fullscreen`   | Full screen, on or off, so the finder's screen matches.                                                                                                                                                                                                                                                                                                                        |
+| Screen | `target`       | The target chosen, or null when cleared, so the finder's map guides to it too. Sent once linked, and on every change.                                                                                                                                                                                                                                                          |
+| Either | `pause`        | The link is paused: each phone works on its own, and the link stays open underneath. Two phones offers Reconnect, which sends `resume` and needs no new codes. While paused, silence doesn't count as the link being lost. It lasts while both phones keep the app open.                                                                                                       |
+| Either | `resume`       | The paused link is back: each phone takes its part again, and the finder sends `hello`.                                                                                                                                                                                                                                                                                        |
+| Both   | `alignment`    | An alignment made or removed on either phone.                                                                                                                                                                                                                                                                                                                                  |
+| Either | `dataOn`       | Whether "Sync over Two phones link" is on there. Sent once linked and on every change. Link sync runs only while both are on.                                                                                                                                                                                                                                                  |
+| Either | `dataManifest` | Link sync: every record's type, id and revision, in parts, the last one marked.                                                                                                                                                                                                                                                                                                |
+| Either | `dataRecords`  | Link sync: records the other phone lacks, or has in another revision, up to 100 a message, and each change as it happens.                                                                                                                                                                                                                                                      |
 
 ### Link sync
 
-With "Sync with the linked phone" on in Settings on both phones (in the Sync section, hidden
+With "Sync over Two phones link" on in Settings on both phones (in the Sync section, hidden
 for now behind five taps on the Settings title), the log, lists and kit sync straight over
 the link, with no drive. Off by default, since a phone linked for a night may be someone
 else's. Each phone sends its manifest, then the records the other lacks, then each change as
