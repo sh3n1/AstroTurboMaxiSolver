@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="public/icons/icon-192x192.png" width="128" height="128" alt="AstroTurboMaxiSolver icon">
+</p>
+
 # AstroTurboMaxiSolver
 
 A telescope PWA finder app for your phone.
@@ -6,8 +10,8 @@ Fix the phone to the telescope with its camera looking at the sky, and the app s
 
 Move the telescope and the phone's sensors move the map with it. Every plate solve from the camera fine-tunes the position.
 
-**Try it:** open [astroturbomaxisolver.app/app/](https://astroturbomaxisolver.app/app/) in your phone's
-browser, and install it from there. More about it at [astroturbomaxisolver.app](https://astroturbomaxisolver.app).
+**Try it:** open [astroturbomaxisolver.app/](https://astroturbomaxisolver.app/) in your phone's
+browser, and install it from there.
 
 ## What it does
 
