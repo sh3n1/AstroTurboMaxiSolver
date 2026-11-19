@@ -5,6 +5,8 @@
 
 import { AngleFromSun, Body, Illumination, MoonPhase, SearchMoonPhase } from 'astronomy-engine';
 
+import { t } from '../i18n/t';
+
 import { minorPlanet, minorPlanetPosition } from './minor-planets';
 
 /** Kilometres in one astronomical unit, the mean distance from the Earth to the Sun. */
@@ -87,16 +89,17 @@ export function bodyFacts(bodyName: string, date: Date): BodyFacts | null {
 /** A distance for the details box: kilometres for the Moon, astronomical units beyond it. */
 export function distanceText(distanceAu: number): string {
   // Rounded to 100 km, with thousands grouped the way the phone's language does it.
-  if (distanceAu < 0.01) return `${(Math.round((distanceAu * KM_PER_AU) / 100) * 100).toLocaleString()} km`;
-  return `${distanceAu.toFixed(distanceAu < 10 ? 2 : 1)} au`;
+  if (distanceAu < 0.01)
+    return t('bodies.km', { km: (Math.round((distanceAu * KM_PER_AU) / 100) * 100).toLocaleString() });
+  return t('bodies.au', { au: distanceAu.toFixed(distanceAu < 10 ? 2 : 1) });
 }
 
 /** How long light takes to reach us, in the largest unit that reads well. */
 export function lightTimeText(seconds: number): string {
-  if (seconds < 60) return `${seconds.toFixed(1)} light-seconds`;
+  if (seconds < 60) return t('bodies.lightSeconds', { seconds: seconds.toFixed(1) });
   const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `light takes ${minutes} min`;
-  return `light takes ${Math.floor(minutes / 60)} h ${minutes % 60} min`;
+  if (minutes < 60) return t('bodies.lightMinutes', { minutes });
+  return t('bodies.lightHours', { hours: Math.floor(minutes / 60), minutes: minutes % 60 });
 }
 
 /** A disc's apparent size: arcminutes for the Moon, arcseconds for the rest. */

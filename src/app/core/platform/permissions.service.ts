@@ -3,7 +3,7 @@ import { AlertController } from '@ionic/angular';
 import { TranslateService } from '@ngx-translate/core';
 
 import { AppState } from '../app-state.service';
-import { i18n } from '../i18n/i18n';
+import { i18n } from '../i18n/t';
 
 import { InstallService } from './install.service';
 import type { PermissionKind, Text } from './permission-help';

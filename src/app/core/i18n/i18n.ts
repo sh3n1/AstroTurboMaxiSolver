@@ -12,6 +12,8 @@ import { provideTranslateService, TranslateService } from '@ngx-translate/core';
 import { provideTranslateHttpLoader } from '@ngx-translate/http-loader';
 import { firstValueFrom } from 'rxjs';
 
+import { setTranslator } from './t';
+
 /** The language the app is written in, used for any text another language lacks. */
 export const DEFAULT_LANGUAGE = 'en';
 
@@ -28,12 +30,10 @@ export function provideI18n(): EnvironmentProviders {
       lang: DEFAULT_LANGUAGE,
       fallbackLang: DEFAULT_LANGUAGE,
     }),
-    provideAppInitializer(() => firstValueFrom(inject(TranslateService).use(DEFAULT_LANGUAGE))),
+    provideAppInitializer(async () => {
+      const translate = inject(TranslateService);
+      await firstValueFrom(translate.use(DEFAULT_LANGUAGE));
+      setTranslator((key, params) => translate.instant(key, params) as string);
+    }),
   ]);
 }
-
-/**
- * Marks a text's key kept in a constant or a map, for the check in scripts/check-i18n.mjs,
- * and returns it unchanged. Translate it where it is shown.
- */
-export const i18n = (key: string): string => key;

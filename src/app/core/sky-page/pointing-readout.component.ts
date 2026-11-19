@@ -1,5 +1,6 @@
 import { DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { TranslatePipe } from '@ngx-translate/core';
 
 import { AppState } from '../app-state.service';
 import { formatDec, formatRa } from '../astronomy/astronomy';
@@ -15,7 +16,7 @@ import type { ViewMode } from '../sky-map/sky-style';
 @Component({
   selector: 'app-pointing-readout',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DecimalPipe],
+  imports: [TranslatePipe, DecimalPipe],
   styles: `
     /* A warning, such as the finder phone's sensors being off. */
     .warn {
@@ -26,26 +27,34 @@ import type { ViewMode } from '../sky-map/sky-style';
   template: `
     <!-- The sensor button shows whether sensors are on, so only a missing compass is worth a line. -->
     @if (state.sensorsActive() && !sensors.hasCompass()) {
-      No compass<br />
+      {{ 'readout.noCompass' | translate }}<br />
     }
     <!-- On a screen phone, the finder's position only follows the telescope while its sensors run. -->
     @if (state.remoteFinder() && !remote.finderSteering()) {
-      <span class="warn" data-testid="finder-sensors-off">Finder sensors off</span><br />
+      <span class="warn" data-testid="finder-sensors-off">{{ 'readout.finderSensorsOff' | translate }}</span
+      ><br />
     }
-    Alt {{ state.pointing().altDeg | number: '1.0-0' }}° Az {{ state.pointing().azDeg | number: '1.0-0' }}°<br />
+    {{
+      'readout.altAz'
+        | translate
+          : { alt: (state.pointing().altDeg | number: '1.0-0'), az: (state.pointing().azDeg | number: '1.0-0') }
+    }}<br />
     <!-- Hidden unless chosen in Settings, since most observers steer by the map, not coordinates. -->
     @if (state.settings().showEquatorial) {
-      <span data-testid="equatorial">RA {{ pointingRa() }}, Dec {{ pointingDec() }}</span>
+      <span data-testid="equatorial">{{ 'readout.raDec' | translate: { ra: pointingRa(), dec: pointingDec() } }}</span>
       <br />
     }
     @if (mode() === 'eyepiece') {
-      {{ power() | number: '1.0-0' }}× · FOV {{ eyepieceField() | number: '1.1-2' }}°
+      {{
+        'readout.eyepiece'
+          | translate: { power: (power() | number: '1.0-0'), field: (eyepieceField() | number: '1.1-2') }
+      }}
     } @else {
-      FOV {{ fieldDeg() | number: '1.0-0' }}°
+      {{ 'readout.field' | translate: { field: (fieldDeg() | number: '1.0-0') } }}
       @if (mode() === 'ring') {
-        <br /><span data-testid="ring-readout"
-          >Ring {{ eyepieceField() | number: '1.1-2' }}° · {{ power() | number: '1.0-0' }}×</span
-        >
+        <br /><span data-testid="ring-readout">{{
+          'readout.ring' | translate: { field: (eyepieceField() | number: '1.1-2'), power: (power() | number: '1.0-0') }
+        }}</span>
       }
     }
   `,

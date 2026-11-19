@@ -3,7 +3,7 @@
 // functions, with no Angular, so they can be tested. They give the keys of the texts in
 // src/assets/i18n, which permissions.service.ts translates when it shows them.
 
-import { i18n } from '../i18n/i18n';
+import { i18n } from '../i18n/t';
 
 /** What AppState.locateWithGps says when the user or the browser refused the location. */
 export const LOCATION_BLOCKED = i18n('location.off');

@@ -9,7 +9,8 @@
     "gotIt": "Got it",
     "notNow": "Not now",
     "continue": "Continue",
-    "later": "Later"
+    "later": "Later",
+    "close": "Close"
   },
   "location": {
     "finding": "Finding location…",
@@ -184,5 +185,250 @@
     "starsFound": "{{count}} stars found",
     "sensorsOff": "sensors were {{degrees}}° off",
     "noSolves": "No plate solves yet. Turn sensors on and hold the phone still."
+  },
+  "kinds": {
+    "galaxy": "Galaxy",
+    "nebula": "Nebula",
+    "openCluster": "Open cluster",
+    "globularCluster": "Globular cluster",
+    "star": "Star",
+    "doubleStar": "Double star",
+    "constellation": "Constellation",
+    "planet": "Planet",
+    "dwarfPlanet": "Dwarf planet",
+    "asteroid": "Asteroid",
+    "moon": "Moon",
+    "other": "Other"
+  },
+  "types": {
+    "planetaryNebula": "Planetary nebula",
+    "supernovaRemnant": "Supernova remnant",
+    "starForming": "Star-forming nebula",
+    "emissionNebula": "Emission nebula",
+    "reflectionNebula": "Reflection nebula",
+    "nebula": "Nebula",
+    "clusterWithNebula": "Open cluster with nebula",
+    "galaxyPair": "Galaxy pair",
+    "galaxyTriplet": "Galaxy triplet",
+    "galaxyGroup": "Galaxy group",
+    "darkNebula": "Dark nebula",
+    "asterism": "Asterism",
+    "quasar": "Quasar"
+  },
+  "galaxies": {
+    "ellipticalOrLenticular": "Elliptical or lenticular galaxy",
+    "elliptical": "Elliptical galaxy",
+    "lenticular": "Lenticular galaxy",
+    "weaklyBarred": "Weakly barred spiral galaxy",
+    "barred": "Barred spiral galaxy",
+    "spiral": "Spiral galaxy",
+    "irregular": "Irregular galaxy"
+  },
+  "colours": {
+    "blue": "Blue",
+    "blueWhite": "Blue-white",
+    "white": "White",
+    "yellowWhite": "Yellow-white",
+    "yellow": "Yellow",
+    "orange": "Orange",
+    "orangeRed": "Orange-red",
+    "red": "Red"
+  },
+  "compass": {
+    "north": "north",
+    "northEast": "north-east",
+    "east": "east",
+    "southEast": "south-east",
+    "south": "south",
+    "southWest": "south-west",
+    "west": "west",
+    "northWest": "north-west",
+    "short": {
+      "N": "N",
+      "NE": "NE",
+      "E": "E",
+      "SE": "SE",
+      "S": "S",
+      "SW": "SW",
+      "W": "W",
+      "NW": "NW"
+    }
+  },
+  "moon": {
+    "belowHorizon": "Moon below the horizon now",
+    "brightGlare": "Bright Moon {{degrees}}° away, {{percent}}% lit: faint detail will be hard to see",
+    "away": "Moon {{degrees}}° away, {{percent}}% lit",
+    "down": "Moon down",
+    "bright": "Bright Moon",
+    "noGlare": "No glare",
+    "full": "full Moon",
+    "new": "new Moon"
+  },
+  "doubles": {
+    "byEye": "Splits by eye or in binoculars",
+    "byEyeShort": "Splits by eye",
+    "tooClose": "Too close for a {{aperture}} mm telescope, which splits pairs down to about {{limit}}",
+    "tooCloseShort": "Too close",
+    "splits": "Splits with your eyepiece, at {{power}}×",
+    "splitsShort": "Splits at {{power}}×",
+    "needs": "Needs about {{needed}}× to split · your eyepiece gives {{power}}×",
+    "needsShort": "Needs {{needed}}×",
+    "orbiting": "orbiting pair",
+    "binary": "true binary",
+    "lineOfSight": "line-of-sight pair",
+    "multiple": "Multiple star"
+  },
+  "bodies": {
+    "km": "{{km}} km",
+    "au": "{{au}} au",
+    "lightSeconds": "{{seconds}} light-seconds",
+    "lightMinutes": "light takes {{minutes}} min",
+    "lightHours": "light takes {{hours}} h {{minutes}} min"
+  },
+  "details": {
+    "colouredStar": "{{colour}} star",
+    "across": "{{size}} across",
+    "overfills": "Overfills",
+    "fills": "Fills",
+    "fits": "Fits",
+    "tiny": "Tiny",
+    "tonight": "Tonight",
+    "disc": "disc {{size}}",
+    "pair": "{{components}} {{sep}} apart at {{angle}}°",
+    "limit": "limit {{limit}}",
+    "away": "{{distance}} away",
+    "lit": "{{percent}}% lit",
+    "moonAge": "Age {{days}} days",
+    "ra": "RA {{ra}}",
+    "dec": "Dec {{dec}}",
+    "fromSun": "{{degrees}}° from the Sun",
+    "magPair": "mag {{mag1}} and {{mag2}}",
+    "mag": "mag {{mag}}",
+    "best": "Best {{from}}–{{until}}",
+    "notUp": "Not up tonight",
+    "low": "Low tonight",
+    "onlyTwilight": "Only up in twilight",
+    "highestAt": "{{degrees}}° at {{time}}",
+    "chartLabel": "Height through the night: highest {{highest}}. {{status}}.",
+    "belowAllNight": "Below the horizon all night.",
+    "fitAt": "{{fit}} at {{power}}×",
+    "eyepieceShows": "Your eyepiece shows {{field}}° at {{power}}×",
+    "colours": "{{main}} and {{companion}}",
+    "where": "{{direction}}, {{degrees}}° up",
+    "belowHorizon": "Below the horizon"
+  },
+  "alignment": {
+    "aligned": "Aligned: {{star}}",
+    "alignedRough": "Aligned: {{star}}, rough"
+  },
+  "bar": {
+    "away": "{{degrees}}° away",
+    "belowHorizon": "below the horizon",
+    "observations": "Observations",
+    "seenTimes": ", seen {{count}} times",
+    "logObservation": "Log an observation",
+    "sync": "Sync: target centred in the eyepiece",
+    "aim": "Aim at the target",
+    "details": "Target details",
+    "clear": "Clear target"
+  },
+  "menu": {
+    "title": "Menu",
+    "finderSteers": "Finder steers",
+    "sensorsOn": "Sensors on",
+    "useSensors": "Use sensors",
+    "lists": "Lists",
+    "night": "Night",
+    "time": "Time",
+    "fullScreen": "Full screen"
+  },
+  "views": {
+    "sky": "Sky map",
+    "eyepiece": "Eyepiece view",
+    "ring": "Field ring"
+  },
+  "finder": {
+    "tapFullScreen": "Tap for full screen",
+    "remoteMode": "Finder · remote mode",
+    "startSensors": "Finder · tap to start sensors",
+    "pause": "Pause remote mode"
+  },
+  "readout": {
+    "noCompass": "No compass",
+    "finderSensorsOff": "Finder sensors off",
+    "altAz": "Alt {{alt}}° Az {{az}}°",
+    "raDec": "RA {{ra}}, Dec {{dec}}",
+    "eyepiece": "{{power}}× · FOV {{field}}°",
+    "field": "FOV {{field}}°",
+    "ring": "Ring {{field}}° · {{power}}×"
+  },
+  "eyepiece": {
+    "starsTo": "Stars to magnitude {{mag}}",
+    "starsToYourSky": "Stars to magnitude {{mag}}, your sky",
+    "reset": "Reset to my sky",
+    "faintest": "Faintest stars shown",
+    "telescope": "Telescope",
+    "eyepiece": "Eyepiece",
+    "modifier": "Barlow or reducer",
+    "filter": "Filter",
+    "noBarlow": "No Barlow",
+    "noFilter": "No filter",
+    "editEquipment": "Edit equipment"
+  },
+  "playlist": {
+    "previous": "Previous target",
+    "next": "Next target"
+  },
+  "time": {
+    "previousDay": "Previous day",
+    "nextDay": "Next day",
+    "now": "Now",
+    "forecast": "Clouds and seeing",
+    "close": "Close the time control",
+    "slider": "Time of the sky",
+    "today": "Today",
+    "showing": "Showing {{date}} · {{time}}",
+    "backToNow": "Back to now",
+    "setLocation": "Set a location for the forecast",
+    "updating": "Updating…",
+    "noForecast": "No forecast",
+    "updated": "Updated {{when}}"
+  },
+  "sky": {
+    "solveHere": "Plate solve here",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "setLocation": "Set location",
+    "install": "Install app",
+    "update": "Update app"
+  },
+  "guidance": {
+    "onTarget": "On target",
+    "up": "Up {{degrees}}°",
+    "down": "Down {{degrees}}°",
+    "right": "Right {{degrees}}°",
+    "left": "Left {{degrees}}°"
+  },
+  "solver": {
+    "isoLowered": "Too bright, ISO lowered to {{iso}}",
+    "moved": "The phone moved during the exposure",
+    "solved": "Plate solved, {{matched}} stars matched",
+    "pausedForTime": "Paused while showing another time. Go back to now to solve.",
+    "tooBright": "Too bright to see stars",
+    "tooBrightReason": "Too bright for the camera. Keep lights out of view.",
+    "noMatchReason": "The camera saw {{count}} stars but couldn't match them. Is the sky clear?",
+    "noStarsReason": "The camera saw no stars. Is the sky clear?",
+    "cameraNotUsed": "The camera could not be used. {{error}}",
+    "noMatch": "No match in {{count}} stars",
+    "noStars": "No stars found",
+    "cameraNotYet": "Camera not in use yet",
+    "cameraOff": "Camera is off",
+    "cameraUnavailableBecause": "Camera unavailable: {{error}}",
+    "cameraUnavailable": "Camera unavailable"
+  },
+  "sensors": {
+    "off": "Motion sensors are off",
+    "notRequested": "Sensor access could not be requested.",
+    "noData": "No sensor data. This device may not have the sensors, or the page may not be on HTTPS."
   }
 }

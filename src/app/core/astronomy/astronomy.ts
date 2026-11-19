@@ -19,6 +19,8 @@ import {
   SearchAltitude,
 } from 'astronomy-engine';
 
+import { t } from '../i18n/t';
+
 import { minorPlanet, minorPlanetPosition } from './minor-planets';
 
 export type Vector3 = readonly [number, number, number];
@@ -197,13 +199,14 @@ export function azimuthChangeDeg(fromDeg: number, toDeg: number): number {
 
 /** Names an azimuth as one of the eight main compass directions. */
 export function compassPoint(azDeg: number): string {
-  const names = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
-  return names[Math.round(normalizeDeg(azDeg) / 45) % 8];
+  const names = ['north', 'northEast', 'east', 'southEast', 'south', 'southWest', 'west', 'northWest'];
+  return t(`compass.${names[Math.round(normalizeDeg(azDeg) / 45) % 8]}`);
 }
 
 /** The same compass direction as letters, such as "SE", short enough for a badge. */
 export function compassShort(azDeg: number): string {
-  return ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(normalizeDeg(azDeg) / 45) % 8];
+  const names = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+  return t(`compass.short.${names[Math.round(normalizeDeg(azDeg) / 45) % 8]}`);
 }
 
 /** Orientation of a view looking at a pointing, with the horizon level. */

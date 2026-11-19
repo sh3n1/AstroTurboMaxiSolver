@@ -1,12 +1,14 @@
 import type { ElementRef } from '@angular/core';
 import { Component, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { IonButton, IonDatetime, IonIcon, IonModal } from '@ionic/angular';
+import { TranslatePipe } from '@ngx-translate/core';
 import { addIcons } from 'ionicons';
 import { chevronBack, chevronDown, chevronForward, close, cloud, cloudOutline, timeOutline } from 'ionicons/icons';
 
 import { APP_ICONS } from '../app-icons';
 import { AppState } from '../app-state.service';
 import { sunAltitudeDeg } from '../astronomy/astronomy';
+import { t } from '../i18n/t';
 import { LocalTimePipe } from '../local-time.pipe';
 import type { SeeingQuality } from '../sky-conditions/forecast';
 import { forecastAt, seeingQuality, shownSeeing } from '../sky-conditions/forecast';
@@ -61,7 +63,7 @@ const SEEING_COLOURS: Record<SeeingQuality, string> = {
 @Component({
   selector: 'app-time-control',
   host: { '[class.showing]': 'state.timeControlOpen() || state.planning()' },
-  imports: [LocalTimePipe, IonButton, IonDatetime, IonIcon, IonModal],
+  imports: [TranslatePipe, LocalTimePipe, IonButton, IonDatetime, IonIcon, IonModal],
   styles: `
     :host {
       display: block;
@@ -232,7 +234,7 @@ const SEEING_COLOURS: Record<SeeingQuality, string> = {
       <div class="row">
         <ion-button fill="clear" data-testid="previous-day" (click)="shiftDays(-1)">
           <ion-icon slot="icon-only" name="chevron-back" aria-hidden="true"></ion-icon>
-          <span class="visually-hidden">Previous day</span>
+          <span class="visually-hidden">{{ 'time.previousDay' | translate }}</span>
         </ion-button>
         <ion-button fill="clear" class="when" data-testid="pick-day" (click)="pickingDay.set(true)">
           <span class="when-text">
@@ -242,10 +244,10 @@ const SEEING_COLOURS: Record<SeeingQuality, string> = {
         </ion-button>
         <ion-button fill="clear" data-testid="next-day" (click)="shiftDays(1)">
           <ion-icon slot="icon-only" name="chevron-forward" aria-hidden="true"></ion-icon>
-          <span class="visually-hidden">Next day</span>
+          <span class="visually-hidden">{{ 'time.nextDay' | translate }}</span>
         </ion-button>
         <ion-button fill="clear" data-testid="time-now" [disabled]="!state.planning()" (click)="backToNow()">
-          Now
+          {{ 'time.now' | translate }}
         </ion-button>
         <!-- Shows or hides the forecast rows under the ruler: a cloud, filled while they show. -->
         <ion-button
@@ -259,11 +261,11 @@ const SEEING_COLOURS: Record<SeeingQuality, string> = {
             aria-hidden="true"
             [name]="forecast.shown() ? 'cloud' : 'cloud-outline'"
           ></ion-icon>
-          <span class="visually-hidden">Clouds and seeing</span>
+          <span class="visually-hidden">{{ 'time.forecast' | translate }}</span>
         </ion-button>
         <ion-button fill="clear" data-testid="close-time" (click)="state.timeControlOpen.set(false)">
           <ion-icon slot="icon-only" name="chevron-down" aria-hidden="true"></ion-icon>
-          <span class="visually-hidden">Close the time control</span>
+          <span class="visually-hidden">{{ 'time.close' | translate }}</span>
         </ion-button>
       </div>
       <!-- Drag sideways to change the time. The arrow keys work too, for keyboards. -->
@@ -273,7 +275,7 @@ const SEEING_COLOURS: Record<SeeingQuality, string> = {
           data-testid="time-ruler"
           tabindex="0"
           role="slider"
-          aria-label="Time of the sky"
+          [attr.aria-label]="'time.slider' | translate"
           [attr.aria-valuetext]="shown() | localTime: 'date-time'"
           [attr.aria-valuenow]="shown().getTime()"
           [attr.aria-valuemin]="earliest().getTime()"
@@ -313,11 +315,13 @@ const SEEING_COLOURS: Record<SeeingQuality, string> = {
               (ionChange)="pickDay($event)"
             ></ion-datetime>
             <div class="day-picker-actions">
-              <ion-button fill="clear" data-testid="day-picker-today" (click)="pickToday()">Today</ion-button>
+              <ion-button fill="clear" data-testid="day-picker-today" (click)="pickToday()">{{
+                'time.today' | translate
+              }}</ion-button>
               <ion-button
                 fill="clear"
                 data-testid="day-picker-close"
-                aria-label="Close"
+                [attr.aria-label]="'common.close' | translate"
                 (click)="pickingDay.set(false)"
               >
                 <ion-icon slot="icon-only" name="close" aria-hidden="true"></ion-icon>
@@ -331,10 +335,18 @@ const SEEING_COLOURS: Record<SeeingQuality, string> = {
         <!-- Tapping the words opens the time control again. -->
         <button class="band-text" type="button" (click)="state.timeControlOpen.set(true)">
           <ion-icon name="time-outline" aria-hidden="true"></ion-icon>
-          <span>Showing {{ shown() | localTime: 'date' }} · {{ shown() | localTime }}</span>
+          <span>{{
+            'time.showing' | translate: { date: (shown() | localTime: 'date'), time: (shown() | localTime) }
+          }}</span>
         </button>
         <!-- "Now" goes back to the real time, as on the time control, and the band goes with it. -->
-        <ion-button fill="clear" data-testid="band-now" aria-label="Back to now" (click)="backToNow()">Now</ion-button>
+        <ion-button
+          fill="clear"
+          data-testid="band-now"
+          [attr.aria-label]="'time.backToNow' | translate"
+          (click)="backToNow()"
+          >{{ 'time.now' | translate }}</ion-button
+        >
       </div>
     }
   `,
@@ -361,13 +373,13 @@ export class TimeControlComponent {
 
   /** Under the rows: when the forecast was downloaded, or why there is none. */
   protected readonly forecastStatus = computed(() => {
-    if (!this.state.settings().locationSet) return 'Set a location for the forecast';
+    if (!this.state.settings().locationSet) return t('time.setLocation');
     const forecast = this.forecast.forecast();
-    if (this.forecast.updating() && !forecast) return 'Updating…';
-    if (!forecast) return 'No forecast';
+    if (this.forecast.updating() && !forecast) return t('time.updating');
+    if (!forecast) return t('time.noForecast');
     const fetched = new Date(forecast.fetchedAt);
     const today = fetched.toDateString() === new Date().toDateString();
-    return `Updated ${TIME_PIPE.transform(fetched, today ? 'time' : 'date-time')}`;
+    return t('time.updated', { when: TIME_PIPE.transform(fetched, today ? 'time' : 'date-time') });
   });
 
   /** Where a drag started, and the time then. */

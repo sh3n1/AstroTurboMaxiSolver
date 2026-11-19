@@ -31,7 +31,7 @@ import {
   newKitId,
   resolveSelection,
 } from './equipment/equipment';
-import { i18n } from './i18n/i18n';
+import { i18n } from './i18n/t';
 import { LOCATION_BLOCKED, LOCATION_UPDATED, isPermissionDenied } from './platform/permission-help';
 import { telescopeLimit } from './sky-conditions/sky-quality';
 import type { CaptureMode } from './solver/camera';

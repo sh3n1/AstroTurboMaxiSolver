@@ -1,3 +1,6 @@
+import { setTranslator } from './app/core/i18n/t';
+import english from './assets/i18n/en.json';
+
 // Polyfills for running unit tests under jsdom (the default Vitest environment).
 // Ionic components such as ion-menu and ion-split-pane query `window.matchMedia`,
 // which jsdom does not implement.
@@ -14,3 +17,13 @@ if (!window.matchMedia) {
       dispatchEvent: () => false,
     }) as MediaQueryList;
 }
+
+// Plain code words its texts through t() from core/i18n: in unit tests it reads the English
+// language file directly, so the tests check the real wording.
+
+setTranslator((key, params) => {
+  let text: unknown = english;
+  for (const part of key.split('.')) text = (text as Record<string, unknown> | undefined)?.[part];
+  if (typeof text !== 'string') return key;
+  return text.replace(/\{\{\s*(\w+)\s*\}\}/g, (match, name: string) => String(params?.[name] ?? match));
+});
