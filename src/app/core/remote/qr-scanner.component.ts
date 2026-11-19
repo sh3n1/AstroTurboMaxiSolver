@@ -1,6 +1,9 @@
 import type { ElementRef, OnDestroy, OnInit } from '@angular/core';
 import { Component, output, signal, viewChild } from '@angular/core';
+import { TranslatePipe } from '@ngx-translate/core';
 import jsQR from 'jsqr';
+
+import { t } from '../i18n/t';
 
 /** How often a frame is checked for a code. Often enough to feel instant, light on the battery. */
 const SCAN_INTERVAL_MS = 200;
@@ -19,8 +22,9 @@ type BarcodeDetectorClass = new (options: { formats: string[] }) => BarcodeDetec
  */
 @Component({
   selector: 'app-qr-scanner',
+  imports: [TranslatePipe],
   template: `
-    <video #video playsinline muted aria-label="Camera view, to read the other phone's code"></video>
+    <video #video playsinline muted [attr.aria-label]="'remote.cameraView' | translate"></video>
     @if (problem()) {
       <p class="problem" data-testid="scanner-problem">{{ problem() }}</p>
     }
@@ -57,7 +61,7 @@ export class QrScannerComponent implements OnInit, OnDestroy {
     try {
       this.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
     } catch {
-      this.problem.set('Camera unavailable. Paste the code instead.');
+      this.problem.set(t('remote.cameraUnavailable'));
       return;
     }
     const video = this.video().nativeElement;

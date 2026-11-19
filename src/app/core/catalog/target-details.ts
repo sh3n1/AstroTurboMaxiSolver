@@ -6,26 +6,48 @@ import { Constellation } from 'astronomy-engine';
 
 import { equatorialVector } from '../astronomy/astronomy';
 import { doubleKindText } from '../astronomy/double-stars';
+import { num, t } from '../i18n/t';
 
 import type { Target } from './targets';
 
-/** Object types in OpenNGC's codes, which the catalogue files keep, in plain words. */
+/** Object types in OpenNGC's codes, which the catalogue files keep: their texts' keys. */
 const TYPE_NAMES: Record<string, string> = {
-  PN: 'Planetary nebula',
-  SNR: 'Supernova remnant',
-  HII: 'Star-forming nebula',
-  EmN: 'Emission nebula',
-  RfN: 'Reflection nebula',
-  Neb: 'Nebula',
-  'Cl+N': 'Open cluster with nebula',
-  GPair: 'Galaxy pair',
-  GTrpl: 'Galaxy triplet',
-  GGroup: 'Galaxy group',
-  DrkN: 'Dark nebula',
+  PN: 'types.planetaryNebula',
+  SNR: 'types.supernovaRemnant',
+  HII: 'types.starForming',
+  EmN: 'types.emissionNebula',
+  RfN: 'types.reflectionNebula',
+  Neb: 'types.nebula',
+  'Cl+N': 'types.clusterWithNebula',
+  GPair: 'types.galaxyPair',
+  GTrpl: 'types.galaxyTriplet',
+  GGroup: 'types.galaxyGroup',
+  DrkN: 'types.darkNebula',
   // Not OpenNGC's codes: for the app's own objects, in extra-targets.ts.
-  Ast: 'Asterism',
-  QSO: 'Quasar',
+  Ast: 'types.asterism',
+  QSO: 'types.quasar',
 };
+
+/** Each kind of target's text key, under kinds in the language files. */
+const KIND_KEYS: Record<Target['kind'], string> = {
+  Galaxy: 'kinds.galaxy',
+  Nebula: 'kinds.nebula',
+  'Open cluster': 'kinds.openCluster',
+  'Globular cluster': 'kinds.globularCluster',
+  Star: 'kinds.star',
+  'Double star': 'kinds.doubleStar',
+  Constellation: 'kinds.constellation',
+  Planet: 'kinds.planet',
+  'Dwarf planet': 'kinds.dwarfPlanet',
+  Asteroid: 'kinds.asteroid',
+  Moon: 'kinds.moon',
+  Other: 'kinds.other',
+};
+
+/** A kind of target in the user's language, such as "Open cluster". */
+export function kindText(kind: Target['kind']): string {
+  return t(KIND_KEYS[kind]);
+}
 
 /**
  * A galaxy's Hubble type in words, with the code after it, such as "Barred spiral
@@ -34,19 +56,19 @@ const TYPE_NAMES: Record<string, string> = {
  * Messier galaxies only have a plain S, E or I, which adds nothing to the words.
  */
 export function hubbleText(code: string): string {
-  const words = HUBBLE_WORDS.find(([prefix]) => code.startsWith(prefix))?.[1] ?? 'Galaxy';
+  const words = t(HUBBLE_WORDS.find(([prefix]) => code.startsWith(prefix))?.[1] ?? 'kinds.galaxy');
   return ['S', 'E', 'I'].includes(code) ? words : `${words} (${code})`;
 }
 
 /** Hubble code beginnings, the more specific first, since "SB" also starts with "S". */
 const HUBBLE_WORDS: readonly [string, string][] = [
-  ['E-S0', 'Elliptical or lenticular galaxy'],
-  ['E', 'Elliptical galaxy'],
-  ['S0', 'Lenticular galaxy'],
-  ['SAB', 'Weakly barred spiral galaxy'],
-  ['SB', 'Barred spiral galaxy'],
-  ['S', 'Spiral galaxy'],
-  ['I', 'Irregular galaxy'],
+  ['E-S0', 'galaxies.ellipticalOrLenticular'],
+  ['E', 'galaxies.elliptical'],
+  ['S0', 'galaxies.lenticular'],
+  ['SAB', 'galaxies.weaklyBarred'],
+  ['SB', 'galaxies.barred'],
+  ['S', 'galaxies.spiral'],
+  ['I', 'galaxies.irregular'],
 ];
 
 /**
@@ -55,36 +77,40 @@ const HUBBLE_WORDS: readonly [string, string][] = [
  * says how hot the star is, but not whether it is a giant or a dwarf.
  */
 export function starColourName(bv: number): string {
-  if (bv < -0.15) return 'Blue';
-  if (bv < 0) return 'Blue-white';
-  if (bv < 0.3) return 'White';
-  if (bv < 0.6) return 'Yellow-white';
-  if (bv < 0.8) return 'Yellow';
-  if (bv < 1.4) return 'Orange';
-  if (bv < 1.8) return 'Orange-red';
-  return 'Red';
+  if (bv < -0.15) return t('colours.blue');
+  if (bv < 0) return t('colours.blueWhite');
+  if (bv < 0.3) return t('colours.white');
+  if (bv < 0.6) return t('colours.yellowWhite');
+  if (bv < 0.8) return t('colours.yellow');
+  if (bv < 1.4) return t('colours.orange');
+  if (bv < 1.8) return t('colours.orangeRed');
+  return t('colours.red');
 }
 
 /** What kind of object a target is, as specifically as the catalogues say. */
 export function objectTypeText(target: Target): string {
   if (target.double) return doubleKindText(target.double);
-  if (target.kind === 'Star') return target.bv === undefined ? 'Star' : `${starColourName(target.bv)} star`;
-  if (target.type && TYPE_NAMES[target.type]) return TYPE_NAMES[target.type];
+  if (target.kind === 'Star') {
+    return target.bv === undefined
+      ? kindText('Star')
+      : t('details.colouredStar', { colour: starColourName(target.bv) });
+  }
+  if (target.type && TYPE_NAMES[target.type]) return t(TYPE_NAMES[target.type]);
   if (target.kind === 'Galaxy' && target.hubble) return hubbleText(target.hubble);
-  return target.kind;
+  return kindText(target.kind);
 }
 
 /** A size in arcminutes, or in arcseconds when under one: "66′", "4.5′", "40″". */
 function arcminText(value: number): string {
   if (value < 1) return `${Math.round(value * 60)}″`;
-  return value >= 10 ? `${Math.round(value)}′` : `${Number(value.toFixed(1))}′`;
+  return value >= 10 ? `${Math.round(value)}′` : `${num(value, 1, 0)}′`;
 }
 
 /** Both sides of an object, such as "66′ × 60′", or one for a round object, or null. */
 export function sizeText(target: Pick<Target, 'sizeArcmin' | 'minorArcmin'>): string | null {
   const { sizeArcmin, minorArcmin } = target;
   if (!sizeArcmin) return null;
-  if (!minorArcmin || minorArcmin === sizeArcmin) return `${arcminText(sizeArcmin)} across`;
+  if (!minorArcmin || minorArcmin === sizeArcmin) return t('details.across', { size: arcminText(sizeArcmin) });
   return `${arcminText(sizeArcmin)} × ${arcminText(minorArcmin)}`;
 }
 
@@ -94,7 +120,9 @@ export function sizeText(target: Pick<Target, 'sizeArcmin' | 'minorArcmin'>): st
  */
 export function eyepieceFit(sizeArcmin: number, fieldArcmin: number): { word: string; share: number } {
   const share = sizeArcmin / fieldArcmin;
-  const word = share >= 1 ? 'Overfills' : share >= 0.4 ? 'Fills' : share >= 0.05 ? 'Fits' : 'Tiny';
+  const word = t(
+    share >= 1 ? 'details.overfills' : share >= 0.4 ? 'details.fills' : share >= 0.05 ? 'details.fits' : 'details.tiny',
+  );
   return { word, share };
 }
 
@@ -204,11 +232,10 @@ export function moonNote(
   moonAltDeg: number,
   litFraction: number,
 ): { text: string; warn: boolean } {
-  if (moonAltDeg <= 0) return { text: 'Moon below the horizon now', warn: false };
-  const lit = `${Math.round(litFraction * 100)}% lit`;
-  const away = `${Math.round(separationDeg)}° away`;
+  if (moonAltDeg <= 0) return { text: t('moon.belowHorizon'), warn: false };
+  const params = { degrees: Math.round(separationDeg), percent: Math.round(litFraction * 100) };
   if (separationDeg < MOON_GLARE_DEG && litFraction >= MOON_BRIGHT_FRACTION) {
-    return { text: `Bright Moon ${away}, ${lit}: faint detail will be hard to see`, warn: true };
+    return { text: t('moon.brightGlare', params), warn: true };
   }
-  return { text: `Moon ${away}, ${lit}`, warn: false };
+  return { text: t('moon.away', params), warn: false };
 }

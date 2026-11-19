@@ -1,6 +1,7 @@
 import type { AfterViewInit, ElementRef, OnDestroy } from '@angular/core';
 import { Component, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { IonContent, IonFabButton, IonIcon, ToastController } from '@ionic/angular';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { addIcons } from 'ionicons';
 import {
   add,
@@ -16,6 +17,7 @@ import {
 import { APP_ICONS } from '../core/app-icons';
 import { AppState } from '../core/app-state.service';
 import { formatLocation } from '../core/astronomy/astronomy';
+import { i18n } from '../core/i18n/t';
 import { InstallNoticeComponent } from '../core/platform/install-notice.component';
 import { InstallService } from '../core/platform/install.service';
 import { PermissionsService } from '../core/platform/permissions.service';
@@ -37,9 +39,9 @@ import { SyncService } from '../core/sync/sync.service';
 const NEXT_VIEW: Record<ViewMode, ViewMode> = { sky: 'eyepiece', eyepiece: 'ring', ring: 'sky' };
 /** The button shows the view it switches to: its icon, and its name for screen readers. */
 const VIEW_BUTTONS: Record<ViewMode, { icon: string; label: string }> = {
-  sky: { icon: 'map-outline', label: 'Sky map' },
-  eyepiece: { icon: APP_ICONS.eyepiece, label: 'Eyepiece view' },
-  ring: { icon: 'radio-button-off-outline', label: 'Field ring' },
+  sky: { icon: 'map-outline', label: i18n('views.sky') },
+  eyepiece: { icon: APP_ICONS.eyepiece, label: i18n('views.eyepiece') },
+  ring: { icon: 'radio-button-off-outline', label: i18n('views.ring') },
 };
 /** How long a toast message stays, long enough to read at arm's length. */
 const TOAST_MS = 3500;
@@ -56,6 +58,7 @@ const MENU_IDLE_MS = 10_000;
 @Component({
   selector: 'app-sky',
   imports: [
+    TranslatePipe,
     IonContent,
     IonFabButton,
     IonIcon,
@@ -78,7 +81,7 @@ const MENU_IDLE_MS = 10_000;
         <!-- Tapping the rings, red or green, plate solves there. This hidden button does the same for screen readers. -->
         @if (!solvingHere() && !state.finderMode()) {
           <button class="visually-hidden" type="button" data-testid="solve-here" (click)="solveHere()">
-            Plate solve here
+            {{ 'sky.solveHere' | translate }}
           </button>
         }
 
@@ -102,7 +105,7 @@ const MENU_IDLE_MS = 10_000;
           @if (mode() !== 'eyepiece') {
             <div class="zoom" [class.faded]="!moreOpen()">
               <ion-fab-button
-                aria-label="Zoom in"
+                [attr.aria-label]="'sky.zoomIn' | translate"
                 data-testid="zoom-in"
                 [disabled]="fieldDeg() <= minField"
                 (click)="zoomBy(1 / zoomStep)"
@@ -110,7 +113,7 @@ const MENU_IDLE_MS = 10_000;
                 <ion-icon name="add" aria-hidden="true"></ion-icon>
               </ion-fab-button>
               <ion-fab-button
-                aria-label="Zoom out"
+                [attr.aria-label]="'sky.zoomOut' | translate"
                 data-testid="zoom-out"
                 [disabled]="fieldDeg() >= maxField"
                 (click)="zoomBy(zoomStep)"
@@ -124,7 +127,9 @@ const MENU_IDLE_MS = 10_000;
             it, and it goes after a while without a touch: see MENU_IDLE_MS. This hidden
             button opens it for screen readers.
           -->
-          <button class="visually-hidden" type="button" data-testid="open-menu" (click)="openMenu()">Menu</button>
+          <button class="visually-hidden" type="button" data-testid="open-menu" (click)="openMenu()">
+            {{ 'menu.title' | translate }}
+          </button>
           @if (moreOpen()) {
             <app-more-sheet
               [mode]="mode()"
@@ -147,7 +152,7 @@ const MENU_IDLE_MS = 10_000;
                   <!-- Until a location is set, the sky shown is for a neutral place, so ask for one. -->
                   <button type="button" class="readout location unset" data-testid="location" (click)="locate()">
                     <ion-icon name="location-outline" aria-hidden="true"></ion-icon>
-                    {{ locating() || 'Set location' }}
+                    {{ locating() || ('sky.setLocation' | translate) }}
                   </button>
                 }
               }
@@ -162,7 +167,7 @@ const MENU_IDLE_MS = 10_000;
                     (click)="install.install()"
                   >
                     <ion-icon name="download-outline" aria-hidden="true"></ion-icon>
-                    Install app
+                    {{ 'sky.install' | translate }}
                   </button>
                 }
                 <!-- A new version is downloaded: one tap switches to it. -->
@@ -174,7 +179,7 @@ const MENU_IDLE_MS = 10_000;
                     (click)="update.apply()"
                   >
                     <ion-icon name="refresh-outline" aria-hidden="true"></ion-icon>
-                    Update app
+                    {{ 'sky.update' | translate }}
                   </button>
                 }
                 <!-- Sync's access to the drive has run out, with changes to send: a tap renews it. -->
@@ -186,7 +191,7 @@ const MENU_IDLE_MS = 10_000;
                     (click)="sync.syncNow(true)"
                   >
                     <ion-icon name="sync-outline" aria-hidden="true"></ion-icon>
-                    Sync
+                    {{ 'sync.title' | translate }}
                   </button>
                 }
               </div>
@@ -214,6 +219,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   protected readonly state = inject(AppState);
   protected readonly sensors = inject(SensorService);
   private readonly permissions = inject(PermissionsService);
+  private readonly translate = inject(TranslateService);
   protected readonly install = inject(InstallService);
   protected readonly update = inject(UpdateService);
   protected readonly sync = inject(SyncService);
@@ -236,11 +242,15 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   protected readonly locating = signal('');
 
   protected async locate(): Promise<void> {
-    this.locating.set('Finding location…');
+    this.locating.set(this.translate.instant('location.finding') as string);
     const message = await this.permissions.locate();
     // On success the box shows the location instead, so only a problem needs saying.
     // "Not now" leaves the button as it was.
-    this.locating.set(this.state.settings().locationSet || !message ? '' : `${message} · tap to try again`);
+    this.locating.set(
+      this.state.settings().locationSet || !message
+        ? ''
+        : (this.translate.instant('location.tapToTryAgain', { message: this.translate.instant(message) }) as string),
+    );
   }
 
   /** The observer's location, as set in Settings or from GPS, such as "39.47° N, 0.38° W". */
@@ -304,7 +314,9 @@ export class SkyPage implements AfterViewInit, OnDestroy {
       const alignedAt = alignment?.alignedAt;
       if (this.shownAlignedAt !== undefined && alignment && alignedAt !== this.shownAlignedAt) {
         void this.toast(
-          `Aligned: ${alignment.starId}${alignment.method === 'plate-solve' ? '' : ', rough'}`,
+          this.translate.instant(alignment.method === 'plate-solve' ? 'alignment.aligned' : 'alignment.alignedRough', {
+            star: alignment.starId,
+          }) as string,
           'alignment-toast',
         );
       }

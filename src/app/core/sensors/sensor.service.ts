@@ -4,6 +4,7 @@ import { telescopePointing } from '../alignment/alignment';
 import { offsetFor } from '../alignment/alignment-sync';
 import { AppState } from '../app-state.service';
 import { viewRollDeg } from '../astronomy/astronomy';
+import { t } from '../i18n/t';
 import { InstallService } from '../platform/install.service';
 import { NotNowError, PermissionsService } from '../platform/permissions.service';
 
@@ -138,14 +139,14 @@ export class SensorService {
         ? await this.permissions.ask('motion', requestSensorPermission)
         : await requestSensorPermission();
       if (!allowed) {
-        this.error.set('Motion sensors are off');
+        this.error.set(t('sensors.off'));
         // How to allow them again, when the user asked for them: not on a start of the app's own.
         if (!automatic) void this.permissions.showBlocked('motion');
         return;
       }
     } catch (error) {
       // "Not now" was the user's own choice: nothing to say.
-      if (!automatic && !(error instanceof NotNowError)) this.error.set('Sensor access could not be requested.');
+      if (!automatic && !(error instanceof NotNowError)) this.error.set(t('sensors.notRequested'));
       return;
     }
 
@@ -163,7 +164,7 @@ export class SensorService {
     this.noDataTimer = setTimeout(() => {
       this.stop();
       if (!automatic) {
-        this.error.set('No sensor data. This device may not have the sensors, or the page may not be on HTTPS.');
+        this.error.set(t('sensors.noData'));
       }
     }, NO_DATA_TIMEOUT_MS);
   }

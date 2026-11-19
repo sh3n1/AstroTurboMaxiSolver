@@ -1,5 +1,6 @@
 import type { AfterViewInit, ElementRef, OnDestroy } from '@angular/core';
 import { Component, computed, effect, inject, input, model, output, viewChild } from '@angular/core';
+import { TranslatePipe } from '@ngx-translate/core';
 
 import { AppState } from '../app-state.service';
 import type { Horizontal } from '../astronomy/astronomy';
@@ -66,6 +67,7 @@ const MIN_TAP_RADIUS_PX = 48;
  */
 @Component({
   selector: 'app-sky-canvas',
+  imports: [TranslatePipe],
   styles: `
     :host {
       display: block;
@@ -83,7 +85,7 @@ const MIN_TAP_RADIUS_PX = 48;
   template: `
     <canvas
       #canvas
-      aria-label="Sky map. Drag to aim, pinch to zoom."
+      [attr.aria-label]="'sky.mapLabel' | translate"
       [attr.data-star-count]="stars().length"
       [attr.data-constellation-count]="constellations().length"
       [attr.data-field]="viewField()"

@@ -11,13 +11,19 @@ describe('permission help', () => {
   });
 
   it("points to each device's own settings: iPhone Settings, Chrome's site settings, or the address bar", () => {
-    expect(blockedHelp('camera', 'apple').steps[0]).toContain('iPhone Settings');
-    expect(blockedHelp('location', 'apple').steps.join(' ')).toContain('Location Services');
-    expect(blockedHelp('camera', 'android').header).toBe('Camera is off');
-    expect(blockedHelp('camera', 'android').steps[0]).toBe('In Chrome: ⋮ › Settings › Site settings › Camera');
+    expect(blockedHelp('camera', 'apple').steps[0].key).toBe('permissions.steps.appleCamera');
+    expect(blockedHelp('location', 'apple').steps.map((s) => s.key)).toContain('permissions.steps.appleLocation');
+    expect(blockedHelp('camera', 'android').header).toEqual({
+      key: 'permissions.blocked.header',
+      params: { name: 'permissions.names.camera' },
+    });
+    expect(blockedHelp('camera', 'android').steps[0]).toEqual({
+      key: 'permissions.steps.chromeSettings',
+      params: { name: 'permissions.names.camera' },
+    });
     // Android's own location switch, for every app, is mentioned too.
-    expect(blockedHelp('location', 'android').steps.join(' ')).toContain('Android Settings');
-    expect(blockedHelp('location', 'desktop').steps[0]).toContain('left of the address');
+    expect(blockedHelp('location', 'android').steps.map((s) => s.key)).toContain('permissions.steps.androidLocation');
+    expect(blockedHelp('location', 'desktop').steps[0].key).toBe('permissions.steps.desktopAllow');
   });
 
   it('tells iPhones, Android phones and computers apart', () => {

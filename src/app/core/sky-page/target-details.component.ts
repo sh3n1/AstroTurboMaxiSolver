@@ -1,6 +1,6 @@
-import { DecimalPipe } from '@angular/common';
 import { Component, computed, inject, input } from '@angular/core';
 import { IonIcon } from '@ionic/angular';
+import { TranslatePipe } from '@ngx-translate/core';
 import { addIcons } from 'ionicons';
 import {
   colorPaletteOutline,
@@ -33,6 +33,8 @@ import {
 } from '../catalog/target-details';
 import { iconDataUrl, phaseIcon, targetIcon } from '../catalog/target-icons';
 import type { Target, TargetKind } from '../catalog/targets';
+import { NumPipe, PluralPipe } from '../i18n/i18n-pipes';
+import { num, t } from '../i18n/t';
 import { LocalTimePipe } from '../local-time.pipe';
 import { tonight, tonightChart } from '../planning/tonight';
 
@@ -61,7 +63,7 @@ const KIND_ICONS: Partial<Record<TargetKind, string>> = {
  */
 @Component({
   selector: 'app-target-details',
-  imports: [DecimalPipe, IonIcon, LocalTimePipe],
+  imports: [PluralPipe, TranslatePipe, NumPipe, IonIcon, LocalTimePipe],
   styles: `
     :host {
       display: flex;
@@ -158,7 +160,8 @@ const KIND_ICONS: Partial<Record<TargetKind, string>> = {
       }
       @if (facts) {
         <span class="chip"
-          ><ion-icon name="resize-outline" aria-hidden="true"></ion-icon>disc {{ discText(facts.discArcsec) }}</span
+          ><ion-icon name="resize-outline" aria-hidden="true"></ion-icon
+          >{{ 'details.disc' | translate: { size: discText(facts.discArcsec) } }}</span
         >
       } @else if (size(); as size) {
         <span class="chip"><ion-icon name="resize-outline" aria-hidden="true"></ion-icon>{{ size }}</span>
@@ -170,7 +173,7 @@ const KIND_ICONS: Partial<Record<TargetKind, string>> = {
     <div class="tonight">
       <div class="tonight-head">
         <span>
-          <strong>Tonight</strong>
+          <strong>{{ 'details.tonight' | translate }}</strong>
           @if (night.peak; as peak) {
             <span data-testid="details-highest"> · {{ peak.text }}</span>
           }
@@ -290,7 +293,9 @@ const KIND_ICONS: Partial<Record<TargetKind, string>> = {
               <circle [attr.cx]="pair.main.x" [attr.cy]="pair.main.y" r="5.5" fill="var(--af-text)" />
               <circle [attr.cx]="pair.companion.x" [attr.cy]="pair.companion.y" r="3.5" fill="var(--af-text)" />
             </svg>
-            <span class="keep">{{ pair.components }} {{ pair.sep }} apart at {{ pair.paDeg }}°</span>
+            <span class="keep">{{
+              'details.pair' | translate: { components: pair.components, sep: pair.sep, angle: pair.paDeg }
+            }}</span>
             @if (pair.relation; as relation) {
               · <span class="keep">{{ relation }}</span>
             }
@@ -308,7 +313,7 @@ const KIND_ICONS: Partial<Record<TargetKind, string>> = {
             />
           </svg>
           <span [class.good]="double.split.splits" [class.warn]="!double.split.splits">{{ double.split.short }}</span>
-          · limit {{ double.split.limit }}
+          · {{ 'details.limit' | translate: { limit: double.split.limit } }}
         </span>
       }
       @if (facts) {
@@ -319,16 +324,16 @@ const KIND_ICONS: Partial<Record<TargetKind, string>> = {
             <line x1="17" y1="10" x2="31" y2="10" stroke="var(--af-muted)" stroke-width="2" stroke-dasharray="2 3" />
             <circle cx="35.5" cy="10" r="3.5" fill="var(--af-text)" />
           </svg>
-          <span class="keep">{{ distanceText(facts.distanceAu) }} away</span> ·
+          <span class="keep">{{ 'details.away' | translate: { distance: distanceText(facts.distanceAu) } }}</span> ·
           <span class="keep">{{ lightTimeText(facts.lightSeconds) }}</span>
         </span>
         <span class="chip"
-          ><ion-icon [src]="litIcon()" aria-hidden="true"></ion-icon>{{ facts.litFraction * 100 | number: '1.0-0' }}%
-          lit</span
+          ><ion-icon [src]="litIcon()" aria-hidden="true"></ion-icon
+          >{{ 'details.lit' | translate: { percent: (facts.litFraction * 100 | num: '1.0-0') } }}</span
         >
         @if (facts.moon; as moon) {
           <span class="chip" data-testid="details-moon-phase">
-            <span class="keep">Age {{ moon.ageDays | number: '1.0-0' }} days</span>
+            <span class="keep">{{ 'details.moonAge' | plural: round(moon.ageDays) }}</span>
             @for (event of moonEvents(moon); track event.name) {
               · <span class="keep">{{ event.name }} {{ event.date | localTime: 'date' }}</span>
             }
@@ -370,13 +375,13 @@ const KIND_ICONS: Partial<Record<TargetKind, string>> = {
     <div class="chips">
       <span class="chip quiet">
         <ion-icon name="grid-outline" aria-hidden="true"></ion-icon>
-        <span class="keep">RA {{ formatRa(target.raDeg) }}</span> ·
-        <span class="keep">Dec {{ formatDec(target.decDeg) }}</span>
+        <span class="keep">{{ 'details.ra' | translate: { ra: formatRa(target.raDeg) } }}</span> ·
+        <span class="keep">{{ 'details.dec' | translate: { dec: formatDec(target.decDeg) } }}</span>
       </span>
       @if (facts) {
         <span class="chip quiet"
-          ><ion-icon name="sunny-outline" aria-hidden="true"></ion-icon>{{ facts.sunAngleDeg | number: '1.0-0' }}° from
-          the Sun</span
+          ><ion-icon name="sunny-outline" aria-hidden="true"></ion-icon
+          >{{ 'details.fromSun' | translate: { degrees: (facts.sunAngleDeg | num: '1.0-0') } }}</span
         >
       }
       @if (double()?.colours; as colours) {
@@ -406,6 +411,7 @@ export class TargetDetailsComponent {
   protected readonly discText = discText;
   protected readonly distanceText = distanceText;
   protected readonly lightTimeText = lightTimeText;
+  protected readonly round = Math.round;
   /** Each box needs its own clip, in case two are ever on screen. */
   protected readonly clipId = `eyepiece-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -451,8 +457,8 @@ export class TargetDetailsComponent {
   protected readonly magnitudeText = computed(() => {
     const target = this.target();
     const pair = target.double?.pairs[0];
-    if (pair) return `mag ${pair.mag1.toFixed(1)} and ${pair.mag2.toFixed(1)}`;
-    return target.mag < 90 ? `mag ${target.mag.toFixed(1)}` : null;
+    if (pair) return t('details.magPair', { mag1: num(pair.mag1, 1), mag2: num(pair.mag2, 1) });
+    return target.mag < 90 ? t('details.mag', { mag: num(target.mag, 1) }) : null;
   });
 
   protected readonly names = computed(() => {
@@ -478,22 +484,28 @@ export class TargetDetailsComponent {
 
     let status: { text: string; good: boolean };
     if (night.best)
-      status = { text: `Best ${TIME.transform(night.best.from)}–${TIME.transform(night.best.until)}`, good: true };
-    else if (!night.highest) status = { text: 'Not up tonight', good: false };
-    else if (night.highest.altDeg < 30) status = { text: 'Low tonight', good: false };
-    else status = { text: 'Only up in twilight', good: false };
+      status = {
+        text: t('details.best', { from: TIME.transform(night.best.from), until: TIME.transform(night.best.until) }),
+        good: true,
+      };
+    else if (!night.highest) status = { text: t('details.notUp'), good: false };
+    else if (night.highest.altDeg < 30) status = { text: t('details.low'), good: false };
+    else status = { text: t('details.onlyTwilight'), good: false };
 
     // The highest point's label sits beside it, on the side with room.
     const peak =
       chart.peak && night.highest
         ? {
             ...chart.peak,
-            text: `${Math.round(night.highest.altDeg)}° at ${TIME.transform(night.highest.time)}`,
+            text: t('details.highestAt', {
+              degrees: Math.round(night.highest.altDeg),
+              time: TIME.transform(night.highest.time),
+            }),
           }
         : null;
     const label = night.highest
-      ? `Height through the night: highest ${peak?.text}. ${status.text}.`
-      : 'Below the horizon all night.';
+      ? t('details.chartLabel', { highest: peak?.text ?? '', status: status.text })
+      : t('details.belowAllNight');
     return { chart: { ...chart, hours }, peak, status, label };
   });
 
@@ -509,8 +521,8 @@ export class TargetDetailsComponent {
     // The field is a circle of radius 40; anything larger than the clip just overfills it.
     const rx = Math.min(62, Math.max(2.5, fit.share * 40));
     return {
-      text: `${fit.word} at ${power}×`,
-      title: `Your eyepiece shows ${this.fieldDeg().toFixed(1)}° at ${power}×`,
+      text: t('details.fitAt', { fit: fit.word, power }),
+      title: t('details.eyepieceShows', { field: num(this.fieldDeg(), 1), power }),
       rx,
       ry: Math.max(2, (rx * minorArcmin) / sizeArcmin),
     };
@@ -538,12 +550,12 @@ export class TargetDetailsComponent {
           sep: arcsecText(pair.sepArcsec),
           paDeg: pair.paDeg,
           relation: pairRelation(pair),
-          title: `mag ${pair.mag1.toFixed(1)} and ${pair.mag2.toFixed(1)}`,
+          title: t('details.magPair', { mag1: num(pair.mag1, 1), mag2: num(pair.mag2, 1) }),
           main: { x: round(20 - dx / 2), y: round(20 - dy / 2) },
           companion: { x: round(20 + dx / 2), y: round(20 + dy / 2) },
         };
       }),
-      colours: main && companion ? `${main} and ${companion.toLowerCase()}` : null,
+      colours: main && companion ? t('details.colours', { main, companion: companion.toLowerCase() }) : null,
       split: { ...advice, limit: arcsecText(advice.limitArcsec) },
     };
   });
@@ -562,7 +574,7 @@ export class TargetDetailsComponent {
     return {
       text: note.text,
       warn: note.warn,
-      short: moonAlt <= 0 ? 'Moon down' : note.warn ? 'Bright Moon' : 'No glare',
+      short: t(moonAlt <= 0 ? 'moon.down' : note.warn ? 'moon.bright' : 'moon.noGlare'),
       away: moonAlt <= 0 ? null : `${Math.round(separation)}°`,
       icon: paths ? iconDataUrl(paths) : null,
     };
@@ -574,7 +586,10 @@ export class TargetDetailsComponent {
     const az = (azDeg * Math.PI) / 180;
     return {
       up: altDeg > 0,
-      text: altDeg > 0 ? `${compassShort(azDeg)}, ${Math.round(altDeg)}° up` : 'Below the horizon',
+      text:
+        altDeg > 0
+          ? t('details.where', { direction: compassShort(azDeg), degrees: Math.round(altDeg) })
+          : t('details.belowHorizon'),
       arrowX: round(22 + 15 * Math.sin(az)),
       arrowY: round(22 - 15 * Math.cos(az)),
     };
@@ -583,8 +598,8 @@ export class TargetDetailsComponent {
   /** The next full and new Moon, the sooner one first. */
   protected moonEvents(moon: NonNullable<BodyFacts['moon']>): { name: string; date: Date }[] {
     return [
-      { name: 'full Moon', date: moon.nextFull },
-      { name: 'new Moon', date: moon.nextNew },
+      { name: t('moon.full'), date: moon.nextFull },
+      { name: t('moon.new'), date: moon.nextNew },
     ].sort((a, b) => a.date.getTime() - b.date.getTime());
   }
 }

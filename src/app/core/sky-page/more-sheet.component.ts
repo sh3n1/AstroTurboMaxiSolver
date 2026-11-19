@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import { Router } from '@angular/router';
 import { IonIcon, IonTabs } from '@ionic/angular';
+import { TranslatePipe } from '@ngx-translate/core';
 import { addIcons } from 'ionicons';
 import {
   compassOutline,
@@ -53,7 +54,7 @@ export interface ViewTile {
 @Component({
   selector: 'app-more-sheet',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IonIcon],
+  imports: [TranslatePipe, IonIcon],
   styles: `
     /* The backdrop and the sheet are placed on the map's stage, not in a box of their own. */
     :host {
@@ -128,7 +129,14 @@ export interface ViewTile {
     }
   `,
   template: `
-    <div #sheet class="sheet" data-testid="more-sheet" role="group" aria-label="Menu" [attr.data-ready]="ready()">
+    <div
+      #sheet
+      class="sheet"
+      data-testid="more-sheet"
+      role="group"
+      [attr.aria-label]="'menu.title' | translate"
+      [attr.data-ready]="ready()"
+    >
       <!--
         Green while the motion sensors steer the view. On a screen phone, the finder phone
         on the telescope steers it, and this opens the link.
@@ -136,7 +144,7 @@ export interface ViewTile {
       @if (state.remoteFinder()) {
         <button type="button" class="tile good" data-testid="sensor-toggle" (click)="go('/remote')">
           <ion-icon name="phone-landscape-outline" aria-hidden="true"></ion-icon>
-          Finder steers
+          {{ 'menu.finderSteers' | translate }}
         </button>
       } @else {
         <button
@@ -148,7 +156,7 @@ export interface ViewTile {
           (click)="toggleSensors()"
         >
           <ion-icon name="compass-outline" aria-hidden="true"></ion-icon>
-          {{ state.sensorsActive() ? 'Sensors on' : 'Use sensors' }}
+          {{ (state.sensorsActive() ? 'menu.sensorsOn' : 'menu.useSensors') | translate }}
         </button>
       }
       <!-- Steps through the sky map, the eyepiece view and the eyepiece ring, showing the view it switches to. -->
@@ -158,11 +166,11 @@ export interface ViewTile {
           [name]="isIconUrl(view().icon) ? undefined : view().icon"
           [src]="isIconUrl(view().icon) ? view().icon : undefined"
         ></ion-icon>
-        {{ view().label }}
+        {{ view().label | translate }}
       </button>
       <button type="button" class="tile" data-testid="open-lists" (click)="openLists()">
         <ion-icon name="list-outline" aria-hidden="true"></ion-icon>
-        Lists
+        {{ 'menu.lists' | translate }}
       </button>
       <!-- Green once aligned, amber until then, and says if it was only rough. -->
       <button
@@ -175,9 +183,12 @@ export interface ViewTile {
       >
         <ion-icon name="locate-outline" aria-hidden="true"></ion-icon>
         @if (state.alignment(); as alignment) {
-          Aligned: {{ alignment.starId }}{{ alignment.method === 'plate-solve' ? '' : ', rough' }}
+          {{
+            (alignment.method === 'plate-solve' ? 'alignment.aligned' : 'alignment.alignedRough')
+              | translate: { star: alignment.starId }
+          }}
         } @else {
-          Not aligned
+          {{ 'settings.notAligned' | translate }}
         }
       </button>
       <button
@@ -188,12 +199,12 @@ export interface ViewTile {
         (click)="toggleNight()"
       >
         <ion-icon name="moon-outline" aria-hidden="true"></ion-icon>
-        Night
+        {{ 'menu.night' | translate }}
       </button>
       <!-- Amber while the map shows another time. -->
       <button type="button" class="tile" data-testid="open-time" [class.warn]="state.planning()" (click)="openTime()">
         <ion-icon name="time-outline" aria-hidden="true"></ion-icon>
-        Time
+        {{ 'menu.time' | translate }}
       </button>
       <!--
         Full screen hides the browser bars. Where it can't be used, in the installed app that
@@ -209,15 +220,15 @@ export interface ViewTile {
         (click)="toggleFullscreen()"
       >
         <ion-icon [name]="fullscreen.active() ? 'contract-outline' : 'expand-outline'" aria-hidden="true"></ion-icon>
-        Full screen
+        {{ 'menu.fullScreen' | translate }}
       </button>
       <button type="button" class="tile" data-testid="more-remote" (click)="go('/remote')">
         <ion-icon name="phone-landscape-outline" aria-hidden="true"></ion-icon>
-        Two phones
+        {{ 'settings.twoPhones' | translate }}
       </button>
       <button type="button" class="tile" data-testid="open-settings" (click)="go('/tabs/settings')">
         <ion-icon name="settings-outline" aria-hidden="true"></ion-icon>
-        Settings
+        {{ 'settings.title' | translate }}
       </button>
     </div>
   `,

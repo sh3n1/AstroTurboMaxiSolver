@@ -1,5 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { IonButton, IonIcon } from '@ionic/angular';
+import { TranslatePipe } from '@ngx-translate/core';
 import { addIcons } from 'ionicons';
 import { close, expandOutline, phoneLandscapeOutline } from 'ionicons/icons';
 
@@ -16,7 +17,7 @@ import { SensorService } from '../sensors/sensor.service';
  */
 @Component({
   selector: 'app-finder-band',
-  imports: [IonButton, IonIcon],
+  imports: [TranslatePipe, IonButton, IonIcon],
   styles: `
     :host {
       display: block;
@@ -67,21 +68,26 @@ import { SensorService } from '../sensors/sensor.service';
           (click)="remote.enterWantedFullscreen()"
         >
           <ion-icon name="expand-outline" aria-hidden="true"></ion-icon>
-          <span>Tap for full screen</span>
+          <span>{{ 'finder.tapFullScreen' | translate }}</span>
         </button>
       } @else if (state.sensorsActive()) {
         <span class="band-text">
           <ion-icon name="phone-landscape-outline" aria-hidden="true"></ion-icon>
-          <span>Finder · remote mode</span>
+          <span>{{ 'finder.remoteMode' | translate }}</span>
         </span>
       } @else {
         <button class="band-text" type="button" data-testid="finder-start-sensors" (click)="sensors.start()">
           <ion-icon name="phone-landscape-outline" aria-hidden="true"></ion-icon>
-          <span>Finder · tap to start sensors</span>
+          <span>{{ 'finder.startSensors' | translate }}</span>
         </button>
       }
       <!-- Pauses rather than ends the link, so Two phones can reconnect it without new codes. -->
-      <ion-button fill="clear" data-testid="finder-exit" aria-label="Pause remote mode" (click)="remote.pause()">
+      <ion-button
+        fill="clear"
+        data-testid="finder-exit"
+        [attr.aria-label]="'finder.pause' | translate"
+        (click)="remote.pause()"
+      >
         <ion-icon slot="icon-only" name="close" aria-hidden="true"></ion-icon>
       </ion-button>
     </div>

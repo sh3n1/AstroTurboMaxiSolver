@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { ModalController, ToastController } from '@ionic/angular';
 
 import type { Target } from '../catalog/targets';
+import { t } from '../i18n/t';
 import { listToastPlace } from '../lists/list-toast';
 
 import { LogEntrySheetComponent } from './log-entry-sheet.component';
@@ -35,14 +36,14 @@ export class SeenActionsService {
     const entry = this.log.log(target);
     const times = this.log.timesSeen(target.id);
     const toast = await this.toasts.create({
-      message: times > 1 ? `Seen · ${ordinal(times)} time` : 'Seen · first time',
+      message: times > 1 ? t('log.seenNth', { nth: ordinal(times) }) : t('log.seenFirst'),
       duration: SEEN_TOAST_MS,
       ...(from === 'list' ? listToastPlace() : { position: 'top' as const }),
       cssClass: 'af-toast',
       htmlAttributes: { 'data-testid': 'seen-toast' },
       buttons: [
-        { text: 'Undo', handler: () => this.log.remove(entry.id) },
-        { text: 'Note', handler: () => void this.openLog(target.id, entry.id) },
+        { text: t('common.undo'), handler: () => this.log.remove(entry.id) },
+        { text: t('log.note'), handler: () => void this.openLog(target.id, entry.id) },
       ],
     });
     await toast.present();

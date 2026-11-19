@@ -2,6 +2,7 @@
 // once in Settings and picked from at the telescope. No Angular dependency.
 
 import { magnification, trueFieldDeg } from '../astronomy/astronomy';
+import { i18n, t as translate } from '../i18n/t';
 import { nameUuid, newUuid } from '../storage/sync-record';
 
 export type TelescopeType = 'newtonian' | 'refractor' | 'cassegrain';
@@ -189,18 +190,22 @@ export const telescopeLabel = (t: Telescope): string => t.name.trim() || `${t.ap
 export const eyepieceLabel = (e: Eyepiece): string => e.name.trim() || `${e.focalMm} mm`;
 /** "2× Barlow" or "0.63× reducer" without a name, since that is what each one does. */
 export const modifierLabel = (m: Modifier): string =>
-  m.name.trim() || `${m.factor}× ${m.factor >= 1 ? 'Barlow' : 'reducer'}`;
+  m.name.trim() || translate(m.factor >= 1 ? 'equipment.barlow' : 'equipment.reducer', { factor: m.factor });
 
 /** The line under an item in Settings: what it is, beyond its name. */
 export function kitItemDetail(kind: KitKind, item: KitItem): string {
   switch (kind) {
     case 'telescopes': {
       const t = item as Telescope;
-      return `${t.apertureMm} mm, ${t.focalMm} mm focal length, ${TELESCOPE_TYPES[t.type]}`;
+      return translate('equipment.telescopeDetail', {
+        aperture: t.apertureMm,
+        focal: t.focalMm,
+        type: translate(TELESCOPE_TYPES[t.type]),
+      });
     }
     case 'eyepieces': {
       const e = item as Eyepiece;
-      return `${e.focalMm} mm, ${e.fieldDeg}° field`;
+      return translate('equipment.eyepieceDetail', { focal: e.focalMm, field: e.fieldDeg });
     }
     case 'modifiers':
       return `${(item as Modifier).factor}×`;
@@ -223,9 +228,9 @@ export function kitItemLabel(kind: KitKind, item: KitItem): string {
 }
 
 export const TELESCOPE_TYPES: Record<TelescopeType, string> = {
-  newtonian: 'Newtonian',
-  refractor: 'Refractor with diagonal',
-  cassegrain: 'Cassegrain with diagonal',
+  newtonian: i18n('equipment.types.newtonian'),
+  refractor: i18n('equipment.types.refractor'),
+  cassegrain: i18n('equipment.types.cassegrain'),
 };
 
 /**

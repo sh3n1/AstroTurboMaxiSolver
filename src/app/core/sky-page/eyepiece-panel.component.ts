@@ -1,12 +1,13 @@
-import { DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { IonButton, IonChip, IonIcon, IonRange } from '@ionic/angular';
+import { TranslatePipe } from '@ngx-translate/core';
 import { addIcons } from 'ionicons';
 import { arrowUndoOutline, settingsOutline } from 'ionicons/icons';
 
 import { AppState } from '../app-state.service';
 import { equipmentLabel, eyepieceLabel, modifierLabel, telescopeLabel } from '../equipment/equipment';
+import { NumPipe } from '../i18n/i18n-pipes';
 
 /** The slider's range for the faintest stars shown. */
 const MIN_STAR_LIMIT = 2;
@@ -19,7 +20,7 @@ const MAX_STAR_LIMIT = 13;
 @Component({
   selector: 'app-eyepiece-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DecimalPipe, IonButton, IonChip, IonIcon, IonRange],
+  imports: [TranslatePipe, NumPipe, IonButton, IonChip, IonIcon, IonRange],
   styles: `
     /* The sky page's rules for the panel's box, and its size on a phone on its side, win over this. */
     :host {
@@ -69,7 +70,10 @@ const MAX_STAR_LIMIT = 13;
   template: `
     <div class="bar-row">
       <span data-testid="star-limit-label">
-        Stars to magnitude {{ state.starLimit() | number: '1.1-1' }}{{ isAutoStarLimit() ? ', your sky' : '' }}
+        {{
+          (isAutoStarLimit() ? 'eyepiece.starsToYourSky' : 'eyepiece.starsTo')
+            | translate: { mag: (state.starLimit() | num: '1.1-1') }
+        }}
       </span>
       <ion-button
         class="end"
@@ -80,12 +84,12 @@ const MAX_STAR_LIMIT = 13;
         (click)="resetStarLimit()"
       >
         <ion-icon slot="icon-only" name="arrow-undo-outline" aria-hidden="true"></ion-icon>
-        <span class="visually-hidden">Reset to my sky</span>
+        <span class="visually-hidden">{{ 'eyepiece.reset' | translate }}</span>
       </ion-button>
     </div>
     <ion-range
       data-testid="star-limit"
-      aria-label="Faintest stars shown"
+      [attr.aria-label]="'eyepiece.faintest' | translate"
       [min]="minStarLimit"
       [max]="maxStarLimit"
       [step]="0.1"
@@ -99,15 +103,15 @@ const MAX_STAR_LIMIT = 13;
       data-testid="equipment-toggle"
       (click)="showEquipment.set(!showEquipment())"
     >
-      {{ equipmentLabel(state.equipment()) }} · {{ power() | number: '1.0-0' }}× ·
-      {{ eyepieceField() | number: '1.1-2' }}° {{ showEquipment() ? '▴' : '▾' }}
+      {{ equipmentLabel(state.equipment()) }} · {{ power() | num: '1.0-0' }}× · {{ eyepieceField() | num: '1.1-2' }}°
+      {{ showEquipment() ? '▴' : '▾' }}
     </button>
     <!-- The eyepieces always show, since changing eyepiece is what happens most at the
        telescope. The rest of the kit shows when opened. All of it is set in Settings. -->
     @let kit = state.kit();
     @let ids = state.equipmentIds();
     @if (showEquipment() && kit.telescopes.length > 1) {
-      <div class="recent" role="radiogroup" aria-label="Telescope">
+      <div class="recent" role="radiogroup" [attr.aria-label]="'eyepiece.telescope' | translate">
         @for (item of kit.telescopes; track item.id) {
           <ion-chip
             data-testid="pick-telescope"
@@ -121,7 +125,7 @@ const MAX_STAR_LIMIT = 13;
         }
       </div>
     }
-    <div class="recent" role="radiogroup" aria-label="Eyepiece">
+    <div class="recent" role="radiogroup" [attr.aria-label]="'eyepiece.eyepiece' | translate">
       @for (item of kit.eyepieces; track item.id) {
         <ion-chip
           data-testid="pick-eyepiece"
@@ -136,7 +140,7 @@ const MAX_STAR_LIMIT = 13;
     </div>
     @if (showEquipment()) {
       @if (kit.modifiers.length > 0) {
-        <div class="recent" role="radiogroup" aria-label="Barlow or reducer">
+        <div class="recent" role="radiogroup" [attr.aria-label]="'eyepiece.modifier' | translate">
           <ion-chip
             data-testid="pick-modifier"
             role="radio"
@@ -144,7 +148,7 @@ const MAX_STAR_LIMIT = 13;
             [outline]="!!ids.modifierId"
             [color]="!ids.modifierId ? 'primary' : 'medium'"
             (click)="state.selectKit({ modifierId: null })"
-            >No Barlow</ion-chip
+            >{{ 'eyepiece.noBarlow' | translate }}</ion-chip
           >
           @for (item of kit.modifiers; track item.id) {
             <ion-chip
@@ -160,7 +164,7 @@ const MAX_STAR_LIMIT = 13;
         </div>
       }
       @if (kit.filters.length > 0) {
-        <div class="recent" role="radiogroup" aria-label="Filter">
+        <div class="recent" role="radiogroup" [attr.aria-label]="'eyepiece.filter' | translate">
           <ion-chip
             data-testid="pick-filter"
             role="radio"
@@ -168,7 +172,7 @@ const MAX_STAR_LIMIT = 13;
             [outline]="!!ids.filterId"
             [color]="!ids.filterId ? 'primary' : 'medium'"
             (click)="state.selectKit({ filterId: null })"
-            >No filter</ion-chip
+            >{{ 'eyepiece.noFilter' | translate }}</ion-chip
           >
           @for (item of kit.filters; track item.id) {
             <ion-chip
@@ -185,7 +189,7 @@ const MAX_STAR_LIMIT = 13;
       }
       <ion-button fill="clear" size="small" data-testid="edit-equipment" (click)="editEquipment()">
         <ion-icon slot="start" name="settings-outline" aria-hidden="true"></ion-icon>
-        Edit equipment
+        {{ 'eyepiece.editEquipment' | translate }}
       </ion-button>
     }
   `,

@@ -19,6 +19,8 @@ import {
   SearchAltitude,
 } from 'astronomy-engine';
 
+import { num, t } from '../i18n/t';
+
 import { minorPlanet, minorPlanetPosition } from './minor-planets';
 
 export type Vector3 = readonly [number, number, number];
@@ -197,13 +199,14 @@ export function azimuthChangeDeg(fromDeg: number, toDeg: number): number {
 
 /** Names an azimuth as one of the eight main compass directions. */
 export function compassPoint(azDeg: number): string {
-  const names = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
-  return names[Math.round(normalizeDeg(azDeg) / 45) % 8];
+  const names = ['north', 'northEast', 'east', 'southEast', 'south', 'southWest', 'west', 'northWest'];
+  return t(`compass.${names[Math.round(normalizeDeg(azDeg) / 45) % 8]}`);
 }
 
 /** The same compass direction as letters, such as "SE", short enough for a badge. */
 export function compassShort(azDeg: number): string {
-  return ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(normalizeDeg(azDeg) / 45) % 8];
+  const names = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+  return t(`compass.short.${names[Math.round(normalizeDeg(azDeg) / 45) % 8]}`);
 }
 
 /** Orientation of a view looking at a pointing, with the horizon level. */
@@ -390,7 +393,7 @@ export function formatRa(raDeg: number): string {
 /** A place on Earth as compass-labelled degrees, such as "39.47° N, 0.38° W". */
 export function formatLocation(latitudeDeg: number, longitudeDeg: number): string {
   const part = (value: number, positive: string, negative: string): string =>
-    `${Math.abs(value).toFixed(2)}° ${value >= 0 ? positive : negative}`;
+    `${num(Math.abs(value), 2)}° ${value >= 0 ? positive : negative}`;
   return `${part(latitudeDeg, 'N', 'S')}, ${part(longitudeDeg, 'E', 'W')}`;
 }
 

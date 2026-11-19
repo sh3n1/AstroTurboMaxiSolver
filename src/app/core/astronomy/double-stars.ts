@@ -3,6 +3,7 @@
 // Plain functions, so they can be tested without the app around them.
 
 import type { DoublePair, DoubleStar, Target } from '../catalog/targets';
+import { num, t } from '../i18n/t';
 
 /** A row of doubles.json: a double star of its own, or one to add to a named star. */
 export type DoubleRow = (Partial<Target> & { double: DoubleStar; aliases: string }) & { starId?: string };
@@ -92,12 +93,12 @@ export function splitAdvice(
   const { sepArcsec: sep } = pair;
   const limitArcsec = splitLimitArcsec(apertureMm, Math.abs(pair.mag2 - pair.mag1));
   if (sep >= NAKED_EYE_SEP_ARCSEC) {
-    return { text: 'Splits by eye or in binoculars', short: 'Splits by eye', splits: true, limitArcsec };
+    return { text: t('doubles.byEye'), short: t('doubles.byEyeShort'), splits: true, limitArcsec };
   }
   if (sep < limitArcsec) {
     return {
-      text: `Too close for a ${Math.round(apertureMm)} mm telescope, which splits pairs down to about ${arcsecText(limitArcsec)}`,
-      short: 'Too close',
+      text: t('doubles.tooClose', { aperture: Math.round(apertureMm), limit: arcsecText(limitArcsec) }),
+      short: t('doubles.tooCloseShort'),
       splits: false,
       limitArcsec,
     };
@@ -105,11 +106,16 @@ export function splitAdvice(
   const needed = splitPower(sep);
   const shown = Math.round(power);
   if (shown >= needed) {
-    return { text: `Splits with your eyepiece, at ${shown}×`, short: `Splits at ${shown}×`, splits: true, limitArcsec };
+    return {
+      text: t('doubles.splits', { power: shown }),
+      short: t('doubles.splitsShort', { power: shown }),
+      splits: true,
+      limitArcsec,
+    };
   }
   return {
-    text: `Needs about ${needed}× to split · your eyepiece gives ${shown}×`,
-    short: `Needs ${needed}×`,
+    text: t('doubles.needs', { needed, power: shown }),
+    short: t('doubles.needsShort', { needed }),
     splits: true,
     limitArcsec,
   };
@@ -117,22 +123,22 @@ export function splitAdvice(
 
 /** A separation in arcseconds, or arcminutes from a minute up: "2.1″", "34″", "12′". */
 export function arcsecText(sepArcsec: number): string {
-  if (sepArcsec >= 60) return `${Number((sepArcsec / 60).toFixed(sepArcsec >= 600 ? 0 : 1))}′`;
-  return `${Number(sepArcsec.toFixed(sepArcsec >= 10 ? 0 : 1))}″`;
+  if (sepArcsec >= 60) return `${num(sepArcsec / 60, sepArcsec >= 600 ? 0 : 1, 0)}′`;
+  return `${num(sepArcsec, sepArcsec >= 10 ? 0 : 1, 0)}″`;
 }
 
 /** Whether a pair orbits, travels together, or only lines up by chance, in words. */
 export function pairRelation(pair: Pick<DoublePair, 'physical' | 'orbit'>): string | null {
-  if (pair.orbit) return 'orbiting pair';
-  if (pair.physical === true) return 'true binary';
-  if (pair.physical === false) return 'line-of-sight pair';
+  if (pair.orbit) return t('doubles.orbiting');
+  if (pair.physical === true) return t('doubles.binary');
+  if (pair.physical === false) return t('doubles.lineOfSight');
   return null;
 }
 
 /** "Double star", or "Multiple star" when there are more than two stars. */
 export function doubleKindText(double: DoubleStar): string {
   const multiple = double.pairs.length > 1 || double.pairs.some((pair) => pair.components.length > 2);
-  return multiple ? 'Multiple star' : 'Double star';
+  return t(multiple ? 'doubles.multiple' : 'kinds.doubleStar');
 }
 
 /** A star as the sky map draws it: where it is, how bright, and its colour index. */

@@ -8,6 +8,7 @@ import { designations } from '../catalog/designations';
 import type { IconPath } from '../catalog/target-icons';
 import { DISC_RADIUS, ICON_DASH, ICON_GRID, phaseIcon, targetIcon } from '../catalog/target-icons';
 import type { Target } from '../catalog/targets';
+import { num } from '../i18n/t';
 import { chevronSpacingPx } from '../sky-page/reticle';
 
 import type { Frame } from './draw-sky';
@@ -247,7 +248,7 @@ export function drawReticle(frame: Frame, ringsDeg: readonly number[], isOnTarge
     // Small rings have no room for a label until zoomed in.
     if (radius >= MIN_LABELLED_RING_PX) {
       // Eyepiece fields such as 0.8333° read better rounded: "0.83°".
-      drawLabel(ctx, `${Number(diameterDeg.toFixed(2))}°`, cx + radius * 0.72 + 4, cy - radius * 0.72 - 4);
+      drawLabel(ctx, `${num(diameterDeg, 2, 0)}°`, cx + radius * 0.72 + 4, cy - radius * 0.72 - 4);
     }
   }
   ctx.globalAlpha = 1;

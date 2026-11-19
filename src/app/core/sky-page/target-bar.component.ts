@@ -1,6 +1,6 @@
-import { DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { IonButton, IonIcon } from '@ionic/angular';
+import { TranslatePipe } from '@ngx-translate/core';
 import { addIcons } from 'ionicons';
 import {
   close,
@@ -17,6 +17,7 @@ import { AppState } from '../app-state.service';
 import { designationText } from '../catalog/designations';
 import { iconDataUrl, targetIcon } from '../catalog/target-icons';
 import type { Target } from '../catalog/targets';
+import { NumPipe, PluralPipe } from '../i18n/i18n-pipes';
 import { PlaylistService } from '../lists/playlist.service';
 import { countLabel } from '../log/observing-log';
 import { ObservingLogService } from '../log/observing-log.service';
@@ -38,7 +39,7 @@ import { TargetGuidanceService } from './target-guidance.service';
 @Component({
   selector: 'app-target-bar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DecimalPipe, IonButton, IonIcon, PlaylistBarComponent, TargetDetailsComponent],
+  imports: [PluralPipe, TranslatePipe, NumPipe, IonButton, IonIcon, PlaylistBarComponent, TargetDetailsComponent],
   // The sky page's styles tell the bar with its details open from one without.
   host: { '[class.detailed]': 'showDetails()' },
   styles: `
@@ -190,9 +191,9 @@ import { TargetGuidanceService } from './target-guidance.service';
         <div class="guide">
           <div class="directions" data-testid="directions">{{ directions() }}</div>
           <div class="muted" data-testid="guidance">
-            <span class="keep">{{ targetDistance() | number: '1.1-1' }}° away</span>
+            <span class="keep">{{ 'bar.away' | translate: { degrees: (targetDistance() | num: '1.1-1') } }}</span>
             @if (targetBelowHorizon()) {
-              · <span class="keep">below the horizon</span>
+              · <span class="keep">{{ 'bar.belowHorizon' | translate }}</span>
             }
           </div>
         </div>
@@ -205,8 +206,8 @@ import { TargetGuidanceService } from './target-guidance.service';
               data-testid="mark-seen"
               [class.seen]="observed()"
               [attr.aria-label]="
-                (observed() ? 'Observations' : 'Log an observation') +
-                (seenCount() > 1 ? ', seen ' + seenCount() + ' times' : '')
+                ((observed() ? 'bar.observations' : 'bar.logObservation') | translate) +
+                (seenCount() > 1 ? ('bar.seenTimes' | plural: seenCount()) : '')
               "
               (click)="openLog(target)"
             >
@@ -225,7 +226,7 @@ import { TargetGuidanceService } from './target-guidance.service';
             <ion-button
               fill="clear"
               size="small"
-              aria-label="Sync: target centred in the eyepiece"
+              [attr.aria-label]="'bar.sync' | translate"
               data-testid="sync-target"
               [disabled]="sync.syncing()"
               (click)="sync.syncOn(target)"
@@ -237,7 +238,7 @@ import { TargetGuidanceService } from './target-guidance.service';
           <ion-button
             fill="clear"
             size="small"
-            aria-label="Aim at the target"
+            [attr.aria-label]="'bar.aim' | translate"
             data-testid="aim-at-target"
             (click)="aimAtTarget()"
           >
@@ -246,7 +247,7 @@ import { TargetGuidanceService } from './target-guidance.service';
           <ion-button
             fill="clear"
             size="small"
-            aria-label="Target details"
+            [attr.aria-label]="'bar.details' | translate"
             data-testid="target-info"
             [attr.aria-pressed]="showDetails()"
             (click)="showDetails.set(!showDetails())"
@@ -261,7 +262,7 @@ import { TargetGuidanceService } from './target-guidance.service';
           <ion-button
             fill="clear"
             size="small"
-            aria-label="Clear target"
+            [attr.aria-label]="'bar.clear' | translate"
             data-testid="clear-target"
             (click)="clearTarget()"
           >

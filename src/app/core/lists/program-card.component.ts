@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
 import { IonIcon } from '@ionic/angular';
+import { TranslatePipe } from '@ngx-translate/core';
 import { addIcons } from 'ionicons';
 import { chevronDown, chevronUp, openOutline, ribbonOutline } from 'ionicons/icons';
 
@@ -27,7 +28,7 @@ const read = signal(loadRead());
 @Component({
   selector: 'app-program-card',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IonIcon],
+  imports: [TranslatePipe, IonIcon],
   styles: `
     :host {
       display: block;
@@ -114,7 +115,7 @@ const read = signal(loadRead());
       <div class="body" data-testid="program-card">
         <p>{{ current.summary }}</p>
         @if (current.certificate) {
-          <p class="certificate">Certificate on completion</p>
+          <p class="certificate">{{ 'programs.certificate' | translate }}</p>
         }
         <a
           class="about"
@@ -124,7 +125,7 @@ const read = signal(loadRead());
           [href]="current.url"
           (click)="markRead()"
         >
-          About the program
+          {{ 'programs.about' | translate }}
           <ion-icon name="open-outline" aria-hidden="true"></ion-icon>
         </a>
       </div>

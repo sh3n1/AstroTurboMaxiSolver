@@ -1,6 +1,7 @@
 // Turns names and designations into a form where small differences in typing don't
 // matter, so "NGC 224", "ngc224" and "ngc  224" all find the same object.
 
+import { kindText } from './target-details';
 import type { Target } from './targets';
 
 /**
@@ -21,7 +22,10 @@ const searchTexts = new WeakMap<Target, string>();
 export function targetSearchText(target: Target): string {
   let text = searchTexts.get(target);
   if (text === undefined) {
-    text = normalizeSearch(`${target.id} ${target.name} ${target.kind} ${target.aliases ?? ''}`);
+    // The kind both in English and in the user's language, so either finds it.
+    text = normalizeSearch(
+      `${target.id} ${target.name} ${target.kind} ${kindText(target.kind)} ${target.aliases ?? ''}`,
+    );
     searchTexts.set(target, text);
   }
   return text;

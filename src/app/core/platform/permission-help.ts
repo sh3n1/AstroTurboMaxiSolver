@@ -1,9 +1,15 @@
 // What the app says about the three permissions it asks for: why it needs each, said once
 // just before the browser asks, and how to allow one again after it was blocked. Plain
-// functions and words, with no Angular, so they can be tested.
+// functions, with no Angular, so they can be tested. They give the keys of the texts in
+// src/assets/i18n, which permissions.service.ts translates when it shows them.
+
+import { i18n } from '../i18n/t';
 
 /** What AppState.locateWithGps says when the user or the browser refused the location. */
-export const LOCATION_BLOCKED = 'Location off';
+export const LOCATION_BLOCKED = i18n('location.off');
+
+/** What AppState.locateWithGps says when it worked. */
+export const LOCATION_UPDATED = i18n('location.updated');
 
 /** The permissions the app asks for, each when it is first needed. */
 export type PermissionKind = 'camera' | 'location' | 'motion';
@@ -18,58 +24,51 @@ export function deviceKind(userAgent: string, platform: string, touchPoints: num
   return /Android/.test(userAgent) ? 'android' : 'desktop';
 }
 
-/** Why each permission is needed, in a line, shown before the browser asks. */
+/** Why each permission is needed, in a line, shown before the browser asks: text keys. */
 export const PERMISSION_REASONS: Record<PermissionKind, { header: string; message: string }> = {
-  camera: {
-    header: 'Camera',
-    message: 'The camera finds stars to see where the telescope points. Pictures stay on this phone.',
-  },
-  location: {
-    header: 'Location',
-    message: 'Your location sets the sky shown. Only the nearest kilometre is kept.',
-  },
-  motion: {
-    header: 'Motion sensors',
-    message: 'The motion sensors move the map as you move the telescope.',
-  },
+  camera: { header: i18n('permissions.names.camera'), message: i18n('permissions.reasons.camera') },
+  location: { header: i18n('permissions.names.location'), message: i18n('permissions.reasons.location') },
+  motion: { header: i18n('permissions.names.motion'), message: i18n('permissions.reasons.motion') },
 };
 
-/** The permission's name inside a browser's settings. */
-const SETTING_NAMES: Record<PermissionKind, string> = {
-  camera: 'Camera',
-  location: 'Location',
-  motion: 'Motion sensors',
-};
+/** A text's key, with the values it fills in, such as the permission's name. */
+export interface Text {
+  key: string;
+  params?: Record<string, string>;
+}
 
 /**
  * How to turn a refused permission on. Once refused, the browser doesn't ask any more: only
  * its settings can change it. iPhones keep the setting in the phone's Settings app. Said
  * calmly: nothing is wrong, the app just can't use it until it is turned on.
  */
-export function blockedHelp(kind: PermissionKind, device: DeviceKind): { header: string; steps: string[] } {
-  const header = `${SETTING_NAMES[kind]} is off`;
+export function blockedHelp(kind: PermissionKind, device: DeviceKind): { header: Text; steps: Text[] } {
+  // The permission's name inside a browser's settings, filled into the texts below.
+  const name = { name: PERMISSION_REASONS[kind].header };
+  const header = { key: i18n('permissions.blocked.header'), params: name };
+  const step = (key: string, params?: Record<string, string>): Text => ({ key, params });
   if (device === 'apple') {
-    const steps: Record<PermissionKind, string[]> = {
-      camera: ['iPhone Settings › Apps › Safari › Camera › Allow', 'Then open the app again'],
+    const steps: Record<PermissionKind, Text[]> = {
+      camera: [step(i18n('permissions.steps.appleCamera')), step(i18n('permissions.steps.openAgain'))],
       location: [
-        'iPhone Settings › Privacy & Security › Location Services',
-        'Safari Websites › While Using the App',
-        'Then open the app again',
+        step(i18n('permissions.steps.appleLocation')),
+        step(i18n('permissions.steps.appleSafariLocation')),
+        step(i18n('permissions.steps.openAgain')),
       ],
-      motion: ['Close Safari fully', 'Open the app again, and allow motion when asked'],
+      motion: [step(i18n('permissions.steps.appleCloseSafari')), step(i18n('permissions.steps.appleAllowMotion'))],
     };
     return { header, steps: steps[kind] };
   }
   if (device === 'android') {
     // Chrome's site settings, which the installed app shares with the browser.
-    const steps = [`In Chrome: ⋮ › Settings › Site settings › ${SETTING_NAMES[kind]}`, 'Tap this site › Allow'];
+    const steps = [step(i18n('permissions.steps.chromeSettings'), name), step(i18n('permissions.steps.chromeAllow'))];
     // The phone's own location switch can be off too, for every app.
-    if (kind === 'location') steps.push('Check Location is on in Android Settings');
-    return { header, steps: [...steps, 'Then open the app again'] };
+    if (kind === 'location') steps.push(step(i18n('permissions.steps.androidLocation')));
+    return { header, steps: [...steps, step(i18n('permissions.steps.openAgain'))] };
   }
   return {
     header,
-    steps: [`Click the icon left of the address › ${SETTING_NAMES[kind]} › Allow`, 'Then reload the page'],
+    steps: [step(i18n('permissions.steps.desktopAllow'), name), step(i18n('permissions.steps.reload'))],
   };
 }
 
