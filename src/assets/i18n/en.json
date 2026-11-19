@@ -14,7 +14,8 @@
     "cancel": "Cancel",
     "back": "Back",
     "delete": "Delete",
-    "done": "Done"
+    "done": "Done",
+    "save": "Save"
   },
   "location": {
     "finding": "Finding location…",
@@ -585,5 +586,101 @@
       "hubble": "Each month, {{first}} and {{second}} objects that {{telescope}} has photographed."
     },
     "withPartner": "{{org}}, with the {{partner}}"
+  },
+  "log": {
+    "ordinal": {
+      "one": "{{n}}st",
+      "two": "{{n}}nd",
+      "few": "{{n}}rd",
+      "other": "{{n}}th"
+    },
+    "tags": {
+      "brightCore": "Bright core",
+      "detail": "Detail",
+      "companions": "Companions",
+      "avertedVision": "Averted vision",
+      "colour": "Colour",
+      "filterHelped": "Filter helped",
+      "darkerSky": "Try a darker sky"
+    },
+    "ratings": {
+      "0": "Not seen",
+      "1": "Glimpse",
+      "2": "Faint",
+      "3": "Good",
+      "4": "Great"
+    },
+    "seeing": {
+      "1": "1 Perfect",
+      "2": "2 Good",
+      "3": "3 Moderate",
+      "4": "4 Poor",
+      "5": "5 Very poor"
+    },
+    "appearance": {
+      "stellar": "Star-like",
+      "extended": "Extended",
+      "resolved": "Resolved",
+      "mottled": "Mottled",
+      "unusualShape": "Unusual shape",
+      "partlyUnresolved": "Partly unresolved",
+      "colorContrasts": "Colour contrasts",
+      "equalBrightness": "Equal brightness",
+      "niceSurrounding": "Nice surroundings"
+    },
+    "starColours": {
+      "white": "white",
+      "yellow": "yellow",
+      "orange": "orange",
+      "red": "red",
+      "green": "green",
+      "blue": "blue"
+    },
+    "damaged": "The log file is damaged",
+    "seenNth": "Seen · {{nth}} time",
+    "seenFirst": "Seen · first time",
+    "note": "Note",
+    "older": "Older",
+    "newer": "Newer",
+    "position": "{{position}} of {{total}}",
+    "new": "New",
+    "nthTime": "{{nth}} time",
+    "up": "{{degrees}}° up",
+    "below": "{{degrees}}° below",
+    "bortle": "Bortle {{bortle}}",
+    "moon": "Moon {{percent}}%",
+    "noMoon": "No Moon",
+    "howWell": "How well",
+    "tagsTitle": "Tags",
+    "moreDetails": "More details",
+    "seeingTitle": "Seeing",
+    "nakedEyeLimit": "Naked-eye limit",
+    "sqm": "SQM reading",
+    "appearanceTitle": "Appearance",
+    "colours": "Colours",
+    "sizeSeen": "Size seen",
+    "longSide": "Long side (′)",
+    "shortSide": "Short side (′)",
+    "mainStar": "Main star",
+    "companion": "Companion",
+    "deleted": "Deleted",
+    "transfer": "Import or export the log",
+    "search": "Search the log",
+    "objectSeen": "object seen",
+    "objectsSeen": "objects seen",
+    "night": "night",
+    "nights": "nights",
+    "noMatch": "Nothing in the log matches your search.",
+    "empty": "Nothing logged yet. Tap the eye on the sky map when you see a target.",
+    "yourName": "Your name",
+    "yourNameWhy": "Other apps match the observations to you by it.",
+    "firstName": "First name",
+    "surname": "Surname",
+    "saveCsv": "Save as a spreadsheet",
+    "saveBackup": "Save a backup",
+    "saveOal": "Save for other apps (OAL)",
+    "importBackup": "Import a backup",
+    "importedOne": "Imported 1 entry",
+    "importedMany": "Imported {{count}} entries"
   }
 }

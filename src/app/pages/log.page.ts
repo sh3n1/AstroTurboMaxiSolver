@@ -20,14 +20,16 @@ import {
   IonToolbar,
   ToastController,
 } from '@ionic/angular';
+import { TranslatePipe } from '@ngx-translate/core';
 import { addIcons } from 'ionicons';
 import { folderOpenOutline, saveOutline, swapVerticalOutline } from 'ionicons/icons';
 
 import { normalizeSearch } from '../core/catalog/search';
 import { equipmentLabel } from '../core/equipment/equipment';
+import { t } from '../core/i18n/t';
 import { LocalTimePipe } from '../core/local-time.pipe';
 import type { LogEntry, LogNight } from '../core/log/observing-log';
-import { RATINGS, entryMatches, groupByNight, logTotals, wasSeen } from '../core/log/observing-log';
+import { entryMatches, groupByNight, logTotals, ratingText, tagText, wasSeen } from '../core/log/observing-log';
 import { ObservingLogService } from '../core/log/observing-log.service';
 import { SeenActionsService } from '../core/log/seen-actions.service';
 
@@ -48,6 +50,7 @@ const NIGHT_DATE_YEAR = new Intl.DateTimeFormat(undefined, {
 @Component({
   selector: 'app-log',
   imports: [
+    TranslatePipe,
     LocalTimePipe,
     IonBackButton,
     IonBadge,
@@ -100,11 +103,15 @@ const NIGHT_DATE_YEAR = new Intl.DateTimeFormat(undefined, {
     <ion-header>
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-back-button defaultHref="/tabs/lists" text="" aria-label="Back"></ion-back-button>
+          <ion-back-button
+            defaultHref="/tabs/lists"
+            text=""
+            [attr.aria-label]="'common.back' | translate"
+          ></ion-back-button>
         </ion-buttons>
-        <ion-title>Observing log</ion-title>
+        <ion-title>{{ 'lists.observingLog' | translate }}</ion-title>
         <ion-buttons slot="end">
-          <ion-button aria-label="Import or export the log" data-testid="log-transfer" (click)="transfer()">
+          <ion-button [attr.aria-label]="'log.transfer' | translate" data-testid="log-transfer" (click)="transfer()">
             <ion-icon slot="icon-only" name="swap-vertical-outline" aria-hidden="true"></ion-icon>
           </ion-button>
         </ion-buttons>
@@ -112,7 +119,7 @@ const NIGHT_DATE_YEAR = new Intl.DateTimeFormat(undefined, {
       @if (log.entries().length > 0) {
         <ion-toolbar>
           <ion-searchbar
-            placeholder="Search the log"
+            [placeholder]="'log.search' | translate"
             data-testid="log-search"
             [debounce]="100"
             (ionInput)="query.set($any($event).detail.value ?? '')"
@@ -125,13 +132,14 @@ const NIGHT_DATE_YEAR = new Intl.DateTimeFormat(undefined, {
       @if (log.entries().length === 0) {
         <ion-text color="medium">
           <p class="ion-padding" data-testid="log-empty">
-            Nothing logged yet. Tap the eye on the sky map when you see a target.
+            {{ 'log.empty' | translate }}
           </p>
         </ion-text>
       } @else {
         <p class="totals" data-testid="log-totals">
-          <strong>{{ totals().objects }}</strong> {{ totals().objects === 1 ? 'object' : 'objects' }} seen ·
-          <strong>{{ totals().nights }}</strong> {{ totals().nights === 1 ? 'night' : 'nights' }}
+          <strong>{{ totals().objects }}</strong>
+          {{ (totals().objects === 1 ? 'log.objectSeen' : 'log.objectsSeen') | translate }} ·
+          <strong>{{ totals().nights }}</strong> {{ (totals().nights === 1 ? 'log.night' : 'log.nights') | translate }}
         </p>
         <!-- The nights go in two columns on a phone on its side: see .af-columns in global.scss. -->
         <div class="af-columns">
@@ -150,7 +158,7 @@ const NIGHT_DATE_YEAR = new Intl.DateTimeFormat(undefined, {
                     <p>
                       <span class="time">{{ entry.time | localTime }}</span> · {{ entry.targetName }}
                       @if (entry.tags.length > 0) {
-                        · {{ entry.tags.join(', ') }}
+                        · {{ tagsText(entry.tags) }}
                       }
                     </p>
                     @if (entry.note) {
@@ -165,7 +173,7 @@ const NIGHT_DATE_YEAR = new Intl.DateTimeFormat(undefined, {
             </ion-list>
           } @empty {
             <ion-text color="medium">
-              <p class="ion-padding">Nothing in the log matches your search.</p>
+              <p class="ion-padding">{{ 'log.noMatch' | translate }}</p>
             </ion-text>
           }
         </div>
@@ -208,7 +216,12 @@ export class LogPage {
   protected readonly seen = wasSeen;
 
   protected ratingLabel(entry: LogEntry): string {
-    return RATINGS[entry.rating].label;
+    return ratingText(entry.rating);
+  }
+
+  /** The entry's quick tags, in the user's language. */
+  protected tagsText(tags: readonly string[]): string {
+    return tags.map(tagText).join(', ');
   }
 
   protected nightDate(night: LogNight): string {
@@ -218,8 +231,8 @@ export class LogPage {
   /** The night's sky and telescope, from its first entry: "Bortle 8 · Moon 12% · 130/650 · 25 mm". */
   protected nightConditions(night: LogNight): string {
     const first = night.entries[night.entries.length - 1].conditions;
-    const moon = first.moonAltDeg > 0 ? `Moon ${Math.round(first.moonLitPercent)}%` : 'No Moon';
-    return `Bortle ${first.bortle} · ${moon} · ${equipmentLabel(first.equipment)}`;
+    const moon = first.moonAltDeg > 0 ? t('log.moon', { percent: Math.round(first.moonLitPercent) }) : t('log.noMoon');
+    return `${t('log.bortle', { bortle: first.bortle })} · ${moon} · ${equipmentLabel(first.equipment)}`;
   }
 
   /** Opens the entry, among the target's other observations. */
@@ -234,16 +247,16 @@ export class LogPage {
   private async exportOal(): Promise<void> {
     const last = this.log.lastObserver();
     const alert = await this.alerts.create({
-      header: 'Your name',
-      message: 'Other apps match the observations to you by it.',
+      header: t('log.yourName'),
+      message: t('log.yourNameWhy'),
       inputs: [
-        { name: 'name', type: 'text', placeholder: 'First name', value: last.name },
-        { name: 'surname', type: 'text', placeholder: 'Surname', value: last.surname },
+        { name: 'name', type: 'text', placeholder: t('log.firstName'), value: last.name },
+        { name: 'surname', type: 'text', placeholder: t('log.surname'), value: last.surname },
       ],
       buttons: [
-        { text: 'Cancel', role: 'cancel' },
+        { text: t('common.cancel'), role: 'cancel' },
         {
-          text: 'Save',
+          text: t('common.save'),
           handler: ({ name, surname }: { name: string; surname: string }) =>
             this.log.exportOal({ name: name.trim(), surname: surname.trim() }),
         },
@@ -257,25 +270,25 @@ export class LogPage {
   protected async transfer(): Promise<void> {
     const hasEntries = this.log.entries().length > 0;
     const sheet = await this.actionSheets.create({
-      header: 'Import and export',
+      header: t('lists.importExport'),
       buttons: [
         ...(hasEntries
           ? [
-              { text: 'Save as a spreadsheet', icon: 'save-outline', handler: () => this.log.exportCsv() },
-              { text: 'Save a backup', icon: 'save-outline', handler: () => this.log.exportJson() },
+              { text: t('log.saveCsv'), icon: 'save-outline', handler: () => this.log.exportCsv() },
+              { text: t('log.saveBackup'), icon: 'save-outline', handler: () => this.log.exportJson() },
               {
-                text: 'Save for other apps (OAL)',
+                text: t('log.saveOal'),
                 icon: 'save-outline',
                 handler: () => void this.exportOal(),
               },
             ]
           : []),
         {
-          text: 'Import a backup',
+          text: t('log.importBackup'),
           icon: 'folder-open-outline',
           handler: () => this.fileInput().nativeElement.click(),
         },
-        { text: 'Cancel', role: 'cancel' },
+        { text: t('common.cancel'), role: 'cancel' },
       ],
     });
     await sheet.present();
@@ -289,9 +302,9 @@ export class LogPage {
     if (!file) return;
     try {
       const count = await this.log.import(await file.text());
-      void this.toast(count === 1 ? 'Imported 1 entry' : `Imported ${count} entries`);
+      void this.toast(count === 1 ? t('log.importedOne') : t('log.importedMany', { count }));
     } catch (error) {
-      void this.toast(error instanceof Error ? error.message : 'Import failed');
+      void this.toast(error instanceof Error ? error.message : t('lists.importFailed'));
     }
   }
 

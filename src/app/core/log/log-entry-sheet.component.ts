@@ -15,6 +15,7 @@ import {
   ModalController,
   ToastController,
 } from '@ionic/angular';
+import { TranslatePipe } from '@ngx-translate/core';
 import { addIcons } from 'ionicons';
 import {
   add,
@@ -31,15 +32,20 @@ import { APP_ICONS } from '../app-icons';
 import { AppState } from '../app-state.service';
 import { iconDataUrl, phaseIcon } from '../catalog/target-icons';
 import { equipmentLabel } from '../equipment/equipment';
+import { i18n, t } from '../i18n/t';
 import { LocalTimePipe } from '../local-time.pipe';
 import { nakedEyeLimit } from '../sky-conditions/sky-quality';
 
 import {
-  APPEARANCE_LABELS,
+  appearanceText,
   LOG_TAGS,
   RATINGS,
   SEEING,
   STAR_COLOURS,
+  ratingText,
+  seeingText,
+  starColourText,
+  tagText,
   appearanceChoices,
   cleanDetails,
   ordinal,
@@ -61,6 +67,7 @@ const DELETED_TOAST_MS = 5000;
 @Component({
   selector: 'app-log-entry-sheet',
   imports: [
+    TranslatePipe,
     DecimalPipe,
     LocalTimePipe,
     IonButton,
@@ -179,11 +186,16 @@ const DELETED_TOAST_MS = 5000;
         <ion-buttons slot="end">
           <!-- In plain sight, since a deleted entry can be brought back from the message. -->
           @if (entry()) {
-            <ion-button color="danger" aria-label="Delete" data-testid="log-delete" (click)="deleteEntry()">
+            <ion-button
+              color="danger"
+              [attr.aria-label]="'common.delete' | translate"
+              data-testid="log-delete"
+              (click)="deleteEntry()"
+            >
               <ion-icon slot="icon-only" name="trash-outline" aria-hidden="true"></ion-icon>
             </ion-button>
           }
-          <ion-button aria-label="Close" data-testid="log-sheet-close" (click)="close()">
+          <ion-button [attr.aria-label]="'common.close' | translate" data-testid="log-sheet-close" (click)="close()">
             <ion-icon slot="icon-only" name="close" aria-hidden="true"></ion-icon>
           </ion-button>
         </ion-buttons>
@@ -194,7 +206,7 @@ const DELETED_TOAST_MS = 5000;
         @if (entries().length > 0) {
           <ion-button
             fill="clear"
-            aria-label="Older"
+            [attr.aria-label]="'log.older' | translate"
             data-testid="log-older"
             [disabled]="position() <= 1"
             (click)="step(-1)"
@@ -203,14 +215,14 @@ const DELETED_TOAST_MS = 5000;
           </ion-button>
           <span class="position" data-testid="log-position">
             @if (entry()) {
-              {{ position() }} of {{ entries().length }}
+              {{ 'log.position' | translate: { position: position(), total: entries().length } }}
             } @else {
-              New
+              {{ 'log.new' | translate }}
             }
           </span>
           <ion-button
             fill="clear"
-            aria-label="Newer"
+            [attr.aria-label]="'log.newer' | translate"
             data-testid="log-newer"
             [disabled]="!entry() || position() >= entries().length"
             (click)="step(1)"
@@ -221,7 +233,7 @@ const DELETED_TOAST_MS = 5000;
         @if (entry()) {
           <ion-button class="add" fill="outline" size="small" data-testid="log-add" (click)="startNew()">
             <ion-icon slot="start" name="add" aria-hidden="true"></ion-icon>
-            New
+            {{ 'log.new' | translate }}
           </ion-button>
         }
       </div>
@@ -233,29 +245,30 @@ const DELETED_TOAST_MS = 5000;
             <!-- With the date, since paging goes back through earlier nights. -->
             {{ e.time | localTime: 'date-time' }}
             @if (seenCount() > 0) {
-              · {{ seenOrdinal() }} time
+              · {{ 'log.nthTime' | translate: { nth: seenOrdinal() } }}
             }
           } @else {
-            Now
+            {{ 'time.now' | translate }}
           }
         </p>
         <div class="conditions" data-testid="log-conditions">
           <span class="condition">
             @if (c.altDeg >= 0) {
-              {{ c.altDeg | number: '1.0-0' }}° up
+              {{ 'log.up' | translate: { degrees: (c.altDeg | number: '1.0-0') } }}
             } @else {
-              {{ -c.altDeg | number: '1.0-0' }}° below
+              {{ 'log.below' | translate: { degrees: (-c.altDeg | number: '1.0-0') } }}
             }
           </span>
           <span class="condition"
-            ><ion-icon [src]="appIcons.skyDarkness" aria-hidden="true"></ion-icon>Bortle {{ c.bortle }}</span
+            ><ion-icon [src]="appIcons.skyDarkness" aria-hidden="true"></ion-icon
+            >{{ 'log.bortle' | translate: { bortle: c.bortle } }}</span
           >
           <span class="condition"
             ><ion-icon [src]="moonIcon()" aria-hidden="true"></ion-icon>
             @if (c.moonAltDeg > 0) {
-              Moon {{ c.moonLitPercent | number: '1.0-0' }}%
+              {{ 'log.moon' | translate: { percent: (c.moonLitPercent | number: '1.0-0') } }}
             } @else {
-              Moon down
+              {{ 'moon.down' | translate }}
             }
           </span>
           <span class="condition"
@@ -263,7 +276,7 @@ const DELETED_TOAST_MS = 5000;
           >
         </div>
 
-        <h3 id="rating-label">How well</h3>
+        <h3 id="rating-label">{{ 'log.howWell' | translate }}</h3>
         <!-- Chips that wrap, like the tags, so every word shows in full at large text sizes. -->
         <div class="tags" role="radiogroup" aria-labelledby="rating-label" data-testid="log-rating">
           @for (rating of ratings; track rating.value) {
@@ -274,12 +287,12 @@ const DELETED_TOAST_MS = 5000;
               [outline]="!on"
               [color]="on ? (rating.value === 0 ? 'warning' : 'success') : 'medium'"
               (click)="setRating(rating.value)"
-              >{{ rating.label }}</ion-chip
+              >{{ ratingText(rating.value) }}</ion-chip
             >
           }
         </div>
 
-        <h3>Tags</h3>
+        <h3>{{ 'log.tagsTitle' | translate }}</h3>
         <div class="tags">
           @for (tag of tags; track tag) {
             @let on = !!entry()?.tags?.includes(tag);
@@ -290,12 +303,12 @@ const DELETED_TOAST_MS = 5000;
               [outline]="!on"
               [color]="on ? 'primary' : 'medium'"
               (click)="toggleTag(tag)"
-              >{{ tag }}</ion-chip
+              >{{ tagText(tag) }}</ion-chip
             >
           }
         </div>
 
-        <h3 id="note-label">Note</h3>
+        <h3 id="note-label">{{ 'log.note' | translate }}</h3>
         <ion-textarea
           aria-labelledby="note-label"
           data-testid="log-note"
@@ -318,13 +331,13 @@ const DELETED_TOAST_MS = 5000;
           [attr.aria-expanded]="showMore()"
           (click)="showMore.set(!showMore())"
         >
-          More details
+          {{ 'log.moreDetails' | translate }}
           <ion-icon [name]="showMore() ? 'chevron-up' : 'chevron-down'" aria-hidden="true"></ion-icon>
         </button>
         @if (showMore()) {
           @let d = details();
           <div data-testid="log-details">
-            <h3 id="seeing-label">Seeing</h3>
+            <h3 id="seeing-label">{{ 'log.seeingTitle' | translate }}</h3>
             <div class="tags" role="radiogroup" aria-labelledby="seeing-label" data-testid="log-seeing">
               @for (option of seeingChoices; track option.value) {
                 @let on = d.seeing === option.value;
@@ -334,7 +347,7 @@ const DELETED_TOAST_MS = 5000;
                   [outline]="!on"
                   [color]="on ? 'primary' : 'medium'"
                   (click)="setDetails({ seeing: on ? undefined : option.value })"
-                  >{{ option.label }}</ion-chip
+                  >{{ seeingText(option.value) }}</ion-chip
                 >
               }
             </div>
@@ -344,7 +357,7 @@ const DELETED_TOAST_MS = 5000;
               <!-- The naked-eye limit, estimated from the Bortle class until the user gives it. -->
               <ion-input
                 data-testid="log-faintest"
-                label="Naked-eye limit"
+                [label]="'log.nakedEyeLimit' | translate"
                 labelPlacement="stacked"
                 type="number"
                 inputmode="decimal"
@@ -355,7 +368,7 @@ const DELETED_TOAST_MS = 5000;
               ></ion-input>
               <ion-input
                 data-testid="log-sqm"
-                label="SQM reading"
+                [label]="'log.sqm' | translate"
                 labelPlacement="stacked"
                 type="number"
                 inputmode="decimal"
@@ -367,7 +380,7 @@ const DELETED_TOAST_MS = 5000;
             </div>
 
             @if (appearance().length > 0) {
-              <h3>Appearance</h3>
+              <h3>{{ 'log.appearanceTitle' | translate }}</h3>
               <div class="tags" data-testid="log-appearance">
                 @for (option of appearance(); track option) {
                   @let on = !!d.appearance?.includes(option);
@@ -377,22 +390,22 @@ const DELETED_TOAST_MS = 5000;
                     [outline]="!on"
                     [color]="on ? 'primary' : 'medium'"
                     (click)="toggleAppearance(option)"
-                    >{{ appearanceLabels[option] }}</ion-chip
+                    >{{ appearanceText(option) }}</ion-chip
                   >
                 }
               </div>
             }
 
             @if (kind() === 'double') {
-              <h3>Colours</h3>
+              <h3>{{ 'log.colours' | translate }}</h3>
               @for (star of colourStars; track star.key) {
                 <div
                   class="colour-row"
                   role="radiogroup"
-                  [attr.aria-label]="star.label"
+                  [attr.aria-label]="star.label | translate"
                   [attr.data-testid]="star.testId"
                 >
-                  <span>{{ star.label }}</span>
+                  <span>{{ star.label | translate }}</span>
                   @for (colour of starColours; track colour) {
                     @let on = d[star.key] === colour;
                     <ion-chip
@@ -401,7 +414,7 @@ const DELETED_TOAST_MS = 5000;
                       [outline]="!on"
                       [color]="on ? 'primary' : 'medium'"
                       (click)="setColour(star.key, on ? undefined : colour)"
-                      >{{ colour }}</ion-chip
+                      >{{ starColourText(colour) }}</ion-chip
                     >
                   }
                 </div>
@@ -409,11 +422,11 @@ const DELETED_TOAST_MS = 5000;
             }
 
             @if (kind() === 'deepSky' || kind() === 'openCluster') {
-              <h3>Size seen</h3>
+              <h3>{{ 'log.sizeSeen' | translate }}</h3>
               <div class="fields">
                 <ion-input
                   data-testid="log-size"
-                  label="Long side (′)"
+                  [label]="'log.longSide' | translate"
                   labelPlacement="stacked"
                   type="number"
                   inputmode="decimal"
@@ -423,7 +436,7 @@ const DELETED_TOAST_MS = 5000;
                 ></ion-input>
                 <ion-input
                   data-testid="log-minor"
-                  label="Short side (′)"
+                  [label]="'log.shortSide' | translate"
                   labelPlacement="stacked"
                   type="number"
                   inputmode="decimal"
@@ -461,10 +474,14 @@ export class LogEntrySheetComponent implements OnInit {
   protected readonly ratings = RATINGS;
   protected readonly seeingChoices = SEEING;
   protected readonly starColours = STAR_COLOURS;
-  protected readonly appearanceLabels = APPEARANCE_LABELS;
+  protected readonly ratingText = ratingText;
+  protected readonly tagText = tagText;
+  protected readonly seeingText = seeingText;
+  protected readonly appearanceText = appearanceText;
+  protected readonly starColourText = starColourText;
   protected readonly colourStars = [
-    { key: 'colourMain', label: 'Main star', testId: 'log-colour-main' },
-    { key: 'colourCompanion', label: 'Companion', testId: 'log-colour-companion' },
+    { key: 'colourMain', label: i18n('log.mainStar'), testId: 'log-colour-main' },
+    { key: 'colourCompanion', label: i18n('log.companion'), testId: 'log-colour-companion' },
   ] as const;
   /** Whether the extra details are unfolded. */
   protected readonly showMore = signal(false);
@@ -611,12 +628,12 @@ export class LogEntrySheetComponent implements OnInit {
     this.currentId.set((left[index - 1] ?? left[index])?.id ?? null);
 
     const toast = await this.toasts.create({
-      message: 'Deleted',
+      message: t('log.deleted'),
       duration: DELETED_TOAST_MS,
       position: 'top',
       cssClass: 'af-toast',
       htmlAttributes: { 'data-testid': 'log-deleted-toast' },
-      buttons: [{ text: 'Undo', handler: () => this.restore(entry) }],
+      buttons: [{ text: t('common.undo'), handler: () => this.restore(entry) }],
     });
     await toast.present();
   }
