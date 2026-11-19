@@ -8,7 +8,10 @@ export const DEFAULT_LANGUAGE = 'en';
  * Each is named in itself, as language pickers do, so anyone can find their own.
  * Add a language here when its file is added.
  */
-export const LANGUAGES: readonly { code: string; name: string }[] = [{ code: 'en', name: 'English' }];
+export const LANGUAGES: readonly { code: string; name: string }[] = [
+  { code: 'en', name: 'English' },
+  { code: 'es', name: 'Español' },
+];
 
 /** The setting's value that follows the phone's language. */
 export const AUTO_LANGUAGE = 'auto';
