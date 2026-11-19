@@ -11,8 +11,6 @@ import {
   IonLabel,
   IonList,
   IonListHeader,
-  IonSegment,
-  IonSegmentButton,
   IonSelect,
   IonSelectOption,
   IonTitle,
@@ -26,17 +24,13 @@ import {
   bluetoothOutline,
   cameraOutline,
   globeOutline,
-  gridOutline,
   locateOutline,
   locationOutline,
-  lockOpenOutline,
-  moonOutline,
   navigateOutline,
   phonePortraitOutline,
   phoneLandscapeOutline,
   volumeLowOutline,
   telescopeOutline,
-  textOutline,
 } from 'ionicons/icons';
 
 import { APP_ICONS } from '../core/app-icons';
@@ -45,10 +39,10 @@ import type { Settings } from '../core/app-state.service';
 import { formatLocation } from '../core/astronomy/astronomy';
 import { LOCATION_UPDATED } from '../core/platform/permission-help';
 import { PermissionsService } from '../core/platform/permissions.service';
-import { ScreenWakeService } from '../core/platform/screen-wake.service';
 import { SoundService } from '../core/platform/sound.service';
 import { RemoteService } from '../core/remote/remote.service';
 import { SettingsAboutComponent } from '../core/settings/settings-about.component';
+import { SettingsDisplayComponent } from '../core/settings/settings-display.component';
 import { SETTINGS_ROW_STYLES } from '../core/settings/settings-styles';
 import { SettingsSyncComponent } from '../core/settings/settings-sync.component';
 import { SettingsTestingComponent } from '../core/settings/settings-testing.component';
@@ -68,6 +62,7 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
     RouterLink,
     TranslatePipe,
     SettingsAboutComponent,
+    SettingsDisplayComponent,
     SettingsSyncComponent,
     SettingsTestingComponent,
     IonButton,
@@ -80,8 +75,6 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
     IonLabel,
     IonList,
     IonListHeader,
-    IonSegment,
-    IonSegmentButton,
     IonSelect,
     IonSelectOption,
     IonTitle,
@@ -98,19 +91,6 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
         font-size: calc(14px * var(--af-scale, 1));
         line-height: 1.4;
       }
-      /* The text size choice: a label above three sample letters of growing size. */
-      .text-size {
-        width: 100%;
-        padding: 10px 0 12px;
-      }
-      .text-size ion-segment {
-        margin-top: 8px;
-      }
-      .text-size ion-segment-button {
-        min-height: 44px;
-        /* Ionic shows segment text in capitals. These are samples of the text, so keep them as typed. */
-        text-transform: none;
-      }
       /* Latitude and longitude side by side, each taking half the row. */
       .coordinates {
         display: grid;
@@ -122,15 +102,6 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
       ion-input::part(supporting-text) {
         color: var(--af-muted);
         font-size: calc(14px * var(--af-scale, 1));
-      }
-      .sample-standard {
-        font-size: 16px;
-      }
-      .sample-large {
-        font-size: 19px;
-      }
-      .sample-extra-large {
-        font-size: 23px;
       }
     `,
   ],
@@ -312,64 +283,8 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
           </ion-item>
         </ion-list>
 
-        <!-- How the app looks. -->
-        <ion-list inset="true">
-          <ion-list-header>{{ 'settings.display' | translate }}</ion-list-header>
-          <ion-item>
-            <ion-icon slot="start" name="text-outline" aria-hidden="true"></ion-icon>
-            <div class="text-size">
-              <ion-label id="text-size-label">{{ 'settings.textSize' | translate }}</ion-label>
-              <ion-segment
-                aria-labelledby="text-size-label"
-                data-testid="text-size"
-                [value]="settings().textSize"
-                (ionChange)="state.updateSettings({ textSize: $any($event).detail.value })"
-              >
-                <ion-segment-button value="standard" [attr.aria-label]="'settings.standard' | translate">
-                  <ion-label class="sample-standard">Aa</ion-label>
-                </ion-segment-button>
-                <ion-segment-button value="large" [attr.aria-label]="'settings.large' | translate">
-                  <ion-label class="sample-large">Aa</ion-label>
-                </ion-segment-button>
-                <ion-segment-button value="extra-large" [attr.aria-label]="'settings.extraLarge' | translate">
-                  <ion-label class="sample-extra-large">Aa</ion-label>
-                </ion-segment-button>
-              </ion-segment>
-            </div>
-          </ion-item>
-          <ion-item>
-            <ion-icon slot="start" name="moon-outline" aria-hidden="true"></ion-icon>
-            <ion-toggle
-              data-testid="night-mode"
-              [checked]="settings().nightMode"
-              (ionChange)="state.updateSettings({ nightMode: $any($event).detail.checked })"
-            >
-              {{ 'settings.nightMode' | translate }}
-            </ion-toggle>
-          </ion-item>
-          <ion-item>
-            <ion-icon slot="start" name="lock-open-outline" aria-hidden="true"></ion-icon>
-            <ion-toggle
-              data-testid="keep-screen-on"
-              [helperText]="screenWake.supported ? '' : ('settings.notSupported' | translate)"
-              [disabled]="!screenWake.supported"
-              [checked]="settings().keepScreenOn && screenWake.supported"
-              (ionChange)="state.updateSettings({ keepScreenOn: $any($event).detail.checked })"
-            >
-              {{ 'settings.keepScreenOn' | translate }}
-            </ion-toggle>
-          </ion-item>
-          <ion-item lines="none">
-            <ion-icon slot="start" name="grid-outline" aria-hidden="true"></ion-icon>
-            <ion-toggle
-              data-testid="show-equatorial"
-              [checked]="settings().showEquatorial"
-              (ionChange)="state.updateSettings({ showEquatorial: $any($event).detail.checked })"
-            >
-              {{ 'settings.showEquatorial' | translate }}
-            </ion-toggle>
-          </ion-item>
-        </ion-list>
+        <!-- How the app looks: language, text size, night mode and more. -->
+        <app-settings-display />
 
         <!-- For checking the app on a real phone and a real sky. -->
         <app-settings-testing />
@@ -390,7 +305,6 @@ export class SettingsPage {
     void this.router.navigateByUrl('/tabs/sky');
   }
   protected readonly settings = this.state.settings;
-  protected readonly screenWake = inject(ScreenWakeService);
   private readonly sound = inject(SoundService);
   protected readonly appIcons = APP_ICONS;
   private readonly translate = inject(TranslateService);
@@ -427,16 +341,12 @@ export class SettingsPage {
       bluetoothOutline,
       cameraOutline,
       globeOutline,
-      gridOutline,
       locateOutline,
       locationOutline,
-      lockOpenOutline,
-      moonOutline,
       navigateOutline,
       phonePortraitOutline,
       volumeLowOutline,
       telescopeOutline,
-      textOutline,
     });
   }
 

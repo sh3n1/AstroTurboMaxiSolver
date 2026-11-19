@@ -118,7 +118,9 @@
       "licence": "Free software, GNU GPL 3",
       "copyright": "© 2026 The AstroTurboMaxiSolver authors",
       "terms": "Terms of use"
-    }
+    },
+    "language": "Language",
+    "languageAuto": "Automatic · {{name}}"
   },
   "sync": {
     "title": "Sync",

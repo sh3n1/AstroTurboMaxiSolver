@@ -83,6 +83,11 @@ export interface Settings {
   bortle: number;
   /** Set the Bortle class from the location, with the light pollution atlas: see sky-brightness.service.ts. */
   bortleAuto: boolean;
+  /**
+   * The app's language: 'auto' follows the phone's, or a language's code, such as 'es', chosen
+   * in Settings. See core/i18n/languages.ts.
+   */
+  language: string;
   /** The faintest stars the eyepiece view shows, or null to work it out from the sky. */
   eyepieceStarLimit: number | null;
   /**
@@ -139,6 +144,8 @@ const DEFAULT_SETTINGS: Settings = {
   bortle: 5,
   // On by default: the atlas knows the sky better than a guess, and choosing a class turns it off.
   bortleAuto: true,
+  // The phone's language, where the app has it; English otherwise.
+  language: 'auto',
   eyepieceStarLimit: null,
   cameraFocalFactor: 1,
   // Off by default: a phone linked for one night may belong to someone else.
@@ -404,6 +411,14 @@ export class AppState {
 
   updateSettings(changes: Partial<Settings>): void {
     this.settings.update((current) => ({ ...current, ...changes }));
+  }
+
+  /**
+   * Saves the settings at once, rather than when the saving effect next runs: for a change
+   * that reloads the app straight after, such as the language.
+   */
+  saveSettingsNow(): void {
+    save(SETTINGS_KEY, this.settings());
   }
 
   /**
