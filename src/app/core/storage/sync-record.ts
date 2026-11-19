@@ -204,6 +204,33 @@ export function changeRecord<T>(record: Synced<T>, content: T, deviceId: string,
   };
 }
 
+/**
+ * Settles a conflict: a new revision with the chosen version's content, descending from both
+ * versions, like a merge commit. Every device then takes it over either one, and knows the
+ * version it kept aside is settled (see sync-local-db.ts).
+ */
+export function settleConflict<T>(
+  current: Synced<T>,
+  other: Synced<T>,
+  keep: 'current' | 'other',
+  deviceId: string,
+  now: number,
+): Synced<T> {
+  const chosen = keep === 'current' ? current : other;
+  const history = [...new Set([...historyAfter(current), ...historyAfter(other)])].slice(0, HISTORY_LENGTH);
+  return {
+    ...contentOf(chosen),
+    createdAt: Math.min(current.createdAt, other.createdAt),
+    updatedAt: now,
+    deviceId,
+    rev: Math.max(current.rev, other.rev) + 1,
+    hash: chosen.hash,
+    deletedAt: chosen.deletedAt === null ? null : now,
+    pending: 1,
+    history,
+  } as Synced<T>;
+}
+
 /** The record marked deleted, or null if it already is. */
 export function deleteRecord<T>(record: Synced<T>, deviceId: string, now: number): Synced<T> | null {
   if (record.deletedAt !== null) return null;

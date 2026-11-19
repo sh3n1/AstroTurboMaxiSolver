@@ -18,4 +18,8 @@ export class MemorySyncStorage implements SyncStorage {
   async write(name: string, text: string): Promise<void> {
     this.files.set(name, text);
   }
+
+  async remove(name: string): Promise<void> {
+    this.files.delete(name);
+  }
 }

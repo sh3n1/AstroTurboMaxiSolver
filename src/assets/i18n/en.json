@@ -822,5 +822,19 @@
     "notOurs": "This isn't an {{app}} {{kind}} file",
     "list": "list",
     "log": "log"
+  },
+  "conflicts": {
+    "title": "Conflicts",
+    "mark": "Edited on two phones",
+    "count": {
+      "one": "{{count}} entry edited on two phones",
+      "other": "{{count}} entries edited on two phones"
+    },
+    "explain": "Edited on two phones before they synced. Keep one version: the other phones follow.",
+    "thisPhone": "On this phone",
+    "otherPhone": "From the other phone",
+    "deletedHere": "Deleted on this phone",
+    "keep": "Keep this one",
+    "none": "No conflicts. Everything is the same on all your devices."
   }
 }

@@ -32,6 +32,10 @@ export const routes: Routes = [
         loadComponent: () => import('./pages/equipment.page').then((m) => m.EquipmentPage),
       },
       { path: 'settings/credits', loadComponent: () => import('./pages/credits.page').then((m) => m.CreditsPage) },
+      {
+        path: 'settings/conflicts',
+        loadComponent: () => import('./pages/conflicts.page').then((m) => m.ConflictsPage),
+      },
       { path: '', redirectTo: 'sky', pathMatch: 'full' },
     ],
   },
