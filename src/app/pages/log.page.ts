@@ -22,7 +22,7 @@ import {
 } from '@ionic/angular';
 import { TranslatePipe } from '@ngx-translate/core';
 import { addIcons } from 'ionicons';
-import { folderOpenOutline, saveOutline, swapVerticalOutline } from 'ionicons/icons';
+import { folderOpenOutline, gitCompareOutline, saveOutline, swapVerticalOutline } from 'ionicons/icons';
 
 import { normalizeSearch } from '../core/catalog/search';
 import { equipmentLabel } from '../core/equipment/equipment';
@@ -33,6 +33,7 @@ import type { LogEntry, LogNight } from '../core/log/observing-log';
 import { entryMatches, groupByNight, logTotals, ratingText, tagText, wasSeen } from '../core/log/observing-log';
 import { ObservingLogService } from '../core/log/observing-log.service';
 import { SeenActionsService } from '../core/log/seen-actions.service';
+import { ConflictsService } from '../core/sync/conflicts.service';
 
 /** A night's date, short, in the phone's language: "Thu 12 Nov". */
 const NIGHT_DATE: Intl.DateTimeFormatOptions = { weekday: 'short', day: 'numeric', month: 'short' };
@@ -71,6 +72,23 @@ const NIGHT_DATE_YEAR: Intl.DateTimeFormatOptions = {
     IonToolbar,
   ],
   styles: `
+    /*
+     * Edited on two phones: a round amber stamp, slightly askew, like a rubber stamp on a
+     * card, until a version is chosen in Settings.
+     */
+    .conflict-stamp {
+      flex: none;
+      box-sizing: content-box;
+      /* As tall as the text beside it, border included: Ionic would make an icon at a row's end bigger. */
+      font-size: calc(16px * var(--af-scale, 1));
+      width: 0.7em;
+      height: 0.7em;
+      padding: 0.1em;
+      border: 1.5px solid var(--ion-color-warning);
+      border-radius: 50%;
+      color: var(--ion-color-warning);
+      transform: rotate(-12deg);
+    }
     .totals {
       margin: 12px 20px 0;
       font-size: calc(16px * var(--af-scale, 1));
@@ -167,6 +185,17 @@ const NIGHT_DATE_YEAR: Intl.DateTimeFormatOptions = {
                       <p class="note">{{ entry.note }}</p>
                     }
                   </ion-label>
+                  @if (conflicts.entryIds().has(entry.id)) {
+                    <ion-icon
+                      slot="end"
+                      class="conflict-stamp"
+                      name="git-compare-outline"
+                      role="img"
+                      data-testid="log-conflict"
+                      [attr.aria-label]="'conflicts.mark' | translate"
+                      [attr.title]="'conflicts.mark' | translate"
+                    ></ion-icon>
+                  }
                   <ion-badge slot="end" [color]="seen(entry) ? 'success' : 'warning'">{{
                     ratingLabel(entry)
                   }}</ion-badge>
@@ -195,6 +224,8 @@ const NIGHT_DATE_YEAR: Intl.DateTimeFormatOptions = {
 })
 export class LogPage {
   protected readonly log = inject(ObservingLogService);
+  /** Entries edited on two phones, marked until a version is chosen in Settings. */
+  protected readonly conflicts = inject(ConflictsService);
   private readonly seenActions = inject(SeenActionsService);
   private readonly actionSheets = inject(ActionSheetController);
   private readonly alerts = inject(AlertController);
@@ -212,7 +243,7 @@ export class LogPage {
   });
 
   constructor() {
-    addIcons({ folderOpenOutline, saveOutline, swapVerticalOutline });
+    addIcons({ gitCompareOutline, folderOpenOutline, saveOutline, swapVerticalOutline });
   }
 
   protected readonly seen = wasSeen;

@@ -1,12 +1,15 @@
 import { Component, computed, inject } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { IonIcon, IonItem, IonLabel, IonList, IonListHeader, IonToggle, ToastController } from '@ionic/angular';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { addIcons } from 'ionicons';
-import { cloudOutline, logOutOutline, phonePortraitOutline, syncOutline } from 'ionicons/icons';
+import { cloudOutline, gitCompareOutline, logOutOutline, phonePortraitOutline, syncOutline } from 'ionicons/icons';
 
 import { AppState } from '../app-state.service';
+import { PluralPipe } from '../i18n/i18n-pipes';
 import { appLocale } from '../i18n/t';
 import { listToastPlace } from '../lists/list-toast';
+import { ConflictsService } from '../sync/conflicts.service';
 import { LinkSyncService } from '../sync/link-sync.service';
 import { SyncService } from '../sync/sync.service';
 
@@ -15,7 +18,7 @@ import { SETTINGS_SECTION_STYLES } from './settings-styles';
 /** Syncing the log, lists and kit through the user's Google Drive, as a section of Settings. */
 @Component({
   selector: 'app-settings-sync',
-  imports: [TranslatePipe, IonIcon, IonItem, IonLabel, IonList, IonListHeader, IonToggle],
+  imports: [PluralPipe, RouterLink, TranslatePipe, IonIcon, IonItem, IonLabel, IonList, IonListHeader, IonToggle],
   styles: [SETTINGS_SECTION_STYLES],
   template: `
     <ion-list inset="true" id="sync" data-testid="sync">
@@ -50,6 +53,16 @@ import { SETTINGS_SECTION_STYLES } from './settings-styles';
           </ion-label>
         </ion-item>
       }
+      <!-- Entries edited on two phones before they synced: choose a version of each. -->
+      @if (conflicts.conflicts().length > 0) {
+        <ion-item button detail="true" data-testid="open-conflicts" routerLink="/tabs/settings/conflicts">
+          <ion-icon slot="start" name="git-compare-outline" aria-hidden="true"></ion-icon>
+          <ion-label class="ion-text-wrap">
+            <h2>{{ 'conflicts.title' | translate }}</h2>
+            <p class="warn">{{ 'conflicts.count' | plural: conflicts.conflicts().length }}</p>
+          </ion-label>
+        </ion-item>
+      }
       <!-- Straight between two phones linked in Two phones, with no drive. Both must have it on. -->
       <ion-item>
         <ion-icon slot="start" name="phone-portrait-outline" aria-hidden="true"></ion-icon>
@@ -75,6 +88,7 @@ export class SettingsSyncComponent {
   protected readonly sync = inject(SyncService);
   protected readonly linkSync = inject(LinkSyncService);
   protected readonly state = inject(AppState);
+  protected readonly conflicts = inject(ConflictsService);
   private readonly toasts = inject(ToastController);
   private readonly translate = inject(TranslateService);
   private readonly t = (key: string, params?: Record<string, string>): string =>
@@ -113,7 +127,7 @@ export class SettingsSyncComponent {
   }
 
   constructor() {
-    addIcons({ cloudOutline, logOutOutline, phonePortraitOutline, syncOutline });
+    addIcons({ cloudOutline, gitCompareOutline, logOutOutline, phonePortraitOutline, syncOutline });
   }
 
   /** A time as "at 21:30" today, or with its date on an earlier day. */

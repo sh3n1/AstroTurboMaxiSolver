@@ -23,6 +23,7 @@ import {
   chevronForward,
   chevronUp,
   close,
+  gitCompareOutline,
   telescopeOutline,
   trashOutline,
 } from 'ionicons/icons';
@@ -35,6 +36,7 @@ import { NumPipe } from '../i18n/i18n-pipes';
 import { i18n, t } from '../i18n/t';
 import { LocalTimePipe } from '../local-time.pipe';
 import { nakedEyeLimit } from '../sky-conditions/sky-quality';
+import { ConflictsService } from '../sync/conflicts.service';
 
 import {
   appearanceText,
@@ -82,6 +84,27 @@ const DELETED_TOAST_MS = 5000;
     IonToolbar,
   ],
   styles: `
+    /*
+     * Edited on two phones: a round amber stamp, slightly askew, like a rubber stamp on a
+     * card, until a version is chosen in Settings.
+     */
+    .conflict-stamp {
+      flex: none;
+      box-sizing: content-box;
+      /* As tall as the text beside it, border included. */
+      width: 0.7em;
+      height: 0.7em;
+      padding: 0.1em;
+      border: 1.5px solid var(--ion-color-warning);
+      border-radius: 50%;
+      color: var(--ion-color-warning);
+      transform: rotate(-12deg);
+    }
+    /* In the sheet's top line, it sits on the text. */
+    .when .conflict-stamp {
+      vertical-align: middle;
+      margin-inline-start: 4px;
+    }
     /* Older, which one of how many, newer, and a new observation at the end. */
     .pager {
       display: flex;
@@ -244,6 +267,16 @@ const DELETED_TOAST_MS = 5000;
           @if (entry(); as e) {
             <!-- With the date, since paging goes back through earlier nights. -->
             {{ e.time | localTime: 'date-time' }}
+            @if (conflicts.entryIds().has(e.id)) {
+              <ion-icon
+                class="conflict-stamp"
+                name="git-compare-outline"
+                role="img"
+                data-testid="log-sheet-conflict"
+                [attr.aria-label]="'conflicts.mark' | translate"
+                [attr.title]="'conflicts.mark' | translate"
+              ></ion-icon>
+            }
             @if (seenCount() > 0) {
               · {{ 'log.nthTime' | translate: { nth: seenOrdinal() } }}
             }
@@ -467,6 +500,7 @@ export class LogEntrySheetComponent implements OnInit {
   private readonly draftTime = signal(new Date());
 
   protected readonly log = inject(ObservingLogService);
+  protected readonly conflicts = inject(ConflictsService);
   private readonly state = inject(AppState);
   private readonly modals = inject(ModalController);
   private readonly toasts = inject(ToastController);
@@ -541,7 +575,17 @@ export class LogEntrySheetComponent implements OnInit {
   );
 
   constructor() {
-    addIcons({ add, chevronBack, chevronForward, close, telescopeOutline, trashOutline, chevronDown, chevronUp });
+    addIcons({
+      gitCompareOutline,
+      add,
+      chevronBack,
+      chevronForward,
+      close,
+      telescopeOutline,
+      trashOutline,
+      chevronDown,
+      chevronUp,
+    });
   }
 
   ngOnInit(): void {

@@ -29,13 +29,15 @@ copy" files entirely, because no two devices ever write the same file.
 
 The core is built and unit tested, with no drive yet: `src/app/core/sync/`.
 
-| File | What it does |
-| --- | --- |
-| `sync-merge.ts` | Merges a received record with this device's copy: the rules below |
-| `sync-engine.ts` | One sync: sends this device's changes, reads the others', checkpoints. The `SyncStorage` and `SyncLocal` interfaces |
-| `sync-local-db.ts` | `SyncLocal` on the Dexie database, in transactions |
-| `memory-sync-storage.ts` | A drive in memory, for tests |
-| `sync-provider.ts` | `SyncProvider`: what each drive implements (sign in, renew, sign out, its `SyncStorage`) |
+| File                     | What it does                                                                                                        |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| `sync-merge.ts`          | Merges a received record with this device's copy: the rules below                                                   |
+| `sync-engine.ts`         | One sync: sends this device's changes, reads the others', checkpoints. The `SyncStorage` and `SyncLocal` interfaces |
+| `sync-snapshots.ts`      | Folds a device's old change files into a snapshot, and purges old deletions                                         |
+| `conflicts.service.ts`   | Log entries edited on two devices: the mark, and settling them from Settings                                        |
+| `sync-local-db.ts`       | `SyncLocal` on the Dexie database, in transactions                                                                  |
+| `memory-sync-storage.ts` | A drive in memory, for tests                                                                                        |
+| `sync-provider.ts`       | `SyncProvider`: what each drive implements (sign in, renew, sign out, its `SyncStorage`)                            |
 
 Google Drive, Dropbox and OneDrive differ in how they sign in and in their file APIs, and
 in nothing else the app sees. Each one is a class implementing `SyncProvider`, and the rest
@@ -48,16 +50,29 @@ The app folder holds flat file names, which every drive handles the same way:
 
 ```
 <app folder>/
-  <deviceId>.device.json             format, last change file number, last write time
-  <deviceId>.000001.changes.json     numbered change files, each a batch of changed records
-  <deviceId>.000002.changes.json
+  <deviceId>.device.json             format, last change file number, when it last synced
+  <deviceId>.000051.snapshot.json    the device's records as of change file 51, standing for files 1 to 51
+  <deviceId>.000052.changes.json     numbered change files, each a batch of changed records
+  <deviceId>.000053.changes.json
 ```
 
 A change file is `{ format, deviceId, seq, writtenAt, changes: [{ type, record }] }`, where
 `type` is `logEntry`, `list`, `listItem` or `kit`, and `record` is the whole record without
 `pending`. A reader skips damaged files, leaves out records whose hash doesn't match their
-content, and stops at a format newer than it knows. Snapshots, so old change files can be
-removed, come later.
+content, and stops at a format newer than it knows.
+
+### Snapshots
+
+Each sync that sends something adds a change file, so without more a device's files would
+grow forever, and a new device would read them all. Once a device has more than 50, it writes
+one snapshot: the latest version of every record in them, as the device holds it now (which may
+be a newer version from another device, so nothing deleted since comes back), without the
+deletions purged. Only once the snapshot is written does it remove the files it stands for,
+and its previous snapshot.
+
+A reader whose checkpoint for that device is behind the snapshot reads the snapshot instead,
+then the change files after it. A listed file that is gone when read, removed meanwhile, is
+read again from the next sync, never skipped.
 
 ### Each device writes only its own changes
 
@@ -100,8 +115,13 @@ As CouchDB does, with no clocks involved (`sync-merge.ts`):
 4. A **real conflict**: a version that still exists beats a deletion, then the higher
    revision number, then the higher hash. Every device picks the same winner.
 5. For log entries the losing version is kept, in the `conflicts` table (database version
-   3), since losing someone's observing notes silently is the worst outcome. A mark on the
-   entry ("edited on two phones") is still to do. Lists and kit just take the winner.
+   3), since losing someone's observing notes silently is the worst outcome. The entry is
+   marked "Edited on two phones" in the log and its note sheet, and Settings, Sync, leads to a
+   Conflicts page with both versions side by side, to keep one. Lists and kit just take the
+   winner.
+6. Keeping one writes a new revision with its content, descending from both versions, like a
+   merge commit (`settleConflict` in `sync-record.ts`). Every device takes it, and a device
+   whose kept-aside version is in its history knows the conflict is settled, and drops it.
 
 List membership is already one `listItems` record per target, so adding targets to the same
 list on two phones merges without conflict.
@@ -109,8 +129,11 @@ list on two phones merges without conflict.
 ### Tombstones
 
 A deleted record must stay as a tombstone, or a device that was offline brings it back on its
-next sync (Notes calls the limit the "replication cutoff"). Keep tombstones at least a year,
-and only purge one once every known device's checkpoint is past it.
+next sync (Notes calls the limit the "replication cutoff"). About once a day, each device
+purges the deletions it has sent that are over six months old, from its tables and from its
+next snapshot. Every device in use has seen them by then: one silent for longer is taken as
+gone. Such a device may still show what was deleted elsewhere, but it can't bring it back on
+the others, since it only sends what it changes itself.
 
 ### Photos (later)
 
@@ -123,10 +146,10 @@ One small interface for all three, so the rest of the app doesn't know which is 
 list a folder, read a file, write a file. Plain `fetch` calls to each REST API, probably no
 new dependency (ask before adding one).
 
-| | App folder | Sign-in from a browser, no server | Notes |
-| --- | --- | --- | --- |
-| Dropbox | App folder, visible to the user | OAuth with PKCE, refresh tokens | Simplest to start with |
-| OneDrive | App folder (`approot`), visible | MSAL / PKCE; refresh tokens for single-page apps last about 24 hours | |
+|              | App folder                            | Sign-in from a browser, no server                                                          | Notes                                            |
+| ------------ | ------------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------ |
+| Dropbox      | App folder, visible to the user       | OAuth with PKCE, refresh tokens                                                            | Simplest to start with                           |
+| OneDrive     | App folder (`approot`), visible       | MSAL / PKCE; refresh tokens for single-page apps last about 24 hours                       |                                                  |
 | Google Drive | `appDataFolder`, hidden from the user | Google Identity Services gives one-hour tokens, no refresh token: needs a quiet re-sign-in | Names aren't unique in Drive: work with file ids |
 
 ## Why an address is needed (not a backend)
@@ -179,5 +202,6 @@ While the app is in "testing" mode, Google only lets listed accounts sign in.
 6. Done: link sync, straight between two phones linked in Two phones, when both have it on
    (see "Link sync" in `two-phones.md`). Records received that way are kept as already
    synced: each phone sends only its own changes to the drive.
-7. To do: the "edited on two phones" mark on log entries with a kept conflict; then Dropbox
-   and OneDrive; then tombstone purging and snapshots.
+7. Done: snapshots, purging deletions over six months old, retrying a file gone missing, and
+   the "Edited on two phones" mark with the Conflicts page in Settings.
+8. To do: Dropbox and OneDrive, behind `SyncProvider`.

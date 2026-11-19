@@ -86,6 +86,14 @@ export class GoogleDriveStorage implements SyncStorage {
     this.ids.set(name, created.id);
   }
 
+  async remove(name: string): Promise<void> {
+    const id = await this.idOf(name);
+    if (!id) return;
+    // Gone already, removed by an earlier try that didn't finish: as good as removed.
+    await this.request(`${FILES}/${id}`, { method: 'DELETE' }, [404]);
+    this.ids.delete(name);
+  }
+
   /** A file's id, listing the folder the first time a name isn't known. Null for a new file. */
   private async idOf(name: string): Promise<string | null> {
     if (!this.ids.has(name) && !this.listed) await this.list();

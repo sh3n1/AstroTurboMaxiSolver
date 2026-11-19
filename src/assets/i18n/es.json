@@ -822,5 +822,19 @@
     "notOurs": "Este no es un archivo de {{kind}} de {{app}}",
     "list": "lista",
     "log": "diario"
+  },
+  "conflicts": {
+    "title": "Conflictos",
+    "mark": "Editado en dos móviles",
+    "count": {
+      "one": "{{count}} entrada editada en dos móviles",
+      "other": "{{count}} entradas editadas en dos móviles"
+    },
+    "explain": "Editada en dos móviles antes de sincronizarse. Quédate con una versión: los demás móviles la seguirán.",
+    "thisPhone": "En este móvil",
+    "otherPhone": "Del otro móvil",
+    "deletedHere": "Borrada en este móvil",
+    "keep": "Quedarme con esta",
+    "none": "No hay conflictos. Todo está igual en todos tus dispositivos."
   }
 }
