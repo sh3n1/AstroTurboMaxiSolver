@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { IonInfiniteScroll, IonInfiniteScrollContent, IonItemDivider, IonLabel, ToastController } from '@ionic/angular';
 
+import { t } from '../i18n/t';
 import { PlanChartComponent } from '../planning/plan-chart.component';
 
 import { listToastPlace } from './list-toast';
@@ -96,12 +97,12 @@ export class ListRowsComponent {
       before.filter((id) => id !== target.id),
     );
     const toast = await this.toasts.create({
-      message: `Removed ${target.id}`,
+      message: t('lists.removed', { name: target.id }),
       duration: UNDO_TOAST_MS,
       ...listToastPlace(),
       cssClass: 'af-toast',
       htmlAttributes: { 'data-testid': 'removed-toast' },
-      buttons: [{ text: 'Undo', handler: () => this.lists.setTargets(listId, before) }],
+      buttons: [{ text: t('common.undo'), handler: () => this.lists.setTargets(listId, before) }],
     });
     await toast.present();
   }

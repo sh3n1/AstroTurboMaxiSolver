@@ -13,11 +13,13 @@ import {
   IonTitle,
   IonToolbar,
 } from '@ionic/angular';
+import { TranslatePipe } from '@ngx-translate/core';
 import { addIcons } from 'ionicons';
 import { bookOutline, calendarOutline, flowerOutline, leafOutline, snowOutline, sunnyOutline } from 'ionicons/icons';
 
 import { isIconUrl } from '../core/app-icons';
 import { AppState } from '../core/app-state.service';
+import { t } from '../core/i18n/t';
 import { currentFirst } from '../core/lists/list-order';
 import { ListsService } from '../core/lists/lists.service';
 import { programFor } from '../core/lists/observing-programs';
@@ -41,6 +43,7 @@ const SHOWN_GROUPS = CATALOGUE_GROUPS.filter((group) => !isReserved(group));
   // not each time the sky map behind it updates.
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    TranslatePipe,
     ProgramCardComponent,
     IonBackButton,
     IonBadge,
@@ -68,7 +71,7 @@ const SHOWN_GROUPS = CATALOGUE_GROUPS.filter((group) => !isReserved(group));
     <ion-header>
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-back-button [defaultHref]="back" text="" aria-label="Back"></ion-back-button>
+          <ion-back-button [defaultHref]="back" text="" [attr.aria-label]="'common.back' | translate"></ion-back-button>
         </ion-buttons>
         <ion-title>{{ title }}</ion-title>
       </ion-toolbar>
@@ -125,7 +128,7 @@ export class CataloguesPage {
 
   /** The lists this page shows: the Catalogues page itself, or one split catalogue's. */
   private readonly section: FixedListSection = this.group?.section ?? 'catalogues';
-  protected readonly title: string = this.group?.name ?? 'Catalogues';
+  protected readonly title: string = this.group?.name ?? t('lists.catalogues');
   /** The observing programme of a split catalogue, such as the RASC Finest NGC. */
   protected readonly program = this.group ? programFor(this.group.id) : null;
   protected readonly back = this.group ? '/tabs/lists/catalogues' : '/tabs/lists';

@@ -4,6 +4,7 @@ import { apparentMagnitude } from '../alignment/alignment';
 import { AppState } from '../app-state.service';
 import { equatorialVector } from '../astronomy/astronomy';
 import type { Target } from '../catalog/targets';
+import { t } from '../i18n/t';
 import { LocalTimePipe } from '../local-time.pipe';
 import { recommendationLimit } from '../sky-conditions/sky-quality';
 import { insideReticle } from '../sky-page/reticle';
@@ -103,7 +104,7 @@ export class ListsService {
       )
       .map(({ id, name }) => ({
         id,
-        name: id === UNCATEGORIZED_ID ? UNCATEGORIZED_NAME : name,
+        name: id === UNCATEGORIZED_ID ? t('lists.names.savedForLater') : name,
         targetIds: (itemsByList.get(id) ?? []).map((item) => item.targetId),
       }));
   });
@@ -200,12 +201,12 @@ export class ListsService {
    */
   private readonly bestNowName = computed(() => {
     const planned = this.state.plannedTime();
-    if (!planned) return 'Best right now';
+    if (!planned) return t('lists.names.bestNow');
     const time = TIME_PIPE.transform(planned);
-    if (planned.toDateString() === new Date().toDateString()) return `Best at ${time}`;
+    if (planned.toDateString() === new Date().toDateString()) return t('lists.names.bestAt', { time });
     const withinWeek = Math.abs(planned.getTime() - Date.now()) < 6 * 24 * 3_600_000;
     const day = withinWeek ? WEEKDAY.format(planned) : TIME_PIPE.transform(planned, 'day');
-    return `Best ${day} ${time}`;
+    return t('lists.names.bestOn', { day, time });
   });
 
   /** The app's own lists, which can't be changed. */
@@ -220,7 +221,8 @@ export class ListsService {
     // Lists whose publishers reserve their rights are hidden for now: see RESERVED_LISTS.
     return FIXED_LISTS.filter((fixed) => !isReserved(fixed)).map(({ id, name }) => ({
       id,
-      name: id === 'now' ? this.bestNowName() : name,
+      // The app's own names in the user's language; catalogues' names, such as Messier, as they are.
+      name: id === 'now' ? this.bestNowName() : t(name),
       kind: 'fixed',
       targets: targets[id],
     }));

@@ -15,6 +15,7 @@ import {
   IonReorderGroup,
   ModalController,
 } from '@ionic/angular';
+import { TranslatePipe } from '@ngx-translate/core';
 import { addIcons } from 'ionicons';
 import {
   arrowUpOutline,
@@ -96,6 +97,7 @@ const GOOD_ALTITUDE_DEG = 30;
   // updates many times a second, and must not redo its rows each time the map does.
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    TranslatePipe,
     DecimalPipe,
     LocalTimePipe,
     IonBadge,
@@ -203,11 +205,11 @@ const GOOD_ALTITUDE_DEG = 30;
                 [attr.role]="seen ? 'img' : null"
                 [attr.aria-label]="
                   row.seenCount > 1
-                    ? 'Seen ' + row.seenCount + ' times'
+                    ? ('lists.seenTimes' | translate: { count: row.seenCount })
                     : seen === 'seen'
-                      ? 'Seen'
+                      ? ('lists.seen' | translate)
                       : seen === 'tried'
-                        ? 'Not seen yet'
+                        ? ('lists.notSeenYet' | translate)
                         : null
                 "
                 [attr.data-seen]="seen ?? null"
@@ -249,7 +251,10 @@ const GOOD_ALTITUDE_DEG = 30;
                   slot="end"
                   data-testid="sky-position"
                   [color]="altDeg >= goodAltitude ? 'success' : 'warning'"
-                  [attr.aria-label]="(altDeg | number: '1.0-0') + '° up, to the ' + compassPoint(position.azDeg)"
+                  [attr.aria-label]="
+                    'lists.upToThe'
+                      | translate: { degrees: (altDeg | number: '1.0-0'), direction: compassPoint(position.azDeg) }
+                  "
                   >{{ altDeg | number: '1.0-0' }}° {{ compassShort(position.azDeg) }}</ion-badge
                 >
               } @else if (row.rise; as rise) {
@@ -259,7 +264,7 @@ const GOOD_ALTITUDE_DEG = 30;
                   class="rises"
                   role="img"
                   data-testid="rises-at"
-                  [attr.aria-label]="'Below the horizon, rises at ' + (rise | localTime)"
+                  [attr.aria-label]="'lists.risesAt' | translate: { time: (rise | localTime) }"
                   ><ion-icon name="arrow-up-outline" aria-hidden="true"></ion-icon>{{ rise | localTime }}</span
                 >
               } @else {
@@ -269,7 +274,7 @@ const GOOD_ALTITUDE_DEG = 30;
                   class="below-horizon"
                   name="eye-off-outline"
                   role="img"
-                  aria-label="Below the horizon"
+                  [attr.aria-label]="'details.belowHorizon' | translate"
                   data-testid="below-horizon"
                 ></ion-icon>
               }
@@ -280,7 +285,7 @@ const GOOD_ALTITUDE_DEG = 30;
                   slot="end"
                   fill="clear"
                   data-testid="bookmark"
-                  [attr.aria-label]="'Save to a list: ' + target.id"
+                  [attr.aria-label]="'lists.saveTo' | translate: { name: target.id }"
                   (click)="chooseLists($event, target)"
                 >
                   <ion-icon slot="icon-only" [name]="row.bookmarked ? 'bookmark' : 'bookmark-outline'"></ion-icon>
@@ -292,7 +297,7 @@ const GOOD_ALTITUDE_DEG = 30;
               <ion-item-option
                 color="success"
                 data-testid="swipe-seen"
-                [attr.aria-label]="'Mark as seen: ' + target.id"
+                [attr.aria-label]="'lists.markSeen' | translate: { name: target.id }"
                 (click)="markSeen(sliding, target)"
               >
                 <ion-icon slot="icon-only" name="eye" aria-hidden="true"></ion-icon>
@@ -301,7 +306,7 @@ const GOOD_ALTITUDE_DEG = 30;
                 <ion-item-option
                   color="danger"
                   data-testid="swipe-remove"
-                  [attr.aria-label]="'Remove from this list: ' + target.id"
+                  [attr.aria-label]="'lists.removeFrom' | translate: { name: target.id }"
                   (click)="removeRow(sliding, target)"
                 >
                   <ion-icon slot="icon-only" name="trash-outline" aria-hidden="true"></ion-icon>

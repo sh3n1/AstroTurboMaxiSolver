@@ -4,6 +4,7 @@
 import { APP_ICONS } from '../app-icons';
 import { designations } from '../catalog/designations';
 import type { Target } from '../catalog/targets';
+import { i18n, t } from '../i18n/t';
 import { nameUuid, newUuid } from '../storage/sync-record';
 
 /** A list the user can edit. Targets are kept by id, such as "M31" or "NGC 7000". */
@@ -53,10 +54,30 @@ export const UNCATEGORIZED_NAME = 'Saved for later';
  * into its own page of lists, such as the RASC Finest NGC by season.
  */
 export const FIXED_LISTS = [
-  { id: 'now', name: 'Best right now', icon: 'ribbon-outline', description: '', section: 'collections' },
-  { id: 'reticle', name: 'In the reticle', icon: APP_ICONS.reticle, description: '', section: 'collections' },
-  { id: 'messier', name: 'Messier', icon: 'book-outline', description: 'M1 to M110', section: 'catalogues' },
-  { id: 'caldwell', name: 'Caldwell', icon: 'book-outline', description: 'C1 to C109', section: 'catalogues' },
+  { id: 'now', name: i18n('lists.names.bestNow'), icon: 'ribbon-outline', description: '', section: 'collections' },
+  {
+    id: 'reticle',
+    name: i18n('lists.names.reticle'),
+    icon: APP_ICONS.reticle,
+    description: '',
+    section: 'collections',
+  },
+  {
+    id: 'messier',
+    name: 'Messier',
+    icon: 'book-outline',
+    description: i18n('lists.range'),
+    params: { first: 'M1', last: 'M110' },
+    section: 'catalogues',
+  },
+  {
+    id: 'caldwell',
+    name: 'Caldwell',
+    icon: 'book-outline',
+    description: i18n('lists.range'),
+    params: { first: 'C1', last: 'C109' },
+    section: 'catalogues',
+  },
   {
     id: 'herschel400',
     name: 'Herschel 400',
@@ -94,27 +115,81 @@ export const FIXED_LISTS = [
     section: 'catalogues',
   },
   // The RASC Finest NGC and the Deep-Sky Gems, by season.
-  { id: 'rasc-autumn', name: 'Autumn sky', icon: 'leaf-outline', description: '', section: 'rasc' },
-  { id: 'rasc-winter', name: 'Winter sky', icon: 'snow-outline', description: '', section: 'rasc' },
-  { id: 'rasc-spring', name: 'Spring sky', icon: 'flower-outline', description: '', section: 'rasc' },
-  { id: 'rasc-summer', name: 'Summer sky', icon: 'sunny-outline', description: '', section: 'rasc' },
-  { id: 'gems-autumn', name: 'Autumn sky', icon: 'leaf-outline', description: '', section: 'gems' },
-  { id: 'gems-winter', name: 'Winter sky', icon: 'snow-outline', description: '', section: 'gems' },
-  { id: 'gems-spring', name: 'Spring sky', icon: 'flower-outline', description: '', section: 'gems' },
-  { id: 'gems-summer', name: 'Summer sky', icon: 'sunny-outline', description: '', section: 'gems' },
+  { id: 'rasc-autumn', name: i18n('lists.seasons.autumn'), icon: 'leaf-outline', description: '', section: 'rasc' },
+  { id: 'rasc-winter', name: i18n('lists.seasons.winter'), icon: 'snow-outline', description: '', section: 'rasc' },
+  { id: 'rasc-spring', name: i18n('lists.seasons.spring'), icon: 'flower-outline', description: '', section: 'rasc' },
+  { id: 'rasc-summer', name: i18n('lists.seasons.summer'), icon: 'sunny-outline', description: '', section: 'rasc' },
+  { id: 'gems-autumn', name: i18n('lists.seasons.autumn'), icon: 'leaf-outline', description: '', section: 'gems' },
+  { id: 'gems-winter', name: i18n('lists.seasons.winter'), icon: 'snow-outline', description: '', section: 'gems' },
+  { id: 'gems-spring', name: i18n('lists.seasons.spring'), icon: 'flower-outline', description: '', section: 'gems' },
+  { id: 'gems-summer', name: i18n('lists.seasons.summer'), icon: 'sunny-outline', description: '', section: 'gems' },
   // The Hubble Night Sky Challenge, by month.
-  { id: 'hubble-january', name: 'January', icon: 'calendar-outline', description: '', section: 'hubble' },
-  { id: 'hubble-february', name: 'February', icon: 'calendar-outline', description: '', section: 'hubble' },
-  { id: 'hubble-march', name: 'March', icon: 'calendar-outline', description: '', section: 'hubble' },
-  { id: 'hubble-april', name: 'April', icon: 'calendar-outline', description: '', section: 'hubble' },
-  { id: 'hubble-may', name: 'May', icon: 'calendar-outline', description: '', section: 'hubble' },
-  { id: 'hubble-june', name: 'June', icon: 'calendar-outline', description: '', section: 'hubble' },
-  { id: 'hubble-july', name: 'July', icon: 'calendar-outline', description: '', section: 'hubble' },
-  { id: 'hubble-august', name: 'August', icon: 'calendar-outline', description: '', section: 'hubble' },
-  { id: 'hubble-september', name: 'September', icon: 'calendar-outline', description: '', section: 'hubble' },
-  { id: 'hubble-october', name: 'October', icon: 'calendar-outline', description: '', section: 'hubble' },
-  { id: 'hubble-november', name: 'November', icon: 'calendar-outline', description: '', section: 'hubble' },
-  { id: 'hubble-december', name: 'December', icon: 'calendar-outline', description: '', section: 'hubble' },
+  {
+    id: 'hubble-january',
+    name: i18n('lists.months.january'),
+    icon: 'calendar-outline',
+    description: '',
+    section: 'hubble',
+  },
+  {
+    id: 'hubble-february',
+    name: i18n('lists.months.february'),
+    icon: 'calendar-outline',
+    description: '',
+    section: 'hubble',
+  },
+  {
+    id: 'hubble-march',
+    name: i18n('lists.months.march'),
+    icon: 'calendar-outline',
+    description: '',
+    section: 'hubble',
+  },
+  {
+    id: 'hubble-april',
+    name: i18n('lists.months.april'),
+    icon: 'calendar-outline',
+    description: '',
+    section: 'hubble',
+  },
+  { id: 'hubble-may', name: i18n('lists.months.may'), icon: 'calendar-outline', description: '', section: 'hubble' },
+  { id: 'hubble-june', name: i18n('lists.months.june'), icon: 'calendar-outline', description: '', section: 'hubble' },
+  { id: 'hubble-july', name: i18n('lists.months.july'), icon: 'calendar-outline', description: '', section: 'hubble' },
+  {
+    id: 'hubble-august',
+    name: i18n('lists.months.august'),
+    icon: 'calendar-outline',
+    description: '',
+    section: 'hubble',
+  },
+  {
+    id: 'hubble-september',
+    name: i18n('lists.months.september'),
+    icon: 'calendar-outline',
+    description: '',
+    section: 'hubble',
+  },
+  {
+    id: 'hubble-october',
+    name: i18n('lists.months.october'),
+    icon: 'calendar-outline',
+    description: '',
+    section: 'hubble',
+  },
+  {
+    id: 'hubble-november',
+    name: i18n('lists.months.november'),
+    icon: 'calendar-outline',
+    description: '',
+    section: 'hubble',
+  },
+  {
+    id: 'hubble-december',
+    name: i18n('lists.months.december'),
+    icon: 'calendar-outline',
+    description: '',
+    section: 'hubble',
+  },
 ] as const;
 export type FixedListSection = (typeof FIXED_LISTS)[number]['section'];
 
@@ -184,7 +259,9 @@ export function fixedListEntries<T extends { id: string }>(
 ): FixedListEntry<T>[] {
   return FIXED_LISTS.filter((fixed) => fixed.section === section).flatMap((fixed) => {
     const list = lists.find((candidate) => candidate.id === fixed.id);
-    return list ? [{ list, icon: fixed.icon, description: fixed.description }] : [];
+    // The description in the user's language, with any designations in it as they are.
+    const description = fixed.description ? t(fixed.description, 'params' in fixed ? fixed.params : undefined) : '';
+    return list ? [{ list, icon: fixed.icon, description }] : [];
   });
 }
 export type FixedListId = (typeof FIXED_LISTS)[number]['id'];
@@ -205,7 +282,7 @@ export function newListId(): string {
 
 /** The name, or the name with a number after it if a list already has it: "Galaxies (2)". */
 export function uniqueName(name: string, existing: readonly string[]): string {
-  const base = name.trim() || 'New list';
+  const base = name.trim() || t('lists.newList');
   const taken = new Set(existing.map((n) => n.toLowerCase()));
   if (!taken.has(base.toLowerCase())) return base;
   let n = 2;
@@ -243,11 +320,11 @@ export function parseImport(text: string): { name: string; targetIds: string[] }
   }
   return file.lists.map((entry: { name?: unknown; targets?: unknown }) => {
     if (typeof entry?.name !== 'string' || !Array.isArray(entry.targets)) {
-      throw new Error('The list file is damaged');
+      throw new Error(t('lists.damaged'));
     }
     // Keep only text ids, each once, in the order given.
     const targetIds = [...new Set(entry.targets.filter((id): id is string => typeof id === 'string'))];
-    return { name: entry.name.trim() || 'Imported list', targetIds };
+    return { name: entry.name.trim() || t('lists.importedList'), targetIds };
   });
 }
 

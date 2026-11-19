@@ -4,13 +4,23 @@ import { AppState } from '../app-state.service';
 import type { Horizontal, Vector3 } from '../astronomy/astronomy';
 import { equatorialVector, hoursUntilRise } from '../astronomy/astronomy';
 import { isExactDesignation, normalizeSearch, targetSearchText } from '../catalog/search';
+import { t } from '../i18n/t';
 import { LocalTimePipe } from '../local-time.pipe';
 import { ObservingLogService } from '../log/observing-log.service';
 import { TonightService } from '../planning/tonight.service';
 import { listUuid } from '../storage/storage-migration';
 
 import type { Section, SeenFilter, SkyFacts, SortId, TypeFilter } from './list-order';
-import { PAGE_SIZE, SORTS, SORT_LABELS, arrange, bestMatch, firstRows, matchesType } from './list-order';
+import {
+  PAGE_SIZE,
+  SORTS,
+  SORT_LABELS,
+  arrange,
+  bestMatch,
+  firstRows,
+  matchesType,
+  typeFilterText,
+} from './list-order';
 import type { ListedTarget } from './target-lists';
 
 /** Where each list's chosen order is remembered, by the list's key. */
@@ -129,7 +139,7 @@ export class ListViewService {
     const without = config?.withoutSorts?.() ?? [];
     return SORTS.filter((id) => !without.includes(id)).map((id) => ({
       id,
-      label: id === 'list' ? (config?.ownOrder() ?? 'List order') : SORT_LABELS[id],
+      label: id === 'list' ? (config?.ownOrder() ?? t('lists.sorts.list')) : t(SORT_LABELS[id]),
     }));
   });
 
@@ -154,9 +164,10 @@ export class ListViewService {
   /** The filters that are on, for the chips that take them off. */
   readonly activeFilters = computed<ActiveFilter[]>(() => {
     const active: ActiveFilter[] = [];
-    if (this.type() !== 'All') active.push({ id: 'type', label: this.type() });
-    if (this.seen() !== 'all') active.push({ id: 'seen', label: this.seen() === 'seen' ? 'Seen' : 'To see' });
-    if (this.upTonight()) active.push({ id: 'up', label: 'Up tonight' });
+    if (this.type() !== 'All') active.push({ id: 'type', label: typeFilterText(this.type()) });
+    if (this.seen() !== 'all')
+      active.push({ id: 'seen', label: t(this.seen() === 'seen' ? 'lists.seen' : 'lists.toSee') });
+    if (this.upTonight()) active.push({ id: 'up', label: t('lists.upTonight') });
     return active;
   });
 

@@ -1,10 +1,13 @@
 import { ChangeDetectionStrategy, Component, inject, input, viewChild } from '@angular/core';
 import { ActionSheetController, IonButton, IonChip, IonIcon, IonModal, IonSearchbar } from '@ionic/angular';
+import { TranslatePipe } from '@ngx-translate/core';
 import { addIcons } from 'ionicons';
 import { analyticsOutline, close, filterOutline, funnelOutline } from 'ionicons/icons';
 
+import { t } from '../i18n/t';
+
 import type { SeenFilter } from './list-order';
-import { TYPE_FILTERS } from './list-order';
+import { TYPE_FILTERS, typeFilterText } from './list-order';
 import { ListViewService } from './list-view.service';
 
 /**
@@ -18,7 +21,7 @@ import { ListViewService } from './list-view.service';
   // Everything shown comes from signals, so the page is checked only when one changes,
   // not each time the sky map behind it updates.
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IonButton, IonChip, IonIcon, IonModal, IonSearchbar],
+  imports: [TranslatePipe, IonButton, IonChip, IonIcon, IonModal, IonSearchbar],
   styles: `
     .bar {
       display: flex;
@@ -100,12 +103,17 @@ import { ListViewService } from './list-view.service';
         [value]="view.query()"
         (ionInput)="view.query.set($any($event).detail.value ?? '')"
       ></ion-searchbar>
-      <ion-button fill="clear" aria-label="Order" data-testid="list-sort" (click)="chooseSort()">
+      <ion-button
+        fill="clear"
+        [attr.aria-label]="'lists.order' | translate"
+        data-testid="list-sort"
+        (click)="chooseSort()"
+      >
         <ion-icon slot="icon-only" name="filter-outline" aria-hidden="true"></ion-icon>
       </ion-button>
       <ion-button
         fill="clear"
-        aria-label="Filters"
+        [attr.aria-label]="'lists.filters' | translate"
         data-testid="list-filter"
         [class.on]="view.activeFilters().length > 0"
         (click)="view.filtersOpen.set(true)"
@@ -114,7 +122,7 @@ import { ListViewService } from './list-view.service';
       </ion-button>
       <ion-button
         fill="clear"
-        aria-label="Chart of tonight"
+        [attr.aria-label]="'lists.chart' | translate"
         data-testid="list-chart-toggle"
         [class.on]="view.chartOpen()"
         [attr.aria-pressed]="view.chartOpen()"
@@ -130,7 +138,7 @@ import { ListViewService } from './list-view.service';
         @for (filter of view.activeFilters(); track filter.id) {
           <ion-chip
             color="primary"
-            [attr.aria-label]="'Remove filter: ' + filter.label"
+            [attr.aria-label]="'lists.removeFilter' | translate: { filter: filter.label }"
             (click)="view.clearFilter(filter.id)"
           >
             {{ filter.label }}
@@ -150,10 +158,10 @@ import { ListViewService } from './list-view.service';
       <ng-template>
         <div class="sheet" data-testid="list-filters">
           <div class="sheet-title">
-            <h2>Filters</h2>
+            <h2>{{ 'lists.filters' | translate }}</h2>
             <ion-button
               fill="clear"
-              aria-label="Close"
+              [attr.aria-label]="'common.close' | translate"
               data-testid="filters-close"
               (click)="view.filtersOpen.set(false)"
             >
@@ -161,7 +169,7 @@ import { ListViewService } from './list-view.service';
             </ion-button>
           </div>
 
-          <h3 id="filter-type">Type</h3>
+          <h3 id="filter-type">{{ 'lists.type' | translate }}</h3>
           <div class="choices" role="radiogroup" aria-labelledby="filter-type" data-testid="list-type-filters">
             @for (option of types; track option) {
               <ion-chip
@@ -171,12 +179,12 @@ import { ListViewService } from './list-view.service';
                 [color]="view.type() === option ? 'primary' : 'medium'"
                 (click)="view.type.set(option)"
               >
-                {{ option }}
+                {{ typeFilterText(option) }}
               </ion-chip>
             }
           </div>
 
-          <h3>Observing log</h3>
+          <h3>{{ 'lists.observingLog' | translate }}</h3>
           <div class="choices" data-testid="list-seen-filters">
             <ion-chip
               role="checkbox"
@@ -184,7 +192,7 @@ import { ListViewService } from './list-view.service';
               [outline]="view.seen() !== 'todo'"
               [color]="view.seen() === 'todo' ? 'primary' : 'medium'"
               (click)="toggleSeen('todo')"
-              >To see</ion-chip
+              >{{ 'lists.toSee' | translate }}</ion-chip
             >
             <ion-chip
               role="checkbox"
@@ -192,7 +200,7 @@ import { ListViewService } from './list-view.service';
               [outline]="view.seen() !== 'seen'"
               [color]="view.seen() === 'seen' ? 'primary' : 'medium'"
               (click)="toggleSeen('seen')"
-              >Seen</ion-chip
+              >{{ 'lists.seen' | translate }}</ion-chip
             >
           </div>
 
@@ -205,13 +213,13 @@ import { ListViewService } from './list-view.service';
               [outline]="!view.upTonight()"
               [color]="view.upTonight() ? 'primary' : 'medium'"
               (click)="view.upTonight.set(!view.upTonight())"
-              >Up tonight</ion-chip
+              >{{ 'lists.upTonight' | translate }}</ion-chip
             >
           </div>
 
           @if (view.activeFilters().length > 0) {
             <ion-button class="clear" fill="outline" expand="block" data-testid="filters-clear" (click)="clearAll()">
-              Clear filters
+              {{ 'lists.clearFilters' | translate }}
             </ion-button>
           }
         </div>
@@ -227,7 +235,8 @@ export class ListToolsComponent {
     void this.searchbar()?.setFocus();
   }
 
-  readonly placeholder = input('Search this list');
+  readonly placeholder = input(t('lists.searchThisList'));
+  protected readonly typeFilterText = typeFilterText;
 
   protected readonly view = inject(ListViewService);
   private readonly actionSheets = inject(ActionSheetController);
@@ -250,7 +259,7 @@ export class ListToolsComponent {
   protected async chooseSort(): Promise<void> {
     const current = this.view.sort();
     const sheet = await this.actionSheets.create({
-      header: 'Order',
+      header: t('lists.order'),
       buttons: [
         ...this.view.sorts().map(({ id, label }) => ({
           text: label,
@@ -258,7 +267,7 @@ export class ListToolsComponent {
           htmlAttributes: { 'data-sort': id },
           handler: () => this.view.setSort(id),
         })),
-        { text: 'Cancel', role: 'cancel' },
+        { text: t('common.cancel'), role: 'cancel' },
       ],
     });
     await sheet.present();

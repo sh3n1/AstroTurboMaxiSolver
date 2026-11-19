@@ -10,10 +10,12 @@ import {
   IonTitle,
   IonToolbar,
 } from '@ionic/angular';
+import { TranslatePipe } from '@ngx-translate/core';
 import { addIcons } from 'ionicons';
 import { timeOutline } from 'ionicons/icons';
 
 import { AppState } from '../core/app-state.service';
+import { t } from '../core/i18n/t';
 import { ListRowsComponent } from '../core/lists/list-rows.component';
 import { ListToolsComponent } from '../core/lists/list-tools.component';
 import { ListViewService } from '../core/lists/list-view.service';
@@ -29,6 +31,7 @@ import { ListViewService } from '../core/lists/list-view.service';
   // not each time the sky map behind it updates.
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    TranslatePipe,
     IonBackButton,
     IonButton,
     IonButtons,
@@ -52,13 +55,17 @@ import { ListViewService } from '../core/lists/list-view.service';
     <ion-header class="list-header">
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-back-button defaultHref="/tabs/lists" text="" aria-label="Back"></ion-back-button>
+          <ion-back-button
+            defaultHref="/tabs/lists"
+            text=""
+            [attr.aria-label]="'common.back' | translate"
+          ></ion-back-button>
         </ion-buttons>
-        <ion-title>Search</ion-title>
+        <ion-title>{{ 'lists.search' | translate }}</ion-title>
         <ion-buttons slot="end">
           <!-- Opens the time control: the heights and the order follow the time chosen. -->
           <ion-button
-            aria-label="Change the time"
+            [attr.aria-label]="'lists.changeTime' | translate"
             data-testid="list-change-time"
             [class.warn]="state.planning()"
             (click)="state.timeControlOpen.set(true)"
@@ -75,7 +82,7 @@ import { ListViewService } from '../core/lists/list-view.service';
     <ion-content>
       <app-list-rows>
         <ion-text color="medium">
-          <p class="ion-text-center ion-padding" data-testid="list-empty">No targets match your search.</p>
+          <p class="ion-text-center ion-padding" data-testid="list-empty">{{ 'lists.empty.noMatch' | translate }}</p>
         </ion-text>
       </app-list-rows>
     </ion-content>
@@ -97,7 +104,7 @@ export class TargetsPage {
       key: () => 'targets',
       rows: () => this.state.targets(),
       title: () => 'Search',
-      ownOrder: () => 'Best match',
+      ownOrder: () => t('lists.sorts.bestMatch'),
       bestMatch: true,
     });
   }

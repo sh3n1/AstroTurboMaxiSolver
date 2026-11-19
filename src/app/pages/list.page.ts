@@ -18,6 +18,7 @@ import {
   IonToolbar,
   ToastController,
 } from '@ionic/angular';
+import { TranslatePipe } from '@ngx-translate/core';
 import { addIcons } from 'ionicons';
 import {
   copyOutline,
@@ -32,6 +33,7 @@ import {
 import { map } from 'rxjs';
 
 import { AppState } from '../core/app-state.service';
+import { t } from '../core/i18n/t';
 import { ListRowsComponent } from '../core/lists/list-rows.component';
 import { ListToolsComponent } from '../core/lists/list-tools.component';
 import { ListViewService } from '../core/lists/list-view.service';
@@ -52,6 +54,7 @@ import { ObservingLogService } from '../core/log/observing-log.service';
   // not each time the sky map behind it updates.
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    TranslatePipe,
     ProgramCardComponent,
     DecimalPipe,
     IonBackButton,
@@ -100,28 +103,38 @@ import { ObservingLogService } from '../core/log/observing-log.service';
     <ion-header class="list-header">
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-back-button defaultHref="/tabs/lists" text="" aria-label="Back"></ion-back-button>
+          <ion-back-button
+            defaultHref="/tabs/lists"
+            text=""
+            [attr.aria-label]="'common.back' | translate"
+          ></ion-back-button>
         </ion-buttons>
-        <ion-title data-testid="list-title">{{ list()?.name ?? 'List' }}</ion-title>
+        <ion-title data-testid="list-title">{{ list()?.name ?? ('lists.list' | translate) }}</ion-title>
         @if (list(); as current) {
           <ion-buttons slot="end">
             @if (view.editing()) {
               <!-- Reordering by hand: the rows have handles until this is tapped. -->
-              <ion-button data-testid="reorder-done" (click)="view.editing.set(false)">Done</ion-button>
+              <ion-button data-testid="reorder-done" (click)="view.editing.set(false)">{{
+                'common.done' | translate
+              }}</ion-button>
             } @else {
               <!-- Opens the time control: the heights and the order follow the time chosen. -->
               <ion-button
-                aria-label="Change the time"
+                [attr.aria-label]="'lists.changeTime' | translate"
                 data-testid="list-change-time"
                 [class.warn]="state.planning()"
                 (click)="state.timeControlOpen.set(true)"
               >
                 <ion-icon slot="icon-only" name="time-outline" aria-hidden="true"></ion-icon>
               </ion-button>
-              <ion-button aria-label="Share" data-testid="share-list" (click)="share()">
+              <ion-button [attr.aria-label]="'lists.share' | translate" data-testid="share-list" (click)="share()">
                 <ion-icon slot="icon-only" name="share-social-outline" aria-hidden="true"></ion-icon>
               </ion-button>
-              <ion-button aria-label="More actions" data-testid="list-actions" (click)="actions()">
+              <ion-button
+                [attr.aria-label]="'lists.moreActions' | translate"
+                data-testid="list-actions"
+                (click)="actions()"
+              >
                 <ion-icon slot="icon-only" name="ellipsis-vertical" aria-hidden="true"></ion-icon>
               </ion-button>
             }
@@ -146,8 +159,15 @@ import { ObservingLogService } from '../core/log/observing-log.service';
           <ion-card>
             <ion-card-content data-testid="reticle-centre">
               <p>
-                <strong>Around: </strong>Alt {{ state.pointing().altDeg | number: '1.0-0' }}° Az
-                {{ state.pointing().azDeg | number: '1.0-0' }}°
+                <strong>{{ 'lists.around' | translate }}</strong>
+                {{
+                  'readout.altAz'
+                    | translate
+                      : {
+                          alt: (state.pointing().altDeg | number: '1.0-0'),
+                          az: (state.pointing().azDeg | number: '1.0-0'),
+                        }
+                }}
               </p>
             </ion-card-content>
           </ion-card>
@@ -169,7 +189,8 @@ import { ObservingLogService } from '../core/log/observing-log.service';
               />
             </svg>
             <span data-testid="list-seen-count"
-              ><strong>{{ progress().seen }}</strong> of {{ progress().total }} seen</span
+              ><strong>{{ progress().seen }}</strong>
+              {{ 'lists.ofSeen' | translate: { total: progress().total } }}</span
             >
           </div>
         }
@@ -178,28 +199,28 @@ import { ObservingLogService } from '../core/log/observing-log.service';
           <ion-text color="medium">
             <p class="ion-padding" data-testid="list-empty">
               @if (view.query()) {
-                Nothing in this list matches your search.
+                {{ 'lists.empty.search' | translate }}
               } @else if (current.targets.length > 0) {
                 <!-- The list has targets, so the filters are what hide them. -->
                 @if (view.seen() === 'seen') {
-                  Nothing seen in this list yet.
+                  {{ 'lists.empty.noneSeen' | translate }}
                 } @else if (view.seen() === 'todo' && view.activeFilters().length === 1) {
-                  All seen. Well done!
+                  {{ 'lists.empty.allSeen' | translate }}
                 } @else {
-                  Nothing in this list passes the filters.
+                  {{ 'lists.empty.filtered' | translate }}
                 }
               } @else if (current.id === 'reticle') {
-                Nothing is inside the aiming rings. Move the telescope, or the map, to fill this list.
+                {{ 'lists.empty.reticle' | translate }}
               } @else if (current.kind === 'fixed') {
-                Nothing is well placed at that time.
+                {{ 'lists.empty.notPlaced' | translate }}
               } @else {
-                This list is empty. Tap the bookmark on any target to save it here.
+                {{ 'lists.empty.mine' | translate }}
               }
             </p>
           </ion-text>
         </app-list-rows>
       } @else {
-        <p class="ion-padding">This list no longer exists.</p>
+        <p class="ion-padding">{{ 'lists.gone' | translate }}</p>
       }
     </ion-content>
   `,
@@ -278,9 +299,9 @@ export class ListPage {
       title: () => this.list()?.name ?? 'List',
       ownOrder: () => {
         const list = this.list();
-        if (list?.id === 'now') return 'Best first';
-        if (list?.id === 'reticle') return 'Nearest the centre';
-        return list?.kind === 'fixed' ? 'Catalogue order' : 'My order';
+        if (list?.id === 'now') return t('lists.sorts.bestFirst');
+        if (list?.id === 'reticle') return t('lists.sorts.nearestCentre');
+        return t(list?.kind === 'fixed' ? 'lists.sorts.catalogue' : 'lists.sorts.mine');
       },
       // Inside the reticle, the list's own order is already the nearest first.
       withoutSorts: () => (this.id() === 'reticle' ? ['nearest'] : []),
@@ -297,8 +318,8 @@ export class ListPage {
     if (!list) return;
     const result = await this.lists.share(list);
     // Without a share sheet, the list is copied as text, which "Import pasted text" reads.
-    if (result === 'copied') void this.toast('No share sheet here. Copied as text to paste.');
-    if (result === 'unavailable') void this.toast('Sharing isn’t available here. Use Save as a file.');
+    if (result === 'copied') void this.toast(t('lists.copied'));
+    if (result === 'unavailable') void this.toast(t('lists.noSharing'));
   }
 
   /**
@@ -309,24 +330,28 @@ export class ListPage {
     const list = this.list();
     if (!list) return;
     const buttons: { text: string; icon?: string; role?: string; handler?: () => void }[] = [
-      { text: 'Save as a file', icon: 'save-outline', handler: () => this.saveFile() },
+      { text: t('lists.saveFile'), icon: 'save-outline', handler: () => this.saveFile() },
     ];
     if (list.kind === 'fixed') {
-      buttons.push({ text: 'Make an editable copy', icon: 'copy-outline', handler: () => void this.copy() });
+      buttons.push({ text: t('lists.makeCopy'), icon: 'copy-outline', handler: () => void this.copy() });
     }
     if (list.kind !== 'fixed' && list.targets.length > 1) {
-      buttons.push({ text: 'Reorder', icon: 'reorder-three-outline', handler: () => this.view.editing.set(true) });
+      buttons.push({
+        text: t('lists.reorder'),
+        icon: 'reorder-three-outline',
+        handler: () => this.view.editing.set(true),
+      });
     }
     if (list.kind === 'custom') {
-      buttons.push({ text: 'Rename', icon: 'create-outline', handler: () => void this.rename() });
+      buttons.push({ text: t('lists.rename'), icon: 'create-outline', handler: () => void this.rename() });
       buttons.push({
-        text: 'Delete list',
+        text: t('lists.deleteList'),
         icon: 'trash-outline',
         role: 'destructive',
         handler: () => void this.delete(),
       });
     }
-    buttons.push({ text: 'Cancel', role: 'cancel' });
+    buttons.push({ text: t('common.cancel'), role: 'cancel' });
     const sheet = await this.actionSheets.create({ header: list.name, buttons });
     await sheet.present();
   }
@@ -349,12 +374,12 @@ export class ListPage {
     const list = this.list();
     if (!list) return;
     const alert = await this.alerts.create({
-      header: 'Name the copy',
+      header: t('lists.nameCopy'),
       inputs: [{ name: 'name', type: 'text', value: list.name, attributes: { 'data-testid': 'copy-name' } }],
       buttons: [
-        { text: 'Cancel', role: 'cancel' },
+        { text: t('common.cancel'), role: 'cancel' },
         {
-          text: 'Copy',
+          text: t('lists.copy'),
           handler: ({ name }: { name: string }) => {
             const id = this.lists.create(name.trim() || list.name);
             // A target listed twice, under two numbers, is added once: a second toggle would remove it.
@@ -371,11 +396,11 @@ export class ListPage {
     const list = this.list();
     if (!list) return;
     const alert = await this.alerts.create({
-      header: 'Rename list',
+      header: t('lists.renameList'),
       inputs: [{ name: 'name', type: 'text', value: list.name }],
       buttons: [
-        { text: 'Cancel', role: 'cancel' },
-        { text: 'Rename', handler: ({ name }: { name: string }) => this.lists.rename(list.id, name) },
+        { text: t('common.cancel'), role: 'cancel' },
+        { text: t('lists.rename'), handler: ({ name }: { name: string }) => this.lists.rename(list.id, name) },
       ],
     });
     await alert.present();
@@ -385,12 +410,12 @@ export class ListPage {
     const list = this.list();
     if (!list) return;
     const alert = await this.alerts.create({
-      header: 'Delete this list?',
-      message: `“${list.name}” and its ${list.targets.length} bookmarks will be removed. The targets themselves stay in the catalogue.`,
+      header: t('lists.deleteQuestion'),
+      message: t('lists.deleteMessage', { name: list.name, count: list.targets.length }),
       buttons: [
-        { text: 'Cancel', role: 'cancel' },
+        { text: t('common.cancel'), role: 'cancel' },
         {
-          text: 'Delete',
+          text: t('common.delete'),
           role: 'destructive',
           handler: () => {
             this.lists.delete(list.id);
