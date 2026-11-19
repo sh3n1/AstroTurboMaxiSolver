@@ -4,6 +4,7 @@ import { AppState } from '../app-state.service';
 import { sunAltitudeDeg } from '../astronomy/astronomy';
 import { designations } from '../catalog/designations';
 import type { Target } from '../catalog/targets';
+import { t } from '../i18n/t';
 import { LocalTimePipe } from '../local-time.pipe';
 import { sideways } from '../sensors/sideways';
 import { SKY_SHADE_COLOURS } from '../sky-page/planning-time';
@@ -276,8 +277,12 @@ export class PlanChartComponent {
     );
     const { bands, hours, goodY } = base;
     const label =
-      'Height through the night: ' +
-      lines.map((l) => (l.peak ? `${l.label}, highest ${l.peak.text}` : `${l.label}, not up`)).join('; ');
+      t('plan.chartLabel') +
+      lines
+        .map((l) =>
+          l.peak ? t('plan.highest', { name: l.label, peak: l.peak.text }) : t('plan.notUp', { name: l.label }),
+        )
+        .join('; ');
     return {
       bands,
       goodY,

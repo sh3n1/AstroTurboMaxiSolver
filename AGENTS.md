@@ -75,6 +75,7 @@ Before finishing a change, run: `npm run lint`, `npm run test:unit` and `npm run
   - `catalog/` - the targets: loading and joining the catalogue files, searching, names, details and icons
   - `dev-tools/` - the device test and the clear-sky test, for development
   - `equipment/` - telescopes, eyepieces and the rest of the kit
+  - `i18n/` - the app's languages: ngx-translate's setup, and `t()` for plain code
   - `lists/` - the user's lists, the shared list view, the playlist; `lists/programs/` holds the observing programmes' lists
   - `log/` - the observing log and its export
   - `planning/` - tonight's visibility and the planning chart
@@ -138,6 +139,10 @@ Keep on-screen text short. Don't over-explain: say what matters in a few words, 
 - Colours: use the `--af-*` variables in `src/theme/variables.scss`, never a colour written out in a component. Canvases take theirs from `src/app/core/theme.ts`, which repeats a few of the variables and is checked against them by an end-to-end test.
 - Naming: Angular defaults
 - Language: code comments, documentation and every Markdown file are in English, whatever language the conversation is in.
+- On-screen text: every text the app shows is in `src/assets/i18n/en.json` (ngx-translate), never written in a component or a service. Keys are grouped by area, such as `settings.title`. Templates use the `translate` pipe; plain code uses `t()` from `core/i18n/t.ts`, and `i18n()` marks a key kept in a constant. `npm run lint` checks that every key used exists, and every key is used.
+  - Never translate catalogue data: target names, designations, star and constellation names, programme titles and club names. Where they sit inside a sentence, pass them as parameters, such as `"{{first}} to {{last}}"`.
+  - Words saved in the user's data or written into exported files (log tags, ratings, the Saved for later list's name, CSV and OAL columns) stay in English; the screens show them translated.
+  - The device test and the sky test, which only run under the dev server, may stay in English.
 - Testing expectations: Unit tests for astronomy, solver and fusion logic. End-to-end tests for main flows.
 - Dependencies: Ask before adding one. Prefer a well-maintained, permissively licensed library over custom code.
 

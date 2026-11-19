@@ -312,11 +312,11 @@ export function parseImport(text: string): { name: string; targetIds: string[] }
   try {
     data = JSON.parse(text);
   } catch {
-    throw new Error("This isn't an AstroTurboMaxiSolver list file");
+    throw new Error(t('files.notOurs', { app: 'AstroTurboMaxiSolver', kind: t('files.list') }));
   }
   const file = data as { format?: unknown; lists?: unknown };
   if (file?.format !== EXPORT_FORMAT || !Array.isArray(file.lists)) {
-    throw new Error("This isn't an AstroTurboMaxiSolver list file");
+    throw new Error(t('files.notOurs', { app: 'AstroTurboMaxiSolver', kind: t('files.list') }));
   }
   return file.lists.map((entry: { name?: unknown; targets?: unknown }) => {
     if (typeof entry?.name !== 'string' || !Array.isArray(entry.targets)) {

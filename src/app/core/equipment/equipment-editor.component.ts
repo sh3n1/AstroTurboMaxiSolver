@@ -15,18 +15,21 @@ import {
   IonToolbar,
   ModalController,
 } from '@ionic/angular';
+import { TranslatePipe } from '@ngx-translate/core';
 import { addIcons } from 'ionicons';
 import { checkmark, close } from 'ionicons/icons';
+
+import { i18n, t } from '../i18n/t';
 
 import type { Eyepiece, Filter, KitItem, KitKind, Modifier, Telescope } from './equipment';
 import { TELESCOPE_TYPES, newKitId } from './equipment';
 
 /** Each kind's title, for "New telescope" and "Telescope". */
 const TITLES: Record<KitKind, string> = {
-  telescopes: 'Telescope',
-  eyepieces: 'Eyepiece',
-  modifiers: 'Barlow or reducer',
-  filters: 'Filter',
+  telescopes: i18n('eyepiece.telescope'),
+  eyepieces: i18n('eyepiece.eyepiece'),
+  modifiers: i18n('eyepiece.modifier'),
+  filters: i18n('eyepiece.filter'),
 };
 
 /** A new item's values, before the user changes them: common ones, to change as needed. */
@@ -60,6 +63,7 @@ const RANGES: Record<string, [number, number]> = {
 @Component({
   selector: 'app-equipment-editor',
   imports: [
+    TranslatePipe,
     IonButton,
     IonButtons,
     IonContent,
@@ -83,13 +87,17 @@ const RANGES: Record<string, [number, number]> = {
     <ion-header>
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-button aria-label="Cancel" data-testid="kit-cancel" (click)="modals.dismiss()">
+          <ion-button
+            [attr.aria-label]="'common.cancel' | translate"
+            data-testid="kit-cancel"
+            (click)="modals.dismiss()"
+          >
             <ion-icon slot="icon-only" name="close" aria-hidden="true"></ion-icon>
           </ion-button>
         </ion-buttons>
         <ion-title>{{ title }}</ion-title>
         <ion-buttons slot="end">
-          <ion-button aria-label="Save" data-testid="kit-save" (click)="save()">
+          <ion-button [attr.aria-label]="'common.save' | translate" data-testid="kit-save" (click)="save()">
             <ion-icon slot="icon-only" name="checkmark" aria-hidden="true"></ion-icon>
           </ion-button>
         </ion-buttons>
@@ -99,7 +107,7 @@ const RANGES: Record<string, [number, number]> = {
       <ion-list>
         <ion-item>
           <ion-input
-            label="Name"
+            [label]="'equipment.name' | translate"
             labelPlacement="stacked"
             data-testid="kit-name"
             autocapitalize="words"
@@ -112,7 +120,7 @@ const RANGES: Record<string, [number, number]> = {
           @case ('telescopes') {
             <ion-item>
               <ion-select
-                label="Type"
+                [label]="'lists.type' | translate"
                 labelPlacement="stacked"
                 interface="popover"
                 data-testid="kit-type"
@@ -120,13 +128,13 @@ const RANGES: Record<string, [number, number]> = {
                 (ionChange)="set('type', $event)"
               >
                 @for (type of telescopeTypes; track type[0]) {
-                  <ion-select-option [value]="type[0]">{{ type[1] }}</ion-select-option>
+                  <ion-select-option [value]="type[0]">{{ type[1] | translate }}</ion-select-option>
                 }
               </ion-select>
             </ion-item>
             <ion-item>
               <ion-input
-                label="Aperture (mm)"
+                [label]="'equipment.aperture' | translate"
                 labelPlacement="stacked"
                 type="number"
                 inputmode="decimal"
@@ -137,7 +145,7 @@ const RANGES: Record<string, [number, number]> = {
             </ion-item>
             <ion-item>
               <ion-input
-                label="Focal length (mm)"
+                [label]="'equipment.focal' | translate"
                 labelPlacement="stacked"
                 type="number"
                 inputmode="decimal"
@@ -150,7 +158,7 @@ const RANGES: Record<string, [number, number]> = {
           @case ('eyepieces') {
             <ion-item>
               <ion-input
-                label="Focal length (mm)"
+                [label]="'equipment.focal' | translate"
                 labelPlacement="stacked"
                 type="number"
                 inputmode="decimal"
@@ -161,7 +169,7 @@ const RANGES: Record<string, [number, number]> = {
             </ion-item>
             <ion-item>
               <ion-input
-                label="Apparent field (°)"
+                [label]="'equipment.field' | translate"
                 labelPlacement="stacked"
                 type="number"
                 inputmode="decimal"
@@ -174,11 +182,11 @@ const RANGES: Record<string, [number, number]> = {
           @case ('modifiers') {
             <ion-item>
               <ion-input
-                label="Factor (×)"
+                [label]="'equipment.factor' | translate"
                 labelPlacement="stacked"
                 type="number"
                 inputmode="decimal"
-                helperText="2 for a 2× Barlow · 0.63 for a reducer"
+                [helperText]="'equipment.factorHint' | translate"
                 data-testid="kit-factor"
                 [value]="value('factor')"
                 (ionInput)="set('factor', $event)"
@@ -211,7 +219,7 @@ export class EquipmentEditorComponent implements OnInit {
 
   ngOnInit(): void {
     this.draft.set({ ...(this.item ?? blankItem(this.kind)) });
-    this.title = this.item ? TITLES[this.kind] : `New ${TITLES[this.kind].toLowerCase()}`;
+    this.title = this.item ? t(TITLES[this.kind]) : t('equipment.new', { kind: t(TITLES[this.kind]).toLowerCase() });
   }
 
   protected value(key: string): unknown {
@@ -228,7 +236,7 @@ export class EquipmentEditorComponent implements OnInit {
   protected save(): void {
     const draft: Record<string, unknown> = { ...this.draft(), name: String(this.draft()['name'] ?? '').trim() };
     if (this.kind === 'filters' && !draft['name']) {
-      this.error.set('Give the filter a name');
+      this.error.set(t('equipment.nameFilter'));
       return;
     }
     for (const key of Object.keys(RANGES)) {
@@ -237,7 +245,7 @@ export class EquipmentEditorComponent implements OnInit {
       const [min, max] = key === 'focalMm' && this.kind === 'eyepieces' ? RANGES['eyepieceFocalMm'] : RANGES[key];
       const number = Number(draft[key]);
       if (draft[key] === '' || draft[key] === null || !Number.isFinite(number) || number < min || number > max) {
-        this.error.set(`Use a number from ${min} to ${max}`);
+        this.error.set(t('equipment.range', { min, max }));
         return;
       }
       draft[key] = number;

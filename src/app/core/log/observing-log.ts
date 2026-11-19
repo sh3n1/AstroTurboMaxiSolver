@@ -447,11 +447,11 @@ export function parseLogJson(text: string): LogEntry[] {
   try {
     data = JSON.parse(text);
   } catch {
-    throw new Error("This isn't an AstroTurboMaxiSolver log file");
+    throw new Error(t('files.notOurs', { app: 'AstroTurboMaxiSolver', kind: t('files.log') }));
   }
   const file = data as { format?: unknown; entries?: unknown };
   if (file?.format !== FILE_FORMAT || !Array.isArray(file.entries)) {
-    throw new Error("This isn't an AstroTurboMaxiSolver log file");
+    throw new Error(t('files.notOurs', { app: 'AstroTurboMaxiSolver', kind: t('files.log') }));
   }
   if (!file.entries.every(isEntry)) throw new Error(t('log.damaged'));
   return file.entries;

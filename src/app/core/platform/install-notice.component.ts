@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { IonButton, IonIcon, IonModal } from '@ionic/angular';
+import { TranslatePipe } from '@ngx-translate/core';
 import { addIcons } from 'ionicons';
 import { addCircleOutline, downloadOutline, shareOutline } from 'ionicons/icons';
 
@@ -12,7 +13,7 @@ import { InstallService } from './install.service';
 @Component({
   selector: 'app-install-notice',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IonButton, IonIcon, IonModal],
+  imports: [TranslatePipe, IonButton, IonIcon, IonModal],
   styles: `
     :host {
       display: contents;
@@ -54,23 +55,23 @@ import { InstallService } from './install.service';
     >
       <ng-template>
         <div class="steps" data-testid="install-steps">
-          <h2>Install on iPhone or iPad</h2>
+          <h2>{{ 'install.title' | translate }}</h2>
           <ol>
             <li>
               <ion-icon name="share-outline" aria-hidden="true"></ion-icon>
-              <span>Tap <strong>Share</strong> in Safari's bar</span>
+              <span [innerHTML]="'install.step1' | translate"></span>
             </li>
             <li>
               <ion-icon name="add-circle-outline" aria-hidden="true"></ion-icon>
-              <span>Choose <strong>Add to Home Screen</strong>. Scroll down if you don't see it.</span>
+              <span [innerHTML]="'install.step2' | translate"></span>
             </li>
             <li>
               <ion-icon name="download-outline" aria-hidden="true"></ion-icon>
-              <span>Tap <strong>Add</strong>, then open the app from the home screen</span>
+              <span [innerHTML]="'install.step3' | translate"></span>
             </li>
           </ol>
           <ion-button expand="block" data-testid="install-steps-close" (click)="install.stepsOpen.set(false)">
-            OK
+            {{ 'common.ok' | translate }}
           </ion-button>
         </div>
       </ng-template>

@@ -15,7 +15,9 @@
     "back": "Back",
     "delete": "Delete",
     "done": "Done",
-    "save": "Save"
+    "save": "Save",
+    "no": "No",
+    "ok": "OK"
   },
   "location": {
     "finding": "Finding location…",
@@ -141,7 +143,25 @@
       "eyepieces": "Eyepieces",
       "modifiers": "Barlows and reducers",
       "filters": "Filters"
-    }
+    },
+    "barlow": "{{factor}}× Barlow",
+    "reducer": "{{factor}}× reducer",
+    "telescopeDetail": "{{aperture}} mm, {{focal}} mm focal length, {{type}}",
+    "eyepieceDetail": "{{focal}} mm, {{field}}° field",
+    "types": {
+      "newtonian": "Newtonian",
+      "refractor": "Refractor with diagonal",
+      "cassegrain": "Cassegrain with diagonal"
+    },
+    "name": "Name",
+    "aperture": "Aperture (mm)",
+    "focal": "Focal length (mm)",
+    "field": "Apparent field (°)",
+    "factor": "Factor (×)",
+    "factorHint": "2 for a 2× Barlow · 0.63 for a reducer",
+    "new": "New {{kind}}",
+    "nameFilter": "Give the filter a name",
+    "range": "Use a number from {{min}} to {{max}}"
   },
   "credits": {
     "openngc": "NGC and IC objects from OpenNGC by Mattia Verga, CC BY-SA 4.0. Converted and filtered for this app.",
@@ -405,7 +425,8 @@
     "zoomOut": "Zoom out",
     "setLocation": "Set location",
     "install": "Install app",
-    "update": "Update app"
+    "update": "Update app",
+    "mapLabel": "Sky map. Drag to aim, pinch to zoom."
   },
   "guidance": {
     "onTarget": "On target",
@@ -682,5 +703,81 @@
     "importBackup": "Import a backup",
     "importedOne": "Imported 1 entry",
     "importedMany": "Imported {{count}} entries"
+  },
+  "align": {
+    "title": "Align telescope",
+    "otherTime": "Showing another time",
+    "remove": "Remove alignment",
+    "choose": "Choose a bright object you can see.",
+    "tooBright": "Too bright, try after dark.",
+    "selected": "Selected target",
+    "easiest": "Easiest to see now",
+    "noStars": "No bright stars are well placed right now.",
+    "centre": "Centre {{name}}",
+    "centreHint": "Lowest-power eyepiece, then hold still",
+    "align": "Align",
+    "otherTarget": "Other target",
+    "solving": "Plate solving",
+    "holdStill": "Hold still",
+    "solvingShort": "Solving…",
+    "failed": "Couldn't solve",
+    "retry": "Retry",
+    "useSensors": "Use sensors (rough)",
+    "simulate": "Simulate the camera",
+    "offset": "Camera offset {{degrees}}°",
+    "rough": "Rough. Align again with a clear sky.",
+    "again": "Align again",
+    "removeQuestion": "Remove alignment?",
+    "removeButton": "Remove",
+    "position": "In the {{direction}}, {{degrees}}° up",
+    "plateSolved": "plate solved",
+    "simulated": "simulated",
+    "sensorsRough": "sensors, rough",
+    "plateSolvedStars": "plate solved, {{count}} stars",
+    "fromSensors": "from the sensors",
+    "notSynced": "Not synced. {{reason}}",
+    "synced": "Synced, was {{degrees}}° off",
+    "off": "{{degrees}}° off",
+    "centredQuestion": "Is {{name}} centred in the eyepiece?"
+  },
+  "remote": {
+    "reconnect": "Reconnect",
+    "connecting": "Connecting…",
+    "scanReplyStep": "2. Scan its reply",
+    "scanThisStep": "1. Scan this with the screen phone",
+    "pairingCode": "Pairing code",
+    "scanWithFinder": "Scan this with the finder phone",
+    "replyCode": "Reply code",
+    "waiting": "Waiting for the finder",
+    "scanFinder": "Scan the finder phone's code",
+    "paste": "Or paste the code",
+    "pause": "Pause link",
+    "unlink": "Unlink",
+    "backToCode": "Back to the code",
+    "scanReply": "Scan reply",
+    "thisIsScreen": "This phone is the screen",
+    "connect": "Connect",
+    "cameraView": "Camera view, to read the other phone's code",
+    "cameraUnavailable": "Camera unavailable. Paste the code instead.",
+    "couldNotStart": "Could not start the link on this phone.",
+    "couldNotRead": "Could not read the code.",
+    "finderDisconnected": "Finder phone disconnected",
+    "finderDisconnectedReason": "The finder phone disconnected."
+  },
+  "plan": {
+    "chartLabel": "Height through the night: ",
+    "highest": "{{name}}, highest {{peak}}",
+    "notUp": "{{name}}, not up"
+  },
+  "install": {
+    "title": "Install on iPhone or iPad",
+    "step1": "Tap <strong>Share</strong> in Safari's bar",
+    "step2": "Choose <strong>Add to Home Screen</strong>. Scroll down if you don't see it.",
+    "step3": "Tap <strong>Add</strong>, then open the app from the home screen"
+  },
+  "files": {
+    "notOurs": "This isn't an {{app}} {{kind}} file",
+    "list": "list",
+    "log": "log"
   }
 }

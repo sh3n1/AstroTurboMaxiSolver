@@ -21,6 +21,7 @@ import {
   IonTitle,
   IonToolbar,
 } from '@ionic/angular';
+import { TranslatePipe } from '@ngx-translate/core';
 import { addIcons } from 'ionicons';
 import { checkmark, checkmarkCircleOutline, locateOutline, refresh, timeOutline, trashOutline } from 'ionicons/icons';
 
@@ -30,6 +31,7 @@ import { AppState } from '../core/app-state.service';
 import type { Horizontal } from '../core/astronomy/astronomy';
 import { compassPoint } from '../core/astronomy/astronomy';
 import type { Target } from '../core/catalog/targets';
+import { t } from '../core/i18n/t';
 import { LocalTimePipe } from '../core/local-time.pipe';
 import { rearCameraDirection } from '../core/sensors/attitude';
 import { cameraPointing } from '../core/sensors/device-orientation';
@@ -56,6 +58,7 @@ const PREVIEW_CAMERA_ERROR: Horizontal = { altDeg: 2, azDeg: 3 };
 @Component({
   selector: 'app-align',
   imports: [
+    TranslatePipe,
     LocalTimePipe,
     DecimalPipe,
     IonBackButton,
@@ -254,9 +257,13 @@ const PREVIEW_CAMERA_ERROR: Horizontal = { altDeg: 2, azDeg: 3 };
     <ion-header>
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-back-button defaultHref="/tabs/sky" text="" aria-label="Back"></ion-back-button>
+          <ion-back-button
+            defaultHref="/tabs/sky"
+            text=""
+            [attr.aria-label]="'common.back' | translate"
+          ></ion-back-button>
         </ion-buttons>
-        <ion-title>Align telescope</ion-title>
+        <ion-title>{{ 'align.title' | translate }}</ion-title>
       </ion-toolbar>
     </ion-header>
 
@@ -265,9 +272,11 @@ const PREVIEW_CAMERA_ERROR: Horizontal = { altDeg: 2, azDeg: 3 };
       @if (state.planning()) {
         <p class="showing-other-time" data-testid="align-planning">
           <ion-icon name="time-outline" aria-hidden="true"></ion-icon>
-          Showing another time
+          {{ 'align.otherTime' | translate }}
         </p>
-        <ion-button expand="block" data-testid="align-back-to-now" (click)="backToNow()">Back to now</ion-button>
+        <ion-button expand="block" data-testid="align-back-to-now" (click)="backToNow()">{{
+          'time.backToNow' | translate
+        }}</ion-button>
       } @else {
         @switch (step()) {
           @case ('choose') {
@@ -289,7 +298,7 @@ const PREVIEW_CAMERA_ERROR: Horizontal = { altDeg: 2, azDeg: 3 };
                   <ion-button
                     fill="clear"
                     size="small"
-                    aria-label="Remove alignment"
+                    [attr.aria-label]="'align.remove' | translate"
                     data-testid="remove-alignment"
                     (click)="removeAlignment()"
                   >
@@ -299,39 +308,45 @@ const PREVIEW_CAMERA_ERROR: Horizontal = { altDeg: 2, azDeg: 3 };
               </ion-card>
             }
 
-            <p>Choose a bright object you can see.</p>
+            <p>{{ 'align.choose' | translate }}</p>
 
             @if (skyIsBright()) {
               <ion-text color="warning" data-testid="bright-sky">
-                <p>Too bright, try after dark.</p>
+                <p>{{ 'align.tooBright' | translate }}</p>
               </ion-text>
             }
 
             <!-- The target selected on the map, while it is above the horizon: any object in view can be solved. -->
             @if (selectedTarget(); as target) {
               <ion-list>
-                <ion-list-header>Selected target</ion-list-header>
+                <ion-list-header>{{ 'align.selected' | translate }}</ion-list-header>
                 <ion-item button detail="true" data-testid="align-selected-target" (click)="choose(target)">
                   <ion-label>
                     <h2>{{ target.id }}</h2>
-                    <p>{{ describePosition(state.positionOf(target)) }} · mag {{ target.mag | number: '1.1-1' }}</p>
+                    <p>
+                      {{ describePosition(state.positionOf(target)) }} ·
+                      {{ 'details.mag' | translate: { mag: (target.mag | number: '1.1-1') } }}
+                    </p>
                   </ion-label>
                 </ion-item>
               </ion-list>
             }
 
             <ion-list>
-              <ion-list-header>Easiest to see now</ion-list-header>
+              <ion-list-header>{{ 'align.easiest' | translate }}</ion-list-header>
               @for (suggestion of suggestions(); track suggestion.star.id) {
                 <ion-item button detail="true" data-testid="alignment-star" (click)="choose(suggestion.star)">
                   <ion-label>
                     <h2>{{ suggestion.star.id }}</h2>
-                    <p>{{ describePosition(suggestion.position) }} · mag {{ suggestion.mag | number: '1.1-1' }}</p>
+                    <p>
+                      {{ describePosition(suggestion.position) }} ·
+                      {{ 'details.mag' | translate: { mag: (suggestion.mag | number: '1.1-1') } }}
+                    </p>
                   </ion-label>
                 </ion-item>
               } @empty {
                 <ion-item>
-                  <ion-note>No bright stars are well placed right now.</ion-note>
+                  <ion-note>{{ 'align.noStars' | translate }}</ion-note>
                 </ion-item>
               }
             </ion-list>
@@ -341,9 +356,9 @@ const PREVIEW_CAMERA_ERROR: Horizontal = { altDeg: 2, azDeg: 3 };
             @if (chosen(); as target) {
               <div class="step">
                 <div class="step-head">
-                  <h2>Centre {{ target.id }}</h2>
+                  <h2>{{ 'align.centre' | translate: { name: target.id } }}</h2>
                   <p>{{ describePosition(state.positionOf(target)) }}</p>
-                  <p>Lowest-power eyepiece, then hold still</p>
+                  <p>{{ 'align.centreHint' | translate }}</p>
                 </div>
                 <!-- Big and round in the middle, to find by feel while looking in the eyepiece. -->
                 <!-- The same crosshair as the align button on the map. -->
@@ -351,12 +366,14 @@ const PREVIEW_CAMERA_ERROR: Horizontal = { altDeg: 2, azDeg: 3 };
                   <ion-button class="big-round" data-testid="confirm-centred" (click)="confirm()">
                     <span class="big-round-content">
                       <ion-icon name="locate-outline" aria-hidden="true"></ion-icon>
-                      <span>Align</span>
+                      <span>{{ 'align.align' | translate }}</span>
                     </span>
                   </ion-button>
                 </div>
                 <div class="step-actions">
-                  <ion-button expand="block" fill="outline" (click)="step.set('choose')">Other target</ion-button>
+                  <ion-button expand="block" fill="outline" (click)="step.set('choose')">{{
+                    'align.otherTarget' | translate
+                  }}</ion-button>
                 </div>
               </div>
             }
@@ -365,14 +382,14 @@ const PREVIEW_CAMERA_ERROR: Horizontal = { altDeg: 2, azDeg: 3 };
           @case ('solving') {
             <div class="step">
               <div class="step-head">
-                <h2>Plate solving</h2>
-                <p>Hold still</p>
+                <h2>{{ 'align.solving' | translate }}</h2>
+                <p>{{ 'align.holdStill' | translate }}</p>
               </div>
               <div class="big-round-ring solving">
                 <div class="big-round solving" data-testid="alignment-solving">
                   <span class="big-round-content">
                     <ion-spinner name="crescent" aria-hidden="true"></ion-spinner>
-                    <span>Solving…</span>
+                    <span>{{ 'align.solvingShort' | translate }}</span>
                   </span>
                 </div>
               </div>
@@ -383,30 +400,32 @@ const PREVIEW_CAMERA_ERROR: Horizontal = { altDeg: 2, azDeg: 3 };
           @case ('failed') {
             <div class="step">
               <div class="step-head">
-                <h2>Couldn't solve</h2>
+                <h2>{{ 'align.failed' | translate }}</h2>
                 <p class="warn-text" data-testid="alignment-failed">{{ failure() }}</p>
               </div>
               <div class="big-round-ring failed">
                 <ion-button class="big-round" data-testid="retry-solve" (click)="confirm()">
                   <span class="big-round-content">
                     <ion-icon name="refresh" aria-hidden="true"></ion-icon>
-                    <span>Retry</span>
+                    <span>{{ 'align.retry' | translate }}</span>
                   </span>
                 </ion-button>
               </div>
               <div class="step-actions">
                 @if (state.cameraPointing()) {
                   <ion-button expand="block" fill="outline" data-testid="align-with-sensors" (click)="useSensors()">
-                    Use sensors (rough)
+                    {{ 'align.useSensors' | translate }}
                   </ion-button>
                 }
                 @if (isPreview) {
                   <!-- Development only: there are no stars to solve on a desk. -->
                   <ion-button expand="block" fill="outline" data-testid="align-simulated" (click)="useSimulated()">
-                    Simulate the camera
+                    {{ 'align.simulate' | translate }}
                   </ion-button>
                 }
-                <ion-button expand="block" fill="outline" (click)="step.set('choose')">Other target</ion-button>
+                <ion-button expand="block" fill="outline" (click)="step.set('choose')">{{
+                  'align.otherTarget' | translate
+                }}</ion-button>
               </div>
             </div>
           }
@@ -416,24 +435,27 @@ const PREVIEW_CAMERA_ERROR: Horizontal = { altDeg: 2, azDeg: 3 };
               <!-- The same layout as the steps before: the result at the top, Done in the middle. -->
               <div class="step">
                 <div class="step-head">
-                  <h2>Aligned on {{ current.starId }}</h2>
+                  <h2>{{ 'settings.alignedOn' | translate: { star: current.starId } }}</h2>
                   <p data-testid="alignment-result">
-                    Camera offset {{ offsetAngle() | number: '1.1-1' }}° · {{ resultNote(current.method) }}
+                    {{ 'align.offset' | translate: { degrees: (offsetAngle() | number: '1.1-1') } }} ·
+                    {{ resultNote(current.method) }}
                   </p>
                   @if (current.method !== 'plate-solve') {
-                    <p class="warn-text">Rough. Align again with a clear sky.</p>
+                    <p class="warn-text">{{ 'align.rough' | translate }}</p>
                   }
                 </div>
                 <div class="big-round-ring done">
                   <ion-button class="big-round done" data-testid="alignment-done" (click)="finish()">
                     <span class="big-round-content">
                       <ion-icon name="checkmark" aria-hidden="true"></ion-icon>
-                      <span>Done</span>
+                      <span>{{ 'common.done' | translate }}</span>
                     </span>
                   </ion-button>
                 </div>
                 <div class="step-actions">
-                  <ion-button expand="block" fill="outline" (click)="step.set('choose')">Align again</ion-button>
+                  <ion-button expand="block" fill="outline" (click)="step.set('choose')">{{
+                    'align.again' | translate
+                  }}</ion-button>
                 </div>
               </div>
             }
@@ -516,29 +538,29 @@ export class AlignPage {
   /** Forgets the alignment, after asking: it took a clear sky to measure. */
   protected async removeAlignment(): Promise<void> {
     const alert = await this.alerts.create({
-      header: 'Remove alignment?',
+      header: t('align.removeQuestion'),
       buttons: [
-        { text: 'Cancel', role: 'cancel' },
-        { text: 'Remove', role: 'destructive', handler: () => this.state.alignment.set(null) },
+        { text: t('common.cancel'), role: 'cancel' },
+        { text: t('align.removeButton'), role: 'destructive', handler: () => this.state.alignment.set(null) },
       ],
     });
     await alert.present();
   }
 
   protected describePosition(position: Horizontal): string {
-    return `In the ${compassPoint(position.azDeg)}, ${Math.round(position.altDeg)}° up`;
+    return t('align.position', { direction: compassPoint(position.azDeg), degrees: Math.round(position.altDeg) });
   }
 
   protected methodNote(method: AlignmentMethod | undefined): string {
-    if (method === 'plate-solve') return 'plate solved';
-    if (method === 'simulated') return 'simulated';
-    return 'sensors, rough';
+    if (method === 'plate-solve') return t('align.plateSolved');
+    if (method === 'simulated') return t('align.simulated');
+    return t('align.sensorsRough');
   }
 
   protected resultNote(method: AlignmentMethod | undefined): string {
-    if (method === 'plate-solve') return `plate solved, ${this.solvedStars()} stars`;
-    if (method === 'simulated') return 'simulated';
-    return 'from the sensors';
+    if (method === 'plate-solve') return t('align.plateSolvedStars', { count: this.solvedStars() });
+    if (method === 'simulated') return t('align.simulated');
+    return t('align.fromSensors');
   }
 
   protected choose(star: Target): void {
