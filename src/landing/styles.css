@@ -423,6 +423,7 @@ footer {
 .legal li {
   margin: 8px 0;
 }
+main a,
 .legal a,
 footer a {
   color: var(--accent);

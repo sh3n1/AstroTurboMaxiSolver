@@ -34,12 +34,6 @@ const EVERY_MS = 10 * 60_000;
 /** After this long without a sync, the map offers one with a tap. */
 const STALE_MS = 6 * 3_600_000;
 
-/**
- * Sync is hidden while it is tried out: five taps on the Settings title show it, on this
- * device, from then on.
- */
-const UNLOCKED_KEY = 'astroturbomaxisolver.syncUnlocked';
-
 /** Where sync stands. */
 export type SyncStatus = 'off' | 'idle' | 'syncing' | 'needs-tap' | 'error';
 
@@ -59,21 +53,6 @@ export class SyncService {
   /** The drive's name, as shown in Settings. */
   readonly providerName = this.provider.name;
   readonly connected = computed(() => this.status() !== 'off');
-
-  /** Whether five taps on the Settings title have shown sync on this device. */
-  private readonly unlocked = signal(readUnlocked());
-  /** Whether Settings shows sync: once shown, or while connected, so it can be disconnected. */
-  readonly visible = computed(() => this.unlocked() || this.connected());
-
-  /** Shows sync in Settings on this device, from now on. */
-  unlock(): void {
-    this.unlocked.set(true);
-    try {
-      localStorage.setItem(UNLOCKED_KEY, '1');
-    } catch {
-      // Blocked storage: shown until the app closes.
-    }
-  }
 
   /**
    * Whether the map offers a sync: connected, the access has run out, and there is something
@@ -185,14 +164,6 @@ export class SyncService {
         this.changeTimer = setTimeout(() => this.syncIfReady(), AFTER_CHANGE_MS);
       }
     });
-  }
-}
-
-function readUnlocked(): boolean {
-  try {
-    return localStorage.getItem(UNLOCKED_KEY) === '1';
-  } catch {
-    return false;
   }
 }
 

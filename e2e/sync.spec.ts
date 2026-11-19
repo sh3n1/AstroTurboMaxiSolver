@@ -64,10 +64,6 @@ async function device(context: BrowserContext, drive: FakeDrive): Promise<Page> 
 /** Connects Google Drive from Settings, and waits for the first sync. */
 async function connect(page: Page): Promise<void> {
   await page.goto('/tabs/settings');
-  // Hidden while sync is tried out, until five quick taps on the title.
-  await expect(page.getByTestId('sync')).toHaveCount(0);
-  const title = page.getByTestId('settings-title').filter({ visible: true });
-  for (let tap = 0; tap < 5; tap++) await title.click();
   await page.getByTestId('sync-connect').click();
   await expect(page.getByTestId('sync-status')).toContainText('Synced');
 }

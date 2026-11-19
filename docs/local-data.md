@@ -37,7 +37,6 @@ stays in localStorage and is never synced.
 | The list being observed through (playlist) | `astroturbomaxisolver.playlist` | Where this phone is in a list tonight, like the selected target. |
 | Weather forecast | `astroturbomaxisolver.forecast` | Throwaway cache. |
 | Which drive sync uses, and when it last synced | `astroturbomaxisolver.sync` | This device's connection. The drive's access itself is kept in memory only. |
-| Sync shown in Settings (five taps on the title) | `astroturbomaxisolver.syncUnlocked` | Hidden while sync is tried out. |
 
 App code and the star and target data are in the service worker cache (`ngsw-config.json`)
 for offline start. They aren't user data.
