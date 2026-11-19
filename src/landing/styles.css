@@ -135,6 +135,27 @@ h2 {
   font-size: 28px;
 }
 
+/* The page's languages, top left, across from the source code's corner. */
+.languages {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 1;
+  color: var(--muted);
+  font-size: 15px;
+}
+.languages a {
+  color: var(--accent);
+}
+.languages [aria-current] {
+  color: var(--text);
+  font-weight: 600;
+}
+/* On a translation of the legal pages: that the English text prevails. */
+.legal .translation {
+  font-style: italic;
+}
+
 /* The link to the source code: a corner in the top right, with the Octocat cut out of it. */
 .source-link {
   position: absolute;

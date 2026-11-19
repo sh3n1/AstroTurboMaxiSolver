@@ -3,7 +3,9 @@
 The site is a set of static files. `npm run build` puts them in `www/`:
 
 - `www/` itself: the landing page, plain HTML and CSS from `src/landing/`, for people and
-  search engines. It is what the site's address shows.
+  search engines. It is what the site's address shows. Each page comes in each language, as
+  `index.html` (English) and `index.es.html`, and the sitemap lists them all. The host serves
+  them as the plain files they are: the language choice happens in the page.
 - `www/app/`: the app, built by Angular with `/app/` as its base address, with its service
   worker, manifest, scripts and the star and object catalogues.
 

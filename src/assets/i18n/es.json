@@ -117,7 +117,9 @@
       "privacy": "Política de privacidad",
       "licence": "Software libre, GNU GPL 3",
       "copyright": "© 2026 The AstroTurboMaxiSolver authors",
-      "terms": "Condiciones de uso"
+      "terms": "Condiciones de uso",
+      "privacyUrl": "https://astroturbomaxisolver.app/privacy.es.html",
+      "termsUrl": "https://astroturbomaxisolver.app/terms.es.html"
     },
     "language": "Idioma",
     "languageAuto": "Automático · {{name}}"
