@@ -31,7 +31,7 @@ import { SETTINGS_SECTION_STYLES } from './settings-styles';
       </ion-item>
       <ion-item
         data-testid="privacy-link"
-        href="https://astroturbomaxisolver.app/privacy.html"
+        [href]="'settings.about.privacyUrl' | translate"
         target="_blank"
         rel="noopener"
         detail="false"
@@ -57,7 +57,7 @@ import { SETTINGS_SECTION_STYLES } from './settings-styles';
       <ion-item
         lines="none"
         data-testid="terms-link"
-        href="https://astroturbomaxisolver.app/terms.html"
+        [href]="'settings.about.termsUrl' | translate"
         target="_blank"
         rel="noopener"
         detail="false"

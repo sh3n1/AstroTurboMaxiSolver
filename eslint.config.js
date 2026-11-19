@@ -5,7 +5,8 @@ const { defineConfig } = require('eslint/config');
 
 module.exports = defineConfig([
   {
-    ignores: ['www/**', 'dist/**', 'coverage/**', '.angular/**', 'android/**', 'ios/**'],
+    // The landing is plain HTML templates filled in by scripts/build-landing.mjs, not Angular.
+    ignores: ['www/**', 'dist/**', 'coverage/**', '.angular/**', 'android/**', 'ios/**', 'src/landing/**'],
   },
   ionic,
   {

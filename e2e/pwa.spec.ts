@@ -126,3 +126,33 @@ test('has a landing page at the root, for people and search engines, leading to 
   await expect(page).toHaveURL(/\/app\/tabs\/sky/);
   await expect(page.locator(starCanvas)).toBeAttached();
 });
+
+test("shows the landing in the browser's language, and remembers a language chosen", async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ baseURL, locale: 'es-ES' });
+  const page = await context.newPage();
+
+  // A Spanish browser lands on the Spanish page, with its own language and address.
+  await page.goto('/');
+  await expect(page).toHaveURL(/\/index\.es\.html$/);
+  await expect(page.locator('html')).toHaveAttribute('lang', 'es');
+  await expect(page.getByRole('link', { name: 'Abrir la app' }).first()).toBeVisible();
+  await expect(page.locator('link[rel=alternate][hreflang=en]')).toHaveAttribute('href', /\/$/);
+
+  // Its legal pages are Spanish too, and say the English text prevails.
+  await page.getByRole('link', { name: 'Privacidad' }).click();
+  await expect(page).toHaveURL(/\/privacy\.es\.html$/);
+  await expect(page.locator('.translation')).toContainText('inglés');
+
+  // Choosing English is remembered: the home page no longer sends this visitor to Spanish.
+  await page.getByRole('link', { name: 'English' }).click();
+  await expect(page).toHaveURL(/\/privacy\.html$/);
+  await page.goto('/');
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole('link', { name: 'Open the app' }).first()).toBeVisible();
+
+  // Search engines find every page in both languages.
+  const sitemap = await (await page.request.get('/sitemap.xml')).text();
+  expect(sitemap).toContain('/index.es.html');
+  expect(sitemap).toContain('/terms.es.html');
+  await context.close();
+});
