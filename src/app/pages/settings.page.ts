@@ -52,7 +52,6 @@ import { SettingsSyncComponent } from '../core/settings/settings-sync.component'
 import { SettingsTestingComponent } from '../core/settings/settings-testing.component';
 import { SkyBrightnessService } from '../core/sky-conditions/sky-brightness.service';
 import { BORTLE_CLASSES } from '../core/sky-conditions/sky-quality';
-import { SyncService } from '../core/sync/sync.service';
 
 type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
 
@@ -140,8 +139,7 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
             <ion-icon slot="icon-only" name="arrow-back" aria-hidden="true"></ion-icon>
           </ion-button>
         </ion-buttons>
-        <!-- Five quick taps show sync, hidden while it is tried out. -->
-        <ion-title data-testid="settings-title" (click)="titleTapped()">Settings</ion-title>
+        <ion-title data-testid="settings-title">Settings</ion-title>
       </ion-toolbar>
     </ion-header>
 
@@ -229,10 +227,8 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
           </ion-item>
         </ion-list>
 
-        <!-- The log, lists and kit, the same on all the user's devices. Hidden for now. -->
-        @if (sync.visible()) {
-          <app-settings-sync />
-        }
+        <!-- The log, lists and kit, the same on all the user's devices. -->
+        <app-settings-sync />
 
         <!-- How the phone sits on the telescope, and how it finds where it points. -->
         <ion-list inset="true">
@@ -381,19 +377,8 @@ export class SettingsPage {
   private readonly router = inject(Router);
   private readonly permissions = inject(PermissionsService);
 
-  protected readonly sync = inject(SyncService);
-  /** Taps on the title in a row, and when the last one was. */
-  private titleTaps = { count: 0, at: 0 };
-
   protected backToMap(): void {
     void this.router.navigateByUrl('/tabs/sky');
-  }
-
-  /** Five taps on the title, each within a second of the one before, show sync. */
-  protected titleTapped(): void {
-    const now = Date.now();
-    this.titleTaps = { count: now - this.titleTaps.at < 1000 ? this.titleTaps.count + 1 : 1, at: now };
-    if (this.titleTaps.count >= 5) this.sync.unlock();
   }
   protected readonly settings = this.state.settings;
   protected readonly screenWake = inject(ScreenWakeService);

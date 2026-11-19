@@ -78,10 +78,8 @@ test('syncs lists over the link only once both phones have it on', async ({ page
   await finder.waitForTimeout(1500);
   expect(await savedLists(finder)).not.toContain('Doubles');
 
-  // The screen turns it on in Settings, where sync shows after five taps on the title.
+  // The screen turns it on in Settings.
   await openPage(screen, 'Settings');
-  const title = screen.getByTestId('settings-title').filter({ visible: true });
-  for (let tap = 0; tap < 5; tap++) await title.click();
   await screen.getByTestId('link-sync').click();
   await expect(screen.getByTestId('link-sync-active')).toBeVisible();
 

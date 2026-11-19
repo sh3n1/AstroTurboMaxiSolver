@@ -174,8 +174,8 @@ While the app is in "testing" mode, Google only lets listed accounts sign in.
    out, a "Sync" pill on the map offers a tap, if there are changes to send or the last sync
    was over 6 hours ago.
 5. Done: `e2e/sync.spec.ts`, two devices through a fake Drive, with Google's script faked.
-   Sync is hidden while it is tried out: five quick taps on the Settings title show it on
-   that device (`astroturbomaxisolver.syncUnlocked`), and it stays shown while connected.
+   Sync was hidden behind five taps on the Settings title while it was tried out; since
+   2026-11-19 it is shown to everyone.
 6. Done: link sync, straight between two phones linked in Two phones, when both have it on
    (see "Link sync" in `two-phones.md`). Records received that way are kept as already
    synced: each phone sends only its own changes to the drive.
