@@ -31,7 +31,8 @@ import {
   newKitId,
   resolveSelection,
 } from './equipment/equipment';
-import { LOCATION_BLOCKED, isPermissionDenied } from './platform/permission-help';
+import { i18n } from './i18n/i18n';
+import { LOCATION_BLOCKED, LOCATION_UPDATED, isPermissionDenied } from './platform/permission-help';
 import { telescopeLimit } from './sky-conditions/sky-quality';
 import type { CaptureMode } from './solver/camera';
 import { LocalDb } from './storage/local-db';
@@ -410,7 +411,7 @@ export class AppState {
    * since it can take a while, be refused, or be unavailable.
    */
   locateWithGps(): Promise<string> {
-    if (!('geolocation' in navigator)) return Promise.resolve('Not available on this device');
+    if (!('geolocation' in navigator)) return Promise.resolve(i18n('location.notAvailable'));
     return new Promise((resolve) =>
       navigator.geolocation.getCurrentPosition(
         ({ coords }) => {
@@ -420,10 +421,10 @@ export class AppState {
             longitudeDeg: Number(coords.longitude.toFixed(2)),
             locationSet: true,
           });
-          resolve('Location updated');
+          resolve(LOCATION_UPDATED);
         },
         // Refused is told apart from no signal: only the phone's settings can undo a refusal.
-        (error) => resolve(isPermissionDenied(error) ? LOCATION_BLOCKED : 'Location unavailable'),
+        (error) => resolve(isPermissionDenied(error) ? LOCATION_BLOCKED : i18n('location.unavailable')),
         { timeout: 15_000 },
       ),
     );

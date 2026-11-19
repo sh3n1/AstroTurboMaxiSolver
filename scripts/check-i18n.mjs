@@ -4,8 +4,9 @@
 // - every key in en.json is used, so no text is left behind after a change;
 // - every other language has exactly en.json's keys, so none is missing a text.
 //
-// A key is found where the code uses it: `'sky.title' | translate` in a template, or
-// `.instant('sky.title')` (and stream, get) in code. A key built at run time, such as
+// A key is checked where the code clearly uses one: `'sky.title' | translate` in a template,
+// `.instant('sky.title')` (and stream, get, t) in code, or i18n('sky.title'). A key counts
+// as used wherever it is written in quotes, and a key built at run time, such as
 // `'kinds.' + kind`, counts every key under its fixed start, here "kinds.", as used.
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
@@ -40,7 +41,7 @@ const USES = [
   // 'area.name' | translate
   new RegExp(String.raw`['"](${KEY})['"]\s*\|\s*translate`, 'g'),
   // .instant('area.name'), .stream(...), .get(...), translate('area.name')
-  new RegExp(String.raw`(?:\.instant|\.stream|\.get|\btranslate)\(\s*['"](${KEY})['"]`, 'g'),
+  new RegExp(String.raw`(?:\.instant|\.stream|\.get|\btranslate|\bt)\(\s*['"](${KEY})['"]`, 'g'),
   // A key named in a constant or a map, marked as one: i18n('area.name')
   new RegExp(String.raw`\bi18n\(\s*['"](${KEY})['"]`, 'g'),
 ];
@@ -62,7 +63,15 @@ for (const file of sources(SOURCE_DIR)) {
   for (const pattern of BUILT) for (const [, prefix] of text.matchAll(pattern)) prefixes.add(prefix);
 }
 
-const unused = [...english.keys()].filter((key) => !used.has(key) && ![...prefixes].some((p) => key.startsWith(p)));
+// A key also counts as used wherever it is written in quotes, such as in a ternary
+// (`(on ? 'a.b' : 'a.c') | translate`) or a list of choices.
+const allSources = sources(SOURCE_DIR)
+  .map((file) => readFileSync(file, 'utf8'))
+  .join('\n');
+const quoted = (key) => allSources.includes(`'${key}'`) || allSources.includes(`"${key}"`);
+const unused = [...english.keys()].filter(
+  (key) => !used.has(key) && !quoted(key) && ![...prefixes].some((p) => key.startsWith(p)),
+);
 
 const others = [];
 for (const name of readdirSync(I18N_DIR).filter((n) => n.endsWith('.json') && n !== DEFAULT_FILE)) {

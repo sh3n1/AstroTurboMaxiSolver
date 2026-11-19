@@ -6,7 +6,8 @@
 // offline use, so a user only downloads their own language.
 
 import { provideHttpClient } from '@angular/common/http';
-import { EnvironmentProviders, inject, makeEnvironmentProviders, provideAppInitializer } from '@angular/core';
+import type { EnvironmentProviders } from '@angular/core';
+import { inject, makeEnvironmentProviders, provideAppInitializer } from '@angular/core';
 import { provideTranslateService, TranslateService } from '@ngx-translate/core';
 import { provideTranslateHttpLoader } from '@ngx-translate/http-loader';
 import { firstValueFrom } from 'rxjs';

@@ -7,17 +7,11 @@
 const NAKED_EYE_LIMIT_BY_BORTLE = [0, 7.8, 7.3, 6.8, 6.3, 5.8, 5.3, 4.8, 4.3, 4.0];
 
 /** Short descriptions, for choosing a class. */
-export const BORTLE_CLASSES = [
-  { value: 1, label: '1: excellent dark site' },
-  { value: 2, label: '2: truly dark site' },
-  { value: 3, label: '3: rural sky' },
-  { value: 4, label: '4: rural and suburban transition' },
-  { value: 5, label: '5: suburban sky' },
-  { value: 6, label: '6: bright suburban sky' },
-  { value: 7, label: '7: suburban and city transition' },
-  { value: 8, label: '8: city sky' },
-  { value: 9, label: '9: inner city sky' },
-] as const;
+export const BORTLE_CLASSES = [1, 2, 3, 4, 5, 6, 7, 8, 9].map((value) => ({
+  value,
+  // The class in words, such as "9: inner city sky": a text key, under bortle in en.json.
+  label: `bortle.${value}`,
+}));
 
 /** A dark-adapted eye's pupil, which a telescope's aperture is compared with. */
 const EYE_PUPIL_MM = 7;

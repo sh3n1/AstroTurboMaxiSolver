@@ -1,5 +1,6 @@
 import { Component, computed, inject } from '@angular/core';
 import { IonIcon, IonItem, IonLabel, IonList, IonListHeader, IonToggle, ToastController } from '@ionic/angular';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { addIcons } from 'ionicons';
 import { cloudOutline, logOutOutline, phonePortraitOutline, syncOutline } from 'ionicons/icons';
 
@@ -13,17 +14,17 @@ import { SETTINGS_SECTION_STYLES } from './settings-styles';
 /** Syncing the log, lists and kit through the user's Google Drive, as a section of Settings. */
 @Component({
   selector: 'app-settings-sync',
-  imports: [IonIcon, IonItem, IonLabel, IonList, IonListHeader, IonToggle],
+  imports: [TranslatePipe, IonIcon, IonItem, IonLabel, IonList, IonListHeader, IonToggle],
   styles: [SETTINGS_SECTION_STYLES],
   template: `
     <ion-list inset="true" id="sync" data-testid="sync">
-      <ion-list-header>Sync</ion-list-header>
+      <ion-list-header>{{ 'sync.title' | translate }}</ion-list-header>
       @if (!sync.connected()) {
         <ion-item button detail="false" data-testid="sync-connect" (click)="connect()">
           <ion-icon slot="start" name="cloud-outline" aria-hidden="true"></ion-icon>
           <ion-label class="ion-text-wrap">
-            <h2>Connect {{ sync.providerName }}</h2>
-            <p>Your log, lists and kit on all your devices</p>
+            <h2>{{ 'sync.connect' | translate: { provider: sync.providerName } }}</h2>
+            <p>{{ 'sync.connectNote' | translate }}</p>
           </ion-label>
         </ion-item>
       } @else {
@@ -36,15 +37,15 @@ import { SETTINGS_SECTION_STYLES } from './settings-styles';
         >
           <ion-icon slot="start" name="sync-outline" aria-hidden="true"></ion-icon>
           <ion-label class="ion-text-wrap">
-            <h2>Sync now</h2>
+            <h2>{{ 'sync.now' | translate }}</h2>
             <p data-testid="sync-status" [class.warn]="sync.status() === 'error'">{{ statusText() }}</p>
           </ion-label>
         </ion-item>
         <ion-item button detail="false" data-testid="sync-disconnect" (click)="sync.disconnect()">
           <ion-icon slot="start" name="log-out-outline" aria-hidden="true"></ion-icon>
           <ion-label class="ion-text-wrap">
-            <h2>Disconnect {{ sync.providerName }}</h2>
-            <p>What is there stays there</p>
+            <h2>{{ 'sync.disconnect' | translate: { provider: sync.providerName } }}</h2>
+            <p>{{ 'sync.disconnectNote' | translate }}</p>
           </ion-label>
         </ion-item>
       }
@@ -56,13 +57,13 @@ import { SETTINGS_SECTION_STYLES } from './settings-styles';
           [checked]="state.settings().linkSync"
           (ionChange)="state.updateSettings({ linkSync: $any($event).detail.checked })"
         >
-          Sync over Two phones link
+          {{ 'sync.overLink' | translate }}
         </ion-toggle>
       </ion-item>
       @if (linkSync.active()) {
         <ion-item lines="none">
           <ion-label class="ion-text-wrap">
-            <p class="good" data-testid="link-sync-active">Syncing over Two phones link</p>
+            <p class="good" data-testid="link-sync-active">{{ 'sync.overLinkActive' | translate }}</p>
           </ion-label>
         </ion-item>
       }
@@ -74,19 +75,22 @@ export class SettingsSyncComponent {
   protected readonly linkSync = inject(LinkSyncService);
   protected readonly state = inject(AppState);
   private readonly toasts = inject(ToastController);
+  private readonly translate = inject(TranslateService);
+  private readonly t = (key: string, params?: Record<string, string>): string =>
+    this.translate.instant(key, params) as string;
 
   /** Where sync stands, in a few words. */
   protected readonly statusText = computed(() => {
     switch (this.sync.status()) {
       case 'syncing':
-        return 'Syncing…';
+        return this.t('sync.syncing');
       case 'needs-tap':
-        return 'Tap to sync';
+        return this.t('sync.tapToSync');
       case 'error':
-        return 'Couldn’t sync. Check the connection.';
+        return this.t('sync.failed');
       default: {
         const last = this.sync.lastSyncAt();
-        return last ? `Synced ${formatWhen(last)}` : 'Not synced yet';
+        return last ? this.t('sync.synced', { when: this.formatWhen(last) }) : this.t('sync.notYet');
       }
     }
   });
@@ -97,7 +101,7 @@ export class SettingsSyncComponent {
       await this.sync.connect();
     } catch {
       const toast = await this.toasts.create({
-        message: `Couldn’t connect ${this.sync.providerName}`,
+        message: this.t('sync.connectFailed', { provider: this.sync.providerName }),
         duration: 4000,
         ...listToastPlace(),
         cssClass: 'af-toast',
@@ -110,12 +114,12 @@ export class SettingsSyncComponent {
   constructor() {
     addIcons({ cloudOutline, logOutOutline, phonePortraitOutline, syncOutline });
   }
-}
 
-/** A time as "at 21:30" today, or with its date on an earlier day. */
-function formatWhen(time: number): string {
-  const date = new Date(time);
-  const clock = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  if (date.toDateString() === new Date().toDateString()) return `at ${clock}`;
-  return `${date.toLocaleDateString([], { day: 'numeric', month: 'short' })}, ${clock}`;
+  /** A time as "at 21:30" today, or with its date on an earlier day. */
+  private formatWhen(time: number): string {
+    const date = new Date(time);
+    const clock = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    if (date.toDateString() === new Date().toDateString()) return this.t('sync.atTime', { time: clock });
+    return `${date.toLocaleDateString([], { day: 'numeric', month: 'short' })}, ${clock}`;
+  }
 }

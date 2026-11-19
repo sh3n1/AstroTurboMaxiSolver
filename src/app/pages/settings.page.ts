@@ -19,6 +19,7 @@ import {
   IonToggle,
   IonToolbar,
 } from '@ionic/angular';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { addIcons } from 'ionicons';
 import {
   arrowBack,
@@ -42,6 +43,7 @@ import { APP_ICONS } from '../core/app-icons';
 import { AppState } from '../core/app-state.service';
 import type { Settings } from '../core/app-state.service';
 import { formatLocation } from '../core/astronomy/astronomy';
+import { LOCATION_UPDATED } from '../core/platform/permission-help';
 import { PermissionsService } from '../core/platform/permissions.service';
 import { ScreenWakeService } from '../core/platform/screen-wake.service';
 import { SoundService } from '../core/platform/sound.service';
@@ -64,6 +66,7 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
   selector: 'app-settings',
   imports: [
     RouterLink,
+    TranslatePipe,
     SettingsAboutComponent,
     SettingsSyncComponent,
     SettingsTestingComponent,
@@ -135,11 +138,15 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
     <ion-header>
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-button aria-label="Back to the map" data-testid="back-to-map" (click)="backToMap()">
+          <ion-button
+            [attr.aria-label]="'common.backToMap' | translate"
+            data-testid="back-to-map"
+            (click)="backToMap()"
+          >
             <ion-icon slot="icon-only" name="arrow-back" aria-hidden="true"></ion-icon>
           </ion-button>
         </ion-buttons>
-        <ion-title data-testid="settings-title">Settings</ion-title>
+        <ion-title data-testid="settings-title">{{ 'settings.title' | translate }}</ion-title>
       </ion-toolbar>
     </ion-header>
 
@@ -149,16 +156,18 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
         <!-- Where the observer is, which everything on the sky depends on. Its note stays with it. -->
         <div>
           <ion-list inset="true">
-            <ion-list-header>Location and sky</ion-list-header>
+            <ion-list-header>{{ 'settings.locationAndSky' | translate }}</ion-list-header>
             <ion-item data-testid="location-status">
               <ion-icon slot="start" name="location-outline" aria-hidden="true"></ion-icon>
               <ion-label class="ion-text-wrap">
-                <h2>Your location</h2>
-                <p [class.warn]="!settings().locationSet">{{ gpsMessage() || locationText() }}</p>
+                <h2>{{ 'settings.yourLocation' | translate }}</h2>
+                <p [class.warn]="!settings().locationSet">
+                  {{ gpsMessage() ? (gpsMessage() | translate) : locationText() }}
+                </p>
               </ion-label>
               <ion-button slot="end" size="small" data-testid="use-gps" (click)="useGps()">
                 <ion-icon slot="start" name="navigate-outline" aria-hidden="true"></ion-icon>
-                GPS
+                {{ 'settings.gps' | translate }}
               </ion-button>
             </ion-item>
             <!-- Typing the location instead: both numbers side by side, in degrees. -->
@@ -166,23 +175,23 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
               <ion-icon slot="start" name="globe-outline" aria-hidden="true"></ion-icon>
               <div class="coordinates">
                 <ion-input
-                  label="Latitude"
+                  [label]="'settings.latitude' | translate"
                   labelPlacement="stacked"
                   type="number"
                   inputmode="decimal"
                   placeholder="40.42"
-                  helperText="North is +"
+                  [helperText]="'settings.northIsPlus' | translate"
                   data-testid="latitude"
                   [value]="settings().locationSet ? settings().latitudeDeg : null"
                   (ionChange)="setNumber('latitudeDeg', $event, -90, 90)"
                 ></ion-input>
                 <ion-input
-                  label="Longitude"
+                  [label]="'settings.longitude' | translate"
                   labelPlacement="stacked"
                   type="number"
                   inputmode="decimal"
                   placeholder="-3.70"
-                  helperText="East is +"
+                  [helperText]="'settings.eastIsPlus' | translate"
                   data-testid="longitude"
                   [value]="settings().locationSet ? settings().longitudeDeg : null"
                   (ionChange)="setNumber('longitudeDeg', $event, -180, 180)"
@@ -192,7 +201,7 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
             <ion-item lines="none">
               <ion-icon slot="start" [src]="appIcons.skyDarkness" aria-hidden="true"></ion-icon>
               <ion-select
-                label="Sky darkness"
+                [label]="'settings.skyDarkness' | translate"
                 interface="popover"
                 data-testid="bortle"
                 [value]="bortleValue()"
@@ -203,15 +212,15 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
                   <ion-select-option value="auto" data-testid="bortle-auto">{{ autoLabel() }}</ion-select-option>
                 }
                 @for (option of bortleClasses; track option.value) {
-                  <ion-select-option [value]="option.value">{{ option.label }}</ion-select-option>
+                  <ion-select-option [value]="option.value">{{ option.label | translate }}</ion-select-option>
                 }
               </ion-select>
             </ion-item>
           </ion-list>
-          <p class="section-note">Bortle: 1 dark site · 5 suburbs · 9 city centre</p>
+          <p class="section-note">{{ 'settings.bortleScale' | translate }}</p>
           @if (skyBrightness.reading(); as reading) {
             <p class="section-note" data-testid="sky-brightness">
-              Light pollution atlas: {{ reading.magnitude.toFixed(1) }} mag/arcsec²
+              {{ 'settings.lightPollution' | translate: { magnitude: reading.magnitude.toFixed(1) } }}
             </p>
           }
         </div>
@@ -221,8 +230,8 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
           <ion-item button detail="true" data-testid="open-equipment" routerLink="/tabs/settings/equipment">
             <ion-icon slot="start" name="telescope-outline" aria-hidden="true"></ion-icon>
             <ion-label class="ion-text-wrap">
-              <h2>Equipment</h2>
-              <p>Telescopes, eyepieces, Barlows and filters</p>
+              <h2>{{ 'settings.equipment' | translate }}</h2>
+              <p>{{ 'settings.equipmentNote' | translate }}</p>
             </ion-label>
           </ion-item>
         </ion-list>
@@ -232,15 +241,15 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
 
         <!-- How the phone sits on the telescope, and how it finds where it points. -->
         <ion-list inset="true">
-          <ion-list-header>Telescope and alignment</ion-list-header>
+          <ion-list-header>{{ 'settings.telescopeAndAlignment' | translate }}</ion-list-header>
           <ion-item button detail="true" data-testid="open-alignment" (click)="openAlignment()">
             <ion-icon slot="start" name="locate-outline" aria-hidden="true"></ion-icon>
             <ion-label class="ion-text-wrap">
-              <h2>Telescope alignment</h2>
+              <h2>{{ 'settings.alignment' | translate }}</h2>
               @if (state.alignment(); as alignment) {
-                <p class="good">Aligned on {{ alignment.starId }}</p>
+                <p class="good">{{ 'settings.alignedOn' | translate: { star: alignment.starId } }}</p>
               } @else {
-                <p class="warn">Not aligned</p>
+                <p class="warn">{{ 'settings.notAligned' | translate }}</p>
               }
             </ion-label>
           </ion-item>
@@ -248,21 +257,21 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
           <ion-item button detail="true" data-testid="open-remote" (click)="openRemote()">
             <ion-icon slot="start" name="phone-landscape-outline" aria-hidden="true"></ion-icon>
             <ion-label class="ion-text-wrap">
-              <h2>Two phones</h2>
+              <h2>{{ 'settings.twoPhones' | translate }}</h2>
               @switch (remote.status()) {
                 @case ('connected') {
                   <p class="good">
-                    {{ remote.role() === 'finder' ? 'This phone is the finder' : 'Linked to the finder' }}
+                    {{ (remote.role() === 'finder' ? 'settings.thisIsFinder' : 'settings.linkedToFinder') | translate }}
                   </p>
                 }
                 @case ('paused') {
-                  <p>Link paused</p>
+                  <p>{{ 'settings.linkPaused' | translate }}</p>
                 }
                 @case ('lost') {
-                  <p class="warn">Link lost</p>
+                  <p class="warn">{{ 'settings.linkLost' | translate }}</p>
                 }
                 @default {
-                  <p>Finder on the telescope, screen in your hand</p>
+                  <p>{{ 'settings.twoPhonesNote' | translate }}</p>
                 }
               }
             </ion-label>
@@ -274,7 +283,7 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
               [checked]="settings().autoSolve"
               (ionChange)="state.updateSettings({ autoSolve: $any($event).detail.checked })"
             >
-              Plate solve when still
+              {{ 'settings.autoSolve' | translate }}
             </ion-toggle>
           </ion-item>
           <ion-item>
@@ -284,7 +293,7 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
               [checked]="settings().solveSound"
               (ionChange)="setSolveSound($any($event).detail.checked)"
             >
-              Shutter sound on solve
+              {{ 'settings.solveSound' | translate }}
             </ion-toggle>
           </ion-item>
           <!--
@@ -298,31 +307,31 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
               [checked]="settings().shutterAligns"
               (ionChange)="state.updateSettings({ shutterAligns: $any($event).detail.checked })"
             >
-              Shutter remote aligns and solves
+              {{ 'settings.shutterAligns' | translate }}
             </ion-toggle>
           </ion-item>
         </ion-list>
 
         <!-- How the app looks. -->
         <ion-list inset="true">
-          <ion-list-header>Display</ion-list-header>
+          <ion-list-header>{{ 'settings.display' | translate }}</ion-list-header>
           <ion-item>
             <ion-icon slot="start" name="text-outline" aria-hidden="true"></ion-icon>
             <div class="text-size">
-              <ion-label id="text-size-label">Text size</ion-label>
+              <ion-label id="text-size-label">{{ 'settings.textSize' | translate }}</ion-label>
               <ion-segment
                 aria-labelledby="text-size-label"
                 data-testid="text-size"
                 [value]="settings().textSize"
                 (ionChange)="state.updateSettings({ textSize: $any($event).detail.value })"
               >
-                <ion-segment-button value="standard" aria-label="Standard">
+                <ion-segment-button value="standard" [attr.aria-label]="'settings.standard' | translate">
                   <ion-label class="sample-standard">Aa</ion-label>
                 </ion-segment-button>
-                <ion-segment-button value="large" aria-label="Large">
+                <ion-segment-button value="large" [attr.aria-label]="'settings.large' | translate">
                   <ion-label class="sample-large">Aa</ion-label>
                 </ion-segment-button>
-                <ion-segment-button value="extra-large" aria-label="Extra large">
+                <ion-segment-button value="extra-large" [attr.aria-label]="'settings.extraLarge' | translate">
                   <ion-label class="sample-extra-large">Aa</ion-label>
                 </ion-segment-button>
               </ion-segment>
@@ -335,19 +344,19 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
               [checked]="settings().nightMode"
               (ionChange)="state.updateSettings({ nightMode: $any($event).detail.checked })"
             >
-              Red night mode
+              {{ 'settings.nightMode' | translate }}
             </ion-toggle>
           </ion-item>
           <ion-item>
             <ion-icon slot="start" name="lock-open-outline" aria-hidden="true"></ion-icon>
             <ion-toggle
               data-testid="keep-screen-on"
-              [helperText]="screenWake.supported ? '' : 'Not supported in this browser'"
+              [helperText]="screenWake.supported ? '' : ('settings.notSupported' | translate)"
               [disabled]="!screenWake.supported"
               [checked]="settings().keepScreenOn && screenWake.supported"
               (ionChange)="state.updateSettings({ keepScreenOn: $any($event).detail.checked })"
             >
-              Keep screen on
+              {{ 'settings.keepScreenOn' | translate }}
             </ion-toggle>
           </ion-item>
           <ion-item lines="none">
@@ -357,7 +366,7 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
               [checked]="settings().showEquatorial"
               (ionChange)="state.updateSettings({ showEquatorial: $any($event).detail.checked })"
             >
-              Show RA and Dec
+              {{ 'settings.showEquatorial' | translate }}
             </ion-toggle>
           </ion-item>
         </ion-list>
@@ -384,6 +393,8 @@ export class SettingsPage {
   protected readonly screenWake = inject(ScreenWakeService);
   private readonly sound = inject(SoundService);
   protected readonly appIcons = APP_ICONS;
+  private readonly translate = inject(TranslateService);
+  /** The key of the GPS's last message, while finding or after a problem. */
   protected readonly gpsMessage = signal('');
   protected readonly bortleClasses = BORTLE_CLASSES;
   protected readonly skyBrightness = inject(SkyBrightnessService);
@@ -396,13 +407,17 @@ export class SettingsPage {
   /** Auto with the class the atlas gives here, once known: "Auto · 9: inner city sky". */
   protected readonly autoLabel = computed(() => {
     const reading = this.skyBrightness.reading();
-    return reading ? `Auto · ${BORTLE_CLASSES[reading.bortle - 1].label}` : 'Auto, from location';
+    if (!reading) return this.translate.instant('settings.autoFromLocation') as string;
+    const label = this.translate.instant(BORTLE_CLASSES[reading.bortle - 1].label) as string;
+    return this.translate.instant('settings.autoWithClass', { label }) as string;
   });
 
   /** The location in words, or a warning that the sky is shown for a neutral place. */
   protected readonly locationText = computed(() => {
     const { latitudeDeg, longitudeDeg, locationSet } = this.settings();
-    return locationSet ? formatLocation(latitudeDeg, longitudeDeg) : 'Not set. Use GPS or enter it below.';
+    return locationSet
+      ? formatLocation(latitudeDeg, longitudeDeg)
+      : (this.translate.instant('settings.locationNotSet') as string);
   });
 
   constructor() {
@@ -455,9 +470,9 @@ export class SettingsPage {
   }
 
   protected async useGps(): Promise<void> {
-    this.gpsMessage.set('Finding location…');
+    this.gpsMessage.set('location.finding');
     const message = await this.permissions.locate();
     // On success the row shows the new location, so only a problem needs saying.
-    this.gpsMessage.set(this.settings().locationSet && message === 'Location updated' ? '' : message);
+    this.gpsMessage.set(this.settings().locationSet && message === LOCATION_UPDATED ? '' : message);
   }
 }

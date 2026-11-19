@@ -1,6 +1,7 @@
 import type { AfterViewInit, ElementRef, OnDestroy } from '@angular/core';
 import { Component, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { IonContent, IonFabButton, IonIcon, ToastController } from '@ionic/angular';
+import { TranslateService } from '@ngx-translate/core';
 import { addIcons } from 'ionicons';
 import {
   add,
@@ -214,6 +215,7 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   protected readonly state = inject(AppState);
   protected readonly sensors = inject(SensorService);
   private readonly permissions = inject(PermissionsService);
+  private readonly translate = inject(TranslateService);
   protected readonly install = inject(InstallService);
   protected readonly update = inject(UpdateService);
   protected readonly sync = inject(SyncService);
@@ -236,11 +238,15 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   protected readonly locating = signal('');
 
   protected async locate(): Promise<void> {
-    this.locating.set('Finding location…');
+    this.locating.set(this.translate.instant('location.finding') as string);
     const message = await this.permissions.locate();
     // On success the box shows the location instead, so only a problem needs saying.
     // "Not now" leaves the button as it was.
-    this.locating.set(this.state.settings().locationSet || !message ? '' : `${message} · tap to try again`);
+    this.locating.set(
+      this.state.settings().locationSet || !message
+        ? ''
+        : (this.translate.instant('location.tapToTryAgain', { message: this.translate.instant(message) }) as string),
+    );
   }
 
   /** The observer's location, as set in Settings or from GPS, such as "39.47° N, 0.38° W". */

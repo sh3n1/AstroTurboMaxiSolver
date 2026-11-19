@@ -1,1 +1,188 @@
-{}
+{
+  "common": {
+    "backToMap": "Back to the map",
+    "add": "Add",
+    "editItem": "Edit {{name}}",
+    "deleteItem": "Delete {{name}}",
+    "deletedItem": "Deleted {{name}}",
+    "undo": "Undo",
+    "gotIt": "Got it",
+    "notNow": "Not now",
+    "continue": "Continue",
+    "later": "Later"
+  },
+  "location": {
+    "finding": "Finding location…",
+    "updated": "Location updated",
+    "unavailable": "Location unavailable",
+    "notAvailable": "Not available on this device",
+    "off": "Location off",
+    "tapToTryAgain": "{{message}} · tap to try again"
+  },
+  "permissions": {
+    "names": {
+      "camera": "Camera",
+      "location": "Location",
+      "motion": "Motion sensors"
+    },
+    "reasons": {
+      "camera": "The camera finds stars to see where the telescope points. Pictures stay on this phone.",
+      "location": "Your location sets the sky shown. Only the nearest kilometre is kept.",
+      "motion": "The motion sensors move the map as you move the telescope."
+    },
+    "welcome": {
+      "header": "Welcome",
+      "question": "Where are you?",
+      "useLocation": "Use my location"
+    },
+    "blocked": {
+      "header": "{{name}} is off",
+      "turnOn": "To turn it on:"
+    },
+    "steps": {
+      "appleCamera": "iPhone Settings › Apps › Safari › Camera › Allow",
+      "appleLocation": "iPhone Settings › Privacy & Security › Location Services",
+      "appleSafariLocation": "Safari Websites › While Using the App",
+      "appleCloseSafari": "Close Safari fully",
+      "appleAllowMotion": "Open the app again, and allow motion when asked",
+      "chromeSettings": "In Chrome: ⋮ › Settings › Site settings › {{name}}",
+      "chromeAllow": "Tap this site › Allow",
+      "androidLocation": "Check Location is on in Android Settings",
+      "desktopAllow": "Click the icon left of the address › {{name}} › Allow",
+      "openAgain": "Then open the app again",
+      "reload": "Then reload the page"
+    }
+  },
+  "bortle": {
+    "1": "1: excellent dark site",
+    "2": "2: truly dark site",
+    "3": "3: rural sky",
+    "4": "4: rural and suburban transition",
+    "5": "5: suburban sky",
+    "6": "6: bright suburban sky",
+    "7": "7: suburban and city transition",
+    "8": "8: city sky",
+    "9": "9: inner city sky"
+  },
+  "settings": {
+    "title": "Settings",
+    "locationAndSky": "Location and sky",
+    "yourLocation": "Your location",
+    "gps": "GPS",
+    "latitude": "Latitude",
+    "northIsPlus": "North is +",
+    "longitude": "Longitude",
+    "eastIsPlus": "East is +",
+    "locationNotSet": "Not set. Use GPS or enter it below.",
+    "skyDarkness": "Sky darkness",
+    "autoFromLocation": "Auto, from location",
+    "autoWithClass": "Auto · {{label}}",
+    "bortleScale": "Bortle: 1 dark site · 5 suburbs · 9 city centre",
+    "lightPollution": "Light pollution atlas: {{magnitude}} mag/arcsec²",
+    "equipment": "Equipment",
+    "equipmentNote": "Telescopes, eyepieces, Barlows and filters",
+    "telescopeAndAlignment": "Telescope and alignment",
+    "alignment": "Telescope alignment",
+    "alignedOn": "Aligned on {{star}}",
+    "notAligned": "Not aligned",
+    "twoPhones": "Two phones",
+    "thisIsFinder": "This phone is the finder",
+    "linkedToFinder": "Linked to the finder",
+    "linkPaused": "Link paused",
+    "linkLost": "Link lost",
+    "twoPhonesNote": "Finder on the telescope, screen in your hand",
+    "autoSolve": "Plate solve when still",
+    "solveSound": "Shutter sound on solve",
+    "shutterAligns": "Shutter remote aligns and solves",
+    "display": "Display",
+    "textSize": "Text size",
+    "standard": "Standard",
+    "large": "Large",
+    "extraLarge": "Extra large",
+    "nightMode": "Red night mode",
+    "notSupported": "Not supported in this browser",
+    "keepScreenOn": "Keep screen on",
+    "showEquatorial": "Show RA and Dec",
+    "about": {
+      "title": "About",
+      "credits": "Data credits",
+      "privacy": "Privacy policy",
+      "licence": "Free software, GNU GPL 3",
+      "copyright": "© 2026 The AstroTurboMaxiSolver authors",
+      "terms": "Terms of use"
+    }
+  },
+  "sync": {
+    "title": "Sync",
+    "connect": "Connect {{provider}}",
+    "connectNote": "Your log, lists and kit on all your devices",
+    "now": "Sync now",
+    "disconnect": "Disconnect {{provider}}",
+    "disconnectNote": "What is there stays there",
+    "overLink": "Sync over Two phones link",
+    "overLinkActive": "Syncing over Two phones link",
+    "syncing": "Syncing…",
+    "tapToSync": "Tap to sync",
+    "failed": "Couldn’t sync. Check the connection.",
+    "synced": "Synced {{when}}",
+    "notYet": "Not synced yet",
+    "atTime": "at {{time}}",
+    "connectFailed": "Couldn’t connect {{provider}}"
+  },
+  "equipment": {
+    "groups": {
+      "telescopes": "Telescopes",
+      "eyepieces": "Eyepieces",
+      "modifiers": "Barlows and reducers",
+      "filters": "Filters"
+    }
+  },
+  "credits": {
+    "openngc": "NGC and IC objects from OpenNGC by Mattia Verga, CC BY-SA 4.0. Converted and filtered for this app.",
+    "xhip": "Stars, star names and constellation lines from XHIP and the IAU, via d3-celestial.",
+    "hyg": "Star catalogue names from the HYG Database by David Nash, CC BY-SA 4.0. Converted and filtered for this app.",
+    "messier": "Messier data by H. Frommert, seds.org, via d3-celestial.",
+    "caldwell": "Caldwell catalogue compiled by Sir Patrick Moore.",
+    "herschel": "Herschel 400 selected by the Ancient City Astronomy Club, Herschel II by the Rose City Astronomers, as observed in the Astronomical League's programmes.",
+    "sac": "110 Best NGC Objects by A. J. Crayon and Steve Coe, Saguaro Astronomy Club.",
+    "rasc": "Finest NGC list by Alan Dyer, Royal Astronomical Society of Canada.",
+    "gems": "Deep-Sky Gems by David H. Levy and Explore the Universe, Royal Astronomical Society of Canada.",
+    "urban": "Urban Observing Program, Astronomical League.",
+    "assa": "Top-100 Deepsky Objects, Astronomical Society of Southern Africa.",
+    "hubble": "Monthly lists from NASA's Hubble Night Sky Challenge. NASA does not endorse this app.",
+    "wds": "Double stars from the Washington Double Star Catalog, maintained at the U.S. Naval Observatory.",
+    "openMeteo": "Weather forecast by Open-Meteo.com, CC BY 4.0, from NOAA's GFS model. Seeing worked out with the AXP model of Trinquet and Vernin.",
+    "wmm": "Compass correction from the World Magnetic Model, NOAA and the British Geological Survey, via geomagnetism by Natural Atlas, Apache License 2.0.",
+    "astronomyEngine": "Planets, Pluto, Moon and sky positions by Astronomy Engine, Don Cross.",
+    "qr": "Pairing codes made with QR Code Generator, Kazuhiko Arase, MIT License, and read with jsQR, Cosmo Wolfe, Apache License 2.0. QR Code is a trademark of DENSO WAVE.",
+    "jpl": "Orbits of Ceres, Vesta, Pallas and Juno from the NASA/JPL Small-Body Database.",
+    "dexie": "Log and lists saved with Dexie.js, Copyright (c) 2014-2017 David Fahlander, Apache License 2.0.",
+    "falchi": "Sky darkness from the New World Atlas of Artificial Night Sky Brightness, Falchi et al., GFZ Data Services, 2016, and Science Advances 2(6) e1600377. CC BY-NC 4.0, non-commercial use only. Averaged and converted for this app.",
+    "licences": "Software licences of the libraries in the app"
+  },
+  "testing": {
+    "title": "Testing tools",
+    "version": "Version",
+    "development": "Development",
+    "deviceTest": "Device test",
+    "deviceTestNote": "Camera, sensors and plate solving",
+    "failuresAlwaysShow": "Failures always show one.",
+    "successToast": "Toast on successful solves",
+    "sendSolves": "Send solves to this PC",
+    "captureMode": "Camera capture",
+    "captureNormal": "Normal",
+    "captureExposure": "Force long exposure",
+    "captureStack": "Force stacking",
+    "solveLog": "Plate solving log",
+    "triggers": {
+      "auto": "Automatic",
+      "tap": "Tapped",
+      "alignment": "Alignment"
+    },
+    "durationAndIso": "{{seconds}} s · ISO {{iso}}",
+    "frames": "{{count}} frames",
+    "starsFound": "{{count}} stars found",
+    "sensorsOff": "sensors were {{degrees}}° off",
+    "noSolves": "No plate solves yet. Turn sensors on and hold the phone still."
+  }
+}

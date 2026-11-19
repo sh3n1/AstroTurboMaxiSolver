@@ -12,6 +12,7 @@ import {
   IonSelectOption,
   IonToggle,
 } from '@ionic/angular';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { addIcons } from 'ionicons';
 import {
   apertureOutline,
@@ -43,6 +44,7 @@ interface BuildInfo {
 @Component({
   selector: 'app-settings-testing',
   imports: [
+    TranslatePipe,
     DecimalPipe,
     IonBadge,
     IonIcon,
@@ -58,12 +60,12 @@ interface BuildInfo {
   styles: [SETTINGS_SECTION_STYLES],
   template: `
     <ion-list inset="true">
-      <ion-list-header>Testing tools</ion-list-header>
+      <ion-list-header>{{ 'testing.title' | translate }}</ion-list-header>
       <!-- Which version this is, to tell whether a phone has the latest one published. -->
       <ion-item data-testid="app-version">
         <ion-icon slot="start" name="information-circle-outline" aria-hidden="true"></ion-icon>
         <ion-label class="ion-text-wrap">
-          <h2>Version</h2>
+          <h2>{{ 'testing.version' | translate }}</h2>
           <p>{{ versionText() }}</p>
         </ion-label>
       </ion-item>
@@ -72,8 +74,8 @@ interface BuildInfo {
         <ion-item button detail="true" data-testid="open-device-test" (click)="openDeviceTest()">
           <ion-icon slot="start" name="flask-outline" aria-hidden="true"></ion-icon>
           <ion-label class="ion-text-wrap">
-            <h2>Device test</h2>
-            <p>Camera, sensors and plate solving</p>
+            <h2>{{ 'testing.deviceTest' | translate }}</h2>
+            <p>{{ 'testing.deviceTestNote' | translate }}</p>
           </ion-label>
         </ion-item>
       }
@@ -81,11 +83,11 @@ interface BuildInfo {
         <ion-icon slot="start" name="chatbubble-ellipses-outline" aria-hidden="true"></ion-icon>
         <ion-toggle
           data-testid="success-toast"
-          helperText="Failures always show one."
+          [helperText]="'testing.failuresAlwaysShow' | translate"
           [checked]="settings().solveSuccessToast"
           (ionChange)="state.updateSettings({ solveSuccessToast: $any($event).detail.checked })"
         >
-          Toast on successful solves
+          {{ 'testing.successToast' | translate }}
         </ion-toggle>
       </ion-item>
       @if (devMode) {
@@ -96,21 +98,21 @@ interface BuildInfo {
             [checked]="settings().sendSolves"
             (ionChange)="state.updateSettings({ sendSolves: $any($event).detail.checked })"
           >
-            Send solves to this PC
+            {{ 'testing.sendSolves' | translate }}
           </ion-toggle>
         </ion-item>
         <ion-item>
           <ion-icon slot="start" name="aperture-outline" aria-hidden="true"></ion-icon>
           <ion-select
-            label="Camera capture"
+            [label]="'testing.captureMode' | translate"
             interface="popover"
             data-testid="capture-mode"
             [value]="settings().captureMode"
             (ionChange)="state.updateSettings({ captureMode: $any($event).detail.value })"
           >
-            <ion-select-option value="normal">Normal</ion-select-option>
-            <ion-select-option value="exposure">Force long exposure</ion-select-option>
-            <ion-select-option value="stack">Force stacking</ion-select-option>
+            <ion-select-option value="normal">{{ 'testing.captureNormal' | translate }}</ion-select-option>
+            <ion-select-option value="exposure">{{ 'testing.captureExposure' | translate }}</ion-select-option>
+            <ion-select-option value="stack">{{ 'testing.captureStack' | translate }}</ion-select-option>
           </ion-select>
         </ion-item>
       }
@@ -122,7 +124,7 @@ interface BuildInfo {
         (click)="showSolveLog.set(!showSolveLog())"
       >
         <ion-icon slot="start" name="list-outline" aria-hidden="true"></ion-icon>
-        <ion-label>Plate solving log</ion-label>
+        <ion-label>{{ 'testing.solveLog' | translate }}</ion-label>
         <ion-badge slot="end" color="medium">{{ liveSolver.log().length }}</ion-badge>
         <ion-icon slot="end" aria-hidden="true" [name]="showSolveLog() ? 'chevron-up' : 'chevron-down'"></ion-icon>
       </ion-item>
@@ -133,17 +135,19 @@ interface BuildInfo {
             <ion-label class="ion-text-wrap">
               <h3 [class.good]="entry.outcome === 'solved'">{{ entry.message }}</h3>
               <p>
-                {{ entry.at | localTime: 'time-seconds' }} ·
-                {{ entry.trigger === 'auto' ? 'Automatic' : entry.trigger === 'tap' ? 'Tapped' : 'Alignment' }} ·
-                {{ entry.durationMs / 1000 | number: '1.1-1' }} s · ISO {{ entry.iso }}
+                {{ entry.at | localTime: 'time-seconds' }} · {{ 'testing.triggers.' + entry.trigger | translate }} ·
+                {{
+                  'testing.durationAndIso'
+                    | translate: { seconds: (entry.durationMs / 1000 | number: '1.1-1'), iso: entry.iso }
+                }}
                 @if (entry.frames > 1) {
-                  · {{ entry.frames }} frames
+                  · {{ 'testing.frames' | translate: { count: entry.frames } }}
                 }
                 @if (entry.starCount > 0) {
-                  · {{ entry.starCount }} stars found
+                  · {{ 'testing.starsFound' | translate: { count: entry.starCount } }}
                 }
                 @if (entry.sensorErrorDeg !== null) {
-                  · sensors were {{ entry.sensorErrorDeg | number: '1.1-1' }}° off
+                  · {{ 'testing.sensorsOff' | translate: { degrees: (entry.sensorErrorDeg | number: '1.1-1') } }}
                 }
               </p>
             </ion-label>
@@ -151,7 +155,7 @@ interface BuildInfo {
         } @empty {
           <ion-item data-testid="solve-log-empty">
             <ion-label class="ion-text-wrap">
-              <p>No plate solves yet. Turn sensors on and hold the phone still.</p>
+              <p>{{ 'testing.noSolves' | translate }}</p>
             </ion-label>
           </ion-item>
         }
@@ -165,6 +169,7 @@ export class SettingsTestingComponent {
   protected readonly liveSolver = inject(LiveSolverService);
   private readonly router = inject(Router);
   protected readonly showSolveLog = signal(false);
+  private readonly translate = inject(TranslateService);
   /**
    * The device test and sending solves are for developing the app: they report to the dev
    * server on this PC, so they are only offered there, never in a published version.
@@ -189,7 +194,7 @@ export class SettingsTestingComponent {
   private readonly buildInfo = signal<BuildInfo | null>(null);
   protected readonly versionText = computed(() => {
     const info = this.buildInfo();
-    if (!info) return 'Development';
+    if (!info) return this.translate.instant('testing.development') as string;
     const built = new LocalTimePipe().transform(new Date(info.builtAt), 'date-time');
     return `${info.version} · ${info.commit}${info.changed ? '+' : ''} · ${built}`;
   });

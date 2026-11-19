@@ -10,6 +10,7 @@ import {
   ModalController,
   ToastController,
 } from '@ionic/angular';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { addIcons } from 'ionicons';
 import { add, createOutline, trashOutline } from 'ionicons/icons';
 
@@ -24,13 +25,13 @@ import { SETTINGS_SECTION_STYLES } from './settings-styles';
 /** The user's telescopes, eyepieces, Barlows and filters, as a section of Settings. */
 @Component({
   selector: 'app-settings-equipment',
-  imports: [IonButton, IonIcon, IonItem, IonItemDivider, IonLabel, IonList, IonListHeader],
+  imports: [TranslatePipe, IonButton, IonIcon, IonItem, IonItemDivider, IonLabel, IonList, IonListHeader],
   styles: [SETTINGS_SECTION_STYLES],
   template: `
     <ion-list inset="true" id="equipment" data-testid="equipment">
-      <ion-list-header>Equipment</ion-list-header>
+      <ion-list-header>{{ 'settings.equipment' | translate }}</ion-list-header>
       @for (group of kitGroups; track group.kind) {
-        <ion-item-divider>{{ group.title }}</ion-item-divider>
+        <ion-item-divider>{{ group.title | translate }}</ion-item-divider>
         @let items = kitItems(group.kind);
         @for (item of items; track item.id) {
           <ion-item data-testid="kit-item">
@@ -44,7 +45,7 @@ import { SETTINGS_SECTION_STYLES } from './settings-styles';
               slot="end"
               fill="clear"
               data-testid="kit-edit"
-              [attr.aria-label]="'Edit ' + itemLabel(group.kind, item)"
+              [attr.aria-label]="'common.editItem' | translate: { name: itemLabel(group.kind, item) }"
               (click)="editKit(group.kind, item)"
             >
               <ion-icon slot="icon-only" name="create-outline" aria-hidden="true"></ion-icon>
@@ -55,7 +56,7 @@ import { SETTINGS_SECTION_STYLES } from './settings-styles';
               fill="clear"
               color="danger"
               data-testid="kit-delete"
-              [attr.aria-label]="'Delete ' + itemLabel(group.kind, item)"
+              [attr.aria-label]="'common.deleteItem' | translate: { name: itemLabel(group.kind, item) }"
               [disabled]="group.required && items.length === 1"
               (click)="removeKit(group.kind, item)"
             >
@@ -65,7 +66,7 @@ import { SETTINGS_SECTION_STYLES } from './settings-styles';
         }
         <ion-item button detail="false" [attr.data-testid]="'kit-add-' + group.kind" (click)="editKit(group.kind)">
           <ion-icon slot="start" name="add" aria-hidden="true"></ion-icon>
-          <ion-label>Add</ion-label>
+          <ion-label>{{ 'common.add' | translate }}</ion-label>
         </ion-item>
       }
     </ion-list>
@@ -75,13 +76,14 @@ export class SettingsEquipmentComponent {
   private readonly state = inject(AppState);
   private readonly modals = inject(ModalController);
   private readonly toasts = inject(ToastController);
+  private readonly translate = inject(TranslateService);
 
   /** The kinds of equipment, in the order a setup is put together. */
   protected readonly kitGroups: readonly { kind: KitKind; title: string; required: boolean }[] = [
-    { kind: 'telescopes', title: 'Telescopes', required: true },
-    { kind: 'eyepieces', title: 'Eyepieces', required: true },
-    { kind: 'modifiers', title: 'Barlows and reducers', required: false },
-    { kind: 'filters', title: 'Filters', required: false },
+    { kind: 'telescopes', title: 'equipment.groups.telescopes', required: true },
+    { kind: 'eyepieces', title: 'equipment.groups.eyepieces', required: true },
+    { kind: 'modifiers', title: 'equipment.groups.modifiers', required: false },
+    { kind: 'filters', title: 'equipment.groups.filters', required: false },
   ];
   protected readonly itemLabel = kitItemLabel;
   protected readonly itemDetail = kitItemDetail;
@@ -103,12 +105,17 @@ export class SettingsEquipmentComponent {
     const { kitSelection } = this.state.settings();
     if (!this.state.removeKitItem(kind, item.id)) return;
     const toast = await this.toasts.create({
-      message: `Deleted ${kitItemLabel(kind, item)}`,
+      message: this.translate.instant('common.deletedItem', { name: kitItemLabel(kind, item) }) as string,
       duration: 5000,
       ...listToastPlace(),
       cssClass: 'af-toast',
       htmlAttributes: { 'data-testid': 'kit-deleted-toast' },
-      buttons: [{ text: 'Undo', handler: () => this.state.restoreKitItem(kind, item, kitSelection) }],
+      buttons: [
+        {
+          text: this.translate.instant('common.undo') as string,
+          handler: () => this.state.restoreKitItem(kind, item, kitSelection),
+        },
+      ],
     });
     await toast.present();
   }
