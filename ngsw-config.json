@@ -19,6 +19,14 @@
       }
     },
     {
+      "name": "languages",
+      "installMode": "lazy",
+      "updateMode": "prefetch",
+      "resources": {
+        "files": ["/assets/i18n/*.json"]
+      }
+    },
+    {
       "name": "sky-brightness",
       "installMode": "lazy",
       "updateMode": "lazy",
