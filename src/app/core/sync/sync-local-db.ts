@@ -45,13 +45,35 @@ export class DexieSyncLocal implements SyncLocal {
   }
 
   async apply(type: RecordType, records: readonly AnyRecord[]): Promise<{ changed: number; conflicts: number }> {
+    return this.merge(type, records, 0);
+  }
+
+  /**
+   * Merges records from a backup, as a sync would, so a newer version here isn't replaced.
+   * What it writes is marked to send, so the other devices get it through sync too.
+   */
+  restore(type: RecordType, records: readonly AnyRecord[]): Promise<{ changed: number; conflicts: number }> {
+    return this.merge(type, records, 1);
+  }
+
+  /** Merges received records into a table, writing them as sent (0) or still to send (1). */
+  private async merge(
+    type: RecordType,
+    records: readonly AnyRecord[],
+    pending: 0 | 1,
+  ): Promise<{ changed: number; conflicts: number }> {
     const table = this.table(type);
     return this.db.transaction('rw', table, this.db.conflicts, async () => {
       const ids = [...new Set(records.map((r) => r.id))];
       const found = await table.bulkGet(ids);
       const locals = new Map(found.filter((r): r is AnyRecord => !!r).map((r) => [r.id, r]));
-      const { writes, losers } = mergeBatch(locals, records);
+      const merged = mergeBatch(locals, records);
+      const writes = merged.writes.map((record) => ({ ...record, pending }));
+      const { losers } = merged;
       await table.bulkPut(writes);
+      // A conflict settled on another device: the version written there descends from the
+      // one this device kept aside, which has nothing more to say.
+      for (const record of writes) await this.clearSettled(record);
       if (KEEP_LOSERS.includes(type)) {
         const foundAt = this.now();
         await this.db.conflicts.bulkPut(
@@ -74,6 +96,39 @@ export class DexieSyncLocal implements SyncLocal {
 
   async writeMeta(key: string, value: unknown): Promise<void> {
     await this.db.meta.put({ key, value });
+  }
+
+  async current(type: RecordType, ids: readonly string[]): Promise<Map<string, AnyRecord>> {
+    const found = await this.table(type).bulkGet([...ids]);
+    return new Map(found.filter((r): r is AnyRecord => !!r).map((r) => [r.id, r]));
+  }
+
+  async purgeDeleted(before: number): Promise<number> {
+    const tables = RECORD_TYPES.map((type) => this.table(type));
+    return this.db.transaction('rw', [...tables, this.db.conflicts], async () => {
+      let purged = 0;
+      for (const table of tables) {
+        // Only deletions already sent: one still to send must reach the other devices first.
+        const old = await table
+          .filter((r) => r.deletedAt !== null && r.deletedAt < before && r.pending === 0)
+          .toArray();
+        await table.bulkDelete(old.map((r) => r.id));
+        await this.db.conflicts
+          .where('recordId')
+          .anyOf(old.map((r) => r.id))
+          .delete();
+        purged += old.length;
+      }
+      return purged;
+    });
+  }
+
+  /** Removes the versions kept aside for a record that the record now descends from. */
+  private async clearSettled(record: AnyRecord): Promise<void> {
+    const history = new Set(record.history ?? []);
+    const kept = await this.db.conflicts.where('recordId').equals(record.id).toArray();
+    const settled = kept.filter((row) => history.has(revId(row.record as AnyRecord)));
+    if (settled.length > 0) await this.db.conflicts.bulkDelete(settled.map((row) => row.key));
   }
 
   /** The table that holds a record type. */

@@ -5,6 +5,7 @@ import { skyConditions } from '../astronomy/astronomy';
 import type { Target } from '../catalog/targets';
 import { LocalDb } from '../storage/local-db';
 import { logEntryUuid } from '../storage/storage-migration';
+import type { Synced } from '../storage/sync-record';
 import { SyncedStore } from '../storage/synced-store';
 
 import type { OalObserver } from './oal-export';
@@ -128,6 +129,11 @@ export class ObservingLogService {
   }
 
   /** Deletes an entry. It is kept marked deleted, so Undo can bring it back. */
+  /** Settles an entry edited on two devices: see ConflictsService. */
+  settleConflict(id: string, other: Synced<LogEntry>, keep: 'current' | 'other'): Promise<void> {
+    return this.store.settle(id, other, keep);
+  }
+
   remove(id: string): void {
     this.store.remove([id]);
   }

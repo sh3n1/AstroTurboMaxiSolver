@@ -36,6 +36,11 @@ class FakeDrive {
       file!.text = String(init!.body);
       return Response.json({ id });
     }
+    if (method === 'DELETE') {
+      if (!file) return new Response('', { status: 404 });
+      this.files.splice(this.files.indexOf(file), 1);
+      return new Response(null, { status: 204 });
+    }
     // A new file: the name from the metadata part, the content from the second part.
     const parts = String(init!.body).split(/--astroturbomaxisolver-\w+/);
     const metadata = JSON.parse(parts[1].split('\r\n\r\n')[1]) as { name: string; parents: string[] };
@@ -47,6 +52,19 @@ class FakeDrive {
 }
 
 describe('Google Drive storage', () => {
+  it('removes a file, and takes one already gone as removed', async () => {
+    const drive = new FakeDrive();
+    const storage = new GoogleDriveStorage(() => 'token', drive.fetch);
+    await storage.write('a.changes.json', '{}');
+    await storage.remove('a.changes.json');
+    expect(drive.files).toEqual([]);
+    expect(await storage.list()).toEqual([]);
+    // Gone from the drive meanwhile, by an earlier try that didn't finish.
+    await storage.write('b.changes.json', '{}');
+    drive.files.length = 0;
+    await expect(storage.remove('b.changes.json')).resolves.toBeUndefined();
+  });
+
   it('lists every page, reads files, and creates then replaces its own', async () => {
     const drive = new FakeDrive();
     drive.files.push(

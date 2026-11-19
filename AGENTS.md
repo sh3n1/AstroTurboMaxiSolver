@@ -75,6 +75,7 @@ Before finishing a change, run: `npm run lint`, `npm run test:unit` and `npm run
   - `catalog/` - the targets: loading and joining the catalogue files, searching, names, details and icons
   - `dev-tools/` - the device test and the clear-sky test, for development
   - `equipment/` - telescopes, eyepieces and the rest of the kit
+  - `i18n/` - the app's languages: ngx-translate's setup, and `t()` for plain code
   - `lists/` - the user's lists, the shared list view, the playlist; `lists/programs/` holds the observing programmes' lists
   - `log/` - the observing log and its export
   - `planning/` - tonight's visibility and the planning chart
@@ -90,7 +91,7 @@ Before finishing a change, run: `npm run lint`, `npm run test:unit` and `npm run
   - `sync/` - device sync through the user's cloud storage or the two-phone link
 - `src/assets/data/` - generated star and target data, built by the scripts in `scripts/`
 - `src/assets/data/aggregate/` - data under its own licence, not the GPL, one folder per source (see Licence)
-- `src/landing/` - the landing page: plain HTML, CSS and pictures, copied to the root of `www/` by the build
+- `src/landing/` - the landing page: plain HTML, CSS and pictures, built into the root of `www/` by `scripts/build-landing.mjs`. Its pages (`index`, `privacy`, `terms`) are templates whose texts are in `src/landing/i18n/<language>.json`: English is written as `index.html`, each other language as `index.<language>.html`. The English home page sends a browser in another of its languages to it, unless the visitor chose a language with the links at the top. The build fails if a language lacks a text.
 
 ## PWA constraints
 
@@ -138,6 +139,12 @@ Keep on-screen text short. Don't over-explain: say what matters in a few words, 
 - Colours: use the `--af-*` variables in `src/theme/variables.scss`, never a colour written out in a component. Canvases take theirs from `src/app/core/theme.ts`, which repeats a few of the variables and is checked against them by an end-to-end test.
 - Naming: Angular defaults
 - Language: code comments, documentation and every Markdown file are in English, whatever language the conversation is in.
+- On-screen text: every text the app shows is in `src/assets/i18n/en.json` (ngx-translate), never written in a component or a service. Keys are grouped by area, such as `settings.title`. Templates use the `translate` pipe; plain code uses `t()` from `core/i18n/t.ts`, and `i18n()` marks a key kept in a constant. `npm run lint` checks that every key used exists, and every key is used.
+  - Never translate catalogue data: target names, designations, star and constellation names, programme titles and club names. Where they sit inside a sentence, pass them as parameters, such as `"{{first}} to {{last}}"`.
+  - Words saved in the user's data or written into exported files (log tags, ratings, the Saved for later list's name, CSV and OAL columns) stay in English; the screens show them translated.
+  - The device test and the sky test, which only run under the dev server, may stay in English.
+  - Numbers on screen go through the `num` pipe or `num()`, never `toFixed()` or Angular's number pipe, so decimals follow the language ("4,5" in Spanish); files and saved data keep a decimal point. Dates use `appLocale()`. A text with a count has `one` and `other` forms (and the language's others), shown with the `plural` pipe or `tn()`.
+  - The language shown is the one chosen in Settings, otherwise the phone's, otherwise English (`core/i18n/languages.ts`). Adding a language is its own `<code>.json` beside `en.json`, plus a line in `LANGUAGES`.
 - Testing expectations: Unit tests for astronomy, solver and fusion logic. End-to-end tests for main flows.
 - Dependencies: Ask before adding one. Prefer a well-maintained, permissively licensed library over custom code.
 

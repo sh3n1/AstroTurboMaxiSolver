@@ -1,10 +1,12 @@
 import { Injectable, inject } from '@angular/core';
 import { AlertController } from '@ionic/angular';
+import { TranslateService } from '@ngx-translate/core';
 
 import { AppState } from '../app-state.service';
+import { i18n } from '../i18n/t';
 
 import { InstallService } from './install.service';
-import type { PermissionKind } from './permission-help';
+import type { PermissionKind, Text } from './permission-help';
 import { LOCATION_BLOCKED, PERMISSION_REASONS, blockedHelp } from './permission-help';
 
 /** Which permissions have been explained already on this device, so each is explained once. */
@@ -39,6 +41,7 @@ export class PermissionsService {
   private readonly state = inject(AppState);
   private readonly install = inject(InstallService);
   private readonly alerts = inject(AlertController);
+  private readonly translate = inject(TranslateService);
   private readonly explained = readExplained();
 
   /**
@@ -49,25 +52,27 @@ export class PermissionsService {
   ask<T>(
     kind: PermissionKind,
     request: () => Promise<T>,
-    words: { header: string; message: string; later: string; go: string } = {
+    words: { header: string; message: string; messagePrefix?: string; later: string; go: string } = {
       ...PERMISSION_REASONS[kind],
-      later: 'Not now',
-      go: 'Continue',
+      later: i18n('common.notNow'),
+      go: i18n('common.continue'),
     },
   ): Promise<T> {
     if (this.explained.has(kind)) return request();
+    // The words are text keys, translated here.
+    const t = (key: string): string => this.translate.instant(key) as string;
     const { header, message, later, go } = words;
     return new Promise<T>((resolve, reject) => {
       void this.alerts
         .create({
-          header,
-          message,
+          header: t(header),
+          message: words.messagePrefix ? `${t(words.messagePrefix)} ${t(message)}` : t(message),
           backdropDismiss: false,
           htmlAttributes: { 'data-testid': 'permission-reason' },
           buttons: [
-            { text: later, role: 'cancel', handler: () => reject(new NotNowError()) },
+            { text: t(later), role: 'cancel', handler: () => reject(new NotNowError()) },
             {
-              text: go,
+              text: t(go),
               handler: () => {
                 this.markExplained(kind);
                 request().then(resolve, reject);
@@ -82,20 +87,23 @@ export class PermissionsService {
   /** How to allow a blocked permission again, in this phone's own settings. */
   async showBlocked(kind: PermissionKind): Promise<void> {
     const { header, steps } = blockedHelp(kind, this.install.device);
+    // A text, with the permission's name in it translated too.
+    const say = ({ key, params }: Text): string =>
+      this.translate.instant(key, params?.['name'] ? { name: this.translate.instant(params['name']) } : undefined);
     const alert = await this.alerts.create({
-      header,
+      header: say(header),
       // Each step on its own line: Ionic shows the message as text with line breaks kept.
-      message: ['To turn it on:', ...steps].join('\n\n'),
+      message: [say({ key: 'permissions.blocked.turnOn' }), ...steps.map(say)].join('\n\n'),
       cssClass: 'af-steps-alert',
       htmlAttributes: { 'data-testid': 'permission-blocked' },
-      buttons: ['Got it'],
+      buttons: [this.translate.instant('common.gotIt') as string],
     });
     await alert.present();
   }
 
   /**
-   * Sets the location from the GPS, asking for it as above. Resolves with the short message
-   * to show, or none when it worked.
+   * Sets the location from the GPS, asking for it as above. Resolves with the key of the short
+   * message to show, or none when it was put off.
    */
   async locate(welcome = false): Promise<string> {
     let message: string;
@@ -103,10 +111,11 @@ export class PermissionsService {
       const request = (): Promise<string> => this.state.locateWithGps();
       message = welcome
         ? await this.ask('location', request, {
-            header: 'Welcome',
-            message: `Where are you? ${PERMISSION_REASONS.location.message}`,
-            later: 'Later',
-            go: 'Use my location',
+            header: i18n('permissions.welcome.header'),
+            messagePrefix: i18n('permissions.welcome.question'),
+            message: PERMISSION_REASONS.location.message,
+            later: i18n('common.later'),
+            go: i18n('permissions.welcome.useLocation'),
           })
         : await this.ask('location', request);
     } catch {

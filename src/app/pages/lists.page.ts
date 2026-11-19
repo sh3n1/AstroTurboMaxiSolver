@@ -18,6 +18,7 @@ import {
   IonToolbar,
   ToastController,
 } from '@ionic/angular';
+import { TranslatePipe } from '@ngx-translate/core';
 import { addIcons } from 'ionicons';
 import {
   add,
@@ -35,6 +36,7 @@ import {
 } from 'ionicons/icons';
 
 import { isIconUrl } from '../core/app-icons';
+import { t, tn } from '../core/i18n/t';
 import { ListsService } from '../core/lists/lists.service';
 import { fixedListEntries } from '../core/lists/target-lists';
 import { ObservingLogService } from '../core/log/observing-log.service';
@@ -51,6 +53,7 @@ import { ObservingLogService } from '../core/log/observing-log.service';
   // not each time the sky map behind it updates.
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    TranslatePipe,
     IonBadge,
     IonButton,
     IonButtons,
@@ -103,16 +106,24 @@ import { ObservingLogService } from '../core/log/observing-log.service';
     <ion-header>
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-button aria-label="Back to the map" data-testid="back-to-map" (click)="backToMap()">
+          <ion-button
+            [attr.aria-label]="'common.backToMap' | translate"
+            data-testid="back-to-map"
+            (click)="backToMap()"
+          >
             <ion-icon slot="icon-only" name="arrow-back" aria-hidden="true"></ion-icon>
           </ion-button>
         </ion-buttons>
-        <ion-title>Lists</ion-title>
+        <ion-title>{{ 'menu.lists' | translate }}</ion-title>
         <ion-buttons slot="end">
-          <ion-button aria-label="Import or export lists" data-testid="lists-transfer" (click)="transfer()">
+          <ion-button
+            [attr.aria-label]="'lists.transfer' | translate"
+            data-testid="lists-transfer"
+            (click)="transfer()"
+          >
             <ion-icon slot="icon-only" name="swap-vertical-outline" aria-hidden="true"></ion-icon>
           </ion-button>
-          <ion-button aria-label="New list" data-testid="new-list" (click)="newList()">
+          <ion-button [attr.aria-label]="'lists.newList' | translate" data-testid="new-list" (click)="newList()">
             <ion-icon slot="icon-only" name="add" aria-hidden="true"></ion-icon>
           </ion-button>
         </ion-buttons>
@@ -122,13 +133,13 @@ import { ObservingLogService } from '../core/log/observing-log.service';
     <ion-content>
       <button type="button" class="search" data-testid="search-all" (click)="openSearch()">
         <ion-icon name="search-outline" aria-hidden="true"></ion-icon>
-        Search all targets
+        {{ 'lists.searchAll' | translate }}
       </button>
       <!-- The sections go in two columns on a phone on its side: see .af-columns in global.scss. -->
       <div class="af-columns">
         <!-- The lists that follow the sky and the telescope. -->
         <ion-list inset="true">
-          <ion-list-header>Tonight</ion-list-header>
+          <ion-list-header>{{ 'lists.sections.tonight' | translate }}</ion-list-header>
           @for (entry of collections(); track entry.list.id) {
             <ion-item button detail="true" data-testid="list-link" (click)="open(entry.list.id)">
               <ion-icon
@@ -150,7 +161,7 @@ import { ObservingLogService } from '../core/log/observing-log.service';
 
         <!-- The user's lists. Saved for later is always first and can't be deleted. -->
         <ion-list inset="true">
-          <ion-list-header>My lists</ion-list-header>
+          <ion-list-header>{{ 'lists.myLists' | translate }}</ion-list-header>
           @for (list of lists.userLists(); track list.id) {
             <ion-item button detail="true" data-testid="list-link" (click)="open(list.id)">
               <ion-icon
@@ -167,7 +178,7 @@ import { ObservingLogService } from '../core/log/observing-log.service';
           }
           <ion-item button detail="false" data-testid="new-list-item" (click)="newList()">
             <ion-icon slot="start" name="add" aria-hidden="true"></ion-icon>
-            <ion-label>New list</ion-label>
+            <ion-label>{{ 'lists.newList' | translate }}</ion-label>
           </ion-item>
         </ion-list>
 
@@ -176,13 +187,13 @@ import { ObservingLogService } from '../core/log/observing-log.service';
           <ion-item button detail="true" data-testid="catalogues-link" (click)="openCatalogues()">
             <ion-icon slot="start" aria-hidden="true" name="library-outline"></ion-icon>
             <ion-label>
-              <h2>Catalogues</h2>
+              <h2>{{ 'lists.catalogues' | translate }}</h2>
             </ion-label>
           </ion-item>
           <ion-item button detail="true" data-testid="log-link" (click)="openLog()">
             <ion-icon slot="start" aria-hidden="true" name="journal-outline"></ion-icon>
             <ion-label>
-              <h2>Observing log</h2>
+              <h2>{{ 'lists.observingLog' | translate }}</h2>
             </ion-label>
             <ion-badge slot="end" color="medium">{{ log.entries().length }}</ion-badge>
           </ion-item>
@@ -253,11 +264,11 @@ export class ListsPage {
 
   protected async newList(): Promise<void> {
     const alert = await this.alerts.create({
-      header: 'New list',
-      inputs: [{ name: 'name', type: 'text', placeholder: 'For example, Spring galaxies' }],
+      header: t('lists.newList'),
+      inputs: [{ name: 'name', type: 'text', placeholder: t('lists.newListExample') }],
       buttons: [
-        { text: 'Cancel', role: 'cancel' },
-        { text: 'Create', handler: ({ name }: { name: string }) => this.open(this.lists.create(name)) },
+        { text: t('common.cancel'), role: 'cancel' },
+        { text: t('lists.create'), handler: ({ name }: { name: string }) => this.open(this.lists.create(name)) },
       ],
     });
     await alert.present();
@@ -266,16 +277,16 @@ export class ListsPage {
   /** Import from a file or pasted text, or save every list as a file. */
   protected async transfer(): Promise<void> {
     const sheet = await this.actionSheets.create({
-      header: 'Import and export',
+      header: t('lists.importExport'),
       buttons: [
         {
-          text: 'Import a list file',
+          text: t('lists.importFile'),
           icon: 'folder-open-outline',
           handler: () => this.fileInput().nativeElement.click(),
         },
-        { text: 'Import pasted text', icon: 'document-text-outline', handler: () => void this.importPasted() },
-        { text: 'Export all my lists', icon: 'save-outline', handler: () => this.lists.exportAll() },
-        { text: 'Cancel', role: 'cancel' },
+        { text: t('lists.importPasted'), icon: 'document-text-outline', handler: () => void this.importPasted() },
+        { text: t('lists.exportAll'), icon: 'save-outline', handler: () => this.lists.exportAll() },
+        { text: t('common.cancel'), role: 'cancel' },
       ],
     });
     await sheet.present();
@@ -292,12 +303,12 @@ export class ListsPage {
   /** For lists shared as text, which some phones do instead of sharing a file. */
   private async importPasted(): Promise<void> {
     const alert = await this.alerts.create({
-      header: 'Import pasted text',
-      message: 'Paste a shared list, or a list of objects, one per line.',
+      header: t('lists.importPasted'),
+      message: t('lists.pasteHint'),
       inputs: [{ name: 'text', type: 'textarea', placeholder: '{ "format": "astroturbomaxisolver-lists", … }' }],
       buttons: [
-        { text: 'Cancel', role: 'cancel' },
-        { text: 'Import', handler: ({ text }: { text: string }) => void this.importText(text) },
+        { text: t('common.cancel'), role: 'cancel' },
+        { text: t('lists.import'), handler: ({ text }: { text: string }) => void this.importText(text) },
       ],
     });
     await alert.present();
@@ -307,15 +318,15 @@ export class ListsPage {
    * Imports the app's own list files, SkySafari .skylist files, and CSV or plain text from
    * other apps. Objects the app doesn't know are named, so the user knows what is missing.
    */
-  private async importText(text: string, fileName = 'Pasted list'): Promise<void> {
+  private async importText(text: string, fileName = t('lists.pastedList')): Promise<void> {
     try {
       const { lists, missing } = await this.lists.import(text, fileName);
-      const imported = lists === 1 ? 'Imported 1 list' : `Imported ${lists} lists`;
+      const imported = tn('lists.imported', lists);
       // Longer when it names what is missing, to give time to read it.
       if (missing.length === 0) void this.toast(imported);
       else void this.toast(`${imported}. ${notFoundText(missing)}`, 6000);
     } catch (error) {
-      void this.toast(error instanceof Error ? error.message : 'Import failed');
+      void this.toast(error instanceof Error ? error.message : t('lists.importFailed'));
     }
   }
 
@@ -334,5 +345,5 @@ export class ListsPage {
 /** The objects an import left out, briefly: "2 not found: PGC 1, Sh2-101". */
 function notFoundText(missing: readonly string[]): string {
   const shown = missing.slice(0, 3).join(', ');
-  return `${missing.length} not found: ${shown}${missing.length > 3 ? '…' : ''}`;
+  return tn('lists.notFound', missing.length, { names: `${shown}${missing.length > 3 ? '…' : ''}` });
 }

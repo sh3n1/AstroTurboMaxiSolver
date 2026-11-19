@@ -2,6 +2,7 @@ import { Injectable, computed, inject } from '@angular/core';
 
 import { AppState } from '../app-state.service';
 import { azimuthChangeDeg, separationDeg } from '../astronomy/astronomy';
+import { t } from '../i18n/t';
 
 /**
  * How to get from where the telescope points to the selected target: how far it is, whether
@@ -32,13 +33,15 @@ export class TargetGuidanceService {
   readonly directions = computed(() => {
     const target = this.state.selectedTarget();
     if (!target) return '';
-    if (this.isOnTarget()) return 'On target';
+    if (this.isOnTarget()) return t('guidance.onTarget');
     const position = this.state.positionOf(target);
     const pointing = this.state.pointing();
     const altChange = position.altDeg - pointing.altDeg;
     const azChange = azimuthChangeDeg(pointing.azDeg, position.azDeg);
-    const vertical = `${altChange >= 0 ? 'Up' : 'Down'} ${Math.abs(altChange).toFixed(0)}°`;
-    const horizontal = `${azChange >= 0 ? 'Right' : 'Left'} ${Math.abs(azChange).toFixed(0)}°`;
+    const vertical = t(altChange >= 0 ? 'guidance.up' : 'guidance.down', { degrees: Math.abs(altChange).toFixed(0) });
+    const horizontal = t(azChange >= 0 ? 'guidance.right' : 'guidance.left', {
+      degrees: Math.abs(azChange).toFixed(0),
+    });
     return `${vertical} · ${horizontal}`;
   });
 }

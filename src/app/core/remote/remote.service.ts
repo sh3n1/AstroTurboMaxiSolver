@@ -3,6 +3,7 @@ import { ToastController } from '@ionic/angular';
 
 import { AppState } from '../app-state.service';
 import type { Alignment } from '../app-state.service';
+import { t } from '../i18n/t';
 import { FullscreenService } from '../platform/fullscreen.service';
 import { SensorService } from '../sensors/sensor.service';
 import { LiveSolverService } from '../solver/live-solver.service';
@@ -177,7 +178,7 @@ export class RemoteService {
       this.code.set(await encodePairingCode({ role: 'finder', sdp: await this.gathered(connection) }));
       this.status.set('showing-offer');
     } catch {
-      this.fail('Could not start the link on this phone.');
+      this.fail(t('remote.couldNotStart'));
     }
   }
 
@@ -190,7 +191,7 @@ export class RemoteService {
       this.error.set('');
       this.status.set('connecting');
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'Could not read the code.');
+      this.error.set(error instanceof Error ? error.message : t('remote.couldNotRead'));
     }
   }
 
@@ -201,7 +202,7 @@ export class RemoteService {
       offer = await decodePairingCode(code);
       if (offer.role !== 'finder') throw new Error("That's a screen phone's code. Scan the finder's.");
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'Could not read the code.');
+      this.error.set(error instanceof Error ? error.message : t('remote.couldNotRead'));
       return;
     }
     this.reset();
@@ -215,7 +216,7 @@ export class RemoteService {
       this.code.set(await encodePairingCode({ role: 'screen', sdp: await this.gathered(connection) }));
       this.status.set('showing-answer');
     } catch {
-      this.fail('Could not start the link on this phone.');
+      this.fail(t('remote.couldNotStart'));
     }
   }
 
@@ -496,7 +497,7 @@ export class RemoteService {
     const wasScreen = this.role() === 'screen' && this.status() !== 'paused';
     this.close();
     this.status.set('lost');
-    if (wasScreen) void this.tell('Finder phone disconnected');
+    if (wasScreen) void this.tell(t('remote.finderDisconnected'));
   }
 
   private fail(message: string): void {
@@ -560,7 +561,8 @@ export class RemoteService {
     clearInterval(this.heartbeat);
     this.poseTimer = undefined;
     this.glide.stop();
-    for (const resolve of this.pendingSolves.values()) resolve({ ok: false, reason: 'The finder phone disconnected.' });
+    for (const resolve of this.pendingSolves.values())
+      resolve({ ok: false, reason: t('remote.finderDisconnectedReason') });
     this.pendingSolves.clear();
     this.lastLogSent = this.liveSolver.log()[0]?.id ?? 0;
     this.state.finderMode.set(false);

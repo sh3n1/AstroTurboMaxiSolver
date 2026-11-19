@@ -1,14 +1,13 @@
 <!doctype html>
-<html lang="en">
+<html lang="{{@lang}}">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>AstroTurboMaxiSolver · Telescope finder for your phone</title>
-    <meta
-      name="description"
-      content="A free telescope finder for your phone. It reads the stars with the camera to know where your telescope points, and guides you to your target, even under a city sky and offline."
-    />
-    <link rel="canonical" href="https://astroturbomaxisolver.app/" />
+    <title>{{index.title}}</title>
+    {{@redirect}}
+    <meta name="description" content="{{index.description}}" />
+    <link rel="canonical" href="{{@url}}" />
+    {{@alternates}}
     <meta name="theme-color" content="#05070f" />
     <meta name="color-scheme" content="dark" />
     <link rel="icon" type="image/png" href="app/assets/icon/favicon.png" />
@@ -17,12 +16,10 @@
 
     <!-- How the page looks when a link to it is shared. -->
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://astroturbomaxisolver.app/" />
-    <meta property="og:title" content="AstroTurboMaxiSolver · Telescope finder for your phone" />
-    <meta
-      property="og:description"
-      content="Reads the stars with your phone's camera to know where your telescope points, and guides you to your target."
-    />
+    <meta property="og:url" content="{{@url}}" />
+    <meta property="og:locale" content="{{@ogLocale}}" />
+    <meta property="og:title" content="{{index.title}}" />
+    <meta property="og:description" content="{{index.ogDescription}}" />
     <meta property="og:image" content="https://astroturbomaxisolver.app/images/share.jpg" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
@@ -35,7 +32,8 @@
         "@type": "SoftwareApplication",
         "name": "AstroTurboMaxiSolver",
         "url": "https://astroturbomaxisolver.app/app/",
-        "description": "A telescope finder for your phone: plate solving with the camera, sensor fusion and guidance to your target.",
+        "description": "{{index.ldDescription}}",
+        "inLanguage": "{{@lang}}",
         "applicationCategory": "UtilitiesApplication",
         "operatingSystem": "Android, iOS",
         "isAccessibleForFree": true,
@@ -55,12 +53,7 @@
 
     <!-- The source code, top right: a corner with the Octocat, whose arm waves on hover.
          From GitHub Corners by Tim Holman (MIT licence), https://tholman.com/github-corners/ -->
-    <a
-      class="source-link"
-      href="https://github.com/sh3n1/AstroTurboMaxiSolver"
-      rel="noopener"
-      aria-label="Source code on GitHub"
-    >
+    <a class="source-link" href="{{@github}}" rel="noopener" aria-label="{{index.githubLabel}}">
       <svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true">
         <path class="corner" d="M0 0l115 115h15l12 27 108 108V0z" />
         <path class="octo-arm" d="M128 109c-15-9-9-19-9-19 3-7 2-11 2-11-1-7 3-2 3-2 4 5 2 11 2 11-3 10 5 15 9 16" />
@@ -71,24 +64,21 @@
       </svg>
     </a>
 
+    {{@languages}}
+
     <header class="hero">
       <img class="logo" src="app/icons/icon-192x192.png" width="96" height="96" alt="" />
       <h1>AstroTurboMaxiSolver</h1>
-      <p class="subtitle">
-        Because AstroTurbo<wbr />Maxi<wbr />Solver<wbr />Mega<wbr />Finder<wbr />Pro<wbr />Plus was too long.
-      </p>
-      <p class="tagline">
-        Push-to for any telescope, with just your phone. No encoders, no mount to change: it reads the stars to know
-        where your telescope points, and guides you to your target.
-      </p>
-      <a class="button" href="app/">Open the app</a>
-      <p class="facts">Free · Open source · Works offline · Web app</p>
+      <p class="subtitle">{{index.subtitle}}</p>
+      <p class="tagline">{{index.tagline}}</p>
+      <a class="button" href="app/">{{index.open}}</a>
+      <p class="facts">{{index.facts}}</p>
     </header>
 
     <main>
       <!-- The app's screens, one after another: swipe, or use the arrows. -->
-      <section class="carousel" aria-label="Screens of the app">
-        <button type="button" class="carousel-arrow prev" aria-label="Previous screen">&#8249;</button>
+      <section class="carousel" aria-label="{{index.carousel.label}}">
+        <button type="button" class="carousel-arrow prev" aria-label="{{index.carousel.previous}}">&#8249;</button>
         <div class="carousel-track" tabindex="0">
           <figure>
             <img
@@ -96,19 +86,13 @@
               width="780"
               height="1688"
               loading="lazy"
-              alt="The sky map, with arrows pointing the way to the Andromeda Galaxy"
+              alt="{{index.screens.guidanceAlt}}"
             />
-            <figcaption>Follow the arrows. That's it.</figcaption>
+            <figcaption>{{index.screens.guidance}}</figcaption>
           </figure>
           <figure>
-            <img
-              src="images/align.jpg"
-              width="780"
-              height="1688"
-              loading="lazy"
-              alt="Aligning the telescope: a list of the brightest stars to choose from"
-            />
-            <figcaption>Align once, on a bright star it picks for you</figcaption>
+            <img src="images/align.jpg" width="780" height="1688" loading="lazy" alt="{{index.screens.alignAlt}}" />
+            <figcaption>{{index.screens.align}}</figcaption>
           </figure>
           <figure>
             <img
@@ -116,170 +100,115 @@
               width="780"
               height="1688"
               loading="lazy"
-              alt="The eyepiece view, centred on the Great Hercules Cluster"
+              alt="{{index.screens.eyepieceAlt}}"
             />
-            <figcaption>See what your eyepiece will show</figcaption>
+            <figcaption>{{index.screens.eyepiece}}</figcaption>
           </figure>
           <figure>
-            <img
-              src="images/time.jpg"
-              width="780"
-              height="1688"
-              loading="lazy"
-              alt="The sky map with the time ruler, and clouds and seeing hour by hour"
-            />
-            <figcaption>Clouds and seeing, hour by hour</figcaption>
+            <img src="images/time.jpg" width="780" height="1688" loading="lazy" alt="{{index.screens.timeAlt}}" />
+            <figcaption>{{index.screens.time}}</figcaption>
           </figure>
           <figure>
-            <img
-              src="images/lists.jpg"
-              width="780"
-              height="1688"
-              loading="lazy"
-              alt="The lists: best right now, in the reticle, your own lists and the observing log"
-            />
-            <figcaption>Lists for tonight, ready to go</figcaption>
+            <img src="images/lists.jpg" width="780" height="1688" loading="lazy" alt="{{index.screens.listsAlt}}" />
+            <figcaption>{{index.screens.lists}}</figcaption>
           </figure>
           <figure>
-            <img
-              src="images/night.jpg"
-              width="780"
-              height="1688"
-              loading="lazy"
-              alt="The sky map in red night mode, on Saturn, with the menu open"
-            />
-            <figcaption>Red night mode. Your eyes will thank you.</figcaption>
+            <img src="images/night.jpg" width="780" height="1688" loading="lazy" alt="{{index.screens.nightAlt}}" />
+            <figcaption>{{index.screens.night}}</figcaption>
           </figure>
         </div>
-        <button type="button" class="carousel-arrow next" aria-label="Next screen">&#8250;</button>
+        <button type="button" class="carousel-arrow next" aria-label="{{index.carousel.next}}">&#8250;</button>
       </section>
 
       <section>
-        <h2>What it does</h2>
+        <h2>{{index.features.title}}</h2>
         <ul class="features">
           <li>
-            <h3>Follows your every move</h3>
-            <p>
-              Move the telescope and the phone's sensors move the map with it. Every plate solve from the camera
-              fine-tunes the position.
-            </p>
+            <h3>{{index.features.followsTitle}}</h3>
+            <p>{{index.features.follows}}</p>
           </li>
           <li>
-            <h3>Knows where you're pointing</h3>
-            <p>
-              The camera looks up, spots the stars and works out where your telescope points. Sensor fusion and plate
-              solving, running right in your browser, even with no signal.
-            </p>
+            <h3>{{index.features.knowsTitle}}</h3>
+            <p>{{index.features.knows}}</p>
           </li>
           <li>
-            <h3>Takes you there</h3>
-            <p>Pick a target, follow the arrows, and there it is in the rings. Then in your eyepiece.</p>
+            <h3>{{index.features.takesTitle}}</h3>
+            <p>{{index.features.takes}}</p>
           </li>
           <li>
-            <h3>Never runs out of targets</h3>
-            <p>
-              Messier, Caldwell, NGC and IC objects, planets, double stars, and what's best right now. Plus your own
-              lists and an observing log.
-            </p>
+            <h3>{{index.features.targetsTitle}}</h3>
+            <p>{{index.features.targets}}</p>
           </li>
           <li>
-            <h3>Old phone in a drawer?</h3>
-            <p>
-              Give it a new job: put it on the telescope as the finder, and use your own phone as the remote. Optional:
-              one phone is all you need.
-            </p>
+            <h3>{{index.features.oldPhoneTitle}}</h3>
+            <p>{{index.features.oldPhone}}</p>
           </li>
           <li>
-            <h3>Made for city skies</h3>
-            <p>Built under a bright city sky, with big text you can read at arm's length, even without your glasses.</p>
+            <h3>{{index.features.cityTitle}}</h3>
+            <p>{{index.features.city}}</p>
           </li>
           <li>
-            <h3>Your data is yours</h3>
-            <p>
-              Your log, lists and kit are stored on your phone. Sync them between your devices through your own Google
-              Drive, if you like. Never on our servers: we don't have any.
-            </p>
+            <h3>{{index.features.dataTitle}}</h3>
+            <p>{{index.features.data}}</p>
           </li>
           <li>
-            <h3>Free software</h3>
-            <p>
-              Free to use, and open source under the GNU GPL. Anyone can see how it works, check it and improve it: the
-              code is on <a href="https://github.com/sh3n1/AstroTurboMaxiSolver" rel="noopener">GitHub</a>.
-            </p>
+            <h3>{{index.features.freeTitle}}</h3>
+            <p>{{index.features.free}}</p>
           </li>
         </ul>
       </section>
 
       <section>
-        <h2>How it works</h2>
+        <h2>{{index.how.title}}</h2>
         <ol class="steps">
-          <li>Fix your phone to the telescope, with its camera looking at the sky.</li>
-          <li>Align once: centre a bright star in the eyepiece and tap.</li>
-          <li>Pick a target, follow the arrows, and enjoy the view.</li>
+          <li>{{index.how.step1}}</li>
+          <li>{{index.how.step2}}</li>
+          <li>{{index.how.step3}}</li>
         </ol>
-        <p class="note">
-          Best on Android with Chrome. It works on iPhone with Safari too, with a few limits. Install it from the app to
-          use it full screen.
-        </p>
-        <p class="warning">Never point your telescope or your phone's camera at the Sun. Seriously.</p>
+        <p class="note">{{index.how.note}}</p>
+        <p class="warning">{{index.how.warning}}</p>
       </section>
 
       <section class="faq">
-        <h2>Questions you may have</h2>
+        <h2>{{index.faq.title}}</h2>
         <details>
-          <summary>Is the name a joke?</summary>
-          <p>Yes. The app isn't.</p>
+          <summary>{{index.faq.nameQuestion}}</summary>
+          <p>{{index.faq.nameAnswer}}</p>
         </details>
         <details>
-          <summary>Do I need internet at the telescope?</summary>
-          <p>No. Open it once at home, and it works offline in the field.</p>
+          <summary>{{index.faq.internetQuestion}}</summary>
+          <p>{{index.faq.internetAnswer}}</p>
         </details>
         <details>
-          <summary>Will it work with my telescope?</summary>
-          <p>If you can fix a phone to it, yes. The phone's camera does the work, not the telescope's.</p>
+          <summary>{{index.faq.telescopeQuestion}}</summary>
+          <p>{{index.faq.telescopeAnswer}}</p>
         </details>
         <details>
-          <summary>How much does it cost?</summary>
-          <p>Nothing. No ads, and no account needed.</p>
+          <summary>{{index.faq.costQuestion}}</summary>
+          <p>{{index.faq.costAnswer}}</p>
         </details>
       </section>
 
       <section class="about">
-        <h2>About this project</h2>
-        <p>
-          AstroTurboMaxiSolver started as a personal project, a tool just for me. I built it quickly in my free time
-          with vibe coding, and it's the first project I've made this way, so expect some things to fail. I find it
-          useful at the telescope, so I wanted to share it with other amateur astronomers.
-        </p>
-        <p>
-          It's free software, under the
-          <a href="https://www.gnu.org/licenses/gpl-3.0.html" rel="noopener">GNU General Public License version 3.</a>
-          The source code is on <a href="https://github.com/sh3n1/AstroTurboMaxiSolver" rel="noopener">GitHub</a>.
-        </p>
-        <p class="disclaimer">
-          It's provided as is, without any warranty. It's experimental, not production software, and it may never be.
-        </p>
+        <h2>{{index.about.title}}</h2>
+        <p>{{index.about.story}}</p>
+        <p>{{index.about.licence}}</p>
+        <p class="disclaimer">{{index.about.disclaimer}}</p>
       </section>
 
       <p class="cta">
-        <span class="cta-line">Clear skies!</span>
-        <a class="button" href="app/">Open the app</a>
+        <span class="cta-line">{{index.cta}}</span>
+        <a class="button" href="app/">{{index.open}}</a>
       </p>
     </main>
 
     <footer>
+      <p>{{index.footer.data}}</p>
+      <p>{{index.footer.copyright}}</p>
       <p>
-        Star and object data from OpenNGC and the HYG Database (CC BY-SA 4.0), the Washington Double Star Catalog, the
-        NASA/JPL Small-Body Database and others. Full credits are in the app's Settings.
-      </p>
-      <p>
-        Copyright © 2026 The AstroTurboMaxiSolver authors. Free software under the
-        <a href="https://www.gnu.org/licenses/gpl-3.0.html" rel="noopener">GNU GPL version 3</a>.
-      </p>
-      <p>
-        <a href="https://github.com/sh3n1/AstroTurboMaxiSolver" rel="noopener">Source code</a> ·
-        <a href="/privacy.html">Privacy</a> ·
-        <a href="/terms.html">Terms</a>
+        <a href="{{@github}}" rel="noopener">{{index.footer.source}}</a> ·
+        <a href="{{@privacy}}">{{common.privacy}}</a> ·
+        <a href="{{@terms}}">{{common.terms}}</a>
       </p>
     </footer>
     <script>
@@ -302,5 +231,6 @@
       document.querySelector('.carousel-arrow.prev').addEventListener('click', () => go(-1));
       document.querySelector('.carousel-arrow.next').addEventListener('click', () => go(1));
     </script>
+    {{@remember}}
   </body>
 </html>

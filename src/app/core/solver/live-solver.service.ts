@@ -9,6 +9,7 @@ import {
   equatorialVector,
   separationDeg,
 } from '../astronomy/astronomy';
+import { t, tn } from '../i18n/t';
 import { isPermissionDenied } from '../platform/permission-help';
 import { NotNowError, PermissionsService } from '../platform/permissions.service';
 import type { Quaternion } from '../sensors/attitude';
@@ -236,13 +237,13 @@ export class LiveSolverService {
       if (this.plan.manual && averageLevel(frame.pixels) > MAX_SKY_LEVEL && this.iso > MIN_ISO) {
         this.iso = Math.max(MIN_ISO, Math.round(this.iso / 2));
         await applyCameraSettings(camera.track, this.captureSettings());
-        this.record({ ...entry, outcome: 'retry', message: `Too bright, ISO lowered to ${this.iso}` });
+        this.record({ ...entry, outcome: 'retry', message: t('solver.isoLowered', { iso: this.iso }) });
         this.retrySoon(FAILED_PAUSE_MS / 5);
         return;
       }
       // If the phone moved during the exposure, the stars are smeared.
       if (!this.sensors.isStill()) {
-        this.record({ ...entry, outcome: 'retry', message: 'The phone moved during the exposure' });
+        this.record({ ...entry, outcome: 'retry', message: t('solver.moved') });
         this.retrySoon(0);
         return;
       }
@@ -272,12 +273,12 @@ export class LiveSolverService {
         this.record({
           ...entry,
           outcome: 'solved',
-          message: `Plate solved, ${response.solution.matched} stars matched`,
+          message: tn('solver.solved', response.solution.matched),
           starCount: response.starCount,
           matched: response.solution.matched,
           sensorErrorDeg: before && after ? separationDeg(before, after) : null,
         });
-        report('solved', `Plate solved, ${response.solution.matched} stars matched`);
+        report('solved', tn('solver.solved', response.solution.matched));
         this.finish(true, SOLVED_PAUSE_MS);
         return;
       }
@@ -365,7 +366,7 @@ export class LiveSolverService {
     // Asked for by the user: the camera may be asked for again, and automatic solving resumes.
     this.cameraRefused.set(false);
     if (this.state.planning()) {
-      return { ok: false, reason: 'Paused while showing another time. Go back to now to solve.' };
+      return { ok: false, reason: t('solver.pausedForTime') };
     }
     // Let an automatic solve that is already running finish first.
     for (let waited = 0; this.status() === 'solving' && waited < 10_000; waited += 100) {
@@ -394,8 +395,8 @@ export class LiveSolverService {
       }
       const entry = { trigger, startedAt, iso: this.iso, frames: this.plan.frames };
       if (averageLevel(frame.pixels) > MAX_SKY_LEVEL) {
-        this.record({ ...entry, outcome: 'failed', message: 'Too bright to see stars' });
-        return { ok: false, reason: 'Too bright for the camera. Keep lights out of view.' };
+        this.record({ ...entry, outcome: 'failed', message: t('solver.tooBright') });
+        return { ok: false, reason: t('solver.tooBrightReason') };
       }
 
       // The user holds the telescope still on purpose, so no need to ask the sensors.
@@ -418,10 +419,7 @@ export class LiveSolverService {
         report('failed', failureMessage(response.starCount));
         return {
           ok: false,
-          reason:
-            response.starCount > 0
-              ? `The camera saw ${response.starCount} stars but couldn't match them. Is the sky clear?`
-              : 'The camera saw no stars. Is the sky clear?',
+          reason: response.starCount > 0 ? tn('solver.noMatchReason', response.starCount) : t('solver.noStarsReason'),
         };
       }
 
@@ -436,12 +434,12 @@ export class LiveSolverService {
       this.record({
         ...entry,
         outcome: 'solved',
-        message: `Plate solved, ${response.solution.matched} stars matched`,
+        message: tn('solver.solved', response.solution.matched),
         starCount: response.starCount,
         matched: response.solution.matched,
         sensorErrorDeg: before && after ? separationDeg(before, after) : null,
       });
-      report('solved', `Plate solved, ${response.solution.matched} stars matched`);
+      report('solved', tn('solver.solved', response.solution.matched));
       return { ok: true, attitude, matched: response.solution.matched };
     } catch (error) {
       const message = this.cameraFailed(error);
@@ -451,7 +449,7 @@ export class LiveSolverService {
         ok: false,
         reason: refused
           ? message
-          : `The camera could not be used. ${error instanceof Error ? error.message : ''}`.trim(),
+          : t('solver.cameraNotUsed', { error: error instanceof Error ? error.message : '' }).trim(),
       };
     } finally {
       this.state.plateSolving.set(false);
@@ -656,12 +654,14 @@ export class LiveSolverService {
 
 /** What to tell the user when the solver ran but found no answer. */
 function failureMessage(starCount: number): string {
-  return starCount > 0 ? `No match in ${starCount} stars` : 'No stars found';
+  return starCount > 0 ? tn('solver.noMatch', starCount) : t('solver.noStars');
 }
 
 /** What to tell the user when the camera could not take a picture. */
 function cameraErrorMessage(error: unknown): string {
-  if (error instanceof NotNowError) return 'Camera not in use yet';
-  if (isPermissionDenied(error)) return 'Camera is off';
-  return error instanceof Error && error.message ? `Camera unavailable: ${error.message}` : 'Camera unavailable';
+  if (error instanceof NotNowError) return t('solver.cameraNotYet');
+  if (isPermissionDenied(error)) return t('solver.cameraOff');
+  return error instanceof Error && error.message
+    ? t('solver.cameraUnavailableBecause', { error: error.message })
+    : t('solver.cameraUnavailable');
 }

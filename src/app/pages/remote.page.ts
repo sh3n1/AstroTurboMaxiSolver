@@ -13,6 +13,7 @@ import {
   IonTitle,
   IonToolbar,
 } from '@ionic/angular';
+import { TranslatePipe } from '@ngx-translate/core';
 import { addIcons } from 'ionicons';
 import { phonePortraitOutline, scanOutline, telescopeOutline } from 'ionicons/icons';
 
@@ -28,6 +29,7 @@ import { RemoteService } from '../core/remote/remote.service';
 @Component({
   selector: 'app-remote',
   imports: [
+    TranslatePipe,
     IonBackButton,
     IonButton,
     IonButtons,
@@ -80,20 +82,28 @@ import { RemoteService } from '../core/remote/remote.service';
     <ion-header>
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-back-button defaultHref="/tabs/settings" text="" aria-label="Back"></ion-back-button>
+          <ion-back-button
+            defaultHref="/tabs/settings"
+            text=""
+            [attr.aria-label]="'common.back' | translate"
+          ></ion-back-button>
         </ion-buttons>
-        <ion-title>Two phones</ion-title>
+        <ion-title>{{ 'settings.twoPhones' | translate }}</ion-title>
       </ion-toolbar>
     </ion-header>
     <ion-content class="ion-padding">
       <div data-testid="remote-status" [attr.data-status]="remote.status()" [attr.data-role]="remote.role()">
         @switch (remote.status()) {
           @case ('connected') {
-            <p class="status">{{ remote.role() === 'finder' ? 'This phone is the finder' : 'Linked to the finder' }}</p>
-            <ion-button expand="block" data-testid="remote-open-sky" (click)="openSky()">Sky map</ion-button>
+            <p class="status">
+              {{ (remote.role() === 'finder' ? 'settings.thisIsFinder' : 'settings.linkedToFinder') | translate }}
+            </p>
+            <ion-button expand="block" data-testid="remote-open-sky" (click)="openSky()">{{
+              'views.sky' | translate
+            }}</ion-button>
             <!-- Paused, each phone works alone, and the link resumes without new codes. -->
             <ion-button expand="block" fill="outline" data-testid="remote-pause" (click)="remote.pause()">
-              Pause link
+              {{ 'remote.pause' | translate }}
             </ion-button>
             <ion-button
               expand="block"
@@ -102,12 +112,14 @@ import { RemoteService } from '../core/remote/remote.service';
               data-testid="remote-disconnect"
               (click)="disconnect()"
             >
-              Unlink
+              {{ 'remote.unlink' | translate }}
             </ion-button>
           }
           @case ('paused') {
-            <p class="status">Link paused</p>
-            <ion-button expand="block" data-testid="remote-resume" (click)="remote.resume()">Reconnect</ion-button>
+            <p class="status">{{ 'settings.linkPaused' | translate }}</p>
+            <ion-button expand="block" data-testid="remote-resume" (click)="remote.resume()">{{
+              'remote.reconnect' | translate
+            }}</ion-button>
             <ion-button
               expand="block"
               fill="outline"
@@ -115,49 +127,55 @@ import { RemoteService } from '../core/remote/remote.service';
               data-testid="remote-disconnect"
               (click)="disconnect()"
             >
-              Unlink
+              {{ 'remote.unlink' | translate }}
             </ion-button>
           }
           @case ('connecting') {
-            <p class="status">Connecting…</p>
-            <ion-spinner aria-label="Connecting"></ion-spinner>
+            <p class="status">{{ 'remote.connecting' | translate }}</p>
+            <ion-spinner [attr.aria-label]="'remote.connecting' | translate"></ion-spinner>
           }
           @case ('showing-offer') {
             <!-- While scanning the reply, the code is out of the way: the screen phone has read it already. -->
             @if (scanning()) {
-              <p class="step">2. Scan its reply</p>
+              <p class="step">{{ 'remote.scanReplyStep' | translate }}</p>
               <app-qr-scanner (scanned)="read($event)" />
               <ion-button expand="block" fill="clear" data-testid="remote-scan-cancel" (click)="scanning.set(false)">
-                Back to the code
+                {{ 'remote.backToCode' | translate }}
               </ion-button>
             } @else {
-              <p class="step">1. Scan this with the screen phone</p>
-              <app-qr-code data-testid="remote-code" label="Pairing code" [text]="remote.code()" />
-              <p class="step">2. Scan its reply</p>
+              <p class="step">{{ 'remote.scanThisStep' | translate }}</p>
+              <app-qr-code
+                data-testid="remote-code"
+                [label]="'remote.pairingCode' | translate"
+                [text]="remote.code()"
+              />
+              <p class="step">{{ 'remote.scanReplyStep' | translate }}</p>
               <ion-button expand="block" data-testid="remote-scan" (click)="scanning.set(true)">
                 <ion-icon slot="start" name="scan-outline" aria-hidden="true"></ion-icon>
-                Scan reply
+                {{ 'remote.scanReply' | translate }}
               </ion-button>
             }
             <ng-container *ngTemplateOutlet="paste" />
           }
           @case ('showing-answer') {
-            <p class="step">Scan this with the finder phone</p>
-            <app-qr-code data-testid="remote-code" label="Reply code" [text]="remote.code()" />
-            <ion-spinner aria-label="Waiting for the finder"></ion-spinner>
+            <p class="step">{{ 'remote.scanWithFinder' | translate }}</p>
+            <app-qr-code data-testid="remote-code" [label]="'remote.replyCode' | translate" [text]="remote.code()" />
+            <ion-spinner [attr.aria-label]="'remote.waiting' | translate"></ion-spinner>
           }
           @default {
             @if (remote.status() === 'lost') {
-              <p class="error" data-testid="remote-lost">Link lost</p>
+              <p class="error" data-testid="remote-lost">{{ 'settings.linkLost' | translate }}</p>
             }
             @if (scanning()) {
-              <p class="step">Scan the finder phone's code</p>
+              <p class="step">{{ 'remote.scanFinder' | translate }}</p>
               <app-qr-scanner (scanned)="read($event)" />
-              <ion-button expand="block" fill="clear" (click)="scanning.set(false)">Cancel</ion-button>
+              <ion-button expand="block" fill="clear" (click)="scanning.set(false)">{{
+                'common.cancel' | translate
+              }}</ion-button>
             } @else {
               <ion-button class="choice" expand="block" data-testid="remote-as-finder" (click)="remote.startAsFinder()">
                 <ion-icon name="telescope-outline" aria-hidden="true"></ion-icon>
-                This phone is the finder
+                {{ 'settings.thisIsFinder' | translate }}
               </ion-button>
               <ion-button
                 class="choice"
@@ -167,7 +185,7 @@ import { RemoteService } from '../core/remote/remote.service';
                 (click)="scanning.set(true)"
               >
                 <ion-icon name="phone-portrait-outline" aria-hidden="true"></ion-icon>
-                This phone is the screen
+                {{ 'remote.thisIsScreen' | translate }}
               </ion-button>
             }
             @if (scanning()) {
@@ -185,7 +203,7 @@ import { RemoteService } from '../core/remote/remote.service';
         <div class="paste">
           <ion-textarea
             data-testid="remote-paste"
-            label="Or paste the code"
+            [label]="'remote.paste' | translate"
             label-placement="stacked"
             fill="outline"
             [rows]="2"
@@ -199,7 +217,7 @@ import { RemoteService } from '../core/remote/remote.service';
             [disabled]="!pasted().trim()"
             (click)="read(pasted())"
           >
-            Connect
+            {{ 'remote.connect' | translate }}
           </ion-button>
         </div>
       </ng-template>

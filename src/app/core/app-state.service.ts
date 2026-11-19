@@ -31,7 +31,8 @@ import {
   newKitId,
   resolveSelection,
 } from './equipment/equipment';
-import { LOCATION_BLOCKED, isPermissionDenied } from './platform/permission-help';
+import { i18n } from './i18n/t';
+import { LOCATION_BLOCKED, LOCATION_UPDATED, isPermissionDenied } from './platform/permission-help';
 import { telescopeLimit } from './sky-conditions/sky-quality';
 import type { CaptureMode } from './solver/camera';
 import { LocalDb } from './storage/local-db';
@@ -82,6 +83,11 @@ export interface Settings {
   bortle: number;
   /** Set the Bortle class from the location, with the light pollution atlas: see sky-brightness.service.ts. */
   bortleAuto: boolean;
+  /**
+   * The app's language: 'auto' follows the phone's, or a language's code, such as 'es', chosen
+   * in Settings. See core/i18n/languages.ts.
+   */
+  language: string;
   /** The faintest stars the eyepiece view shows, or null to work it out from the sky. */
   eyepieceStarLimit: number | null;
   /**
@@ -138,6 +144,8 @@ const DEFAULT_SETTINGS: Settings = {
   bortle: 5,
   // On by default: the atlas knows the sky better than a guess, and choosing a class turns it off.
   bortleAuto: true,
+  // The phone's language, where the app has it; English otherwise.
+  language: 'auto',
   eyepieceStarLimit: null,
   cameraFocalFactor: 1,
   // Off by default: a phone linked for one night may belong to someone else.
@@ -406,11 +414,19 @@ export class AppState {
   }
 
   /**
+   * Saves the settings at once, rather than when the saving effect next runs: for a change
+   * that reloads the app straight after, such as the language.
+   */
+  saveSettingsNow(): void {
+    save(SETTINGS_KEY, this.settings());
+  }
+
+  /**
    * Sets the location from the phone's GPS. Resolves with a short message for the user,
    * since it can take a while, be refused, or be unavailable.
    */
   locateWithGps(): Promise<string> {
-    if (!('geolocation' in navigator)) return Promise.resolve('Not available on this device');
+    if (!('geolocation' in navigator)) return Promise.resolve(i18n('location.notAvailable'));
     return new Promise((resolve) =>
       navigator.geolocation.getCurrentPosition(
         ({ coords }) => {
@@ -420,10 +436,10 @@ export class AppState {
             longitudeDeg: Number(coords.longitude.toFixed(2)),
             locationSet: true,
           });
-          resolve('Location updated');
+          resolve(LOCATION_UPDATED);
         },
         // Refused is told apart from no signal: only the phone's settings can undo a refusal.
-        (error) => resolve(isPermissionDenied(error) ? LOCATION_BLOCKED : 'Location unavailable'),
+        (error) => resolve(isPermissionDenied(error) ? LOCATION_BLOCKED : i18n('location.unavailable')),
         { timeout: 15_000 },
       ),
     );

@@ -3,6 +3,7 @@
 
 import { equipmentLabel } from '../equipment/equipment';
 import type { Equipment, KitSelection } from '../equipment/equipment';
+import { t } from '../i18n/t';
 import { newUuid } from '../storage/sync-record';
 
 /**
@@ -11,7 +12,10 @@ import { newUuid } from '../storage/sync-record';
  */
 export type Rating = 0 | 1 | 2 | 3 | 4;
 
-/** The rating words, in order, as the note sheet shows them. */
+/**
+ * The rating words, in order. They are saved in exported files as they are, in English;
+ * the screens show ratingText(), in the user's language.
+ */
 export const RATINGS: readonly { value: Rating; label: string }[] = [
   { value: 0, label: 'Not seen' },
   { value: 1, label: 'Glimpse' },
@@ -23,7 +27,10 @@ export const RATINGS: readonly { value: Rating; label: string }[] = [
 /** The rating a new entry gets. */
 export const DEFAULT_RATING: Rating = 3;
 
-/** Quick tags for the note, so most notes need no typing at the telescope. */
+/**
+ * Quick tags for the note, so most notes need no typing at the telescope. Saved in each entry
+ * as they are, in English, so a log reads the same on every device: shown with tagText().
+ */
 export const LOG_TAGS = [
   'Bright core',
   'Detail',
@@ -33,6 +40,7 @@ export const LOG_TAGS = [
   'Filter helped',
   'Try a darker sky',
 ] as const;
+export type LogTag = (typeof LOG_TAGS)[number];
 
 /**
  * Seeing on the Antoniadi scale, as observers and OpenAstronomyLog use it: 1 is perfect,
@@ -274,11 +282,50 @@ export function countLabel(count: number): string {
   return count > MAX_COUNT_SHOWN ? MANY : String(count);
 }
 
-/** "1st", "2nd", "3rd", "11th", "22nd": for "Seen 23:41 · 3rd time". */
+/**
+ * "1st", "2nd", "3rd", "11th", "22nd": for "Seen 23:41 · 3rd time". English picks the ending
+ * by the last digit; a language that needs none gives all four keys the same text.
+ */
 export function ordinal(n: number): string {
   const lastTwo = n % 100;
-  if (lastTwo >= 11 && lastTwo <= 13) return `${n}th`;
-  return `${n}${{ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] ?? 'th'}`;
+  const ending = lastTwo >= 11 && lastTwo <= 13 ? 'other' : ({ 1: 'one', 2: 'two', 3: 'few' }[n % 10] ?? 'other');
+  return t(`log.ordinal.${ending}`, { n });
+}
+
+/** Each quick tag's text key: the tags themselves stay English, saved in the entries. */
+const TAG_KEYS: Record<LogTag, string> = {
+  'Bright core': 'log.tags.brightCore',
+  Detail: 'log.tags.detail',
+  Companions: 'log.tags.companions',
+  'Averted vision': 'log.tags.avertedVision',
+  Colour: 'log.tags.colour',
+  'Filter helped': 'log.tags.filterHelped',
+  'Try a darker sky': 'log.tags.darkerSky',
+};
+
+/** A quick tag in the user's language. A tag from elsewhere, such as an older version, as it is. */
+export function tagText(tag: string): string {
+  return tag in TAG_KEYS ? t(TAG_KEYS[tag as LogTag]) : tag;
+}
+
+/** A rating's word in the user's language, such as "Good". */
+export function ratingText(rating: Rating): string {
+  return t(`log.ratings.${rating}`);
+}
+
+/** A seeing value's words in the user's language, such as "2 Good". */
+export function seeingText(seeing: Seeing): string {
+  return t(`log.seeing.${seeing}`);
+}
+
+/** An appearance in the user's language, such as "Mottled". */
+export function appearanceText(appearance: Appearance): string {
+  return t(`log.appearance.${appearance}`);
+}
+
+/** A star's colour as seen, in the user's language. */
+export function starColourText(colour: StarColour): string {
+  return t(`log.starColours.${colour}`);
 }
 
 /** Totals for the top of the log page. */
@@ -400,13 +447,13 @@ export function parseLogJson(text: string): LogEntry[] {
   try {
     data = JSON.parse(text);
   } catch {
-    throw new Error("This isn't an AstroTurboMaxiSolver log file");
+    throw new Error(t('files.notOurs', { app: 'AstroTurboMaxiSolver', kind: t('files.log') }));
   }
   const file = data as { format?: unknown; entries?: unknown };
   if (file?.format !== FILE_FORMAT || !Array.isArray(file.entries)) {
-    throw new Error("This isn't an AstroTurboMaxiSolver log file");
+    throw new Error(t('files.notOurs', { app: 'AstroTurboMaxiSolver', kind: t('files.log') }));
   }
-  if (!file.entries.every(isEntry)) throw new Error('The log file is damaged');
+  if (!file.entries.every(isEntry)) throw new Error(t('log.damaged'));
   return file.entries;
 }
 

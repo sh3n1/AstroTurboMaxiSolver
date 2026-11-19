@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { IonButton, IonIcon } from '@ionic/angular';
+import { TranslatePipe } from '@ngx-translate/core';
 import { addIcons } from 'ionicons';
 import { playSkipBack, playSkipForward } from 'ionicons/icons';
 
@@ -14,7 +15,7 @@ import { PlaylistService } from '../lists/playlist.service';
 @Component({
   selector: 'app-playlist-bar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IonButton, IonIcon],
+  imports: [TranslatePipe, IonButton, IonIcon],
   styles: `
     :host {
       display: flex;
@@ -64,7 +65,7 @@ import { PlaylistService } from '../lists/playlist.service';
       <ion-button
         fill="clear"
         class="step"
-        aria-label="Previous target"
+        [attr.aria-label]="'playlist.previous' | translate"
         data-testid="playlist-previous"
         [disabled]="playlist.previousIndex() === null"
         (click)="playlist.previous()"
@@ -80,7 +81,7 @@ import { PlaylistService } from '../lists/playlist.service';
       <ion-button
         fill="clear"
         class="step"
-        aria-label="Next target"
+        [attr.aria-label]="'playlist.next' | translate"
         data-testid="playlist-next"
         [disabled]="playlist.nextIndex() === null"
         (click)="playlist.next()"

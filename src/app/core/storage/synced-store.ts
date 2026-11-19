@@ -8,7 +8,7 @@ import type { Table } from 'dexie';
 
 import type { AstroTurboMaxiSolverDb, LocalDb } from './local-db';
 import type { LocalRecords } from './storage-migration';
-import { changeRecord, contentOf, createRecord, deleteRecord } from './sync-record';
+import { changeRecord, contentOf, createRecord, deleteRecord, settleConflict } from './sync-record';
 import type { Synced } from './sync-record';
 
 /** How long the first reading of a table may take before the app starts without it. */
@@ -102,6 +102,17 @@ export class SyncedStore<T extends { id: string }> {
         return known ? deleteRecord(known, device, now) : null;
       }),
     );
+  }
+
+  /**
+   * Settles a sync conflict on a record: keeps this device's version or the other one, as a
+   * new revision descending from both, so every device takes it (see settleConflict).
+   */
+  settle(id: string, other: Synced<T>, keep: 'current' | 'other'): Promise<void> {
+    const known = this.all().get(id);
+    const settled = known ? settleConflict(known, other, keep, this.localDb.deviceId, this.localDb.now()) : null;
+    // With no version here any more, the other one is all there is.
+    return this.write([settled ?? { ...other, pending: 1 }]);
   }
 
   /** Puts records in the signal, as loaded rather than changed. */

@@ -4,6 +4,7 @@
 
 import type { Matrix3, Vector3 } from '../astronomy/astronomy';
 import { horizontalVector, normalize, toApparent } from '../astronomy/astronomy';
+import { t } from '../i18n/t';
 
 import type { Box, Constellation, Point, Project, Star } from './sky-style';
 import { BELOW_HORIZON_OPACITY, COLOR, STAR_TINTS } from './sky-style';
@@ -216,7 +217,7 @@ export function drawHorizon(frame: Frame): void {
   ctx.textAlign = 'center';
   for (const { label, azDeg } of CARDINALS) {
     const point = project(horizontalVector({ altDeg: 0, azDeg }));
-    if (point) drawLabel(ctx, label, point.x, point.y + 22 * textScale);
+    if (point) drawLabel(ctx, t(`compass.short.${label}`), point.x, point.y + 22 * textScale);
   }
 }
 

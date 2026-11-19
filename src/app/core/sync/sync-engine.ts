@@ -7,10 +7,14 @@
 //
 // Nothing here knows which drive is used, or the database: both come in through the small
 // interfaces below, so the whole sync is tested with in-memory stand-ins.
+//
+// Snapshots, which stand for a device's older change files so they can be removed, and the
+// purging of old deletions are in sync-snapshots.ts.
 
 import { contentHash, contentOf } from '../storage/sync-record';
 
 import type { AnyRecord } from './sync-merge';
+import { compactOwnFiles, latestSnapshots, purgeOldDeletions } from './sync-snapshots';
 
 /** The kinds of record that sync, one per table. */
 export const RECORD_TYPES = ['logEntry', 'list', 'listItem', 'kit'] as const;
@@ -33,6 +37,8 @@ export interface SyncStorage {
   read(name: string): Promise<string | null>;
   /** Writes a file, replacing one of the same name. */
   write(name: string, text: string): Promise<void>;
+  /** Removes a file. Removing one that isn't there is not an error. */
+  remove(name: string): Promise<void>;
 }
 
 /** This device's side: its records and its own sync bookkeeping. */
@@ -48,6 +54,10 @@ export interface SyncLocal {
   /** Reads or writes a value of the sync's own, such as a checkpoint. */
   readMeta(key: string): Promise<unknown>;
   writeMeta(key: string, value: unknown): Promise<void>;
+  /** This device's current copies of some records, by id, for a snapshot. */
+  current(type: RecordType, ids: readonly string[]): Promise<Map<string, AnyRecord>>;
+  /** Removes deleted records sent and deleted before a time. Says how many. */
+  purgeDeleted(before: number): Promise<number>;
 }
 
 /** The change files' format. A device that finds a newer one leaves the file alone. */
@@ -76,8 +86,18 @@ export function parseChangeFileName(name: string): { deviceId: string; seq: numb
   return match ? { deviceId: match[1], seq: Number(match[2]) } : null;
 }
 
+/** What a device's file says: its last change file, and when it last finished a sync. */
+export interface DeviceFile {
+  format: number;
+  deviceId: string;
+  lastSeq: number;
+  writtenAt: number;
+  /** When it last read every other device's files. Missing in files from before snapshots. */
+  syncedAt?: number;
+}
+
 /** The meta keys: this device's last change file, and how far each other device was read. */
-const SEQ_KEY = 'syncSeq';
+export const SEQ_KEY = 'syncSeq';
 const readKey = (deviceId: string): string => `syncRead:${deviceId}`;
 
 /**
@@ -90,24 +110,59 @@ export async function runSync(storage: SyncStorage, local: SyncLocal, now = Date
   const result: SyncResult = { sent: 0, received: 0, conflicts: 0 };
   result.sent = await sendChanges(storage, local, now);
 
-  const others = otherDevicesFiles(await storage.list(), local.deviceId);
-  for (const [deviceId, seqs] of others) {
-    const readUpTo = Number((await local.readMeta(readKey(deviceId))) ?? 0);
+  const names = await storage.list();
+  const snapshots = latestSnapshots(names);
+  for (const [deviceId, seqs] of otherDevicesFiles(names, local.deviceId)) {
+    let readUpTo = Number((await local.readMeta(readKey(deviceId))) ?? 0);
+    // Files this device hasn't read may be gone, replaced by a snapshot: it is read instead.
+    const snapshot = snapshots.get(deviceId);
+    if (snapshot !== undefined && snapshot.seq > readUpTo) {
+      const text = await storage.read(snapshot.name);
+      // Gone meanwhile, replaced by a newer one, or of a newer format: next time.
+      const changes = text === null ? null : parseChangeFile(text);
+      if (changes === null) continue;
+      await applyChanges(local, changes, result);
+      readUpTo = snapshot.seq;
+      await local.writeMeta(readKey(deviceId), readUpTo);
+    }
     for (const seq of seqs.filter((s) => s > readUpTo)) {
       const text = await storage.read(changeFileName(deviceId, seq));
-      const changes = text === null ? [] : parseChangeFile(text);
-      if (changes === null) break; // A newer format: leave it, and what follows, for a newer app.
-      for (const type of RECORD_TYPES) {
-        const records = changes.filter((c) => c.type === type).map((c) => c.record);
-        if (records.length === 0) continue;
-        const applied = await local.apply(type, records);
-        result.received += applied.changed;
-        result.conflicts += applied.conflicts;
-      }
+      // A file listed but gone is being replaced by a snapshot: read on from it next time,
+      // rather than skip what it held. A newer format waits, with what follows, for a newer app.
+      const changes = text === null ? null : parseChangeFile(text);
+      if (changes === null) break;
+      await applyChanges(local, changes, result);
       await local.writeMeta(readKey(deviceId), seq);
     }
   }
+
+  await purgeOldDeletions(local, now);
+  await compactOwnFiles(storage, local, names, now);
+  if (result.sent > 0) await writeDeviceFile(storage, local, now);
   return result;
+}
+
+/** Merges a file's changes into this device's tables, type by type, counting what it did. */
+async function applyChanges(local: SyncLocal, changes: readonly Change[], result: SyncResult): Promise<void> {
+  for (const type of RECORD_TYPES) {
+    const records = changes.filter((c) => c.type === type).map((c) => c.record);
+    if (records.length === 0) continue;
+    const applied = await local.apply(type, records);
+    result.received += applied.changed;
+    result.conflicts += applied.conflicts;
+  }
+}
+
+/** Writes this device's file: its last change file, and when it last finished a sync. */
+async function writeDeviceFile(storage: SyncStorage, local: SyncLocal, now: number): Promise<void> {
+  const file: DeviceFile = {
+    format: FORMAT,
+    deviceId: local.deviceId,
+    lastSeq: Number((await local.readMeta(SEQ_KEY)) ?? 0),
+    writtenAt: now,
+    syncedAt: now,
+  };
+  await storage.write(deviceFileName(local.deviceId), JSON.stringify(file));
 }
 
 /** Writes this device's pending changes as its next change file. Says how many were sent. */
@@ -124,17 +179,14 @@ async function sendChanges(storage: SyncStorage, local: SyncLocal, now: number):
     changes: changes.map(({ type, record }) => ({ type, record: { ...record, pending: undefined } })),
   };
   await storage.write(changeFileName(local.deviceId, seq), JSON.stringify(file));
-  await storage.write(
-    deviceFileName(local.deviceId),
-    JSON.stringify({ format: FORMAT, deviceId: local.deviceId, lastSeq: seq, writtenAt: now }),
-  );
+  // The device's file follows at the end of the sync, with when it finished reading.
   await local.writeMeta(SEQ_KEY, seq);
   await local.markSent(changes);
   return changes.length;
 }
 
 /** The other devices' change file numbers, in order, by device. */
-function otherDevicesFiles(names: readonly string[], ownId: string): Map<string, number[]> {
+export function otherDevicesFiles(names: readonly string[], ownId: string): Map<string, number[]> {
   const byDevice = new Map<string, number[]>();
   for (const name of names) {
     const parsed = parseChangeFileName(name);

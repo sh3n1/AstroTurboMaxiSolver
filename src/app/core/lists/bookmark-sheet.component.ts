@@ -14,11 +14,13 @@ import {
   IonToolbar,
   ModalController,
 } from '@ionic/angular';
+import { TranslatePipe } from '@ngx-translate/core';
 import { addIcons } from 'ionicons';
 import { add, close } from 'ionicons/icons';
 
 import { designationText } from '../catalog/designations';
 import type { Target } from '../catalog/targets';
+import { t } from '../i18n/t';
 
 import { ListsService } from './lists.service';
 
@@ -29,6 +31,7 @@ import { ListsService } from './lists.service';
 @Component({
   selector: 'app-bookmark-sheet',
   imports: [
+    TranslatePipe,
     IonButton,
     IonButtons,
     IonCheckbox,
@@ -53,9 +56,9 @@ import { ListsService } from './lists.service';
   template: `
     <ion-header>
       <ion-toolbar>
-        <ion-title>Save {{ title() }}</ion-title>
+        <ion-title>{{ 'bookmark.save' | translate: { name: title() } }}</ion-title>
         <ion-buttons slot="end">
-          <ion-button data-testid="bookmark-done" aria-label="Close" (click)="close()">
+          <ion-button data-testid="bookmark-done" [attr.aria-label]="'common.close' | translate" (click)="close()">
             <ion-icon slot="icon-only" name="close" aria-hidden="true"></ion-icon>
           </ion-button>
         </ion-buttons>
@@ -77,7 +80,7 @@ import { ListsService } from './lists.service';
         }
         <ion-item button detail="false" class="new-list" data-testid="bookmark-new-list" (click)="newList()">
           <ion-icon slot="start" name="add" aria-hidden="true"></ion-icon>
-          <ion-label>New list</ion-label>
+          <ion-label>{{ 'lists.newList' | translate }}</ion-label>
         </ion-item>
       </ion-list>
     </ion-content>
@@ -106,12 +109,12 @@ export class BookmarkSheetComponent {
   /** Asks for a name, makes the list and puts the target straight in it. */
   protected async newList(): Promise<void> {
     const alert = await this.alerts.create({
-      header: 'New list',
-      inputs: [{ name: 'name', type: 'text', placeholder: 'For example, Spring galaxies' }],
+      header: t('lists.newList'),
+      inputs: [{ name: 'name', type: 'text', placeholder: t('lists.newListExample') }],
       buttons: [
-        { text: 'Cancel', role: 'cancel' },
+        { text: t('common.cancel'), role: 'cancel' },
         {
-          text: 'Create',
+          text: t('lists.create'),
           handler: ({ name }: { name: string }) => {
             const id = this.lists.create(name);
             this.lists.toggle(id, this.target.id);

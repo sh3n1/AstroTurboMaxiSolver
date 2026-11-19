@@ -6,6 +6,7 @@
 import { designations } from '../catalog/designations';
 import { normalizeSearch } from '../catalog/search';
 import type { Target } from '../catalog/targets';
+import { t } from '../i18n/t';
 
 /** A list read from a file: its name and its targets, and what couldn't be matched. */
 export interface ImportedList {
@@ -198,7 +199,7 @@ export function listNameFromFile(fileName: string): string {
     .replace(/\.[^.]+$/, '')
     .replace(/[_]+/g, ' ')
     .trim();
-  return name || 'Imported list';
+  return name || t('lists.importedList');
 }
 
 /**
@@ -208,6 +209,6 @@ export function listNameFromFile(fileName: string): string {
 export function readListFile(text: string, fileName: string, targets: readonly Target[]): ImportedList {
   const rows = isSkylist(text) ? parseSkylist(text) : parseDelimited(text);
   const { targetIds, missing } = matchRows(rows, targetFinder(targets));
-  if (targetIds.length === 0) throw new Error('No objects in this file were recognised');
+  if (targetIds.length === 0) throw new Error(t('lists.nothingRecognised'));
   return { name: listNameFromFile(fileName), targetIds, missing };
 }

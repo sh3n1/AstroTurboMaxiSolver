@@ -3,6 +3,7 @@
 // Angular dependency, so they can be unit tested.
 
 import type { Target } from '../catalog/targets';
+import { i18n, t } from '../i18n/t';
 
 /**
  * The orders a list can be shown in. "list" is the list's own: the catalogue's numbers,
@@ -13,10 +14,10 @@ export type SortId = (typeof SORTS)[number];
 
 /** The orders' names, as the sort menu shows them. Each list names its own order itself. */
 export const SORT_LABELS: Record<Exclude<SortId, 'list'>, string> = {
-  'best-time': 'Best time tonight',
-  highest: 'Highest now',
-  brightest: 'Brightest',
-  nearest: 'Nearest to the reticle',
+  'best-time': i18n('lists.sorts.bestTime'),
+  highest: i18n('lists.sorts.highest'),
+  brightest: i18n('lists.sorts.brightest'),
+  nearest: i18n('lists.sorts.nearest'),
 };
 
 /** Target types the user can filter by. Clusters combine open and globular. */
@@ -31,6 +32,23 @@ export const TYPE_FILTERS = [
   'Constellation',
 ] as const;
 export type TypeFilter = (typeof TYPE_FILTERS)[number];
+
+/** Each type filter's text key: the filters themselves stay English ids, saved as they are. */
+const TYPE_FILTER_KEYS: Record<TypeFilter, string> = {
+  All: 'lists.types.all',
+  'Solar system': 'lists.types.solarSystem',
+  Galaxy: 'lists.types.galaxy',
+  Nebula: 'lists.types.nebula',
+  Cluster: 'lists.types.cluster',
+  Star: 'lists.types.star',
+  'Double star': 'lists.types.doubleStar',
+  Constellation: 'lists.types.constellation',
+};
+
+/** A type filter's name in the user's language. */
+export function typeFilterText(filter: TypeFilter): string {
+  return t(TYPE_FILTER_KEYS[filter]);
+}
 
 /** Which rows to show by the observing log: all, those still to see, or those seen. */
 export type SeenFilter = 'all' | 'todo' | 'seen';
@@ -120,9 +138,9 @@ export function arrange<T extends Pick<Target, 'mag'>>(
         else never.push(row);
       }
       return filled([
-        { title: 'Up now', rows: sortedBy(up, (entry) => -entry.altDeg).map(({ row }) => row) },
-        { title: 'Rises later', rows: sortedBy(later, (entry) => entry.rise).map(({ row }) => row) },
-        { title: 'Not up today', rows: sortedBy(never, (row) => row.mag) },
+        { title: t('lists.sections.upNow'), rows: sortedBy(up, (entry) => -entry.altDeg).map(({ row }) => row) },
+        { title: t('lists.sections.risesLater'), rows: sortedBy(later, (entry) => entry.rise).map(({ row }) => row) },
+        { title: t('lists.sections.notUpToday'), rows: sortedBy(never, (row) => row.mag) },
       ]);
     }
     case 'best-time': {
@@ -134,8 +152,8 @@ export function arrange<T extends Pick<Target, 'mag'>>(
         else down.push(row);
       }
       return filled([
-        { title: 'Tonight', rows: sortedBy(tonight, (entry) => entry.time).map(({ row }) => row) },
-        { title: 'Not up tonight', rows: sortedBy(down, (row) => row.mag) },
+        { title: t('lists.sections.tonight'), rows: sortedBy(tonight, (entry) => entry.time).map(({ row }) => row) },
+        { title: t('lists.sections.notUpTonight'), rows: sortedBy(down, (row) => row.mag) },
       ]);
     }
   }

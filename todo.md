@@ -99,11 +99,11 @@ are proposals until recorded there. Last reviewed 2026-11-18.
 
 - [x] Observing log with notes, ratings, export as CSV and JSON
 - [x] Data in IndexedDB as sync-ready records, with persistent storage requested
-- [x] Google Drive sync, hidden behind five taps on the Settings title while tried out
+- [x] Google Drive sync, shown to everyone in Settings
 - [x] Two phones linked by WebRTC after swapping QR codes
-- [ ] Mark log entries edited on two phones
+- [x] Mark log entries edited on two phones, and choose a version in Settings, Conflicts
 - [ ] Dropbox and OneDrive, behind `SyncProvider`
-- [ ] Snapshots and purging old deletions
+- [x] Snapshots of old sync files, and purging deletions over six months old
 
 ## Phones and PWA
 

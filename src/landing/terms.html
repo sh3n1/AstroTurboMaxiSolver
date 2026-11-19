@@ -1,79 +1,54 @@
 <!doctype html>
-<html lang="en">
+<html lang="{{@lang}}">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Terms of use · AstroTurboMaxiSolver</title>
-    <meta
-      name="description"
-      content="The terms for using AstroTurboMaxiSolver, a free and experimental telescope finder."
-    />
-    <link rel="canonical" href="https://astroturbomaxisolver.app/terms.html" />
+    <title>{{terms.title}}</title>
+    <meta name="description" content="{{terms.description}}" />
+    <link rel="canonical" href="{{@url}}" />
+    {{@alternates}}
     <meta name="theme-color" content="#05070f" />
     <meta name="color-scheme" content="dark" />
     <link rel="icon" type="image/png" href="app/assets/icon/favicon.png" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
+    {{@languages}}
     <main class="legal">
-      <p><a href="/">← AstroTurboMaxiSolver</a></p>
-      <h1>Terms of use</h1>
-      <p class="note">Last updated: 18 November 2026</p>
+      <p><a href="{{@home}}">{{common.back}}</a></p>
+      <h1>{{terms.heading}}</h1>
+      <p class="note">{{terms.updated}}</p>
+      {{@translationNote}}
 
-      <h2>What it is</h2>
-      <p>
-        AstroTurboMaxiSolver is a free, non-commercial personal project: a telescope finder that runs in your phone's
-        browser. Using it means accepting these terms.
-      </p>
+      <h2>{{terms.whatTitle}}</h2>
+      <p>{{terms.what}}</p>
 
-      <h2>Experimental, and provided as is</h2>
-      <p>
-        It is experimental software, not production software, provided as is, without any warranty. Positions, guidance,
-        forecasts and other information may be wrong. Check them before relying on them.
-      </p>
+      <h2>{{terms.asIsTitle}}</h2>
+      <p>{{terms.asIs}}</p>
 
-      <h2>Safety</h2>
-      <p class="warning">
-        Never point your telescope or your phone's camera at the Sun. Looking at the Sun through a telescope can blind
-        you instantly.
-      </p>
-      <p>Take care at night: watch your step in the dark, and keep your equipment secure on its mount.</p>
+      <h2>{{terms.safetyTitle}}</h2>
+      <p class="warning">{{terms.sun}}</p>
+      <p>{{terms.night}}</p>
 
-      <h2>Licence</h2>
-      <p>
-        AstroTurboMaxiSolver is free software: you can redistribute it and modify it under the terms of the
-        <a href="https://www.gnu.org/licenses/gpl-3.0.html" rel="noopener">GNU General Public License version 3</a>, as
-        published by the Free Software Foundation. Copyright © 2026 The AstroTurboMaxiSolver authors.
-      </p>
-      <p>Its source code is on <a href="https://github.com/sh3n1/AstroTurboMaxiSolver" rel="noopener">GitHub</a>.</p>
+      <h2>{{terms.licenceTitle}}</h2>
+      <p>{{terms.licence}}</p>
+      <p>{{terms.source}}</p>
 
-      <h2>Your data</h2>
-      <p>
-        Your data stays on your devices, or in your own Google Drive if you choose to sync. See the
-        <a href="/privacy.html">privacy policy</a>. Keep your own backups: the export in Lists is there for that.
-      </p>
+      <h2>{{terms.dataTitle}}</h2>
+      <p>{{terms.data}}</p>
 
-      <h2>Data from others</h2>
-      <p>
-        Star and object data come from OpenNGC and the HYG Database (CC BY-SA 4.0), the Washington Double Star Catalog,
-        the NASA/JPL Small-Body Database and others, under their own licences. Full credits are in the app's Settings.
-        Weather forecasts come from Open-Meteo.
-      </p>
+      <h2>{{terms.othersTitle}}</h2>
+      <p>{{terms.others}}</p>
 
-      <h2>Changes and availability</h2>
-      <p>
-        The app may change, or stop being available, at any time. If these terms change, the new version is published
-        here, with its date.
-      </p>
+      <h2>{{terms.changesTitle}}</h2>
+      <p>{{terms.changes}}</p>
 
-      <h2>Liability</h2>
-      <p>
-        To the extent the law allows, the author is not liable for any damage or loss from using the app, including
-        damage to equipment or missed observations.
-      </p>
+      <h2>{{terms.liabilityTitle}}</h2>
+      <p>{{terms.liability}}</p>
     </main>
     <footer>
-      <p><a href="/">Home</a> · <a href="/privacy.html">Privacy</a></p>
+      <p><a href="{{@home}}">{{common.home}}</a> · <a href="{{@privacy}}">{{common.privacy}}</a></p>
     </footer>
+    {{@remember}}
   </body>
 </html>

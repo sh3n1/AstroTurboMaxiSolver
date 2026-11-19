@@ -1,5 +1,6 @@
 import { Component } from '@angular/core';
 import { IonBackButton, IonButtons, IonContent, IonHeader, IonTitle, IonToolbar } from '@ionic/angular';
+import { TranslatePipe } from '@ngx-translate/core';
 
 import { SettingsEquipmentComponent } from '../core/settings/settings-equipment.component';
 
@@ -9,14 +10,27 @@ import { SettingsEquipmentComponent } from '../core/settings/settings-equipment.
  */
 @Component({
   selector: 'app-equipment',
-  imports: [IonBackButton, IonButtons, IonContent, IonHeader, IonTitle, IonToolbar, SettingsEquipmentComponent],
+  imports: [
+    TranslatePipe,
+    IonBackButton,
+    IonButtons,
+    IonContent,
+    IonHeader,
+    IonTitle,
+    IonToolbar,
+    SettingsEquipmentComponent,
+  ],
   template: `
     <ion-header>
       <ion-toolbar>
         <ion-buttons slot="start">
-          <ion-back-button defaultHref="/tabs/settings" text="" aria-label="Back"></ion-back-button>
+          <ion-back-button
+            defaultHref="/tabs/settings"
+            text=""
+            [attr.aria-label]="'common.back' | translate"
+          ></ion-back-button>
         </ion-buttons>
-        <ion-title>Equipment</ion-title>
+        <ion-title>{{ 'settings.equipment' | translate }}</ion-title>
       </ion-toolbar>
     </ion-header>
     <ion-content>
