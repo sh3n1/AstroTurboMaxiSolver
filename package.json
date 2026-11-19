@@ -36,6 +36,7 @@
     "@ngx-translate/http-loader": "^18.1.0",
     "astronomy-engine": "2.1.19",
     "dexie": "4.4.7",
+    "fflate": "^0.8.3",
     "geomagnetism": "^0.2.0",
     "ionicons": "^8.1.0",
     "jsqr": "1.4.0",

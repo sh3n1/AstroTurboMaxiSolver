@@ -43,6 +43,7 @@ import { PermissionsService } from '../core/platform/permissions.service';
 import { SoundService } from '../core/platform/sound.service';
 import { RemoteService } from '../core/remote/remote.service';
 import { SettingsAboutComponent } from '../core/settings/settings-about.component';
+import { SettingsBackupComponent } from '../core/settings/settings-backup.component';
 import { SettingsDisplayComponent } from '../core/settings/settings-display.component';
 import { SETTINGS_ROW_STYLES } from '../core/settings/settings-styles';
 import { SettingsSyncComponent } from '../core/settings/settings-sync.component';
@@ -64,6 +65,7 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
     TranslatePipe,
     NumPipe,
     SettingsAboutComponent,
+    SettingsBackupComponent,
     SettingsDisplayComponent,
     SettingsSyncComponent,
     SettingsTestingComponent,
@@ -211,6 +213,9 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
 
         <!-- The log, lists and kit, the same on all the user's devices. -->
         <app-settings-sync />
+
+        <!-- The log, lists, kit and settings in one file, to keep or to move to another phone. -->
+        <app-settings-backup />
 
         <!-- How the phone sits on the telescope, and how it finds where it points. -->
         <ion-list inset="true">

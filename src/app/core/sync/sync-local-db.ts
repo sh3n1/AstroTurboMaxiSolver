@@ -45,12 +45,31 @@ export class DexieSyncLocal implements SyncLocal {
   }
 
   async apply(type: RecordType, records: readonly AnyRecord[]): Promise<{ changed: number; conflicts: number }> {
+    return this.merge(type, records, 0);
+  }
+
+  /**
+   * Merges records from a backup, as a sync would, so a newer version here isn't replaced.
+   * What it writes is marked to send, so the other devices get it through sync too.
+   */
+  restore(type: RecordType, records: readonly AnyRecord[]): Promise<{ changed: number; conflicts: number }> {
+    return this.merge(type, records, 1);
+  }
+
+  /** Merges received records into a table, writing them as sent (0) or still to send (1). */
+  private async merge(
+    type: RecordType,
+    records: readonly AnyRecord[],
+    pending: 0 | 1,
+  ): Promise<{ changed: number; conflicts: number }> {
     const table = this.table(type);
     return this.db.transaction('rw', table, this.db.conflicts, async () => {
       const ids = [...new Set(records.map((r) => r.id))];
       const found = await table.bulkGet(ids);
       const locals = new Map(found.filter((r): r is AnyRecord => !!r).map((r) => [r.id, r]));
-      const { writes, losers } = mergeBatch(locals, records);
+      const merged = mergeBatch(locals, records);
+      const writes = merged.writes.map((record) => ({ ...record, pending }));
+      const { losers } = merged;
       await table.bulkPut(writes);
       // A conflict settled on another device: the version written there descends from the
       // one this device kept aside, which has nothing more to say.

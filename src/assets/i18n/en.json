@@ -836,5 +836,21 @@
     "deletedHere": "Deleted on this phone",
     "keep": "Keep this one",
     "none": "No conflicts. Everything is the same on all your devices."
+  },
+  "backup": {
+    "title": "Backup",
+    "save": "Save a full backup",
+    "saveNote": "Log, lists, kit and settings, in one file",
+    "restore": "Restore a backup",
+    "restoreNote": "Joins what is on this phone",
+    "confirmHeader": "Restore this backup?",
+    "confirmMessage": "Made on {{date}}. Log entries: {{entries}} · lists: {{lists}} · kit: {{kit}}. They join what is on this phone, and its settings replace this phone’s.",
+    "restoreButton": "Restore",
+    "restored": "Backup restored",
+    "saveFailed": "Couldn’t save the backup",
+    "restoreFailed": "Couldn’t restore the backup",
+    "notOurs": "This isn’t an AstroTurboMaxiSolver backup",
+    "newer": "This backup is from a newer version of the app. Update the app first.",
+    "damaged": "The backup file is damaged"
   }
 }

@@ -11,32 +11,32 @@ stays in localStorage and is never synced.
 
 **Synced, in IndexedDB:**
 
-| Data | Table | Notes |
-| --- | --- | --- |
-| Observing log | `logEntries` | Grows without limit. Will get photos. |
-| The user's lists | `lists` | Name only. |
-| The targets in each list | `listItems` | One record per target in a list. |
-| Equipment kit: telescopes, eyepieces, Barlows and reducers, filters | `kit` | One record per item, with a `kind` field. |
-| Device id, migration flags | `meta` | About this database. Not synced. |
+| Data                                                                | Table        | Notes                                     |
+| ------------------------------------------------------------------- | ------------ | ----------------------------------------- |
+| Observing log                                                       | `logEntries` | Grows without limit. Will get photos.     |
+| The user's lists                                                    | `lists`      | Name only.                                |
+| The targets in each list                                            | `listItems`  | One record per target in a list.          |
+| Equipment kit: telescopes, eyepieces, Barlows and reducers, filters | `kit`        | One record per item, with a `kind` field. |
+| Device id, migration flags                                          | `meta`       | About this database. Not synced.          |
 
 **This device only, in localStorage:**
 
-| Data | Key | Why it isn't synced |
-| --- | --- | --- |
-| Kit selection: which telescope, eyepiece, Barlow and filter are in use | `astroturbomaxisolver.settings` | Each phone may be on a different telescope. It points at kit records by UUID. |
-| Location, Bortle | `astroturbomaxisolver.settings` | Where this phone is tonight. Shared observing sites would be a new synced table. |
-| Camera field factor | `astroturbomaxisolver.settings` | This phone's camera. |
-| Night mode, text size | `astroturbomaxisolver.settings` | Chosen for this screen and session. A tablet and a phone differ. |
-| Auto solve, keep screen on, shutter remote, solve sound, RA/Dec, eyepiece star limit | `astroturbomaxisolver.settings` | How this phone is used. |
-| Debug options: solve toasts, send solves, capture mode | `astroturbomaxisolver.settings` | Development only. |
-| Alignment | `astroturbomaxisolver.alignment` | Only valid for this phone on this telescope. |
-| Sort order chosen per list | `astroturbomaxisolver.listSorts` | Keyed by list UUID, or by the app list's name. A view choice. |
-| Chart of tonight open or closed, on every list | `astroturbomaxisolver.listChart` | A view choice. |
-| Observing programmes whose card was read | `astroturbomaxisolver.programsRead` | A view choice: the card then shows folded. |
-| The observer's name for OAL log files | `astroturbomaxisolver.observer` | Filled in for the next export. Would join a synced profile if one is made. |
-| The list being observed through (playlist) | `astroturbomaxisolver.playlist` | Where this phone is in a list tonight, like the selected target. |
-| Weather forecast | `astroturbomaxisolver.forecast` | Throwaway cache. |
-| Which drive sync uses, and when it last synced | `astroturbomaxisolver.sync` | This device's connection. The drive's access itself is kept in memory only. |
+| Data                                                                                 | Key                                 | Why it isn't synced                                                              |
+| ------------------------------------------------------------------------------------ | ----------------------------------- | -------------------------------------------------------------------------------- |
+| Kit selection: which telescope, eyepiece, Barlow and filter are in use               | `astroturbomaxisolver.settings`     | Each phone may be on a different telescope. It points at kit records by UUID.    |
+| Location, Bortle                                                                     | `astroturbomaxisolver.settings`     | Where this phone is tonight. Shared observing sites would be a new synced table. |
+| Camera field factor                                                                  | `astroturbomaxisolver.settings`     | This phone's camera.                                                             |
+| Night mode, text size                                                                | `astroturbomaxisolver.settings`     | Chosen for this screen and session. A tablet and a phone differ.                 |
+| Auto solve, keep screen on, shutter remote, solve sound, RA/Dec, eyepiece star limit | `astroturbomaxisolver.settings`     | How this phone is used.                                                          |
+| Debug options: solve toasts, send solves, capture mode                               | `astroturbomaxisolver.settings`     | Development only.                                                                |
+| Alignment                                                                            | `astroturbomaxisolver.alignment`    | Only valid for this phone on this telescope.                                     |
+| Sort order chosen per list                                                           | `astroturbomaxisolver.listSorts`    | Keyed by list UUID, or by the app list's name. A view choice.                    |
+| Chart of tonight open or closed, on every list                                       | `astroturbomaxisolver.listChart`    | A view choice.                                                                   |
+| Observing programmes whose card was read                                             | `astroturbomaxisolver.programsRead` | A view choice: the card then shows folded.                                       |
+| The observer's name for OAL log files                                                | `astroturbomaxisolver.observer`     | Filled in for the next export. Would join a synced profile if one is made.       |
+| The list being observed through (playlist)                                           | `astroturbomaxisolver.playlist`     | Where this phone is in a list tonight, like the selected target.                 |
+| Weather forecast                                                                     | `astroturbomaxisolver.forecast`     | Throwaway cache.                                                                 |
+| Which drive sync uses, and when it last synced                                       | `astroturbomaxisolver.sync`         | This device's connection. The drive's access itself is kept in memory only.      |
 
 App code and the star and target data are in the service worker cache (`ngsw-config.json`)
 for offline start. They aren't user data.
@@ -61,22 +61,38 @@ IndexedDB is used through [Dexie](https://dexie.org) 4 (Apache-2.0). The databas
   Safari still clears a site's data after weeks without a visit unless the app is installed on
   the home screen, so the backup export stays important.
 
+## Full backup
+
+Settings, Backup, saves everything above as one zip file (`core/storage/backup.ts`, zipped with
+fflate): one JSON file per table, with every record's bookkeeping and the deleted ones, the
+conflict versions set aside, and the preferences listed in `BACKUP_PREFERENCES` (settings,
+list sorts and chart, programmes read, the observer's name). Not the forecast cache, the drive
+connection, tonight's alignment, or data from before the database.
+
+Restoring merges the records as a sync would (`DexieSyncLocal.restore`), so nothing newer on the
+phone is replaced, and marks what it writes to send, so the other devices get it through sync.
+The preferences replace the phone's, and the app reloads. A record whose hash doesn't match its
+content is left out, and a backup from a newer version is refused.
+
+When something new is saved, decide whether a backup should keep it: a table joins
+`RECORD_TYPES` or the backup's own files, a localStorage key joins `BACKUP_PREFERENCES`.
+
 ## Records
 
 Every record holds its content and the same bookkeeping (`SyncMeta` in
 `src/app/core/storage/sync-record.ts`):
 
-| Field | Meaning |
-| --- | --- |
-| `id` | Always a UUID. See the id rules below. |
-| `createdAt` | When it was made, in ms, by this device's clock |
-| `updatedAt` | When it last changed, or was deleted or put back |
-| `deviceId` | The device that made the last change |
-| `rev` | 1 when made, plus one per change |
-| `hash` | cyrb53 hash of the content, without the bookkeeping, keys sorted |
-| `deletedAt` | When it was deleted, or null. Deleted records stay as tombstones. |
-| `pending` | 1 when changed since the last sync |
-| `history` | The revisions it replaced, newest first, as `"<rev>-<hash>"`, up to 50. Missing on records from before sync |
+| Field       | Meaning                                                                                                     |
+| ----------- | ----------------------------------------------------------------------------------------------------------- |
+| `id`        | Always a UUID. See the id rules below.                                                                      |
+| `createdAt` | When it was made, in ms, by this device's clock                                                             |
+| `updatedAt` | When it last changed, or was deleted or put back                                                            |
+| `deviceId`  | The device that made the last change                                                                        |
+| `rev`       | 1 when made, plus one per change                                                                            |
+| `hash`      | cyrb53 hash of the content, without the bookkeeping, keys sorted                                            |
+| `deletedAt` | When it was deleted, or null. Deleted records stay as tombstones.                                           |
+| `pending`   | 1 when changed since the last sync                                                                          |
+| `history`   | The revisions it replaced, newest first, as `"<rev>-<hash>"`, up to 50. Missing on records from before sync |
 
 Rules every write follows:
 
@@ -106,6 +122,7 @@ Rules every write follows:
 
 The default telescope (130/650) and eyepiece (25 mm) are never saved. A new phone shows them
 until the user saves an item of that kind.
+
 - Editing a default saves it as the user's own item.
 - Adding a first item of a kind next to a default saves the default too, so it doesn't vanish
   from the list.
