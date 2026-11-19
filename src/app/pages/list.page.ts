@@ -1,4 +1,3 @@
-import { DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, viewChild } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -33,7 +32,8 @@ import {
 import { map } from 'rxjs';
 
 import { AppState } from '../core/app-state.service';
-import { t } from '../core/i18n/t';
+import { NumPipe } from '../core/i18n/i18n-pipes';
+import { t, tn } from '../core/i18n/t';
 import { ListRowsComponent } from '../core/lists/list-rows.component';
 import { ListToolsComponent } from '../core/lists/list-tools.component';
 import { ListViewService } from '../core/lists/list-view.service';
@@ -56,7 +56,7 @@ import { ObservingLogService } from '../core/log/observing-log.service';
   imports: [
     TranslatePipe,
     ProgramCardComponent,
-    DecimalPipe,
+    NumPipe,
     IonBackButton,
     IonButton,
     IonButtons,
@@ -164,8 +164,8 @@ import { ObservingLogService } from '../core/log/observing-log.service';
                   'readout.altAz'
                     | translate
                       : {
-                          alt: (state.pointing().altDeg | number: '1.0-0'),
-                          az: (state.pointing().azDeg | number: '1.0-0'),
+                          alt: (state.pointing().altDeg | num: '1.0-0'),
+                          az: (state.pointing().azDeg | num: '1.0-0'),
                         }
                 }}
               </p>
@@ -411,7 +411,7 @@ export class ListPage {
     if (!list) return;
     const alert = await this.alerts.create({
       header: t('lists.deleteQuestion'),
-      message: t('lists.deleteMessage', { name: list.name, count: list.targets.length }),
+      message: tn('lists.deleteMessage', list.targets.length, { name: list.name }),
       buttons: [
         { text: t('common.cancel'), role: 'cancel' },
         {

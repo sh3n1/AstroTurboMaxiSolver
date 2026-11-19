@@ -4,7 +4,7 @@ import { AlertController, ToastController } from '@ionic/angular';
 import { AppState } from '../app-state.service';
 import { designationText } from '../catalog/designations';
 import type { Target } from '../catalog/targets';
-import { t } from '../i18n/t';
+import { num, t } from '../i18n/t';
 import { rearCameraDirection } from '../sensors/attitude';
 import { cameraPointing } from '../sensors/device-orientation';
 import { LiveSolverService } from '../solver/live-solver.service';
@@ -45,7 +45,7 @@ export class AlignmentSyncService {
       // Far from where the app expected: perhaps another star is centred. Ask first.
       if (errorDeg > SYNC_CONFIRM_DEG && !(await this.confirm(target, errorDeg))) return;
       this.state.alignment.set(addSync(alignment, camera, position, now));
-      void this.tell(t('align.synced', { degrees: errorDeg.toFixed(2) }));
+      void this.tell(t('align.synced', { degrees: num(errorDeg, 2) }));
     } finally {
       this.syncing.set(false);
     }
@@ -53,7 +53,7 @@ export class AlignmentSyncService {
 
   private async confirm(target: Target, errorDeg: number): Promise<boolean> {
     const alert = await this.alerts.create({
-      header: t('align.off', { degrees: errorDeg.toFixed(1) }),
+      header: t('align.off', { degrees: num(errorDeg, 1) }),
       message: t('align.centredQuestion', { name: designationText(target) || target.name }),
       htmlAttributes: { 'data-testid': 'sync-confirm' },
       buttons: [

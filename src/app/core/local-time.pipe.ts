@@ -1,6 +1,8 @@
 import { Pipe } from '@angular/core';
 import type { PipeTransform } from '@angular/core';
 
+import { appLocale } from './i18n/t';
+
 /** How much of the date and time to show. */
 export type LocalTimeFormat = 'time' | 'time-seconds' | 'date' | 'day' | 'date-time';
 
@@ -29,7 +31,7 @@ export class LocalTimePipe implements PipeTransform {
     if (Number.isNaN(date.getTime())) return '';
     const otherYear = SHOWS_DATE.has(format) && date.getFullYear() !== new Date().getFullYear();
     const options: Intl.DateTimeFormatOptions = otherYear ? { ...OPTIONS[format], year: '2-digit' } : OPTIONS[format];
-    // No locale given: the browser uses the phone's language and region settings.
-    return new Intl.DateTimeFormat(undefined, options).format(date);
+    // The app's language, with the phone's region where it speaks it: see i18n/languages.ts.
+    return new Intl.DateTimeFormat(appLocale(), options).format(date);
   }
 }

@@ -1,4 +1,3 @@
-import { DecimalPipe } from '@angular/common';
 import type { OnInit } from '@angular/core';
 import { Component, Input, computed, inject, signal } from '@angular/core';
 import {
@@ -32,6 +31,7 @@ import { APP_ICONS } from '../app-icons';
 import { AppState } from '../app-state.service';
 import { iconDataUrl, phaseIcon } from '../catalog/target-icons';
 import { equipmentLabel } from '../equipment/equipment';
+import { NumPipe } from '../i18n/i18n-pipes';
 import { i18n, t } from '../i18n/t';
 import { LocalTimePipe } from '../local-time.pipe';
 import { nakedEyeLimit } from '../sky-conditions/sky-quality';
@@ -68,7 +68,7 @@ const DELETED_TOAST_MS = 5000;
   selector: 'app-log-entry-sheet',
   imports: [
     TranslatePipe,
-    DecimalPipe,
+    NumPipe,
     LocalTimePipe,
     IonButton,
     IonButtons,
@@ -254,9 +254,9 @@ const DELETED_TOAST_MS = 5000;
         <div class="conditions" data-testid="log-conditions">
           <span class="condition">
             @if (c.altDeg >= 0) {
-              {{ 'log.up' | translate: { degrees: (c.altDeg | number: '1.0-0') } }}
+              {{ 'log.up' | translate: { degrees: (c.altDeg | num: '1.0-0') } }}
             } @else {
-              {{ 'log.below' | translate: { degrees: (-c.altDeg | number: '1.0-0') } }}
+              {{ 'log.below' | translate: { degrees: (-c.altDeg | num: '1.0-0') } }}
             }
           </span>
           <span class="condition"
@@ -266,7 +266,7 @@ const DELETED_TOAST_MS = 5000;
           <span class="condition"
             ><ion-icon [src]="moonIcon()" aria-hidden="true"></ion-icon>
             @if (c.moonAltDeg > 0) {
-              {{ 'log.moon' | translate: { percent: (c.moonLitPercent | number: '1.0-0') } }}
+              {{ 'log.moon' | translate: { percent: (c.moonLitPercent | num: '1.0-0') } }}
             } @else {
               {{ 'moon.down' | translate }}
             }
@@ -362,7 +362,7 @@ const DELETED_TOAST_MS = 5000;
                 type="number"
                 inputmode="decimal"
                 [debounce]="400"
-                [placeholder]="'≈ ' + (estimatedLimit() | number: '1.1-1')"
+                [placeholder]="'≈ ' + (estimatedLimit() | num: '1.1-1')"
                 [value]="d.faintestStar ?? ''"
                 (ionInput)="setNumber('faintestStar', $any($event).detail.value, 0, 8.5)"
               ></ion-input>

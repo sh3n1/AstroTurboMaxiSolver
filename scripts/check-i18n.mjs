@@ -45,6 +45,15 @@ const USES = [
   // A key named in a constant or a map, marked as one: i18n('area.name')
   new RegExp(String.raw`\bi18n\(\s*['"](${KEY})['"]`, 'g'),
 ];
+/**
+ * Texts that depend on a count: `'area.name' | plural: n` or tn('area.name', n). Their key
+ * holds one form per plural category, and must have `other`.
+ */
+const PLURAL_USES = [
+  new RegExp(String.raw`['"](${KEY})['"]\s*\|\s*plural`, 'g'),
+  new RegExp(String.raw`\btn\(\s*['"](${KEY})['"]`, 'g'),
+];
+const PLURAL_FORMS = ['zero', 'one', 'two', 'few', 'many', 'other'];
 /** Keys built at run time: 'area.' + x, or `area.${x}`. */
 const BUILT = [new RegExp(String.raw`['"]((?:[a-z][\w-]*\.)+)['"]\s*\+`, 'g'), /`((?:[a-z][\w-]*\.)+)\$\{/g];
 
@@ -58,6 +67,12 @@ for (const file of sources(SOURCE_DIR)) {
     for (const [, key] of text.matchAll(pattern)) {
       used.add(key);
       if (!english.has(key)) missing.push(`${file}: "${key}"`);
+    }
+  }
+  for (const pattern of PLURAL_USES) {
+    for (const [, key] of text.matchAll(pattern)) {
+      prefixes.add(`${key}.`);
+      if (!english.has(`${key}.other`)) missing.push(`${file}: "${key}.other"`);
     }
   }
   for (const pattern of BUILT) for (const [, prefix] of text.matchAll(pattern)) prefixes.add(prefix);
@@ -76,8 +91,18 @@ const unused = [...english.keys()].filter(
 const others = [];
 for (const name of readdirSync(I18N_DIR).filter((n) => n.endsWith('.json') && n !== DEFAULT_FILE)) {
   const keys = flatten(JSON.parse(readFileSync(path.join(I18N_DIR, name), 'utf8')));
-  for (const key of english.keys()) if (!keys.has(key)) others.push(`${name} lacks "${key}"`);
-  for (const key of keys.keys()) if (!english.has(key)) others.push(`${name} has "${key}", which en.json doesn't`);
+  // A count's forms differ by language (Spanish has "many", English doesn't): only "other" is
+  // required, and any plural form of a counted text is allowed.
+  const pluralForm = (key) => {
+    const at = key.lastIndexOf('.');
+    return PLURAL_FORMS.includes(key.slice(at + 1)) && english.has(`${key.slice(0, at)}.other`);
+  };
+  for (const key of english.keys()) {
+    if (!keys.has(key) && (!pluralForm(key) || key.endsWith('.other'))) others.push(`${name} lacks "${key}"`);
+  }
+  for (const key of keys.keys()) {
+    if (!english.has(key) && !pluralForm(key)) others.push(`${name} has "${key}", which en.json doesn't`);
+  }
 }
 
 const report = (title, lines) => lines.length && console.error(`${title}:\n  ${lines.join('\n  ')}`);

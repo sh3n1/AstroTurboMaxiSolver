@@ -26,7 +26,8 @@ import { folderOpenOutline, saveOutline, swapVerticalOutline } from 'ionicons/ic
 
 import { normalizeSearch } from '../core/catalog/search';
 import { equipmentLabel } from '../core/equipment/equipment';
-import { t } from '../core/i18n/t';
+import { PluralPipe } from '../core/i18n/i18n-pipes';
+import { appLocale, t, tn } from '../core/i18n/t';
 import { LocalTimePipe } from '../core/local-time.pipe';
 import type { LogEntry, LogNight } from '../core/log/observing-log';
 import { entryMatches, groupByNight, logTotals, ratingText, tagText, wasSeen } from '../core/log/observing-log';
@@ -34,14 +35,14 @@ import { ObservingLogService } from '../core/log/observing-log.service';
 import { SeenActionsService } from '../core/log/seen-actions.service';
 
 /** A night's date, short, in the phone's language: "Thu 12 Nov". */
-const NIGHT_DATE = new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+const NIGHT_DATE: Intl.DateTimeFormatOptions = { weekday: 'short', day: 'numeric', month: 'short' };
 /** The year too, for nights in another year. */
-const NIGHT_DATE_YEAR = new Intl.DateTimeFormat(undefined, {
+const NIGHT_DATE_YEAR: Intl.DateTimeFormatOptions = {
   weekday: 'short',
   day: 'numeric',
   month: 'short',
   year: 'numeric',
-});
+};
 
 /**
  * The observing log: every target logged, one card per night, newest first, with the
@@ -50,6 +51,7 @@ const NIGHT_DATE_YEAR = new Intl.DateTimeFormat(undefined, {
 @Component({
   selector: 'app-log',
   imports: [
+    PluralPipe,
     TranslatePipe,
     LocalTimePipe,
     IonBackButton,
@@ -138,8 +140,8 @@ const NIGHT_DATE_YEAR = new Intl.DateTimeFormat(undefined, {
       } @else {
         <p class="totals" data-testid="log-totals">
           <strong>{{ totals().objects }}</strong>
-          {{ (totals().objects === 1 ? 'log.objectSeen' : 'log.objectsSeen') | translate }} ·
-          <strong>{{ totals().nights }}</strong> {{ (totals().nights === 1 ? 'log.night' : 'log.nights') | translate }}
+          {{ 'log.objectsSeen' | plural: totals().objects }} · <strong>{{ totals().nights }}</strong>
+          {{ 'log.nights' | plural: totals().nights }}
         </p>
         <!-- The nights go in two columns on a phone on its side: see .af-columns in global.scss. -->
         <div class="af-columns">
@@ -225,7 +227,8 @@ export class LogPage {
   }
 
   protected nightDate(night: LogNight): string {
-    return (night.date.getFullYear() === new Date().getFullYear() ? NIGHT_DATE : NIGHT_DATE_YEAR).format(night.date);
+    const options = night.date.getFullYear() === new Date().getFullYear() ? NIGHT_DATE : NIGHT_DATE_YEAR;
+    return new Intl.DateTimeFormat(appLocale(), options).format(night.date);
   }
 
   /** The night's sky and telescope, from its first entry: "Bortle 8 · Moon 12% · 130/650 · 25 mm". */
@@ -302,7 +305,7 @@ export class LogPage {
     if (!file) return;
     try {
       const count = await this.log.import(await file.text());
-      void this.toast(count === 1 ? t('log.importedOne') : t('log.importedMany', { count }));
+      void this.toast(tn('log.imported', count));
     } catch (error) {
       void this.toast(error instanceof Error ? error.message : t('lists.importFailed'));
     }

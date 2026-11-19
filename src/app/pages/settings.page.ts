@@ -37,6 +37,7 @@ import { APP_ICONS } from '../core/app-icons';
 import { AppState } from '../core/app-state.service';
 import type { Settings } from '../core/app-state.service';
 import { formatLocation } from '../core/astronomy/astronomy';
+import { NumPipe } from '../core/i18n/i18n-pipes';
 import { LOCATION_UPDATED } from '../core/platform/permission-help';
 import { PermissionsService } from '../core/platform/permissions.service';
 import { SoundService } from '../core/platform/sound.service';
@@ -61,6 +62,7 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
   imports: [
     RouterLink,
     TranslatePipe,
+    NumPipe,
     SettingsAboutComponent,
     SettingsDisplayComponent,
     SettingsSyncComponent,
@@ -191,7 +193,7 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
           <p class="section-note">{{ 'settings.bortleScale' | translate }}</p>
           @if (skyBrightness.reading(); as reading) {
             <p class="section-note" data-testid="sky-brightness">
-              {{ 'settings.lightPollution' | translate: { magnitude: reading.magnitude.toFixed(1) } }}
+              {{ 'settings.lightPollution' | translate: { magnitude: (reading.magnitude | num: '1.1-1') } }}
             </p>
           }
         </div>

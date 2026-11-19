@@ -6,7 +6,7 @@ import { Constellation } from 'astronomy-engine';
 
 import { equatorialVector } from '../astronomy/astronomy';
 import { doubleKindText } from '../astronomy/double-stars';
-import { t } from '../i18n/t';
+import { num, t } from '../i18n/t';
 
 import type { Target } from './targets';
 
@@ -103,7 +103,7 @@ export function objectTypeText(target: Target): string {
 /** A size in arcminutes, or in arcseconds when under one: "66′", "4.5′", "40″". */
 function arcminText(value: number): string {
   if (value < 1) return `${Math.round(value * 60)}″`;
-  return value >= 10 ? `${Math.round(value)}′` : `${Number(value.toFixed(1))}′`;
+  return value >= 10 ? `${Math.round(value)}′` : `${num(value, 1, 0)}′`;
 }
 
 /** Both sides of an object, such as "66′ × 60′", or one for a round object, or null. */

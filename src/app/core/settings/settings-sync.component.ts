@@ -5,6 +5,7 @@ import { addIcons } from 'ionicons';
 import { cloudOutline, logOutOutline, phonePortraitOutline, syncOutline } from 'ionicons/icons';
 
 import { AppState } from '../app-state.service';
+import { appLocale } from '../i18n/t';
 import { listToastPlace } from '../lists/list-toast';
 import { LinkSyncService } from '../sync/link-sync.service';
 import { SyncService } from '../sync/sync.service';
@@ -118,8 +119,8 @@ export class SettingsSyncComponent {
   /** A time as "at 21:30" today, or with its date on an earlier day. */
   private formatWhen(time: number): string {
     const date = new Date(time);
-    const clock = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const clock = date.toLocaleTimeString(appLocale(), { hour: '2-digit', minute: '2-digit' });
     if (date.toDateString() === new Date().toDateString()) return this.t('sync.atTime', { time: clock });
-    return `${date.toLocaleDateString([], { day: 'numeric', month: 'short' })}, ${clock}`;
+    return `${date.toLocaleDateString(appLocale(), { day: 'numeric', month: 'short' })}, ${clock}`;
   }
 }

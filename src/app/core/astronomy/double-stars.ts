@@ -3,7 +3,7 @@
 // Plain functions, so they can be tested without the app around them.
 
 import type { DoublePair, DoubleStar, Target } from '../catalog/targets';
-import { t } from '../i18n/t';
+import { num, t } from '../i18n/t';
 
 /** A row of doubles.json: a double star of its own, or one to add to a named star. */
 export type DoubleRow = (Partial<Target> & { double: DoubleStar; aliases: string }) & { starId?: string };
@@ -123,8 +123,8 @@ export function splitAdvice(
 
 /** A separation in arcseconds, or arcminutes from a minute up: "2.1″", "34″", "12′". */
 export function arcsecText(sepArcsec: number): string {
-  if (sepArcsec >= 60) return `${Number((sepArcsec / 60).toFixed(sepArcsec >= 600 ? 0 : 1))}′`;
-  return `${Number(sepArcsec.toFixed(sepArcsec >= 10 ? 0 : 1))}″`;
+  if (sepArcsec >= 60) return `${num(sepArcsec / 60, sepArcsec >= 600 ? 0 : 1, 0)}′`;
+  return `${num(sepArcsec, sepArcsec >= 10 ? 0 : 1, 0)}″`;
 }
 
 /** Whether a pair orbits, travels together, or only lines up by chance, in words. */

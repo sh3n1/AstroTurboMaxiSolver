@@ -1,4 +1,3 @@
-import { DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { IonButton, IonChip, IonIcon, IonRange } from '@ionic/angular';
@@ -8,6 +7,7 @@ import { arrowUndoOutline, settingsOutline } from 'ionicons/icons';
 
 import { AppState } from '../app-state.service';
 import { equipmentLabel, eyepieceLabel, modifierLabel, telescopeLabel } from '../equipment/equipment';
+import { NumPipe } from '../i18n/i18n-pipes';
 
 /** The slider's range for the faintest stars shown. */
 const MIN_STAR_LIMIT = 2;
@@ -20,7 +20,7 @@ const MAX_STAR_LIMIT = 13;
 @Component({
   selector: 'app-eyepiece-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslatePipe, DecimalPipe, IonButton, IonChip, IonIcon, IonRange],
+  imports: [TranslatePipe, NumPipe, IonButton, IonChip, IonIcon, IonRange],
   styles: `
     /* The sky page's rules for the panel's box, and its size on a phone on its side, win over this. */
     :host {
@@ -72,7 +72,7 @@ const MAX_STAR_LIMIT = 13;
       <span data-testid="star-limit-label">
         {{
           (isAutoStarLimit() ? 'eyepiece.starsToYourSky' : 'eyepiece.starsTo')
-            | translate: { mag: (state.starLimit() | number: '1.1-1') }
+            | translate: { mag: (state.starLimit() | num: '1.1-1') }
         }}
       </span>
       <ion-button
@@ -103,8 +103,8 @@ const MAX_STAR_LIMIT = 13;
       data-testid="equipment-toggle"
       (click)="showEquipment.set(!showEquipment())"
     >
-      {{ equipmentLabel(state.equipment()) }} · {{ power() | number: '1.0-0' }}× ·
-      {{ eyepieceField() | number: '1.1-2' }}° {{ showEquipment() ? '▴' : '▾' }}
+      {{ equipmentLabel(state.equipment()) }} · {{ power() | num: '1.0-0' }}× · {{ eyepieceField() | num: '1.1-2' }}°
+      {{ showEquipment() ? '▴' : '▾' }}
     </button>
     <!-- The eyepieces always show, since changing eyepiece is what happens most at the
        telescope. The rest of the kit shows when opened. All of it is set in Settings. -->

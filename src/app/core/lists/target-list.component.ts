@@ -1,4 +1,3 @@
-import { DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
 import { Router } from '@angular/router';
 import {
@@ -36,6 +35,7 @@ import type { Horizontal } from '../astronomy/astronomy';
 import { compassPoint, compassShort } from '../astronomy/astronomy';
 import { iconDataUrl, targetIcon } from '../catalog/target-icons';
 import type { Target, TargetKind } from '../catalog/targets';
+import { NumPipe, PluralPipe } from '../i18n/i18n-pipes';
 import { LocalTimePipe } from '../local-time.pipe';
 import { countLabel } from '../log/observing-log';
 import { ObservingLogService } from '../log/observing-log.service';
@@ -97,8 +97,9 @@ const GOOD_ALTITUDE_DEG = 30;
   // updates many times a second, and must not redo its rows each time the map does.
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    PluralPipe,
     TranslatePipe,
-    DecimalPipe,
+    NumPipe,
     LocalTimePipe,
     IonBadge,
     IonButton,
@@ -205,7 +206,7 @@ const GOOD_ALTITUDE_DEG = 30;
                 [attr.role]="seen ? 'img' : null"
                 [attr.aria-label]="
                   row.seenCount > 1
-                    ? ('lists.seenTimes' | translate: { count: row.seenCount })
+                    ? ('lists.seenTimes' | plural: row.seenCount)
                     : seen === 'seen'
                       ? ('lists.seen' | translate)
                       : seen === 'tried'
@@ -237,7 +238,7 @@ const GOOD_ALTITUDE_DEG = 30;
                 <p>
                   {{ target.name }}
                   @if (target.mag < 90) {
-                    · mag {{ target.mag | number: '1.1-1' }}
+                    · mag {{ target.mag | num: '1.1-1' }}
                   }
                 </p>
                 <!-- A few words about the order the list is in, such as its best time tonight. -->
@@ -253,9 +254,9 @@ const GOOD_ALTITUDE_DEG = 30;
                   [color]="altDeg >= goodAltitude ? 'success' : 'warning'"
                   [attr.aria-label]="
                     'lists.upToThe'
-                      | translate: { degrees: (altDeg | number: '1.0-0'), direction: compassPoint(position.azDeg) }
+                      | translate: { degrees: (altDeg | num: '1.0-0'), direction: compassPoint(position.azDeg) }
                   "
-                  >{{ altDeg | number: '1.0-0' }}° {{ compassShort(position.azDeg) }}</ion-badge
+                  >{{ altDeg | num: '1.0-0' }}° {{ compassShort(position.azDeg) }}</ion-badge
                 >
               } @else if (row.rise; as rise) {
                 <!-- Below the horizon now, but up within a day: when it rises. -->

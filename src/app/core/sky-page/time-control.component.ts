@@ -8,7 +8,7 @@ import { chevronBack, chevronDown, chevronForward, close, cloud, cloudOutline, t
 import { APP_ICONS } from '../app-icons';
 import { AppState } from '../app-state.service';
 import { sunAltitudeDeg } from '../astronomy/astronomy';
-import { t } from '../i18n/t';
+import { appLocale, num, t } from '../i18n/t';
 import { LocalTimePipe } from '../local-time.pipe';
 import type { SeeingQuality } from '../sky-conditions/forecast';
 import { forecastAt, seeingQuality, shownSeeing } from '../sky-conditions/forecast';
@@ -307,6 +307,7 @@ const SEEING_COLOURS: Record<SeeingQuality, string> = {
         <ng-template>
           <div class="day-picker-card">
             <ion-datetime
+              [locale]="locale"
               presentation="date"
               data-testid="day-picker"
               [value]="isoDay(shown())"
@@ -354,6 +355,8 @@ const SEEING_COLOURS: Record<SeeingQuality, string> = {
 export class TimeControlComponent {
   protected readonly state = inject(AppState);
   protected readonly forecast = inject(ForecastService);
+  /** The calendar's language: the app's, or the phone's before it is set. */
+  protected readonly locale = appLocale() ?? 'default';
   private readonly ruler = viewChild<ElementRef<HTMLCanvasElement>>('ruler');
 
   /** The time on show: the chosen one, or now. */
@@ -517,8 +520,8 @@ export class TimeControlComponent {
     ctx.fillStyle = text;
     ctx.textAlign = 'center';
     ctx.font = `600 ${Math.round(14 * scale)}px system-ui, sans-serif`;
-    const hourFormat = new Intl.DateTimeFormat(undefined, { hour: 'numeric' });
-    const dayFormat = new Intl.DateTimeFormat(undefined, { weekday: 'short' });
+    const hourFormat = new Intl.DateTimeFormat(appLocale(), { hour: 'numeric' });
+    const dayFormat = new Intl.DateTimeFormat(appLocale(), { weekday: 'short' });
     const quarter = 15 * 60_000;
     for (let t = Math.ceil((time.getTime() - halfSpanMs) / quarter) * quarter; xOf(t) <= width; t += quarter) {
       const x = xOf(t);
@@ -601,7 +604,7 @@ export class TimeControlComponent {
         ctx.fillStyle = SEEING_COLOURS[seeingQuality(cell.seeingArcsec)];
         ctx.fillRect(left, top + row, pxPerHour + 0.5, row - 1);
         ctx.fillStyle = text;
-        const label = `${shownSeeing(cell.seeingArcsec).toFixed(1)}″`;
+        const label = `${num(shownSeeing(cell.seeingArcsec), 1)}″`;
         if (fits(label, middle)) ctx.fillText(label, middle, top + row * 1.5);
       }
     }

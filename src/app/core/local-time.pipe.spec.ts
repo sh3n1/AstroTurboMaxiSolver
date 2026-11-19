@@ -6,8 +6,9 @@ describe('local time', () => {
   const pipe = new LocalTimePipe();
   const date = new Date(2026, 10, 7, 21, 5, 9);
 
-  it("shows times the way the phone's own settings do", () => {
-    const expected = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(date);
+  it("shows times in the app's language, with the phone's region where it speaks it", () => {
+    // The tests run in English: see test-setup.ts. A phone in Britain would give en-GB here.
+    const expected = new Intl.DateTimeFormat('en', { hour: 'numeric', minute: '2-digit' }).format(date);
     expect(pipe.transform(date)).toBe(expected);
     expect(pipe.transform(date, 'time-seconds')).toContain('05');
     expect(pipe.transform(date, 'date-time')).toContain('7');

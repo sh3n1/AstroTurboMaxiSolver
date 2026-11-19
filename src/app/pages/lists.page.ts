@@ -36,7 +36,7 @@ import {
 } from 'ionicons/icons';
 
 import { isIconUrl } from '../core/app-icons';
-import { t } from '../core/i18n/t';
+import { t, tn } from '../core/i18n/t';
 import { ListsService } from '../core/lists/lists.service';
 import { fixedListEntries } from '../core/lists/target-lists';
 import { ObservingLogService } from '../core/log/observing-log.service';
@@ -321,7 +321,7 @@ export class ListsPage {
   private async importText(text: string, fileName = t('lists.pastedList')): Promise<void> {
     try {
       const { lists, missing } = await this.lists.import(text, fileName);
-      const imported = lists === 1 ? t('lists.importedOne') : t('lists.importedMany', { count: lists });
+      const imported = tn('lists.imported', lists);
       // Longer when it names what is missing, to give time to read it.
       if (missing.length === 0) void this.toast(imported);
       else void this.toast(`${imported}. ${notFoundText(missing)}`, 6000);
@@ -345,5 +345,5 @@ export class ListsPage {
 /** The objects an import left out, briefly: "2 not found: PGC 1, Sh2-101". */
 function notFoundText(missing: readonly string[]): string {
   const shown = missing.slice(0, 3).join(', ');
-  return t('lists.notFound', { count: missing.length, names: `${shown}${missing.length > 3 ? '…' : ''}` });
+  return tn('lists.notFound', missing.length, { names: `${shown}${missing.length > 3 ? '…' : ''}` });
 }

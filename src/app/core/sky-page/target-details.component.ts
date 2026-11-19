@@ -1,4 +1,3 @@
-import { DecimalPipe } from '@angular/common';
 import { Component, computed, inject, input } from '@angular/core';
 import { IonIcon } from '@ionic/angular';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -34,7 +33,8 @@ import {
 } from '../catalog/target-details';
 import { iconDataUrl, phaseIcon, targetIcon } from '../catalog/target-icons';
 import type { Target, TargetKind } from '../catalog/targets';
-import { t } from '../i18n/t';
+import { NumPipe, PluralPipe } from '../i18n/i18n-pipes';
+import { num, t } from '../i18n/t';
 import { LocalTimePipe } from '../local-time.pipe';
 import { tonight, tonightChart } from '../planning/tonight';
 
@@ -63,7 +63,7 @@ const KIND_ICONS: Partial<Record<TargetKind, string>> = {
  */
 @Component({
   selector: 'app-target-details',
-  imports: [TranslatePipe, DecimalPipe, IonIcon, LocalTimePipe],
+  imports: [PluralPipe, TranslatePipe, NumPipe, IonIcon, LocalTimePipe],
   styles: `
     :host {
       display: flex;
@@ -329,11 +329,11 @@ const KIND_ICONS: Partial<Record<TargetKind, string>> = {
         </span>
         <span class="chip"
           ><ion-icon [src]="litIcon()" aria-hidden="true"></ion-icon
-          >{{ 'details.lit' | translate: { percent: (facts.litFraction * 100 | number: '1.0-0') } }}</span
+          >{{ 'details.lit' | translate: { percent: (facts.litFraction * 100 | num: '1.0-0') } }}</span
         >
         @if (facts.moon; as moon) {
           <span class="chip" data-testid="details-moon-phase">
-            <span class="keep">{{ 'details.moonAge' | translate: { days: (moon.ageDays | number: '1.0-0') } }}</span>
+            <span class="keep">{{ 'details.moonAge' | plural: round(moon.ageDays) }}</span>
             @for (event of moonEvents(moon); track event.name) {
               · <span class="keep">{{ event.name }} {{ event.date | localTime: 'date' }}</span>
             }
@@ -381,7 +381,7 @@ const KIND_ICONS: Partial<Record<TargetKind, string>> = {
       @if (facts) {
         <span class="chip quiet"
           ><ion-icon name="sunny-outline" aria-hidden="true"></ion-icon
-          >{{ 'details.fromSun' | translate: { degrees: (facts.sunAngleDeg | number: '1.0-0') } }}</span
+          >{{ 'details.fromSun' | translate: { degrees: (facts.sunAngleDeg | num: '1.0-0') } }}</span
         >
       }
       @if (double()?.colours; as colours) {
@@ -411,6 +411,7 @@ export class TargetDetailsComponent {
   protected readonly discText = discText;
   protected readonly distanceText = distanceText;
   protected readonly lightTimeText = lightTimeText;
+  protected readonly round = Math.round;
   /** Each box needs its own clip, in case two are ever on screen. */
   protected readonly clipId = `eyepiece-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -456,8 +457,8 @@ export class TargetDetailsComponent {
   protected readonly magnitudeText = computed(() => {
     const target = this.target();
     const pair = target.double?.pairs[0];
-    if (pair) return t('details.magPair', { mag1: pair.mag1.toFixed(1), mag2: pair.mag2.toFixed(1) });
-    return target.mag < 90 ? t('details.mag', { mag: target.mag.toFixed(1) }) : null;
+    if (pair) return t('details.magPair', { mag1: num(pair.mag1, 1), mag2: num(pair.mag2, 1) });
+    return target.mag < 90 ? t('details.mag', { mag: num(target.mag, 1) }) : null;
   });
 
   protected readonly names = computed(() => {
@@ -521,7 +522,7 @@ export class TargetDetailsComponent {
     const rx = Math.min(62, Math.max(2.5, fit.share * 40));
     return {
       text: t('details.fitAt', { fit: fit.word, power }),
-      title: t('details.eyepieceShows', { field: this.fieldDeg().toFixed(1), power }),
+      title: t('details.eyepieceShows', { field: num(this.fieldDeg(), 1), power }),
       rx,
       ry: Math.max(2, (rx * minorArcmin) / sizeArcmin),
     };
@@ -549,7 +550,7 @@ export class TargetDetailsComponent {
           sep: arcsecText(pair.sepArcsec),
           paDeg: pair.paDeg,
           relation: pairRelation(pair),
-          title: t('details.magPair', { mag1: pair.mag1.toFixed(1), mag2: pair.mag2.toFixed(1) }),
+          title: t('details.magPair', { mag1: num(pair.mag1, 1), mag2: num(pair.mag2, 1) }),
           main: { x: round(20 - dx / 2), y: round(20 - dy / 2) },
           companion: { x: round(20 + dx / 2), y: round(20 + dy / 2) },
         };

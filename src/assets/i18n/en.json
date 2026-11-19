@@ -208,8 +208,14 @@
       "alignment": "Alignment"
     },
     "durationAndIso": "{{seconds}} s · ISO {{iso}}",
-    "frames": "{{count}} frames",
-    "starsFound": "{{count}} stars found",
+    "frames": {
+      "one": "{{count}} frame",
+      "other": "{{count}} frames"
+    },
+    "starsFound": {
+      "one": "{{count}} star found",
+      "other": "{{count}} stars found"
+    },
     "sensorsOff": "sensors were {{degrees}}° off",
     "noSolves": "No plate solves yet. Turn sensors on and hold the phone still."
   },
@@ -325,7 +331,10 @@
     "limit": "limit {{limit}}",
     "away": "{{distance}} away",
     "lit": "{{percent}}% lit",
-    "moonAge": "Age {{days}} days",
+    "moonAge": {
+      "one": "Age {{count}} day",
+      "other": "Age {{count}} days"
+    },
     "ra": "RA {{ra}}",
     "dec": "Dec {{dec}}",
     "fromSun": "{{degrees}}° from the Sun",
@@ -352,7 +361,10 @@
     "away": "{{degrees}}° away",
     "belowHorizon": "below the horizon",
     "observations": "Observations",
-    "seenTimes": ", seen {{count}} times",
+    "seenTimes": {
+      "one": ", seen once",
+      "other": ", seen {{count}} times"
+    },
     "logObservation": "Log an observation",
     "sync": "Sync: target centred in the eyepiece",
     "aim": "Aim at the target",
@@ -440,14 +452,23 @@
   "solver": {
     "isoLowered": "Too bright, ISO lowered to {{iso}}",
     "moved": "The phone moved during the exposure",
-    "solved": "Plate solved, {{matched}} stars matched",
+    "solved": {
+      "one": "Plate solved, {{count}} star matched",
+      "other": "Plate solved, {{count}} stars matched"
+    },
     "pausedForTime": "Paused while showing another time. Go back to now to solve.",
     "tooBright": "Too bright to see stars",
     "tooBrightReason": "Too bright for the camera. Keep lights out of view.",
-    "noMatchReason": "The camera saw {{count}} stars but couldn't match them. Is the sky clear?",
+    "noMatchReason": {
+      "one": "The camera saw {{count}} star but couldn't match it. Is the sky clear?",
+      "other": "The camera saw {{count}} stars but couldn't match them. Is the sky clear?"
+    },
     "noStarsReason": "The camera saw no stars. Is the sky clear?",
     "cameraNotUsed": "The camera could not be used. {{error}}",
-    "noMatch": "No match in {{count}} stars",
+    "noMatch": {
+      "one": "No match in {{count}} star",
+      "other": "No match in {{count}} stars"
+    },
     "noStars": "No stars found",
     "cameraNotYet": "Camera not in use yet",
     "cameraOff": "Camera is off",
@@ -521,7 +542,10 @@
     "toSee": "To see",
     "upTonight": "Up tonight",
     "notSeenYet": "Not seen yet",
-    "seenTimes": "Seen {{count}} times",
+    "seenTimes": {
+      "one": "Seen once",
+      "other": "Seen {{count}} times"
+    },
     "order": "Order",
     "filters": "Filters",
     "chart": "Chart of tonight",
@@ -553,10 +577,11 @@
     "pasteHint": "Paste a shared list, or a list of objects, one per line.",
     "import": "Import",
     "pastedList": "Pasted list",
-    "importedOne": "Imported 1 list",
-    "importedMany": "Imported {{count}} lists",
     "importFailed": "Import failed",
-    "notFound": "{{count}} not found: {{names}}",
+    "notFound": {
+      "one": "{{count}} not found: {{names}}",
+      "other": "{{count}} not found: {{names}}"
+    },
     "list": "List",
     "changeTime": "Change the time",
     "share": "Share",
@@ -575,7 +600,10 @@
     "copy": "Copy",
     "renameList": "Rename list",
     "deleteQuestion": "Delete this list?",
-    "deleteMessage": "“{{name}}” and its {{count}} bookmarks will be removed. The targets themselves stay in the catalogue.",
+    "deleteMessage": {
+      "one": "“{{name}}” and its bookmark will be removed. The target itself stays in the catalogue.",
+      "other": "“{{name}}” and its {{count}} bookmarks will be removed. The targets themselves stay in the catalogue."
+    },
     "search": "Search",
     "empty": {
       "search": "Nothing in this list matches your search.",
@@ -586,6 +614,10 @@
       "notPlaced": "Nothing is well placed at that time.",
       "mine": "This list is empty. Tap the bookmark on any target to save it here.",
       "noMatch": "No targets match your search."
+    },
+    "imported": {
+      "one": "Imported {{count}} list",
+      "other": "Imported {{count}} lists"
     }
   },
   "bookmark": {
@@ -689,10 +721,14 @@
     "deleted": "Deleted",
     "transfer": "Import or export the log",
     "search": "Search the log",
-    "objectSeen": "object seen",
-    "objectsSeen": "objects seen",
-    "night": "night",
-    "nights": "nights",
+    "objectsSeen": {
+      "one": "object seen",
+      "other": "objects seen"
+    },
+    "nights": {
+      "one": "night",
+      "other": "nights"
+    },
     "noMatch": "Nothing in the log matches your search.",
     "empty": "Nothing logged yet. Tap the eye on the sky map when you see a target.",
     "yourName": "Your name",
@@ -703,8 +739,10 @@
     "saveBackup": "Save a backup",
     "saveOal": "Save for other apps (OAL)",
     "importBackup": "Import a backup",
-    "importedOne": "Imported 1 entry",
-    "importedMany": "Imported {{count}} entries"
+    "imported": {
+      "one": "Imported {{count}} entry",
+      "other": "Imported {{count}} entries"
+    }
   },
   "align": {
     "title": "Align telescope",
@@ -735,7 +773,10 @@
     "plateSolved": "plate solved",
     "simulated": "simulated",
     "sensorsRough": "sensors, rough",
-    "plateSolvedStars": "plate solved, {{count}} stars",
+    "plateSolvedStars": {
+      "one": "plate solved, {{count}} star",
+      "other": "plate solved, {{count}} stars"
+    },
     "fromSensors": "from the sensors",
     "notSynced": "Not synced. {{reason}}",
     "synced": "Synced, was {{degrees}}° off",

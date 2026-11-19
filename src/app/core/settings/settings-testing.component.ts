@@ -1,4 +1,3 @@
-import { DecimalPipe } from '@angular/common';
 import { Component, computed, inject, isDevMode, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import {
@@ -26,6 +25,7 @@ import {
 } from 'ionicons/icons';
 
 import { AppState } from '../app-state.service';
+import { NumPipe, PluralPipe } from '../i18n/i18n-pipes';
 import { LocalTimePipe } from '../local-time.pipe';
 import { LiveSolverService } from '../solver/live-solver.service';
 
@@ -44,8 +44,9 @@ interface BuildInfo {
 @Component({
   selector: 'app-settings-testing',
   imports: [
+    PluralPipe,
     TranslatePipe,
-    DecimalPipe,
+    NumPipe,
     IonBadge,
     IonIcon,
     IonItem,
@@ -138,16 +139,16 @@ interface BuildInfo {
                 {{ entry.at | localTime: 'time-seconds' }} · {{ 'testing.triggers.' + entry.trigger | translate }} ·
                 {{
                   'testing.durationAndIso'
-                    | translate: { seconds: (entry.durationMs / 1000 | number: '1.1-1'), iso: entry.iso }
+                    | translate: { seconds: (entry.durationMs / 1000 | num: '1.1-1'), iso: entry.iso }
                 }}
                 @if (entry.frames > 1) {
-                  · {{ 'testing.frames' | translate: { count: entry.frames } }}
+                  · {{ 'testing.frames' | plural: entry.frames }}
                 }
                 @if (entry.starCount > 0) {
-                  · {{ 'testing.starsFound' | translate: { count: entry.starCount } }}
+                  · {{ 'testing.starsFound' | plural: entry.starCount }}
                 }
                 @if (entry.sensorErrorDeg !== null) {
-                  · {{ 'testing.sensorsOff' | translate: { degrees: (entry.sensorErrorDeg | number: '1.1-1') } }}
+                  · {{ 'testing.sensorsOff' | translate: { degrees: (entry.sensorErrorDeg | num: '1.1-1') } }}
                 }
               </p>
             </ion-label>

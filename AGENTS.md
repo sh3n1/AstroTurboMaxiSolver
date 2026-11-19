@@ -143,6 +143,7 @@ Keep on-screen text short. Don't over-explain: say what matters in a few words, 
   - Never translate catalogue data: target names, designations, star and constellation names, programme titles and club names. Where they sit inside a sentence, pass them as parameters, such as `"{{first}} to {{last}}"`.
   - Words saved in the user's data or written into exported files (log tags, ratings, the Saved for later list's name, CSV and OAL columns) stay in English; the screens show them translated.
   - The device test and the sky test, which only run under the dev server, may stay in English.
+  - Numbers on screen go through the `num` pipe or `num()`, never `toFixed()` or Angular's number pipe, so decimals follow the language ("4,5" in Spanish); files and saved data keep a decimal point. Dates use `appLocale()`. A text with a count has `one` and `other` forms (and the language's others), shown with the `plural` pipe or `tn()`.
   - The language shown is the one chosen in Settings, otherwise the phone's, otherwise English (`core/i18n/languages.ts`). Adding a language is its own `<code>.json` beside `en.json`, plus a line in `LANGUAGES`.
 - Testing expectations: Unit tests for astronomy, solver and fusion logic. End-to-end tests for main flows.
 - Dependencies: Ask before adding one. Prefer a well-maintained, permissively licensed library over custom code.

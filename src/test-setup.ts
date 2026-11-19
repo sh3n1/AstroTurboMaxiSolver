@@ -1,4 +1,4 @@
-import { setTranslator } from './app/core/i18n/t';
+import { setLocale, setTranslator } from './app/core/i18n/t';
 import english from './assets/i18n/en.json';
 
 // Polyfills for running unit tests under jsdom (the default Vitest environment).
@@ -27,3 +27,6 @@ setTranslator((key, params) => {
   if (typeof text !== 'string') return key;
   return text.replace(/\{\{\s*(\w+)\s*\}\}/g, (match, name: string) => String(params?.[name] ?? match));
 });
+
+// Numbers, dates and plurals in English too, whatever the computer running the tests uses.
+setLocale('en');

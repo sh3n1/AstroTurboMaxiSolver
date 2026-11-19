@@ -1,4 +1,3 @@
-import { DecimalPipe } from '@angular/common';
 import { Component, DestroyRef, computed, inject, isDevMode, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import {
@@ -31,7 +30,8 @@ import { AppState } from '../core/app-state.service';
 import type { Horizontal } from '../core/astronomy/astronomy';
 import { compassPoint } from '../core/astronomy/astronomy';
 import type { Target } from '../core/catalog/targets';
-import { t } from '../core/i18n/t';
+import { NumPipe } from '../core/i18n/i18n-pipes';
+import { t, tn } from '../core/i18n/t';
 import { LocalTimePipe } from '../core/local-time.pipe';
 import { rearCameraDirection } from '../core/sensors/attitude';
 import { cameraPointing } from '../core/sensors/device-orientation';
@@ -60,7 +60,7 @@ const PREVIEW_CAMERA_ERROR: Horizontal = { altDeg: 2, azDeg: 3 };
   imports: [
     TranslatePipe,
     LocalTimePipe,
-    DecimalPipe,
+    NumPipe,
     IonBackButton,
     IonButton,
     IonButtons,
@@ -325,7 +325,7 @@ const PREVIEW_CAMERA_ERROR: Horizontal = { altDeg: 2, azDeg: 3 };
                     <h2>{{ target.id }}</h2>
                     <p>
                       {{ describePosition(state.positionOf(target)) }} ·
-                      {{ 'details.mag' | translate: { mag: (target.mag | number: '1.1-1') } }}
+                      {{ 'details.mag' | translate: { mag: (target.mag | num: '1.1-1') } }}
                     </p>
                   </ion-label>
                 </ion-item>
@@ -340,7 +340,7 @@ const PREVIEW_CAMERA_ERROR: Horizontal = { altDeg: 2, azDeg: 3 };
                     <h2>{{ suggestion.star.id }}</h2>
                     <p>
                       {{ describePosition(suggestion.position) }} ·
-                      {{ 'details.mag' | translate: { mag: (suggestion.mag | number: '1.1-1') } }}
+                      {{ 'details.mag' | translate: { mag: (suggestion.mag | num: '1.1-1') } }}
                     </p>
                   </ion-label>
                 </ion-item>
@@ -437,7 +437,7 @@ const PREVIEW_CAMERA_ERROR: Horizontal = { altDeg: 2, azDeg: 3 };
                 <div class="step-head">
                   <h2>{{ 'settings.alignedOn' | translate: { star: current.starId } }}</h2>
                   <p data-testid="alignment-result">
-                    {{ 'align.offset' | translate: { degrees: (offsetAngle() | number: '1.1-1') } }} ·
+                    {{ 'align.offset' | translate: { degrees: (offsetAngle() | num: '1.1-1') } }} ·
                     {{ resultNote(current.method) }}
                   </p>
                   @if (current.method !== 'plate-solve') {
@@ -558,7 +558,7 @@ export class AlignPage {
   }
 
   protected resultNote(method: AlignmentMethod | undefined): string {
-    if (method === 'plate-solve') return t('align.plateSolvedStars', { count: this.solvedStars() });
+    if (method === 'plate-solve') return tn('align.plateSolvedStars', this.solvedStars());
     if (method === 'simulated') return t('align.simulated');
     return t('align.fromSensors');
   }

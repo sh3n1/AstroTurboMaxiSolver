@@ -9,7 +9,7 @@ import {
   equatorialVector,
   separationDeg,
 } from '../astronomy/astronomy';
-import { t } from '../i18n/t';
+import { t, tn } from '../i18n/t';
 import { isPermissionDenied } from '../platform/permission-help';
 import { NotNowError, PermissionsService } from '../platform/permissions.service';
 import type { Quaternion } from '../sensors/attitude';
@@ -273,12 +273,12 @@ export class LiveSolverService {
         this.record({
           ...entry,
           outcome: 'solved',
-          message: t('solver.solved', { matched: response.solution.matched }),
+          message: tn('solver.solved', response.solution.matched),
           starCount: response.starCount,
           matched: response.solution.matched,
           sensorErrorDeg: before && after ? separationDeg(before, after) : null,
         });
-        report('solved', t('solver.solved', { matched: response.solution.matched }));
+        report('solved', tn('solver.solved', response.solution.matched));
         this.finish(true, SOLVED_PAUSE_MS);
         return;
       }
@@ -419,10 +419,7 @@ export class LiveSolverService {
         report('failed', failureMessage(response.starCount));
         return {
           ok: false,
-          reason:
-            response.starCount > 0
-              ? t('solver.noMatchReason', { count: response.starCount })
-              : t('solver.noStarsReason'),
+          reason: response.starCount > 0 ? tn('solver.noMatchReason', response.starCount) : t('solver.noStarsReason'),
         };
       }
 
@@ -437,12 +434,12 @@ export class LiveSolverService {
       this.record({
         ...entry,
         outcome: 'solved',
-        message: t('solver.solved', { matched: response.solution.matched }),
+        message: tn('solver.solved', response.solution.matched),
         starCount: response.starCount,
         matched: response.solution.matched,
         sensorErrorDeg: before && after ? separationDeg(before, after) : null,
       });
-      report('solved', t('solver.solved', { matched: response.solution.matched }));
+      report('solved', tn('solver.solved', response.solution.matched));
       return { ok: true, attitude, matched: response.solution.matched };
     } catch (error) {
       const message = this.cameraFailed(error);
@@ -657,7 +654,7 @@ export class LiveSolverService {
 
 /** What to tell the user when the solver ran but found no answer. */
 function failureMessage(starCount: number): string {
-  return starCount > 0 ? t('solver.noMatch', { count: starCount }) : t('solver.noStars');
+  return starCount > 0 ? tn('solver.noMatch', starCount) : t('solver.noStars');
 }
 
 /** What to tell the user when the camera could not take a picture. */

@@ -14,8 +14,8 @@ import { firstValueFrom } from 'rxjs';
 
 import { AppState } from '../app-state.service';
 
-import { DEFAULT_LANGUAGE, pickLanguage } from './languages';
-import { setTranslator } from './t';
+import { DEFAULT_LANGUAGE, pickLanguage, pickLocale } from './languages';
+import { setLocale, setTranslator } from './t';
 
 /**
  * Sets up translations, and loads the language before the first page shows, so a page never
@@ -32,9 +32,12 @@ export function provideI18n(): EnvironmentProviders {
     }),
     provideAppInitializer(async () => {
       const translate = inject(TranslateService);
-      const language = pickLanguage(inject(AppState).settings().language, navigator.languages ?? []);
+      const phone = navigator.languages ?? [];
+      const language = pickLanguage(inject(AppState).settings().language, phone);
       await firstValueFrom(translate.use(language));
       setTranslator((key, params) => translate.instant(key, params) as string);
+      // Numbers, dates and plurals in the same language, in the phone's region where it speaks it.
+      setLocale(pickLocale(language, phone));
       // For screen readers and the browser's own wording, such as its date pickers.
       document.documentElement.lang = language;
     }),

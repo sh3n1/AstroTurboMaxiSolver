@@ -1,4 +1,3 @@
-import { DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { IonButton, IonIcon } from '@ionic/angular';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -18,6 +17,7 @@ import { AppState } from '../app-state.service';
 import { designationText } from '../catalog/designations';
 import { iconDataUrl, targetIcon } from '../catalog/target-icons';
 import type { Target } from '../catalog/targets';
+import { NumPipe, PluralPipe } from '../i18n/i18n-pipes';
 import { PlaylistService } from '../lists/playlist.service';
 import { countLabel } from '../log/observing-log';
 import { ObservingLogService } from '../log/observing-log.service';
@@ -39,7 +39,7 @@ import { TargetGuidanceService } from './target-guidance.service';
 @Component({
   selector: 'app-target-bar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslatePipe, DecimalPipe, IonButton, IonIcon, PlaylistBarComponent, TargetDetailsComponent],
+  imports: [PluralPipe, TranslatePipe, NumPipe, IonButton, IonIcon, PlaylistBarComponent, TargetDetailsComponent],
   // The sky page's styles tell the bar with its details open from one without.
   host: { '[class.detailed]': 'showDetails()' },
   styles: `
@@ -191,7 +191,7 @@ import { TargetGuidanceService } from './target-guidance.service';
         <div class="guide">
           <div class="directions" data-testid="directions">{{ directions() }}</div>
           <div class="muted" data-testid="guidance">
-            <span class="keep">{{ 'bar.away' | translate: { degrees: (targetDistance() | number: '1.1-1') } }}</span>
+            <span class="keep">{{ 'bar.away' | translate: { degrees: (targetDistance() | num: '1.1-1') } }}</span>
             @if (targetBelowHorizon()) {
               · <span class="keep">{{ 'bar.belowHorizon' | translate }}</span>
             }
@@ -207,7 +207,7 @@ import { TargetGuidanceService } from './target-guidance.service';
               [class.seen]="observed()"
               [attr.aria-label]="
                 ((observed() ? 'bar.observations' : 'bar.logObservation') | translate) +
-                (seenCount() > 1 ? ('bar.seenTimes' | translate: { count: seenCount() }) : '')
+                (seenCount() > 1 ? ('bar.seenTimes' | plural: seenCount()) : '')
               "
               (click)="openLog(target)"
             >

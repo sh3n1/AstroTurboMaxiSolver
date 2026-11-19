@@ -29,3 +29,11 @@ export function pickLanguage(
   }
   return DEFAULT_LANGUAGE;
 }
+
+/**
+ * The locale for numbers and dates: the phone's own when it is in the app's language, so
+ * "en-GB" keeps its 24-hour clock and "es-MX" its formats, otherwise the language itself.
+ */
+export function pickLocale(language: string, phone: readonly string[]): string {
+  return phone.find((tag) => tag.toLowerCase().split('-')[0] === language) ?? language;
+}

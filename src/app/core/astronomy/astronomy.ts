@@ -19,7 +19,7 @@ import {
   SearchAltitude,
 } from 'astronomy-engine';
 
-import { t } from '../i18n/t';
+import { num, t } from '../i18n/t';
 
 import { minorPlanet, minorPlanetPosition } from './minor-planets';
 
@@ -393,7 +393,7 @@ export function formatRa(raDeg: number): string {
 /** A place on Earth as compass-labelled degrees, such as "39.47° N, 0.38° W". */
 export function formatLocation(latitudeDeg: number, longitudeDeg: number): string {
   const part = (value: number, positive: string, negative: string): string =>
-    `${Math.abs(value).toFixed(2)}° ${value >= 0 ? positive : negative}`;
+    `${num(Math.abs(value), 2)}° ${value >= 0 ? positive : negative}`;
   return `${part(latitudeDeg, 'N', 'S')}, ${part(longitudeDeg, 'E', 'W')}`;
 }
 
