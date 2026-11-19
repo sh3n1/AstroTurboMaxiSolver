@@ -836,5 +836,21 @@
     "deletedHere": "Borrada en este móvil",
     "keep": "Quedarme con esta",
     "none": "No hay conflictos. Todo está igual en todos tus dispositivos."
+  },
+  "backup": {
+    "title": "Copia de seguridad",
+    "save": "Guardar una copia completa",
+    "saveNote": "Diario, listas, equipo y ajustes, en un solo archivo",
+    "restore": "Restaurar una copia",
+    "restoreNote": "Se une a lo que hay en este móvil",
+    "confirmHeader": "¿Restaurar esta copia?",
+    "confirmMessage": "Hecha el {{date}}. Entradas del diario: {{entries}} · listas: {{lists}} · equipo: {{kit}}. Se une a lo que hay en este móvil, y sus ajustes sustituyen a los de este móvil.",
+    "restoreButton": "Restaurar",
+    "restored": "Copia restaurada",
+    "saveFailed": "No se pudo guardar la copia",
+    "restoreFailed": "No se pudo restaurar la copia",
+    "notOurs": "Esto no es una copia de AstroTurboMaxiSolver",
+    "newer": "Esta copia es de una versión más nueva de la app. Actualiza la app primero.",
+    "damaged": "El archivo de la copia está dañado"
   }
 }
