@@ -537,8 +537,7 @@
       "upNow": "Up now",
       "risesLater": "Rises later",
       "notUpToday": "Not up today",
-      "tonight": "Tonight",
-      "notUpTonight": "Not up tonight"
+      "tonight": "Tonight"
     },
     "seen": "Seen",
     "toSee": "To see",
@@ -612,7 +611,7 @@
       "noneSeen": "Nothing seen in this list yet.",
       "allSeen": "All seen. Well done!",
       "filtered": "Nothing in this list passes the filters.",
-      "reticle": "Nothing is inside the aiming rings. Move the telescope, or the map, to fill this list.",
+      "reticle": "Nothing was inside the aiming rings when you opened Lists. Aim the telescope, then open Lists again.",
       "notPlaced": "Nothing is well placed at that time.",
       "mine": "This list is empty. Tap the bookmark on any target to save it here.",
       "noMatch": "No targets match your search."
@@ -620,6 +619,10 @@
     "imported": {
       "one": "Imported {{count}} list",
       "other": "Imported {{count}} lists"
+    },
+    "notes": {
+      "best": "best {{time}}, {{degrees}}° up",
+      "away": "{{degrees}}° away"
     }
   },
   "bookmark": {

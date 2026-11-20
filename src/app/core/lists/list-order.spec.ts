@@ -8,19 +8,21 @@ interface Row {
   altDeg: number;
   rise?: string;
   best?: string;
+  low?: boolean;
   awayDeg?: number;
 }
 
 const SKY: SkyFacts<Row> = {
   altDeg: (row) => row.altDeg,
   rise: (row) => (row.rise ? new Date(row.rise) : null),
-  best: (row) => (row.best ? { time: new Date(row.best), altDeg: 50 } : null),
+  best: (row) => (row.best ? { time: new Date(row.best), altDeg: 50, good: !row.low } : null),
+  now: new Date('2026-11-12T19:00'),
   awayDeg: (row) => row.awayDeg ?? 0,
 };
 
 const ROWS: Row[] = [
   { id: 'faint-high', mag: 9, altDeg: 70, best: '2026-11-12T23:00', awayDeg: 40 },
-  { id: 'bright-low', mag: 1, altDeg: 10, best: '2026-11-12T20:00', awayDeg: 5 },
+  { id: 'bright-low', mag: 1, altDeg: 10, best: '2026-11-12T20:00', awayDeg: 5, low: true },
   { id: 'rises-late', mag: 4, altDeg: -20, rise: '2026-11-13T03:00', best: '2026-11-13T05:00', awayDeg: 90 },
   { id: 'rises-soon', mag: 6, altDeg: -5, rise: '2026-11-12T22:00', best: '2026-11-13T01:00', awayDeg: 60 },
   { id: 'never', mag: 2, altDeg: -60, awayDeg: 120 },
@@ -58,11 +60,17 @@ describe('arrange', () => {
     expect(ids(sections[2].rows)).toEqual(['never']);
   });
 
-  it('orders the night by best time, with what stays down last', () => {
+  it('orders what is well placed tonight by best time, and leaves out the rest', () => {
     const sections = arrange(ROWS, 'best-time', SKY);
-    expect(sections.map((s) => s.title)).toEqual(['Tonight', 'Not up tonight']);
-    expect(ids(sections[0].rows)).toEqual(['bright-low', 'faint-high', 'rises-soon', 'rises-late']);
-    expect(ids(sections[1].rows)).toEqual(['never']);
+    expect(sections.map((s) => s.title)).toEqual([null]);
+    // Neither the one only low tonight, nor the one that stays down.
+    expect(ids(sections[0].rows)).toEqual(['faint-high', 'rises-soon', 'rises-late']);
+  });
+
+  it('puts best moments that have passed after those still to come', () => {
+    // At midnight, the 23:00 one passed an hour ago: it goes last.
+    const sections = arrange(ROWS, 'best-time', { ...SKY, now: new Date('2026-11-13T00:30') });
+    expect(ids(sections[0].rows)).toEqual(['rises-soon', 'rises-late', 'faint-high']);
   });
 
   it('leaves out headings with nothing under them', () => {
@@ -94,13 +102,21 @@ describe('bestMatch', () => {
 describe('bestOfNight', () => {
   const times = [new Date('2026-11-12T19:00'), new Date('2026-11-12T23:00'), new Date('2026-11-13T03:00')];
 
-  it('finds the highest moment while the Sun is down', () => {
+  it('finds the highest moment in full night, at least 30° up', () => {
     // Highest at the first check, but the Sun is still up then.
-    expect(bestOfNight(times, [80, 40, 20], [false, true, true])).toEqual({ time: times[1], altDeg: 40 });
+    expect(bestOfNight(times, [80, 40, 35], [5, -20, -25])).toEqual({ time: times[1], altDeg: 40, good: true });
+    // Higher in twilight than in full night: full night counts.
+    expect(bestOfNight(times, [70, 40, 20], [-8, -20, -25])).toEqual({ time: times[1], altDeg: 40, good: true });
+  });
+
+  it('falls back to the highest moment while the Sun is down, for a low target', () => {
+    expect(bestOfNight(times, [20, 25, 10], [-5, -20, -25])).toEqual({ time: times[1], altDeg: 25, good: false });
+    // Only well up in twilight.
+    expect(bestOfNight(times, [45, 10, -5], [-8, -20, -25])).toEqual({ time: times[0], altDeg: 45, good: false });
   });
 
   it('is null for a target that stays below the horizon all night', () => {
-    expect(bestOfNight(times, [-10, -5, -30], [true, true, true])).toBeNull();
+    expect(bestOfNight(times, [-10, -5, -30], [-20, -20, -20])).toBeNull();
   });
 });
 

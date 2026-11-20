@@ -15,11 +15,11 @@ import { nightWindow } from './tonight';
  */
 const STEP_MINUTES = 20;
 
-/** The checks of one night: their times, the sky's turn at each, and whether the Sun is down. */
+/** The checks of one night: their times, the sky's turn at each, and the Sun's height. */
 interface NightChecks {
   times: Date[];
   rotations: Matrix3[];
-  dark: boolean[];
+  sunDeg: number[];
   /** Each target's best moment, kept once worked out. */
   best: Map<string, BestTonight | null>;
 }
@@ -48,12 +48,12 @@ export class TonightService {
     return {
       times,
       rotations: times.map((time) => skyRotation(time, latitudeDeg, longitudeDeg)),
-      dark: times.map((time) => sunAltitudeDeg(time, latitudeDeg, longitudeDeg) <= 0),
+      sunDeg: times.map((time) => sunAltitudeDeg(time, latitudeDeg, longitudeDeg)),
       best: new Map(),
     };
   });
 
-  /** When the target is highest tonight while the Sun is down, or null if it stays down. */
+  /** The target's best moment tonight (see bestOfNight), or null if it stays down. */
   best(target: Pick<Target, 'id' | 'raDeg' | 'decDeg' | 'body'>): BestTonight | null {
     const night = this.checks();
     let best = night.best.get(target.id);
@@ -64,7 +64,7 @@ export class TonightService {
           ? this.state.positionAt(target, time).altDeg
           : equatorialToHorizontal(night.rotations[i], target.raDeg, target.decDeg).altDeg,
       );
-      best = bestOfNight(night.times, altitudes, night.dark);
+      best = bestOfNight(night.times, altitudes, night.sunDeg);
       night.best.set(target.id, best);
     }
     return best;
