@@ -4,6 +4,8 @@ One phone sits on the telescope as the **finder**. Another, in the hand, is the 
 The finder does what only the phone on the tube can do: read the sensors and plate solve.
 The screen does everything else: the map, guidance, lists, the log and alignment.
 
+A hand remote, the puck, is planned to take the screen's part: see [puck.md](puck.md).
+
 ## Pairing
 
 There is no server, so the phones swap their WebRTC session descriptions as QR codes, once
