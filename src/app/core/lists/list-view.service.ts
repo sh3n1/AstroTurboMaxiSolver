@@ -21,6 +21,7 @@ import {
   matchesType,
   typeFilterText,
 } from './list-order';
+import { ListsService } from './lists.service';
 import type { ListedTarget } from './target-lists';
 
 /** Where each list's chosen order is remembered, by the list's key. */
@@ -95,6 +96,7 @@ function loadSorts(): Record<string, SortId> {
 @Injectable()
 export class ListViewService {
   private readonly state = inject(AppState);
+  private readonly lists = inject(ListsService);
   private readonly log = inject(ObservingLogService);
   private readonly tonight = inject(TonightService);
 
@@ -198,10 +200,14 @@ export class ListViewService {
     );
   });
 
-  /** Where the telescope points, in coarse steps, as a direction to measure from. */
+  /**
+   * Where the telescope points, in coarse steps, as a direction to measure from: where it
+   * pointed when Lists opened from the map, as the In the reticle list does, so the order holds
+   * still while the user goes through Lists.
+   */
   private readonly pointing = computed<Vector3>(
     () => {
-      const { raDeg, decDeg } = this.state.pointingEquatorial();
+      const { raDeg, decDeg } = this.lists.reticleCentre();
       const step = (deg: number): number => Math.round(deg / POINTING_STEP_DEG) * POINTING_STEP_DEG;
       return equatorialVector(step(raDeg), step(decDeg));
     },
@@ -231,6 +237,7 @@ export class ListViewService {
       },
       best: (row) => this.tonight.best(row),
       awayDeg: (row) => this.awayDeg(row),
+      now,
     };
   }
 
@@ -293,11 +300,13 @@ export class ListViewService {
     if (sort !== 'best-time' && sort !== 'nearest') return notes;
     for (const row of this.visible().flatMap((section) => section.rows)) {
       if (sort === 'nearest') {
-        notes.set(row.id, `${Math.round(this.awayDeg(row))}° away`);
+        notes.set(row.id, t('lists.notes.away', { degrees: Math.round(this.awayDeg(row)) }));
         continue;
       }
       const best = this.tonight.best(row);
-      if (best) notes.set(row.id, `best ${TIME.transform(best.time)}, ${Math.round(best.altDeg)}° up`);
+      if (best) {
+        notes.set(row.id, t('lists.notes.best', { time: TIME.transform(best.time), degrees: Math.round(best.altDeg) }));
+      }
     }
     return notes;
   });

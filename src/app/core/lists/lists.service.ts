@@ -1,7 +1,8 @@
-import { Injectable, computed, inject } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 
 import { apparentMagnitude } from '../alignment/alignment';
 import { AppState } from '../app-state.service';
+import type { Horizontal } from '../astronomy/astronomy';
 import { equatorialVector } from '../astronomy/astronomy';
 import type { Target } from '../catalog/targets';
 import { appLocale, t } from '../i18n/t';
@@ -38,6 +39,9 @@ import {
   UNCATEGORIZED_NAME,
   uniqueName,
 } from './target-lists';
+
+/** A place in the sky, in degrees, which doesn't change with the time. */
+type Equatorial = { raDeg: number; decDeg: number };
 
 // The best right now: objects well up in the sky at this moment, brightest first.
 const GOOD_ALTITUDE_DEG = 30;
@@ -149,6 +153,32 @@ export class ListsService {
     { equal: (a, b) => a.length === b.length && a.every((target, i) => target === b[i]) },
   );
 
+  /**
+   * What was inside the rings, and where in the sky they were, when Lists was last opened from
+   * the map: the In the reticle list shows that, so it holds still while the user goes through
+   * it, even if the telescope or the phone moves. Live until Lists is first opened that way.
+   * The centre is kept in sky coordinates, which don't change with the time.
+   */
+  private readonly reticleSnapshot = signal<{ targets: ListedTarget[]; centre: Equatorial } | null>(null);
+
+  /** The centre of the In the reticle list, in the sky: see reticleSnapshot. */
+  readonly reticleCentre = computed<Equatorial>(
+    () => this.reticleSnapshot()?.centre ?? this.state.pointingEquatorial(),
+  );
+
+  /**
+   * Where that centre is from here, at the time shown: with the time changed, it follows the
+   * listed targets across the sky, as their own heights do.
+   */
+  readonly reticlePointing = computed<Horizontal>(() =>
+    this.reticleSnapshot() ? this.state.positionOf(this.reticleCentre()) : this.state.pointing(),
+  );
+
+  /** Takes the In the reticle list as it is now, as Lists opens from the map. */
+  freezeReticle(): void {
+    this.reticleSnapshot.set({ targets: this.inReticle(), centre: this.state.pointingEquatorial() });
+  }
+
   private readonly messier = computed(() => catalogueTargets(this.state.targets(), 'M'));
   private readonly caldwell = computed(() => catalogueTargets(this.state.targets(), 'C'));
 
@@ -214,7 +244,7 @@ export class ListsService {
   readonly fixedLists = computed<ListView[]>(() => {
     const targets: Record<FixedListId, ListedTarget[]> = {
       now: this.bestNow(),
-      reticle: this.inReticle(),
+      reticle: this.reticleSnapshot()?.targets ?? this.inReticle(),
       messier: this.messier(),
       caldwell: this.caldwell(),
       ...this.programmeLists(),

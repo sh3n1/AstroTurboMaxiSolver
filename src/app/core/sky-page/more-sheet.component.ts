@@ -27,6 +27,7 @@ import {
 
 import { isIconUrl } from '../app-icons';
 import { AppState } from '../app-state.service';
+import { ListsService } from '../lists/lists.service';
 import { FullscreenService } from '../platform/fullscreen.service';
 import { SensorService } from '../sensors/sensor.service';
 
@@ -245,6 +246,7 @@ export class MoreSheetComponent implements OnDestroy {
   protected readonly state = inject(AppState);
   protected readonly fullscreen = inject(FullscreenService);
   private readonly sensors = inject(SensorService);
+  private readonly lists = inject(ListsService);
   protected readonly isIconUrl = isIconUrl;
   private readonly router = inject(Router);
   /** The tabs holding the pages, which remember where each was left. */
@@ -297,6 +299,8 @@ export class MoreSheetComponent implements OnDestroy {
    * scroll as they were: Ionic's tabs keep each tab's pages, and selecting it goes back.
    */
   protected openLists(): void {
+    // In the reticle holds what is in the rings now, while the user goes through Lists.
+    this.lists.freezeReticle();
     this.closed.emit();
     if (this.tabs) void this.tabs.select('lists');
     else void this.router.navigateByUrl('/tabs/lists');

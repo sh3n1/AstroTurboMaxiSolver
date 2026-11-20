@@ -35,7 +35,7 @@
       "listsAlt": "The lists: best right now, in the reticle, your own lists and the observing log",
       "lists": "Lists for tonight, ready to go",
       "nightAlt": "The sky map in red night mode, on Saturn, with the menu open",
-      "night": "Red night mode. Your eyes will thank you."
+      "night": "Red night mode and big, clear text. Your eyes will thank you."
     },
     "features": {
       "title": "What it does",
@@ -46,11 +46,11 @@
       "takesTitle": "Takes you there",
       "takes": "Pick a target, follow the arrows, and there it is in the rings. Then in your eyepiece.",
       "targetsTitle": "Never runs out of targets",
-      "targets": "Messier, Caldwell, NGC and IC objects, planets, double stars, and what's best right now. Plus your own lists and an observing log.",
+      "targets": "Messier, Caldwell, NGC and IC objects, planets and double stars, with a list of the best in the sky right now. Plus your own lists and an observing log.",
       "oldPhoneTitle": "Old phone in a drawer?",
       "oldPhone": "Give it a new job: put it on the telescope as the finder, and use your own phone as the remote. Optional: one phone is all you need.",
       "cityTitle": "Made for city skies",
-      "city": "Built under a bright city sky, with big text you can read at arm's length, even without your glasses.",
+      "city": "Tested under Bortle 8 and 9 city skies, the brightest there are. If it finds the stars there, it finds them anywhere.",
       "dataTitle": "Your data is yours",
       "data": "Your log, lists and kit are stored on your phone. Sync them between your devices through your own Google Drive, if you like. Never on our servers: we don't have any.",
       "freeTitle": "Free software",

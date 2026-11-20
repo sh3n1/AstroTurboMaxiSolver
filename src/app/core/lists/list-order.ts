@@ -4,6 +4,7 @@
 
 import type { Target } from '../catalog/targets';
 import { i18n, t } from '../i18n/t';
+import { GOOD_ALTITUDE_DEG } from '../planning/tonight';
 
 /**
  * The orders a list can be shown in. "list" is the list's own: the catalogue's numbers,
@@ -69,11 +70,21 @@ export function matchesType(target: Pick<Target, 'kind' | 'body' | 'double'>, fi
   return target.kind === filter;
 }
 
-/** A target's best moment tonight: when it is highest while the Sun is down. */
+/**
+ * A target's best moment tonight: when it is highest in full night, at least GOOD_ALTITUDE_DEG
+ * up, as the details' "Best" says. `good` is false for a target never that well placed, whose
+ * best moment is then its highest while the Sun is down: low, or only up in twilight.
+ */
 export interface BestTonight {
   time: Date;
   altDeg: number;
+  good: boolean;
 }
+
+/** The Sun this far below the horizon is full night: no twilight left in the sky. */
+const FULL_NIGHT_SUN_DEG = -18;
+/** A best moment this long gone has passed: it goes after those still to come. */
+const PASSED_AFTER_MS = 3_600_000;
 
 /**
  * What ordering needs to know about a row's place in the sky. Each is asked for only by
@@ -88,6 +99,8 @@ export interface SkyFacts<T> {
   best: (row: T) => BestTonight | null;
   /** How far it is from where the telescope points, in degrees. */
   awayDeg: (row: T) => number;
+  /** The time the list is for: now, or the time chosen. */
+  now: Date;
 }
 
 /** A run of rows under a heading, or with no heading when the order needs none. */
@@ -144,17 +157,18 @@ export function arrange<T extends Pick<Target, 'mag'>>(
       ]);
     }
     case 'best-time': {
-      const tonight: { row: T; time: number }[] = [];
-      const down: T[] = [];
+      // Only what is well placed tonight: low targets, or those only up in twilight, are
+      // not the night's best, and the other orders show them.
+      const good: { row: T; time: number }[] = [];
       for (const row of rows) {
         const best = sky.best(row);
-        if (best) tonight.push({ row, time: best.time.getTime() });
-        else down.push(row);
+        if (best?.good) good.push({ row, time: best.time.getTime() });
       }
-      return filled([
-        { title: t('lists.sections.tonight'), rows: sortedBy(tonight, (entry) => entry.time).map(({ row }) => row) },
-        { title: t('lists.sections.notUpTonight'), rows: sortedBy(down, (row) => row.mag) },
-      ]);
+      // What is still to come first, by its time; what has passed after, by its time too.
+      const passed = sky.now.getTime() - PASSED_AFTER_MS;
+      const byTime = sortedBy(good, (entry) => (entry.time < passed ? 1e15 : 0) + entry.time);
+      // One run with no heading: the order's name already says it is tonight.
+      return filled([{ title: null, rows: byTime.map(({ row }) => row) }]);
     }
   }
 }
@@ -184,20 +198,27 @@ export function bestMatch<T extends Pick<Target, 'mag'>>(
 }
 
 /**
- * A target's best moment in a night, from its height at each check of that night: the
- * highest one above the horizon while the Sun is down, or null if there is none.
+ * A target's best moment in a night, from its height and the Sun's at each check of that
+ * night: the highest in full night at least GOOD_ALTITUDE_DEG up; failing that, the highest
+ * above the horizon while the Sun is down, marked not good; or null if there is none.
  */
 export function bestOfNight(
   times: readonly Date[],
   altitudes: readonly number[],
-  dark: readonly boolean[],
+  sunDeg: readonly number[],
 ): BestTonight | null {
   let best: BestTonight | null = null;
+  let fallback: BestTonight | null = null;
   times.forEach((time, i) => {
     const altDeg = altitudes[i];
-    if (dark[i] && altDeg > 0 && (!best || altDeg > best.altDeg)) best = { time, altDeg };
+    if (sunDeg[i] <= FULL_NIGHT_SUN_DEG && altDeg >= GOOD_ALTITUDE_DEG && (!best || altDeg > best.altDeg)) {
+      best = { time, altDeg, good: true };
+    }
+    if (sunDeg[i] <= 0 && altDeg > 0 && (!fallback || altDeg > fallback.altDeg)) {
+      fallback = { time, altDeg, good: false };
+    }
   });
-  return best;
+  return best ?? fallback;
 }
 
 /**
