@@ -15,8 +15,9 @@ import {
 } from '@ionic/angular';
 import { TranslatePipe } from '@ngx-translate/core';
 import { addIcons } from 'ionicons';
-import { phonePortraitOutline, scanOutline, telescopeOutline } from 'ionicons/icons';
+import { discOutline, phonePortraitOutline, scanOutline, telescopeOutline } from 'ionicons/icons';
 
+import { isPuckCode } from '../core/remote/puck-pairing';
 import { QrCodeComponent } from '../core/remote/qr-code.component';
 import { QrScannerComponent } from '../core/remote/qr-scanner.component';
 import { RemoteService } from '../core/remote/remote.service';
@@ -167,7 +168,7 @@ import { RemoteService } from '../core/remote/remote.service';
               <p class="error" data-testid="remote-lost">{{ 'settings.linkLost' | translate }}</p>
             }
             @if (scanning()) {
-              <p class="step">{{ 'remote.scanFinder' | translate }}</p>
+              <p class="step">{{ (scanningPuck() ? 'remote.scanPuck' : 'remote.scanFinder') | translate }}</p>
               <app-qr-scanner (scanned)="read($event)" />
               <ion-button expand="block" fill="clear" (click)="scanning.set(false)">{{
                 'common.cancel' | translate
@@ -182,10 +183,15 @@ import { RemoteService } from '../core/remote/remote.service';
                 expand="block"
                 fill="outline"
                 data-testid="remote-as-screen"
-                (click)="scanning.set(true)"
+                (click)="scan(false)"
               >
                 <ion-icon name="phone-portrait-outline" aria-hidden="true"></ion-icon>
                 {{ 'remote.thisIsScreen' | translate }}
+              </ion-button>
+              <!-- The puck, the hand remote, takes the screen phone's place. -->
+              <ion-button class="choice" expand="block" fill="outline" data-testid="remote-puck" (click)="scan(true)">
+                <ion-icon name="disc-outline" aria-hidden="true"></ion-icon>
+                {{ 'remote.linkPuck' | translate }}
               </ion-button>
             }
             @if (scanning()) {
@@ -228,14 +234,15 @@ export class RemotePage {
   protected readonly remote = inject(RemoteService);
   private readonly router = inject(Router);
 
-  /** Whether the camera is reading a code. */
+  /** Whether the camera is reading a code, and whether it is the puck's. */
   protected readonly scanning = signal(false);
+  protected readonly scanningPuck = signal(false);
   protected readonly pasted = signal('');
 
   private readonly connected = computed(() => this.remote.status() === 'connected');
 
   constructor() {
-    addIcons({ phonePortraitOutline, scanOutline, telescopeOutline });
+    addIcons({ discOutline, phonePortraitOutline, scanOutline, telescopeOutline });
     // Linked just now: both phones go to the map, the finder to solve, the screen to guide.
     // Opened while already linked, the page stays, to pause or unlink.
     let wasConnected = untracked(() => this.connected());
@@ -246,11 +253,21 @@ export class RemotePage {
     });
   }
 
-  /** A code read or pasted: the screen's reply on the finder, or the finder's code on the screen. */
+  /** Opens the camera, for the finder phone's code or the puck's. */
+  protected scan(puck: boolean): void {
+    this.scanningPuck.set(puck);
+    this.scanning.set(true);
+  }
+
+  /**
+   * A code read or pasted: the screen's reply on the finder, the puck's code, or the finder's
+   * code on the screen. The puck's is told apart by what it starts with.
+   */
   protected async read(code: string): Promise<void> {
     this.scanning.set(false);
     this.pasted.set('');
     if (this.remote.status() === 'showing-offer') await this.remote.acceptReply(code);
+    else if (isPuckCode(code)) await this.remote.startWithPuck(code);
     else await this.remote.startAsScreen(code);
   }
 

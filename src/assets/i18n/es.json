@@ -798,6 +798,8 @@
     "replyCode": "Código de respuesta",
     "waiting": "Esperando al buscador",
     "scanFinder": "Escanea el código del móvil buscador",
+    "linkPuck": "Enlazar con el puck",
+    "scanPuck": "Escanea el código del puck",
     "paste": "O pega el código",
     "pause": "Pausar enlace",
     "unlink": "Desvincular",

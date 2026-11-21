@@ -52,7 +52,12 @@ export type FinderMessage =
   | { t: 'alignment'; alignment: Alignment | null }
   | { t: 'solveLog'; entry: RemoteSolveEntry }
   /** The answer to a solveNow request, with the same id. */
-  | { t: 'solveResult'; id: number; result: SolveNowResult };
+  | { t: 'solveResult'; id: number; result: SolveNowResult }
+  /**
+   * To the puck only, first of all: the secret from its QR code, so it knows this is the
+   * phone that scanned its screen (puck-pairing.ts, docs/puck.md).
+   */
+  | { t: 'auth'; secret: string };
 
 /** What the screen phone sends. */
 export type ScreenMessage =

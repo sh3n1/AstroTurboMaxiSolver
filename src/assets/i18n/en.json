@@ -798,6 +798,8 @@
     "replyCode": "Reply code",
     "waiting": "Waiting for the finder",
     "scanFinder": "Scan the finder phone's code",
+    "linkPuck": "Link to the puck",
+    "scanPuck": "Scan the puck's code",
     "paste": "Or paste the code",
     "pause": "Pause link",
     "unlink": "Unlink",
