@@ -812,6 +812,7 @@
     "cameraUnavailable": "Camera unavailable. Paste the code instead.",
     "couldNotStart": "Could not start the link on this phone.",
     "couldNotRead": "Could not read the code.",
+    "puckDisconnected": "Puck disconnected",
     "finderDisconnected": "Finder phone disconnected",
     "finderDisconnectedReason": "The finder phone disconnected.",
     "title": "Remote",

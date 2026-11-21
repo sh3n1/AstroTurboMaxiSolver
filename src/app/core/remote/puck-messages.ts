@@ -2,25 +2,37 @@
 // messages"). Plain functions, so they can be tested without a link.
 
 /** What the puck sends. */
-export type PuckCommand =
+export type PuckMessage =
+  /** Once paired: what the puck is, and the id of the catalogue it holds, or null. */
+  | { t: 'puckHello'; version: number; screenPx: number; catalog: string | null }
   /** A tap on the puck's reticle: plate solve, as a tap on this phone's rings does. */
   | { t: 'solveNow'; trigger: 'tap' }
   /** The puck's left or right arrow: the previous or next target of the list playing. */
   | { t: 'step'; by: -1 | 1 }
   /** Night mode on or off, from the puck's menu. */
-  | { t: 'night'; on: boolean };
+  | { t: 'night'; on: boolean }
+  /** The catalogue sent is received, checked and kept. */
+  | { t: 'catalogDone'; id: string }
+  /** It wasn't: the CRC didn't match, or there was no room. */
+  | { t: 'catalogFailed'; reason: string }
+  /** Nothing else to say for a second: the puck is still there. */
+  | { t: 'ping' };
 
-/** What this phone sends the puck besides the view. */
+/** What this phone sends the puck besides the view and the catalogue's bytes. */
 export type PuckHostMessage =
   /** Always first: the secret from the puck's QR code. */
   | { t: 'auth'; secret: string }
   /** The target's name for the puck's bottom third; id null when there is none. */
   | { t: 'targetInfo'; id: string | null; name: string }
   /** What the puck shows besides the map. */
-  | { t: 'state'; night: boolean; solving: boolean; sensorsOn: boolean; aligned: boolean };
+  | { t: 'state'; night: boolean; solving: boolean; sensorsOn: boolean; aligned: boolean }
+  /** The puck's catalogue is current. */
+  | { t: 'catalogOk' }
+  /** A new catalogue follows on the catalogue channel, in this many parts. */
+  | { t: 'catalogStart'; id: string; bytes: number; parts: number; crc32: number };
 
 /** Reads a message from the puck, or null for anything this phone doesn't know. */
-export function parsePuckCommand(text: string): PuckCommand | null {
+export function parsePuckMessage(text: string): PuckMessage | null {
   let message: unknown;
   try {
     message = JSON.parse(text);
@@ -30,12 +42,24 @@ export function parsePuckCommand(text: string): PuckCommand | null {
   if (typeof message !== 'object' || message === null) return null;
   const m = message as Record<string, unknown>;
   switch (m['t']) {
+    case 'puckHello': {
+      const catalog = typeof m['catalog'] === 'string' ? m['catalog'] : null;
+      const version = typeof m['version'] === 'number' ? m['version'] : 0;
+      const screenPx = typeof m['screenPx'] === 'number' ? m['screenPx'] : 0;
+      return { t: 'puckHello', version, screenPx, catalog };
+    }
     case 'solveNow':
       return { t: 'solveNow', trigger: 'tap' };
     case 'step':
       return m['by'] === 1 || m['by'] === -1 ? { t: 'step', by: m['by'] } : null;
     case 'night':
       return typeof m['on'] === 'boolean' ? { t: 'night', on: m['on'] } : null;
+    case 'catalogDone':
+      return typeof m['id'] === 'string' ? { t: 'catalogDone', id: m['id'] } : null;
+    case 'catalogFailed':
+      return { t: 'catalogFailed', reason: typeof m['reason'] === 'string' ? m['reason'] : '' };
+    case 'ping':
+      return { t: 'ping' };
     default:
       return null;
   }

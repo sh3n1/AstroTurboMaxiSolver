@@ -812,6 +812,7 @@
     "cameraUnavailable": "Cámara no disponible. Pega el código.",
     "couldNotStart": "No se pudo iniciar el enlace en este móvil.",
     "couldNotRead": "No se pudo leer el código.",
+    "puckDisconnected": "Puck desconectado",
     "finderDisconnected": "Móvil buscador desconectado",
     "finderDisconnectedReason": "El móvil buscador se ha desconectado.",
     "title": "Remoto",
