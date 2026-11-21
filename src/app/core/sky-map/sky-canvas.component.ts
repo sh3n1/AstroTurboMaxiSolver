@@ -38,6 +38,7 @@ import {
 } from './draw-sky';
 import { drawChevrons, drawPointer, drawReticle, drawTargets } from './draw-targets';
 import { MapGestures } from './map-gestures';
+import { MapViewService } from './map-view.service';
 import type { Point, Project, ViewMode } from './sky-style';
 import {
   COLOR,
@@ -111,6 +112,8 @@ export class SkyCanvasComponent implements AfterViewInit, OnDestroy {
   protected readonly state = inject(AppState);
   /** The map's background stars and constellations: see StarFieldService. */
   private readonly starField = inject(StarFieldService);
+  /** Where the last frame's view is kept for the puck. */
+  private readonly mapView = inject(MapViewService);
   protected readonly stars = this.starField.stars;
   protected readonly constellations = this.starField.constellations;
   private readonly eyepieceField = this.state.trueField;
@@ -336,7 +339,8 @@ export class SkyCanvasComponent implements AfterViewInit, OnDestroy {
     const isEyepiece = this.mode() === 'eyepiece';
     // The sky as it is at this very frame, so it turns smoothly rather than in steps.
     this.frameRotation = this.state.rotationAt(this.state.frameTime());
-    const basis = viewBasis(this.steadyPointing(isEyepiece));
+    const pointing = this.steadyPointing(isEyepiece);
+    const basis = viewBasis(pointing);
     // The eyepiece's circle fits the screen whichever way up the phone is held.
     const { centreX, centreY, spanPx } = viewLayout(
       width,
@@ -355,6 +359,18 @@ export class SkyCanvasComponent implements AfterViewInit, OnDestroy {
     // Both views turn with the phone, so the horizon stays level with the real one. With
     // the phone fixed to the tube, its turn is the tube's, which turns the eyepiece's image.
     const rollDeg = this.state.viewRollDeg();
+    const starLimitMag = isEyepiece ? this.state.starLimit() : magnitudeLimit(this.fieldDeg());
+    // What this frame shows, for the puck to mirror (docs/puck.md).
+    this.mapView.publish({
+      pointing,
+      rollDeg,
+      fieldDeg: this.viewField(),
+      flipX: flip.x,
+      flipY: flip.y,
+      eyepiece: isEyepiece,
+      starLimitMag,
+      rotation: this.frameRotation,
+    });
 
     // Pixels per projected unit, so the chosen field fits the span laid out for it.
     const scale = spanPx / 2 / stereographicRadius(this.viewField() / 2);
@@ -384,8 +400,8 @@ export class SkyCanvasComponent implements AfterViewInit, OnDestroy {
     }
     // The eyepiece only needs stars near where it points, which the star field finds quickly.
     // The full list is sorted brightest first, so the sky map can stop at its limit.
-    if (isEyepiece) drawStars(frame, this.starField.starsNear(this.viewField()), this.state.starLimit());
-    else drawStars(frame, this.starField.allStars(), magnitudeLimit(this.fieldDeg()));
+    if (isEyepiece) drawStars(frame, this.starField.starsNear(this.viewField()), starLimitMag);
+    else drawStars(frame, this.starField.allStars(), starLimitMag);
     drawHorizon(frame);
     const labels = drawTargets(frame, {
       targets: this.state.targets(),
