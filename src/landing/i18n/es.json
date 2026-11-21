@@ -105,7 +105,7 @@
     "sentTitle": "Qué se envía, y a quién",
     "forecast": "<strong>Previsión meteorológica:</strong> para mostrar nubes y seeing, la app envía tu ubicación, redondeada a 0,1° (unos 10 km), a <a href=\"https://open-meteo.com/\" rel=\"noopener\">Open-Meteo</a>. No se envía nada más con ella.",
     "hosting": "<strong>Alojamiento:</strong> el sitio lo sirve <a href=\"https://www.cloudflare.com/privacypolicy/\" rel=\"noopener\">Cloudflare</a>, que, como cualquier alojamiento web, ve tu dirección IP y las páginas que se piden.",
-    "twoPhones": "<strong>Dos móviles:</strong> cuando enlazas dos móviles, se comunican directamente entre sí por tu red local. Nada pasa por un servidor. Si activas \"Sincronizar mediante Dos móviles\" en los dos, tus listas, diario y equipo se copian entre ellos.",
+    "twoPhones": "<strong>Dos móviles:</strong> cuando enlazas dos móviles, se comunican directamente entre sí por tu red local. Nada pasa por un servidor. Si activas \"Sincronizar con el móvil enlazado\" en los dos, tus listas, diario y equipo se copian entre ellos.",
     "driveTitle": "Sincronización con Google Drive (opcional)",
     "driveIntro": "Si eliges conectar Google Drive para mantener tus dispositivos sincronizados:",
     "driveSignIn": "Inicias sesión a través de Google. La página de inicio de sesión de Google pone sus propias cookies, bajo la <a href=\"https://policies.google.com/privacy\" rel=\"noopener\">política de privacidad de Google</a>.",

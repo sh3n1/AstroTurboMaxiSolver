@@ -62,6 +62,15 @@ import { RemoteService } from '../core/remote/remote.service';
       font-size: 28px;
       margin-right: 12px;
     }
+    /* The page's two sections: two devices, and the puck. */
+    .section {
+      margin: 20px 4px 10px;
+      color: var(--af-muted);
+      font-size: calc(14px * var(--af-scale, 1));
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
     .status {
       text-align: center;
       font-size: calc(17px * var(--af-scale, 1));
@@ -89,7 +98,7 @@ import { RemoteService } from '../core/remote/remote.service';
             [attr.aria-label]="'common.back' | translate"
           ></ion-back-button>
         </ion-buttons>
-        <ion-title>{{ 'settings.twoPhones' | translate }}</ion-title>
+        <ion-title>{{ 'remote.title' | translate }}</ion-title>
       </ion-toolbar>
     </ion-header>
     <ion-content class="ion-padding">
@@ -174,6 +183,8 @@ import { RemoteService } from '../core/remote/remote.service';
                 'common.cancel' | translate
               }}</ion-button>
             } @else {
+              <!-- A second phone: one on the telescope as the finder, the other in the hand. -->
+              <h2 class="section" data-testid="remote-two-devices">{{ 'remote.twoDevices' | translate }}</h2>
               <ion-button class="choice" expand="block" data-testid="remote-as-finder" (click)="remote.startAsFinder()">
                 <ion-icon name="telescope-outline" aria-hidden="true"></ion-icon>
                 {{ 'settings.thisIsFinder' | translate }}
@@ -188,7 +199,11 @@ import { RemoteService } from '../core/remote/remote.service';
                 <ion-icon name="phone-portrait-outline" aria-hidden="true"></ion-icon>
                 {{ 'remote.thisIsScreen' | translate }}
               </ion-button>
-              <!-- The puck, the hand remote, takes the screen phone's place. -->
+              <!--
+                The puck, the hand remote, over this phone: the one on the telescope, or the
+                screen phone of two devices. Never over a finder: see docs/puck.md.
+              -->
+              <h2 class="section" data-testid="remote-puck-section">{{ 'remote.puck' | translate }}</h2>
               <ion-button class="choice" expand="block" fill="outline" data-testid="remote-puck" (click)="scan(true)">
                 <ion-icon name="disc-outline" aria-hidden="true"></ion-icon>
                 {{ 'remote.linkPuck' | translate }}

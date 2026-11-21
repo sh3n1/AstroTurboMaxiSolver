@@ -105,7 +105,7 @@
     "sentTitle": "What is sent, and to whom",
     "forecast": "<strong>Weather forecast:</strong> to show clouds and seeing, the app sends your location, rounded to 0.1° (about 10 km), to <a href=\"https://open-meteo.com/\" rel=\"noopener\">Open-Meteo</a>. Nothing else is sent with it.",
     "hosting": "<strong>Hosting:</strong> the site is served by <a href=\"https://www.cloudflare.com/privacypolicy/\" rel=\"noopener\">Cloudflare</a>, which, like any web host, sees your IP address and the pages requested.",
-    "twoPhones": "<strong>Two phones:</strong> when you link two phones, they talk directly to each other over your local network. Nothing goes through a server. If you turn on \"Sync over Two phones link\" on both, your lists, log and equipment are copied between them.",
+    "twoPhones": "<strong>Two phones:</strong> when you link two phones, they talk directly to each other over your local network. Nothing goes through a server. If you turn on \"Sync with the linked phone\" on both, your lists, log and equipment are copied between them.",
     "driveTitle": "Google Drive sync (optional)",
     "driveIntro": "If you choose to connect Google Drive, to keep your devices in sync:",
     "driveSignIn": "You sign in through Google. Google's sign-in page sets its own cookies, under <a href=\"https://policies.google.com/privacy\" rel=\"noopener\">Google's privacy policy</a>.",
