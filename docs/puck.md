@@ -4,12 +4,37 @@
 
 The puck is a hand remote for the app: a small round screen (a Waveshare
 ESP32-S3-Touch-AMOLED-1.75, 466×466 px) that shows the phone's sky map and guides to the
-target. Its firmware lives in its own repository, AstroTurboMaxiPuck. It takes the screen
-phone's part in [Two phones](two-phones.md): the phone on the telescope is the finder, as
-usual.
+target. Its firmware lives in its own repository, AstroTurboMaxiPuck.
 
 This file is the contract between the app and the puck's firmware. Change it first, then
 both sides.
+
+## Who the puck links to (decided 2026-11-21)
+
+**Where the telescope points always comes from the phone on the telescope.** What changes is
+the way it reaches the puck:
+
+- **One phone, in normal mode,** on the telescope: the puck links straight to it.
+- **[Two phones](two-phones.md):** the puck links to the **screen phone**, which passes on what
+  the finder on the telescope sends it. The puck never links to the finder.
+
+Why: the puck is a remote, and a remote of a phone whose screen is locked, as the finder's is,
+makes no sense. The screen phone, by contrast, already takes control of the finder, so the
+puck works through it.
+
+- **The phone the puck links to stays as it is.** Linking a puck doesn't put it in finder or
+  any other mode, and doesn't lock or take over its screen: the puck is only a remote over it.
+- **Both ways:** what the user changes on the puck acts on that phone (and, in Two phones,
+  through it on the finder, as the screen's own changes do), and what changes on that phone
+  (target, view, night mode…) updates the puck's view.
+
+## The app's Remote page (decided 2026-11-21, not built)
+
+- The menu tile and page **Two phones is renamed Remote**.
+- The page has two sections:
+  - **Two devices:** the two buttons it has today, this phone is the finder, and this phone is
+    the screen.
+  - **Puck:** a button to link a puck.
 
 ## Principles
 
@@ -135,4 +160,5 @@ fingerprint); how the phone's answer reaches the puck is still to be worked out.
 - The colour table for `colour`, and how night mode changes it (full-strength red, no grey).
 - The menu items (Sensors, Eyepiece, Lists, Alignment, Settings, Meade LX200 Repeater): which
   need new messages. See the puck's `docs/screen-layout.md`.
-- Whether the phone stays in finder mode, with no buttons, while linked to a puck.
+- The control messages below were written for the puck taking the screen phone's part. With
+  the puck linked to a normal or screen phone instead (above), check which still fit.
