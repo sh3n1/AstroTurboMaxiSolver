@@ -13,6 +13,7 @@ const VIEW_VERSION = 1;
 const FLAG_MIRROR_X = 1;
 const FLAG_MIRROR_Y = 2;
 const FLAG_EYEPIECE = 4;
+const FLAG_RING = 8;
 
 /** A unit quaternion (w, x, y, z). */
 export type Quaternion = [number, number, number, number];
@@ -91,7 +92,10 @@ export function encodeView(
     view.starLimitMag,
   ]);
   const flags =
-    (view.flipX < 0 ? FLAG_MIRROR_X : 0) | (view.flipY < 0 ? FLAG_MIRROR_Y : 0) | (view.eyepiece ? FLAG_EYEPIECE : 0);
+    (view.flipX < 0 ? FLAG_MIRROR_X : 0) |
+    (view.flipY < 0 ? FLAG_MIRROR_Y : 0) |
+    (view.eyepiece ? FLAG_EYEPIECE : 0) |
+    (view.ring ? FLAG_RING : 0);
   data.setUint8(64, flags);
   return buffer;
 }

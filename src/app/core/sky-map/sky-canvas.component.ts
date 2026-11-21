@@ -368,6 +368,7 @@ export class SkyCanvasComponent implements AfterViewInit, OnDestroy {
       flipX: flip.x,
       flipY: flip.y,
       eyepiece: isEyepiece,
+      ring: this.mode() === 'ring',
       starLimitMag,
       rotation: this.frameRotation,
     });

@@ -164,22 +164,22 @@ On a lost link, the puck shows a new QR code and says the link was lost. The hos
 
 Where the host's map points, and the guidance to the target. 68 bytes.
 
-| Offset | Type     | Field           | Meaning                                                                                                                                          |
-| ------ | -------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 0      | `u8`     | `type`          | 1. Unknown types are ignored.                                                                                                                    |
-| 1      | `u8`     | `version`       | Layout version, 1. A version not known is ignored.                                                                                               |
-| 2      | `u16`    | `seq`           | Counts up for each `view`, wrapping at 65535. Older than the last used (by wrapping comparison) means late: dropped.                             |
-| 4      | `u32`    | `timeMs`        | The host's clock, in ms since the link opened.                                                                                                   |
-| 8      | `f32[4]` | `sky`           | Unit quaternion (w, x, y, z): J2000 vectors to local vectors, before refraction. The app's `rotationAt(frameTime)`.                              |
-| 24     | `f32[4]` | `view`          | Unit quaternion (w, x, y, z): local vectors to view vectors (right, up, back). The map's smoothed `viewBasis`, roll included.                    |
-| 40     | `f32`    | `fovDeg`        | The host's field: what its map shows across. The puck uses it only in the eyepiece view; on the sky map it zooms on its own ("The puck's zoom"). |
-| 44     | `f32`    | `altDeg`        | Altitude of the view's centre, as it appears, for the top edge.                                                                                  |
-| 48     | `f32`    | `azDeg`         | Azimuth of the view's centre, for the top edge.                                                                                                  |
-| 52     | `f32`    | `targetDistDeg` | Angle from the centre to the target. NaN when there is no target.                                                                                |
-| 56     | `f32`    | `targetDirDeg`  | Direction to the target on the puck's screen, clockwise from up. NaN when there is no target.                                                    |
-| 60     | `f32`    | `starLimitMag`  | The faintest stars to draw, as the host's map does (`magnitudeLimit`, or the eyepiece's `starLimit`).                                            |
-| 64     | `u8`     | `flags`         | Bit 0: mirror left to right. Bit 1: mirror top to bottom (the host's `imageFlip`). Bit 2: the host shows the eyepiece view.                      |
-| 65     | `u8[3]`  |                 | Zero, for later.                                                                                                                                 |
+| Offset | Type     | Field           | Meaning                                                                                                                                                                                                                                      |
+| ------ | -------- | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0      | `u8`     | `type`          | 1. Unknown types are ignored.                                                                                                                                                                                                                |
+| 1      | `u8`     | `version`       | Layout version, 1. A version not known is ignored.                                                                                                                                                                                           |
+| 2      | `u16`    | `seq`           | Counts up for each `view`, wrapping at 65535. Older than the last used (by wrapping comparison) means late: dropped.                                                                                                                         |
+| 4      | `u32`    | `timeMs`        | The host's clock, in ms since the link opened.                                                                                                                                                                                               |
+| 8      | `f32[4]` | `sky`           | Unit quaternion (w, x, y, z): J2000 vectors to local vectors, before refraction. The app's `rotationAt(frameTime)`.                                                                                                                          |
+| 24     | `f32[4]` | `view`          | Unit quaternion (w, x, y, z): local vectors to view vectors (right, up, back). The map's smoothed `viewBasis`, roll included.                                                                                                                |
+| 40     | `f32`    | `fovDeg`        | The host's field: what its map shows across. The puck uses it only in the eyepiece view; on the sky map it zooms on its own ("The puck's zoom").                                                                                             |
+| 44     | `f32`    | `altDeg`        | Altitude of the view's centre, as it appears, for the top edge.                                                                                                                                                                              |
+| 48     | `f32`    | `azDeg`         | Azimuth of the view's centre, for the top edge.                                                                                                                                                                                              |
+| 52     | `f32`    | `targetDistDeg` | Angle from the centre to the target. NaN when there is no target.                                                                                                                                                                            |
+| 56     | `f32`    | `targetDirDeg`  | Direction to the target on the puck's screen, clockwise from up. NaN when there is no target.                                                                                                                                                |
+| 60     | `f32`    | `starLimitMag`  | The faintest stars to draw, as the host's map does (`magnitudeLimit`, or the eyepiece's `starLimit`).                                                                                                                                        |
+| 64     | `u8`     | `flags`         | Bit 0: mirror left to right. Bit 1: mirror top to bottom (the host's `imageFlip`). Bit 2: the host shows the eyepiece view. Bit 3: the sky map shows the eyepiece's field as its one ring (the app's ring view), instead of the three rings. |
+| 65     | `u8[3]`  |                 | Zero, for later.                                                                                                                                                                                                                             |
 
 Quaternions rather than 3×3 matrices: 16 bytes instead of 36, and two of them blend smoothly
 (slerp) when the puck glides between messages. The puck draws with the newest `view` it has.
@@ -248,9 +248,10 @@ The puck's own parts (rings, crosshair, chevrons, top edge, bottom third) are in
 
 Everything on the host's map that doesn't move: stars, constellation lines and names, and
 the fixed objects (deep-sky objects, named stars, doubles). Built by the host from the files
-the app already loads (`stars.json`, `constellations.json`, the targets). Today about 0.5 MB.
-The stars stop at the map's own limit, 6.5, even once the eyepiece view has loaded the
-faint ones, so the catalogue (and its `id`) stays the same. Built by `puck-catalog.ts` and
+the app already loads (`stars.json`, `stars-deep.json`, `constellations.json`, the targets):
+the map's stars to 6.5 in section 1, and the fainter ones the eyepiece view shows in
+section 7, always both, so the catalogue (and its `id`) doesn't depend on whether the app's
+eyepiece view has been opened. About 2.1 MB. Built by `puck-catalog.ts` and
 `puck-catalog.service.ts`; kept on the puck by its `main/catalog.c`.
 
 **Data licences:**
@@ -315,7 +316,7 @@ The puck skips a section type it doesn't know, so new ones can be added without 
 | 4    | Objects             | 20:<br>• `f32` raDeg and decDeg<br>• `u32` the label's offset in the strings: what the map writes beside it, its first designation (`designations()[0]`, such as M1)<br>• `i16` magnitude × 100 (32767 for none)<br>• `u16` size × 10, in arcminutes (0 for none)<br>• `u16` minor axis × 10 (0 for round)<br>• `u8` kind<br>• `u8` `showBelowFieldDeg` (255: always). |
 | 5    | Strings             | UTF-8 strings, each ending in a zero byte. Names are never translated (as in the app).                                                                                                                                                                                                                                                                                 |
 | 6    | (none)              | Was the data credits: no longer sent, as they are translated (see `texts`). Don't use this number again.                                                                                                                                                                                                                                                               |
-| 7    | Faint stars         | As section 1. Optional, for the eyepiece view, if the puck's flash and the transfer time allow (open).                                                                                                                                                                                                                                                                 |
+| 7    | Faint stars         | As section 1, the stars fainter than the map's 6.5 that the phone's eyepiece view shows (`stars-deep.json`, about 109 000), sorted by declination band (2° wide, from −90°), then by right ascension, so the puck reads only those near where it looks. Only drawn in the eyepiece view, down to its `starLimitMag`.                                                   |
 | 8    | Palette             | Optional: the colours (`STAR_TINTS`, the line and label colours, by name), so the look follows the app. Layout to agree when it's built.                                                                                                                                                                                                                               |
 
 Kinds (section 4 and `objects`):
@@ -394,8 +395,6 @@ on and off, the eyepiece, choosing a list or target, and alignment.
 
 ## Open questions
 
-- The faint stars (section 7) for the eyepiece view: whether to send them, and to which
-  magnitude (about 100,000 stars, 1.2 MB, to 9).
 - The palette section's layout, and night mode's colours (full-strength red, no grey).
 - The menu items (Sensors, Eyepiece, Lists, Alignment, Settings, Meade LX200 Repeater): which
   need new messages. See the puck's `docs/screen-layout.md`.

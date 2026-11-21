@@ -102,6 +102,25 @@ describe('puck catalogue', () => {
     expect(data.getUint8(offset + 19)).toBe(showBelowFieldDeg(crab));
   });
 
+  it('sorts the faint stars by declination band, then right ascension', () => {
+    const withFaint = buildPuckCatalog({
+      stars: [],
+      faintStars: [star(300, 10.5, 9, 2), star(20, 10.9, 8, 2), star(100, -45, 7, 1)],
+      constellations: [],
+      targets: [],
+    });
+    const faintData = new DataView(withFaint.buffer);
+    const [offset, count] = sections(withFaint).get(SECTION.faintStars)!;
+    expect(count).toBe(3);
+    const read = (i: number): [number, number] => [
+      faintData.getFloat32(offset + i * 12, true),
+      faintData.getFloat32(offset + i * 12 + 4, true),
+    ];
+    expect(read(0)[1]).toBeCloseTo(-45, 3); // the southern band first
+    expect(read(1)[0]).toBeCloseTo(20, 3); // then, in one band, by right ascension
+    expect(read(2)[0]).toBeCloseTo(300, 3);
+  });
+
   it("writes the map's label rules as the field below which each object shows", () => {
     expect(showBelowFieldDeg(sirius)).toBe(255); // bright stars always show
     // Messier objects: down to magnitude 7 always, fainter ones once under 60°.

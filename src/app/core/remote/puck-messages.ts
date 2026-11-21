@@ -15,6 +15,8 @@ export type PuckMessage =
   | { t: 'step'; by: -1 | 1 }
   /** Night mode on or off, from the puck's menu. */
   | { t: 'night'; on: boolean }
+  /** How many of the catalogue's bytes have come, after each part, so the next parts go. */
+  | { t: 'catalogAck'; bytes: number }
   /** The catalogue sent is received, checked and kept. */
   | { t: 'catalogDone'; id: string }
   /** It wasn't: the CRC didn't match, or there was no room. */
@@ -125,6 +127,8 @@ export function parsePuckMessage(text: string): PuckMessage | null {
       return m['by'] === 1 || m['by'] === -1 ? { t: 'step', by: m['by'] } : null;
     case 'night':
       return typeof m['on'] === 'boolean' ? { t: 'night', on: m['on'] } : null;
+    case 'catalogAck':
+      return typeof m['bytes'] === 'number' ? { t: 'catalogAck', bytes: m['bytes'] } : null;
     case 'catalogDone':
       return typeof m['id'] === 'string' ? { t: 'catalogDone', id: m['id'] } : null;
     case 'catalogFailed':
