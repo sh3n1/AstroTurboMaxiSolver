@@ -96,7 +96,8 @@ export function puckAnswer(puck: PuckCode, offerSdp: string): string {
       `a=fingerprint:sha-256 ${puck.fingerprint}`,
       'a=setup:passive',
       'a=sctp-port:5000',
-      'a=max-message-size:262144',
+      // The biggest message the puck puts back together from pieces (SCTP_MAX_MESSAGE_SIZE).
+      'a=max-message-size:16384',
       `a=candidate:1 1 udp 2130706431 ${puck.ip} ${puck.port} typ host`,
       'a=end-of-candidates',
     ].join('\r\n') + '\r\n'
