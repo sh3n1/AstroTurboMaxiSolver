@@ -28,12 +28,45 @@ export type PuckHostMessage =
   | { t: 'targetInfo'; id: string | null; name: string }
   /** What the puck shows besides the map. */
   | { t: 'state'; night: boolean; solving: boolean; sensorsOn: boolean; aligned: boolean }
+  /** The words the puck shows, in the app's language (textsMessage). */
+  | PuckTextsMessage
   /** What moves: the Moon, planets and bright asteroids (puck-objects.ts). */
   | PuckObjectsMessage
   /** The puck's catalogue is current. */
   | { t: 'catalogOk' }
   /** A new catalogue follows on the catalogue channel, in this many parts. */
   | { t: 'catalogStart'; id: string; bytes: number; parts: number; crc32: number };
+
+/**
+ * Every word the puck shows once linked comes from this phone, in its language, so the
+ * firmware needs no translations: the compass points under the horizon, and the data
+ * credits for its Settings. Names and designations are never translated, and come in the
+ * catalogue and `objects`.
+ */
+export interface PuckTextsMessage {
+  t: 'texts';
+  /** The compass points' letters, as the app's map writes them (compass.short). */
+  compass: { n: string; e: string; s: string; w: string };
+  /** The app's data credits, one per line. */
+  credits: string;
+}
+
+/** The data credits the puck shows: the data its catalogue holds (Settings, Data credits). */
+const CREDIT_KEYS = ['credits.xhip', 'credits.openngc', 'credits.hyg', 'credits.messier', 'credits.caldwell'];
+
+/** The `texts` message, in the language translate gives. */
+export function textsMessage(translate: (key: string) => string): PuckTextsMessage {
+  return {
+    t: 'texts',
+    compass: {
+      n: translate('compass.short.N'),
+      e: translate('compass.short.E'),
+      s: translate('compass.short.S'),
+      w: translate('compass.short.W'),
+    },
+    credits: CREDIT_KEYS.map((key) => translate(key)).join('\n'),
+  };
+}
 
 /** Reads a message from the puck, or null for anything this phone doesn't know. */
 export function parsePuckMessage(text: string): PuckMessage | null {

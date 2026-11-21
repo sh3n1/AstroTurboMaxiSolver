@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parsePuckMessage } from './puck-messages';
+import { parsePuckMessage, textsMessage } from './puck-messages';
 
 describe('puck messages', () => {
   it('reads the commands the puck sends, as its firmware writes them', () => {
@@ -32,6 +32,13 @@ describe('puck messages', () => {
       id: '0123456789abcdef',
     });
     expect(parsePuckMessage('{"t":"catalogFailed","reason":"crc"}')).toEqual({ t: 'catalogFailed', reason: 'crc' });
+  });
+
+  it("writes the puck's words in the app's language", () => {
+    const spanish: Record<string, string> = { 'compass.short.W': 'O', 'credits.xhip': 'Estrellas de XHIP' };
+    const message = textsMessage((key) => spanish[key] ?? key);
+    expect(message.compass).toEqual({ n: 'compass.short.N', e: 'compass.short.E', s: 'compass.short.S', w: 'O' });
+    expect(message.credits.split('\n')[0]).toBe('Estrellas de XHIP');
   });
 
   it('ignores anything else', () => {
