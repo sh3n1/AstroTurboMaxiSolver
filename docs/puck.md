@@ -1,8 +1,9 @@
 # The puck
 
 **Draft (2026-11-21).** Built so far, on both sides: the pairing (QR code and `auth`), the
-`view`, `targetInfo`, `state`, and the commands `solveNow`, `step` and `night`. The rest is
-agreed but not built.
+`view`, `targetInfo`, `state`, the commands `solveNow`, `step` and `night`, and keeping the
+link alive (`ping`). Written, to test with the puck: `puckHello`, `objects` and the catalogue's
+transfer. The rest is agreed but not built.
 
 The puck is a hand remote for the app: a small round screen (a Waveshare
 ESP32-S3-Touch-AMOLED-1.75, 466×466 px) that shows the phone's sky map and guides to the
@@ -71,13 +72,13 @@ phone must be on the same Wi-Fi (or the phone's hotspot).
 
 `AFP1:` followed by 82 bytes in base64url without padding:
 
-| Offset | Bytes | Field         | Meaning                                                              |
-| ------ | ----- | ------------- | -------------------------------------------------------------------- |
-| 0      | 4     | `ip`          | The puck's IPv4 address.                                             |
-| 4      | 2     | `port`        | Its UDP port, big-endian.                                            |
-| 6      | 4     | `ufrag`       | Its ICE username fragment, ASCII.                                    |
-| 10     | 24    | `pwd`         | Its ICE password, ASCII.                                             |
-| 34     | 32    | `fingerprint` | The SHA-256 of its DTLS certificate.                                 |
+| Offset | Bytes | Field         | Meaning                                                             |
+| ------ | ----- | ------------- | ------------------------------------------------------------------- |
+| 0      | 4     | `ip`          | The puck's IPv4 address.                                            |
+| 4      | 2     | `port`        | Its UDP port, big-endian.                                           |
+| 6      | 4     | `ufrag`       | Its ICE username fragment, ASCII.                                   |
+| 10     | 24    | `pwd`         | Its ICE password, ASCII.                                            |
+| 34     | 32    | `fingerprint` | The SHA-256 of its DTLS certificate.                                |
 | 66     | 16    | `secret`      | Random, new for every QR code, which the host must send back first. |
 
 The prefix tells a puck's code from a phone's (`AF1:`) at once. Code: `puck-pairing.ts` in the
@@ -111,17 +112,29 @@ stay at or under 16,384 bytes.
 Opened by the host, in this order, with the usual in-band negotiation (not `negotiated`). The
 puck tells them apart by label.
 
-| Channel                        | Carries                     | Delivery                                     |
-| ------------------------------ | --------------------------- | -------------------------------------------- |
-| `astroturbomaxisolver`         | Control messages, JSON text | Reliable, ordered                            |
-| `astroturbomaxisolver-view`    | The `view`, binary          | Never resent, any order (`maxRetransmits: 0`) |
-| `astroturbomaxisolver-catalog` | Catalogue parts, binary     | Reliable, ordered                            |
+| Channel                        | Carries                                            | Delivery                                      |
+| ------------------------------ | -------------------------------------------------- | --------------------------------------------- |
+| `astroturbomaxisolver`         | Control messages, JSON text                        | Reliable, ordered                             |
+| `astroturbomaxisolver-view`    | The `view`, binary                                 | Never resent, any order (`maxRetransmits: 0`) |
+| `astroturbomaxisolver-catalog` | `catalogStart`, then the catalogue's parts, binary | Reliable, ordered                             |
 
 A lost `view` is never resent: the next one, a few tens of milliseconds later, replaces it.
 The catalogue has its own channel so that its few seconds of transfer don't hold back the
 control messages.
 
 The pose channel of Two phones (`astroturbomaxisolver-pose`) isn't used with a puck.
+
+## Keeping the link alive
+
+Each side sends at least one message a second, on any channel, and each takes 4 s of silence
+from the other as a lost link, long before WebRTC itself would notice:
+
+- **The host** sends a `view` at least once a second. Before its map has drawn a frame, it
+  sends `state` instead.
+- **The puck** sends `ping` (`{ t: 'ping' }`) when it has sent nothing else for a second.
+
+On a lost link, the puck shows a new QR code and says the link was lost. The host says
+"Puck disconnected" wherever the user is, and its Remote page shows "Link lost".
 
 ## Binary rules
 
@@ -146,17 +159,17 @@ Where the host's map points, and the guidance to the target. 68 bytes.
 | ------ | -------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | 0      | `u8`     | `type`          | 1. Unknown types are ignored.                                                                                                 |
 | 1      | `u8`     | `version`       | Layout version, 1. A version not known is ignored.                                                                            |
-| 2      | `u16`    | `seq`           | Counts up for each `view`, wrapping at 65535. Older than the last used (by wrapping comparison) means late: dropped.        |
+| 2      | `u16`    | `seq`           | Counts up for each `view`, wrapping at 65535. Older than the last used (by wrapping comparison) means late: dropped.          |
 | 4      | `u32`    | `timeMs`        | The host's clock, in ms since the link opened.                                                                                |
-| 8      | `f32[4]` | `sky`           | Unit quaternion (w, x, y, z): J2000 vectors to local vectors, before refraction. The app's `rotationAt(frameTime)`.         |
+| 8      | `f32[4]` | `sky`           | Unit quaternion (w, x, y, z): J2000 vectors to local vectors, before refraction. The app's `rotationAt(frameTime)`.           |
 | 24     | `f32[4]` | `view`          | Unit quaternion (w, x, y, z): local vectors to view vectors (right, up, back). The map's smoothed `viewBasis`, roll included. |
 | 40     | `f32`    | `fovDeg`        | The angle the puck's full diameter covers.                                                                                    |
 | 44     | `f32`    | `altDeg`        | Altitude of the view's centre, as it appears, for the top edge.                                                               |
 | 48     | `f32`    | `azDeg`         | Azimuth of the view's centre, for the top edge.                                                                               |
 | 52     | `f32`    | `targetDistDeg` | Angle from the centre to the target. NaN when there is no target.                                                             |
 | 56     | `f32`    | `targetDirDeg`  | Direction to the target on the puck's screen, clockwise from up. NaN when there is no target.                                 |
-| 60     | `f32`    | `starLimitMag`  | The faintest stars to draw, as the host's map does (`magnitudeLimit`, or the eyepiece's `starLimit`).                        |
-| 64     | `u8`     | `flags`         | Bit 0: mirror left to right. Bit 1: mirror top to bottom (the host's `imageFlip`). Bit 2: the host shows the eyepiece view. |
+| 60     | `f32`    | `starLimitMag`  | The faintest stars to draw, as the host's map does (`magnitudeLimit`, or the eyepiece's `starLimit`).                         |
+| 64     | `u8`     | `flags`         | Bit 0: mirror left to right. Bit 1: mirror top to bottom (the host's `imageFlip`). Bit 2: the host shows the eyepiece view.   |
 | 65     | `u8[3]`  |                 | Zero, for later.                                                                                                              |
 
 Quaternions rather than 3×3 matrices: 16 bytes instead of 36, and two of them blend smoothly
@@ -181,6 +194,7 @@ To match the app's map (`sky-canvas.component.ts`, `draw-sky.ts`, `draw-targets.
    - `r = 0` outside ±90°.
 
    Display geometry, so it is done on the puck, not sent.
+
 3. **Local to view:** `(x, y, z) = view · local`, and forward `f = −z`. Skip what has
    `f < −0.2`, too far behind.
 4. **Stereographic projection:**
@@ -208,8 +222,12 @@ The puck's own parts (rings, crosshair, chevrons, top edge, bottom third) are in
 Everything on the host's map that doesn't move: stars, constellation lines and names, and
 the fixed objects (deep-sky objects, named stars, doubles). Built by the host from the files
 the app already loads (`stars.json`, `constellations.json`, the targets). Today about 0.5 MB.
+The stars stop at the map's own limit, 6.5, even once the eyepiece view has loaded the
+faint ones, so the catalogue (and its `id`) stays the same. Built by `puck-catalog.ts` and
+`puck-catalog.service.ts`; kept on the puck by its `main/catalog.c`.
 
 **Data licences:**
+
 - The stars and constellation lines (XHIP and the IAU, via d3-celestial) are in the app's GPL part.
 - The NGC and IC objects are OpenNGC's, CC BY-SA 4.0, and the star names are the HYG Database's, CC BY-SA 4.0. Both are aggregate data (see the app's `AGENTS.md`).
 
@@ -225,14 +243,19 @@ always gives the same `id`, so the puck asks for it again only when it changes.
 ### Transfer
 
 1. After `auth`, the puck sends `puckHello` with the `id` of the catalogue it holds, or null.
-2. If it's the same, the host sends `catalogOk`. Otherwise it sends `catalogStart`:
-   `{ t: 'catalogStart', id, bytes, parts, crc32 }`.
-3. Then it sends the catalogue's bytes in order on the catalogue channel, in parts of up to
+2. If it's the same, the host sends `catalogOk`. Otherwise it sends `catalogStart` as text
+   **on the catalogue channel**: `{ t: 'catalogStart', id, bytes, parts, crc32 }`. Not on
+   the control channel: the two are separate streams with no order between them, and a
+   resent `catalogStart` could come after the first parts.
+3. Then, on the same channel, the catalogue's bytes in order, in binary parts of up to
    16,384 bytes. Each part is the bytes alone, with no header: the channel is reliable and
    ordered.
-4. The puck writes them to flash, and once `bytes` have come checks the CRC-32 (IEEE, as zlib).
-5. It answers `{ t: 'catalogDone', id }`, or `{ t: 'catalogFailed', reason }`. On a failure
-   the host may start again once.
+4. The puck collects them in its PSRAM, and once `bytes` have come checks the CRC-32 (IEEE,
+   as zlib). Then a task of its own writes them to flash, while the link carries on: a
+   megabyte of flash takes about 10 s to erase, longer than the 4 s silence limit.
+5. It answers `{ t: 'catalogDone', id }` once the catalogue is written and read back, or
+   `{ t: 'catalogFailed', reason }` (`crc`, `size`, `memory` or `flash`). On a failure the
+   host starts again once.
 6. Until it has a catalogue, the puck shows the reticle, the guidance and the top edge
    without the map, and says "Loading the sky…" with the progress.
 
@@ -241,6 +264,7 @@ A link that drops during the transfer starts it again from the beginning next ti
 ### Format
 
 The catalogue's bytes:
+
 - **Header:**
   - `u32` magic, the ASCII `ATMC`;
   - `u16` format version, 1;
@@ -254,18 +278,19 @@ The catalogue's bytes:
 
 The puck skips a section type it doesn't know, so new ones can be added without breaking it.
 
-| Type | Section             | Record (bytes)                                                                                                                                                                                                                                                                   |
-| ---- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1    | Stars               | 12:<br>• `f32` raDeg<br>• `f32` decDeg<br>• `i16` magnitude × 100<br>• `u8` tint (index in `STAR_TINTS`)<br>• `u8` zero.<br>Brightest first, so drawing can stop at the limit.                                                                                                     |
-| 2    | Constellation lines | 16, one segment each:<br>• `f32` raDeg and decDeg of one end<br>• `f32` raDeg and decDeg of the other end.                                                                                                                                                                         |
-| 3    | Constellation names | 12:<br>• `f32` raDeg and decDeg of the label<br>• `u32` the name's offset in the strings.                                                                                                                                                                                          |
-| 4    | Objects             | 20:<br>• `f32` raDeg and decDeg<br>• `u32` the name's offset in the strings<br>• `i16` magnitude × 100 (32767 for none)<br>• `u16` size × 10, in arcminutes (0 for none)<br>• `u16` minor axis × 10 (0 for round)<br>• `u8` kind<br>• `u8` `showBelowFieldDeg` (255: always). |
-| 5    | Strings             | UTF-8 strings, each ending in a zero byte. Names are never translated (as in the app).                                                                                                                                                                                             |
-| 6    | Credits             | One UTF-8 text, the app's data credits in the host's language, lines split by `\n`.                                                                                                                                                                                                |
-| 7    | Faint stars         | As section 1. Optional, for the eyepiece view, if the puck's flash and the transfer time allow (open).                                                                                                                                                                             |
-| 8    | Palette             | Optional: the colours (`STAR_TINTS`, the line and label colours, by name), so the look follows the app. Layout to agree when it's built.                                                                                                                                           |
+| Type | Section             | Record (bytes)                                                                                                                                                                                                                                                                                                                                                         |
+| ---- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Stars               | 12:<br>• `f32` raDeg<br>• `f32` decDeg<br>• `i16` magnitude × 100<br>• `u8` tint (index in `STAR_TINTS`)<br>• `u8` zero.<br>Brightest first, so drawing can stop at the limit.                                                                                                                                                                                         |
+| 2    | Constellation lines | 16, one segment each:<br>• `f32` raDeg and decDeg of one end<br>• `f32` raDeg and decDeg of the other end.                                                                                                                                                                                                                                                             |
+| 3    | Constellation names | 12:<br>• `f32` raDeg and decDeg of the label<br>• `u32` the name's offset in the strings.                                                                                                                                                                                                                                                                              |
+| 4    | Objects             | 20:<br>• `f32` raDeg and decDeg<br>• `u32` the label's offset in the strings: what the map writes beside it, its first designation (`designations()[0]`, such as M1)<br>• `i16` magnitude × 100 (32767 for none)<br>• `u16` size × 10, in arcminutes (0 for none)<br>• `u16` minor axis × 10 (0 for round)<br>• `u8` kind<br>• `u8` `showBelowFieldDeg` (255: always). |
+| 5    | Strings             | UTF-8 strings, each ending in a zero byte. Names are never translated (as in the app).                                                                                                                                                                                                                                                                                 |
+| 6    | Credits             | One UTF-8 text, the app's data credits in the host's language, lines split by `\n`.                                                                                                                                                                                                                                                                                    |
+| 7    | Faint stars         | As section 1. Optional, for the eyepiece view, if the puck's flash and the transfer time allow (open).                                                                                                                                                                                                                                                                 |
+| 8    | Palette             | Optional: the colours (`STAR_TINTS`, the line and label colours, by name), so the look follows the app. Layout to agree when it's built.                                                                                                                                                                                                                               |
 
 Kinds (section 4 and `objects`):
+
 - 1 Galaxy
 - 2 Nebula
 - 3 Open cluster
@@ -282,6 +307,7 @@ Kinds (section 4 and `objects`):
 New kinds take new numbers; the puck draws one it doesn't know as Other.
 
 `showBelowFieldDeg` is the host's `isShownAtField` written as data:
+
 - the object shows when the field is under this angle;
 - 255 means it always shows;
 - 0 means only in the eyepiece view.
@@ -298,26 +324,29 @@ messages between finder and screen (`hello`, `site`, `alignment`, `pause`, `resu
 `fullscreen`, `dataOn`, `dataManifest`, `dataRecords`, `pose`) go to or come from the puck.
 Closing the puck's link ends it; the host's own link to a finder, if any, carries on.
 
-| From | Message         | Meaning                                                                                                                                                                                       |
-| ---- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Host | `auth`          | `{ t: 'auth', secret }`: always first, the secret from the QR code in base64url. See "Pairing". **Built.**                                                                                     |
-| Puck | `puckHello`     | Once paired: `{ t: 'puckHello', version: 1, screenPx: 466, catalog: id \| null }`, so the host knows it's a puck and what it holds. A finder answers `puckRefused` and closes.               |
-| Host | `puckRefused`   | `{ t: 'puckRefused', reason: 'finder' }`: this phone is a finder, which a puck can't link to. The puck says so on its screen.                                                                  |
-| Host | `catalogOk`     | `{ t: 'catalogOk' }`: the puck's catalogue is current.                                                                                                                                         |
-| Host | `catalogStart`  | `{ t: 'catalogStart', id, bytes, parts, crc32 }`: a new catalogue follows on the catalogue channel. See "Transfer".                                                                           |
-| Puck | `catalogDone`   | `{ t: 'catalogDone', id }`: received, checked and kept.                                                                                                                                         |
-| Puck | `catalogFailed` | `{ t: 'catalogFailed', reason }`: the CRC didn't match, or the flash is full.                                                                                                                   |
-| Host | `objects`       | What moves, and the user's own targets: `{ t: 'objects', sun, items: [...] }`, below. Sent once linked, every minute, and on every change.                                                          |
-| Host | `state`         | What the puck shows besides the map: `{ t: 'state', night, solving, sensorsOn, aligned }`. Sent once linked and on every change.                                                              |
-| Host | `targetInfo`    | The target's name to show: `{ t: 'targetInfo', id: string \| null, name: string }`. Sent once linked and on every change.                                                                     |
-| Host | `solveLog`      | Each plate solve attempt, as Two phones sends it, so the puck can show "solved" or why not.                                                                                                   |
-| Puck | `solveNow`      | A tap on the reticle: `{ t: 'solveNow', trigger: 'tap' }`. The host solves, or asks its finder to, as for its own tap.                                                                        |
-| Puck | `step`          | The left or right arrow: `{ t: 'step', by: -1 \| 1 }`: the previous or next target of the list playing on the host.                                                                           |
-| Puck | `zoom`          | `{ t: 'zoom', by: -1 \| 1 }`: the host's map zooms out or in one step, as its zoom buttons do; the next `view` shows it.                                                                      |
-| Puck | `night`         | `{ t: 'night', on: boolean }`: night mode on the host, which passes it on to its finder as usual.                                                                                             |
+| From | Message         | Meaning                                                                                                                                                                        |
+| ---- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Host | `auth`          | `{ t: 'auth', secret }`: always first, the secret from the QR code in base64url. See "Pairing". **Built.**                                                                     |
+| Puck | `puckHello`     | Once paired: `{ t: 'puckHello', version: 1, screenPx: 466, catalog: id \| null }`, so the host knows it's a puck and what it holds. A finder answers `puckRefused` and closes. |
+| Host | `puckRefused`   | `{ t: 'puckRefused', reason: 'finder' }`: this phone is a finder, which a puck can't link to. The puck says so on its screen.                                                  |
+| Host | `catalogOk`     | `{ t: 'catalogOk' }`: the puck's catalogue is current.                                                                                                                         |
+| Host | `catalogStart`  | `{ t: 'catalogStart', id, bytes, parts, crc32 }`, sent **on the catalogue channel**, before the parts. See "Transfer".                                                         |
+| Puck | `catalogDone`   | `{ t: 'catalogDone', id }`: received, checked and kept.                                                                                                                        |
+| Puck | `catalogFailed` | `{ t: 'catalogFailed', reason }`: the CRC didn't match, or the flash is full.                                                                                                  |
+| Host | `objects`       | What moves, and the user's own targets: `{ t: 'objects', sun, items: [...] }`, below. Sent once linked, every minute, and on every change.                                     |
+| Host | `state`         | What the puck shows besides the map: `{ t: 'state', night, solving, sensorsOn, aligned }`. Sent once linked and on every change.                                               |
+| Host | `targetInfo`    | The target's name to show: `{ t: 'targetInfo', id: string \| null, name: string }`. Sent once linked and on every change.                                                      |
+| Host | `solveLog`      | Each plate solve attempt, as Two phones sends it, so the puck can show "solved" or why not.                                                                                    |
+| Puck | `solveNow`      | A tap on the reticle: `{ t: 'solveNow', trigger: 'tap' }`. The host solves, or asks its finder to, as for its own tap.                                                         |
+| Puck | `step`          | The left or right arrow: `{ t: 'step', by: -1 \| 1 }`: the previous or next target of the list playing on the host.                                                            |
+| Puck | `zoom`          | `{ t: 'zoom', by: -1 \| 1 }`: the host's map zooms out or in one step, as its zoom buttons do; the next `view` shows it.                                                       |
+| Puck | `ping`          | `{ t: 'ping' }`: the puck is still there. See "Keeping the link alive".                                                                                                        |
+| Puck | `night`         | `{ t: 'night', on: boolean }`: night mode on the host, which passes it on to its finder as usual.                                                                              |
 
 Each item of `objects`:
-- `id`, `name`, and `kind` (a number, as in the catalogue);
+
+- `id`, `label` (what the map writes beside it, as in the catalogue), and `kind` (a
+  number, as in the catalogue);
 - `raDeg` and `decDeg`: where the host's own map draws it, in the same frame as the catalogue
   (topocentric for the Moon), so the same `sky` rotation applies;
 - `mag` (or null), `sizeArcmin` (or null), and `showBelowFieldDeg`;
@@ -326,7 +355,9 @@ Each item of `objects`:
 The message also has `sun: { raDeg, decDeg }`, in the same frame, so the puck turns the lit
 side towards the Sun, as `drawTargets` does.
 
-The Moon moves about half a degree an hour, so once a minute is enough.
+The Moon moves about half a degree an hour, so once a minute is enough: the host sends it
+once linked and whenever its own list moves them, once a minute (`puck-objects.ts`). About
+2 KB, read by the puck's `main/moving.c`. The user's own targets aren't sent yet.
 
 Still to define, with the puck's menu (see its `docs/screen-layout.md`): messages for sensors
 on and off, the eyepiece, choosing a list or target, and alignment.
