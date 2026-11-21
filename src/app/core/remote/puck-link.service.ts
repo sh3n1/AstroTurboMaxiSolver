@@ -11,6 +11,7 @@ import { catalogParts } from './puck-catalog';
 import { PuckCatalogService } from './puck-catalog.service';
 import { parsePuckMessage } from './puck-messages';
 import type { PuckHostMessage, PuckMessage } from './puck-messages';
+import { objectsMessage } from './puck-objects';
 import { decodePuckCode, puckAnswer } from './puck-pairing';
 import { encodeView } from './puck-view';
 
@@ -83,6 +84,12 @@ export class PuckLinkService {
       const target = this.state.selectedTarget();
       if (this.status() !== 'connected') return;
       untracked(() => this.sendControl({ t: 'targetInfo', id: target?.id ?? null, name: target?.name ?? '' }));
+    });
+    // What moves (the Moon, planets): once linked, and as the app's list moves them, once a minute.
+    effect(() => {
+      const message = objectsMessage(this.state.targets(), this.state.sunEquatorial());
+      if (this.status() !== 'connected') return;
+      untracked(() => this.sendControl(message));
     });
     // What the puck shows besides the map, on every change.
     effect(() => {

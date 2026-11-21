@@ -1,6 +1,8 @@
 // The JSON control messages between the puck and this phone (docs/puck.md, "Control
 // messages"). Plain functions, so they can be tested without a link.
 
+import type { PuckObjectsMessage } from './puck-objects';
+
 /** What the puck sends. */
 export type PuckMessage =
   /** Once paired: what the puck is, and the id of the catalogue it holds, or null. */
@@ -26,6 +28,8 @@ export type PuckHostMessage =
   | { t: 'targetInfo'; id: string | null; name: string }
   /** What the puck shows besides the map. */
   | { t: 'state'; night: boolean; solving: boolean; sensorsOn: boolean; aligned: boolean }
+  /** What moves: the Moon, planets and bright asteroids (puck-objects.ts). */
+  | PuckObjectsMessage
   /** The puck's catalogue is current. */
   | { t: 'catalogOk' }
   /** A new catalogue follows on the catalogue channel, in this many parts. */

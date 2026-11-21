@@ -2,7 +2,7 @@
 
 **Draft (2026-11-21).** Built so far, on both sides: the pairing (QR code and `auth`), the
 `view`, `targetInfo`, `state`, the commands `solveNow`, `step` and `night`, and keeping the
-link alive (`ping`). Written, to test with the puck: `puckHello` and the catalogue's
+link alive (`ping`). Written, to test with the puck: `puckHello`, `objects` and the catalogue's
 transfer. The rest is agreed but not built.
 
 The puck is a hand remote for the app: a small round screen (a Waveshare
@@ -345,7 +345,8 @@ Closing the puck's link ends it; the host's own link to a finder, if any, carrie
 
 Each item of `objects`:
 
-- `id`, `name`, and `kind` (a number, as in the catalogue);
+- `id`, `label` (what the map writes beside it, as in the catalogue), and `kind` (a
+  number, as in the catalogue);
 - `raDeg` and `decDeg`: where the host's own map draws it, in the same frame as the catalogue
   (topocentric for the Moon), so the same `sky` rotation applies;
 - `mag` (or null), `sizeArcmin` (or null), and `showBelowFieldDeg`;
@@ -354,7 +355,9 @@ Each item of `objects`:
 The message also has `sun: { raDeg, decDeg }`, in the same frame, so the puck turns the lit
 side towards the Sun, as `drawTargets` does.
 
-The Moon moves about half a degree an hour, so once a minute is enough.
+The Moon moves about half a degree an hour, so once a minute is enough: the host sends it
+once linked and whenever its own list moves them, once a minute (`puck-objects.ts`). About
+2 KB, read by the puck's `main/moving.c`. The user's own targets aren't sent yet.
 
 Still to define, with the puck's menu (see its `docs/screen-layout.md`): messages for sensors
 on and off, the eyepiece, choosing a list or target, and alignment.
