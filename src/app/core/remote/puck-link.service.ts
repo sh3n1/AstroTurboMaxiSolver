@@ -2,8 +2,12 @@ import { Injectable, effect, inject, signal, untracked } from '@angular/core';
 
 import { AppState } from '../app-state.service';
 import { t } from '../i18n/t';
+import { PlaylistService } from '../lists/playlist.service';
 import { MapViewService } from '../sky-map/map-view.service';
+import { LiveSolverService } from '../solver/live-solver.service';
 
+import { parsePuckCommand } from './puck-messages';
+import type { PuckCommand, PuckHostMessage } from './puck-messages';
 import { decodePuckCode, puckAnswer } from './puck-pairing';
 import { encodeView } from './puck-view';
 
@@ -35,6 +39,8 @@ const HEARTBEAT_MS = 1000;
 export class PuckLinkService {
   private readonly state = inject(AppState);
   private readonly mapView = inject(MapViewService);
+  private readonly liveSolver = inject(LiveSolverService);
+  private readonly playlist = inject(PlaylistService);
 
   readonly status = signal<PuckStatus>('idle');
   /** What went wrong, in a few words for the user, or empty. */
@@ -58,6 +64,18 @@ export class PuckLinkService {
       const target = this.state.selectedTarget();
       if (this.status() !== 'connected') return;
       untracked(() => this.sendControl({ t: 'targetInfo', id: target?.id ?? null, name: target?.name ?? '' }));
+    });
+    // What the puck shows besides the map, on every change.
+    effect(() => {
+      const message: PuckHostMessage = {
+        t: 'state',
+        night: this.state.settings().nightMode,
+        solving: this.state.plateSolving(),
+        sensorsOn: this.state.sensorsActive(),
+        aligned: this.state.alignment() !== null,
+      };
+      if (this.status() !== 'connected') return;
+      untracked(() => this.sendControl(message));
     });
   }
 
@@ -86,6 +104,10 @@ export class PuckLinkService {
     control.onclose = () => {
       if (control === this.control) this.lose();
     };
+    control.onmessage = (event) => {
+      const command = parsePuckCommand(String(event.data));
+      if (command && control === this.control) this.obey(command);
+    };
     this.view = connection.createDataChannel(VIEW_CHANNEL, { ordered: false, maxRetransmits: 0 });
     this.status.set('connecting');
     try {
@@ -112,12 +134,29 @@ export class PuckLinkService {
     this.openedAt = Date.now();
     this.lastFrame = 0;
     this.viewSeq = 0;
-    // Setting the status sends targetInfo, through the effect above.
+    // Setting the status sends targetInfo and state, through the effects above.
     this.status.set('connected');
     this.viewTimer = setInterval(() => this.sendView(), VIEW_INTERVAL_MS);
   }
 
-  private sendControl(message: object): void {
+  /** A command from the puck, done as this phone's own button would do it. */
+  private obey(command: PuckCommand): void {
+    switch (command.t) {
+      case 'solveNow':
+        // As a tap on the rings: one at a time. In Two phones, the finder solves.
+        if (!this.state.plateSolving()) void this.liveSolver.solveNow('tap');
+        break;
+      case 'step':
+        if (command.by > 0) this.playlist.next();
+        else this.playlist.previous();
+        break;
+      case 'night':
+        if (this.state.settings().nightMode !== command.on) this.state.updateSettings({ nightMode: command.on });
+        break;
+    }
+  }
+
+  private sendControl(message: PuckHostMessage): void {
     if (this.control?.readyState === 'open') this.control.send(JSON.stringify(message));
   }
 

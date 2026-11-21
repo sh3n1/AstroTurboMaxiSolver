@@ -1,7 +1,8 @@
 # The puck
 
 **Draft (2026-11-21).** Built so far, on both sides: the pairing (QR code and `auth`), the
-`view` and `targetInfo`. The rest is agreed but not built.
+`view`, `targetInfo`, `state`, and the commands `solveNow`, `step` and `night`. The rest is
+agreed but not built.
 
 The puck is a hand remote for the app: a small round screen (a Waveshare
 ESP32-S3-Touch-AMOLED-1.75, 466×466 px) that shows the phone's sky map and guides to the
