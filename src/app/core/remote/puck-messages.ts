@@ -1,6 +1,8 @@
 // The JSON control messages between the puck and this phone (docs/puck.md, "Control
 // messages"). Plain functions, so they can be tested without a link.
 
+import { DEFAULT_FIELD_DEG, MAX_FIELD_DEG, MIN_FIELD_DEG, STAR_LIMITS, ZOOM_STEP } from '../sky-map/sky-style';
+
 import type { PuckObjectsMessage } from './puck-objects';
 
 /** What the puck sends. */
@@ -40,6 +42,8 @@ export type PuckHostMessage =
     }
   /** The words the puck shows, in the app's language (textsMessage). */
   | PuckTextsMessage
+  /** The map's rules for the puck's own zoom (mapRulesMessage). */
+  | PuckMapRulesMessage
   /** What moves: the Moon, planets and bright asteroids (puck-objects.ts). */
   | PuckObjectsMessage
   /** The puck's catalogue is current. */
@@ -75,6 +79,26 @@ export function textsMessage(translate: (key: string) => string): PuckTextsMessa
       w: translate('compass.short.W'),
     },
     credits: CREDIT_KEYS.map((key) => translate(key)).join('\n'),
+  };
+}
+
+/**
+ * The puck zooms its own sky map, apart from this phone's (docs/puck.md, "The puck's
+ * zoom"), with the same rules as this phone's map: the field's limits and step, where it
+ * starts, and how faint the stars go at each field.
+ */
+export interface PuckMapRulesMessage {
+  t: 'mapRules';
+  field: { minDeg: number; maxDeg: number; step: number; startDeg: number };
+  /** [field, magnitude], widest first: the faintest stars from that field up. */
+  starLimits: (readonly [number, number])[];
+}
+
+export function mapRulesMessage(): PuckMapRulesMessage {
+  return {
+    t: 'mapRules',
+    field: { minDeg: MIN_FIELD_DEG, maxDeg: MAX_FIELD_DEG, step: ZOOM_STEP, startDeg: DEFAULT_FIELD_DEG },
+    starLimits: [...STAR_LIMITS],
   };
 }
 

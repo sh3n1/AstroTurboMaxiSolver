@@ -9,7 +9,7 @@ import { LiveSolverService } from '../solver/live-solver.service';
 
 import { catalogParts } from './puck-catalog';
 import { PuckCatalogService } from './puck-catalog.service';
-import { parsePuckMessage, textsMessage } from './puck-messages';
+import { mapRulesMessage, parsePuckMessage, textsMessage } from './puck-messages';
 import type { PuckHostMessage, PuckMessage } from './puck-messages';
 import { objectsMessage } from './puck-objects';
 import { decodePuckCode, puckAnswer } from './puck-pairing';
@@ -163,6 +163,8 @@ export class PuckLinkService {
     // The words the puck shows, in this phone's language. The language is set as the app
     // starts, so once a link is enough.
     this.sendControl(textsMessage((key) => t(key)));
+    // The rules for the puck's own zoom, which are the map's.
+    this.sendControl(mapRulesMessage());
     this.openedAt = this.lastHeard = Date.now();
     this.lastFrame = 0;
     this.viewSeq = 0;
