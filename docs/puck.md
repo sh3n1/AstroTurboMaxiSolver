@@ -1,7 +1,8 @@
 # The puck
 
-**Draft (2026-11-21).** Built so far: the pairing (QR code and `auth`), on both sides. The
-rest is agreed but not built.
+**Draft (2026-11-21).** Built so far, on both sides: the pairing (QR code and `auth`), the
+`view`, `targetInfo`, `state`, and the commands `solveNow`, `step` and `night`. The rest is
+agreed but not built.
 
 The puck is a hand remote for the app: a small round screen (a Waveshare
 ESP32-S3-Touch-AMOLED-1.75, 466×466 px) that shows the phone's sky map and guides to the
@@ -133,7 +134,9 @@ The pose channel of Two phones (`astroturbomaxisolver-pose`) isn't used with a p
 - **Directions** are unit vectors in the frames below. J2000 vectors are
   `[cos δ cos α, cos δ sin α, sin δ]`, as `equatorialVector` in `astronomy.ts`.
 - **Local vectors** are east, north, up (x, y, z), as the app's local sky.
-- **View vectors** are right, up, forward, as `toViewCoordinates`.
+- **View vectors** are right, up and back (x, y, z): z points from the sky towards the
+  viewer, so forward is −z. The map's own `toViewCoordinates` (right, up, forward) is a
+  mirror image of that, which a quaternion can't hold.
 
 ## The view (channel `astroturbomaxisolver-view`, about 30 a second)
 
@@ -146,7 +149,7 @@ Where the host's map points, and the guidance to the target. 68 bytes.
 | 2      | `u16`    | `seq`           | Counts up for each `view`, wrapping at 65535. Older than the last used (by wrapping comparison) means late: dropped.        |
 | 4      | `u32`    | `timeMs`        | The host's clock, in ms since the link opened.                                                                                |
 | 8      | `f32[4]` | `sky`           | Unit quaternion (w, x, y, z): J2000 vectors to local vectors, before refraction. The app's `rotationAt(frameTime)`.         |
-| 24     | `f32[4]` | `view`          | Unit quaternion (w, x, y, z): local vectors to view vectors. The map's smoothed `viewBasis`, with its roll included.          |
+| 24     | `f32[4]` | `view`          | Unit quaternion (w, x, y, z): local vectors to view vectors (right, up, back). The map's smoothed `viewBasis`, roll included. |
 | 40     | `f32`    | `fovDeg`        | The angle the puck's full diameter covers.                                                                                    |
 | 44     | `f32`    | `altDeg`        | Altitude of the view's centre, as it appears, for the top edge.                                                               |
 | 48     | `f32`    | `azDeg`         | Azimuth of the view's centre, for the top edge.                                                                               |
@@ -160,7 +163,9 @@ Quaternions rather than 3×3 matrices: 16 bytes instead of 36, and two of them b
 (slerp) when the puck glides between messages. The puck draws with the newest `view` it has.
 Its `sky` changes slowly, so a late one costs nothing visible.
 
-The host sends the view it draws (smoothed, as `steadyPointing`). The host decides how its
+The host sends the view it draws (smoothed, as `steadyPointing`): its map publishes each
+frame (`map-view.service.ts`), and the puck's link sends a new frame at most every 33 ms
+(`puck-link.service.ts`, `puck-view.ts`). The host decides how its
 field maps to the puck's round screen in `fovDeg`: still open (see "Open questions").
 
 ## Drawing on the puck
@@ -176,9 +181,10 @@ To match the app's map (`sky-canvas.component.ts`, `draw-sky.ts`, `draw-targets.
    - `r = 0` outside ±90°.
 
    Display geometry, so it is done on the puck, not sent.
-3. **Local to view:** `(x, y, z) = view · local`. Skip what has `z < −0.2`, too far behind.
+3. **Local to view:** `(x, y, z) = view · local`, and forward `f = −z`. Skip what has
+   `f < −0.2`, too far behind.
 4. **Stereographic projection:**
-   - `k = 2 / (1 + z)`, and `scale = 233 / (2 tan(fovDeg / 4))` pixels per unit;
+   - `k = 2 / (1 + f)`, and `scale = 233 / (2 tan(fovDeg / 4))` pixels per unit;
    - `px = 233 + sx · k · x · scale` and `py = 233 − sy · k · y · scale`;
    - `sx` and `sy` are −1 when the `flags` mirror bits are set, else 1.
 5. **Below the horizon** (`local.z < 0` after refraction), the sky map draws at a lower opacity
