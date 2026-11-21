@@ -97,6 +97,7 @@ export class PuckLinkService {
       this.state.plateSolving();
       this.state.sensorsActive();
       this.state.alignment();
+      this.state.trueField();
       if (this.status() !== 'connected') return;
       untracked(() => this.sendState());
     });
@@ -189,6 +190,7 @@ export class PuckLinkService {
       solving: this.state.plateSolving(),
       sensorsOn: this.state.sensorsActive(),
       aligned: this.state.alignment() !== null,
+      eyepieceFieldDeg: this.state.trueField(),
     });
   }
 

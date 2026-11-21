@@ -26,8 +26,18 @@ export type PuckHostMessage =
   | { t: 'auth'; secret: string }
   /** The target's name for the puck's bottom third; id null when there is none. */
   | { t: 'targetInfo'; id: string | null; name: string }
-  /** What the puck shows besides the map. */
-  | { t: 'state'; night: boolean; solving: boolean; sensorsOn: boolean; aligned: boolean }
+  /**
+   * What the puck shows besides the map. eyepieceFieldDeg: the eyepiece's true field, for
+   * its circle in the eyepiece view and for "on target" (within half of it), as the app's.
+   */
+  | {
+      t: 'state';
+      night: boolean;
+      solving: boolean;
+      sensorsOn: boolean;
+      aligned: boolean;
+      eyepieceFieldDeg: number;
+    }
   /** The words the puck shows, in the app's language (textsMessage). */
   | PuckTextsMessage
   /** What moves: the Moon, planets and bright asteroids (puck-objects.ts). */
