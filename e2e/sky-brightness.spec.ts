@@ -28,11 +28,16 @@ test('sets the Bortle class from the location with the light pollution atlas', a
 test('stops following the atlas once a class is chosen by hand, and follows it again on Auto', async ({ page }) => {
   await page.goto('/tabs/settings');
   await expect.poll(async () => (await savedSettings(page)).bortle).toBe(9);
+  // Through the locator, which waits for the select: the class is saved by a service that may
+  // finish before the Settings page has drawn it.
   const choose = (value: number | 'auto') =>
-    page.evaluate((detail) => {
-      const select = document.querySelector('[data-testid=bortle]')!;
-      select.dispatchEvent(new CustomEvent('ionChange', { detail: { value: detail }, bubbles: true }));
-    }, value);
+    page
+      .getByTestId('bortle')
+      .evaluate(
+        (select, detail) =>
+          select.dispatchEvent(new CustomEvent('ionChange', { detail: { value: detail }, bubbles: true })),
+        value,
+      );
 
   await choose(4);
   await page.reload();

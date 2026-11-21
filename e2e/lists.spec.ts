@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 
-import { openPage } from './navigation';
+import { openPage, tapMore } from './navigation';
 
 /** The row for a list on the Lists tab. */
 const listLink = (page: Page, name: string) => page.locator('[data-testid=list-link]', { hasText: name });
@@ -62,16 +62,11 @@ test('shows the Best right now collection, and the Messier and Caldwell catalogu
   await expect(page.locator('app-target-list ion-item').first()).toBeVisible();
 });
 
-test('lists what is inside the reticle, following the telescope', async ({ page }) => {
-  await page.goto('/tabs/lists');
-  await expect(listLink(page, 'In the reticle')).toBeVisible();
-  await listLink(page, 'In the reticle').click();
-  await expect(page.locator('[data-testid=reticle-centre]')).toContainText('Alt');
-
+test('lists what was inside the reticle when Lists opened, and holds it still', async ({ page }) => {
   /** Points the telescope at a target's position, plus an offset, using Angular's development tools. */
-  const aimNear = (id: string, offsetDeg: number) =>
+  const aimNear = (id: string, offsetDeg: number, page_: string) =>
     page.evaluate(
-      ([targetId, offset]) => {
+      ([targetId, offset, selector]) => {
         type Position = { altDeg: number; azDeg: number };
         const { ng } = window as unknown as {
           ng: {
@@ -84,27 +79,56 @@ test('lists what is inside the reticle, following the telescope', async ({ page 
             };
           };
         };
-        const { state } = ng.getComponent(document.querySelector('app-list')!);
+        const { state } = ng.getComponent(document.querySelector(selector)!);
         const position = state.positionOf(state.targets().find((t) => t.id === targetId));
         state.pointing.set({ altDeg: position.altDeg + offset, azDeg: position.azDeg });
       },
-      [id, offsetDeg] as const,
+      [id, offsetDeg, page_] as const,
     );
-
-  // A fifth of a degree from Vega, it is in the list, and first, as nothing else is that
-  // close: its nearest neighbour, the faint star XY Lyr, is two thirds of a degree from it.
-  await aimNear('Vega', 0.2);
+  const openReticleList = async (): Promise<void> => {
+    await tapMore(page, 'open-lists');
+    await listLink(page, 'In the reticle').click();
+    await expect(page.locator('[data-testid=reticle-centre]')).toContainText('Alt');
+  };
   const rows = page.locator('app-list app-target-list ion-item');
-  await expect(rows.first().locator('[data-testid=designations]')).toContainText('Vega');
+  const vega = page.locator('app-list [data-testid=designations]', { hasText: 'Vega' });
 
-  // Ten degrees away, it has left the rings, so the list follows without any tap.
-  await aimNear('Vega', 10);
-  await expect(page.locator('app-list [data-testid=designations]', { hasText: 'Vega' })).toHaveCount(0);
+  // A fifth of a degree from Vega as Lists opens: it is in the list, and first, as nothing else
+  // is that close: its nearest neighbour, the faint star XY Lyr, is two thirds of a degree away.
+  await page.goto('/');
+  await page.locator('app-sky').waitFor({ state: 'attached' });
+  await aimNear('Vega', 0.2, 'app-sky');
+  await openReticleList();
+  await expect(rows.first().locator('[data-testid=designations]')).toContainText('Vega');
+  const around = await page.locator('[data-testid=reticle-centre]').textContent();
+
+  // The telescope moves on, but the list holds still while the user goes through it.
+  await aimNear('Vega', 10, 'app-list');
+  await page.waitForTimeout(300);
+  await expect(vega).toHaveCount(1);
+  await expect(page.locator('[data-testid=reticle-centre]')).toHaveText(around!);
+
+  // Two hours later, the same targets: the centre's height and direction follow them.
+  await page.evaluate(() => {
+    const { ng } = window as unknown as {
+      ng: { getComponent: (el: Element) => { state: { plannedTime: { set: (d: Date) => void } } } };
+    };
+    ng.getComponent(document.querySelector('app-list')!).state.plannedTime.set(new Date(Date.now() + 2 * 3_600_000));
+  });
+  await expect(vega).toHaveCount(1);
+  await expect(page.locator('[data-testid=reticle-centre]')).not.toHaveText(around!);
 
   // It can't be edited, only copied, like the app's other lists.
   await page.locator('[data-testid=list-actions]').click();
   await expect(page.locator('ion-action-sheet')).toContainText('Make an editable copy');
   await expect(page.locator('ion-action-sheet')).not.toContainText('Rename');
+  await page.locator('ion-action-sheet button', { hasText: 'Cancel' }).click();
+
+  // Opened again from the map, it shows what is in the rings now: Vega has gone.
+  await page.locator('ion-back-button').click();
+  await page.getByTestId('back-to-map').click();
+  await openReticleList();
+  await expect(vega).toHaveCount(0);
 });
 
 test('asks for a name when making an editable copy of a catalogue', async ({ page }) => {
@@ -243,12 +267,14 @@ test('orders and filters a catalogue like any list, and remembers the order', as
   await expect(rows).toHaveAttribute('data-sort', 'highest');
   await expect(page.locator('[data-testid=list-section]').first()).toHaveText(/Up now|Rises later/);
 
-  // By best time, each row says when that is.
+  // By best time, only what is well placed tonight, each row saying when it is best.
   await chooseOrder(page, 'Best time tonight');
-  await expect(page.locator('[data-testid=list-section]').first()).toHaveText('Tonight');
+  await expect(page.locator('[data-testid=list-section]')).toHaveCount(0);
   await expect(items.first().locator('[data-testid=row-note]')).toContainText(/best \d+:\d\d/);
+  expect(Number(await rows.getAttribute('data-total'))).toBeLessThan(110);
 
   // The filter sheet is the Targets tab's, here too. Closed, a filter in use stays on show as a chip.
+  await chooseOrder(page, 'Highest now');
   await page.locator('app-list [data-testid=list-filter]').click();
   await page.locator('[data-testid=list-type-filters] ion-chip', { hasText: 'Galaxy' }).click();
   await expect(rows).toHaveAttribute('data-total', '40');
@@ -265,6 +291,7 @@ test('orders and filters a catalogue like any list, and remembers the order', as
   await expect(page.locator('app-list [data-testid=plan-line]')).toHaveCount(8);
 
   // The order chosen for this list is kept, and the chart is open again.
+  await chooseOrder(page, 'Best time tonight');
   await page.reload();
   await expect(page.locator('app-list [data-testid=list-rows]')).toHaveAttribute('data-sort', 'best-time');
   await expect(page.locator('app-list [data-testid=plan-chart]')).toBeVisible();

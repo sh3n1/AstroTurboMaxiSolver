@@ -35,7 +35,7 @@
       "listsAlt": "Las listas: lo mejor ahora, en la retícula, tus propias listas y el diario de observación",
       "lists": "Listas para esta noche, listas para usar",
       "nightAlt": "El mapa del cielo en modo noche rojo, sobre Saturno, con el menú abierto",
-      "night": "Modo noche en rojo. Tus ojos te lo agradecerán."
+      "night": "Modo noche en rojo y letra grande y clara. Tus ojos te lo agradecerán."
     },
     "features": {
       "title": "Qué hace",
@@ -46,11 +46,11 @@
       "takesTitle": "Te lleva hasta allí",
       "takes": "Elige un objetivo, sigue las flechas y ahí lo tienes, en los anillos. Y luego en tu ocular.",
       "targetsTitle": "Nunca te quedas sin objetivos",
-      "targets": "Objetos Messier, Caldwell, NGC e IC, planetas, estrellas dobles y lo mejor de ahora mismo. Además de tus propias listas y un diario de observación.",
+      "targets": "Objetos Messier, Caldwell, NGC e IC, planetas y estrellas dobles, con una lista de lo mejor que hay en el cielo en este momento. Además de tus propias listas y un diario de observación.",
       "oldPhoneTitle": "¿Un móvil viejo en un cajón?",
       "oldPhone": "Dale un nuevo trabajo: ponlo en el telescopio como buscador y usa tu móvil como mando. Es opcional: con un solo móvil basta.",
       "cityTitle": "Hecha para cielos de ciudad",
-      "city": "Creada bajo un cielo de ciudad brillante, con letra grande que se lee con el brazo estirado, incluso sin gafas.",
+      "city": "Probada bajo cielos urbanos de Bortle 8 y 9, los más brillantes que hay. Si encuentra las estrellas ahí, las encuentra en cualquier sitio.",
       "dataTitle": "Tus datos son tuyos",
       "data": "Tu diario, tus listas y tu equipo se guardan en tu móvil. Si quieres, sincronízalos entre tus dispositivos a través de tu propio Google Drive. Nunca en nuestros servidores: no tenemos ninguno.",
       "freeTitle": "Software libre",
@@ -105,7 +105,7 @@
     "sentTitle": "Qué se envía, y a quién",
     "forecast": "<strong>Previsión meteorológica:</strong> para mostrar nubes y seeing, la app envía tu ubicación, redondeada a 0,1° (unos 10 km), a <a href=\"https://open-meteo.com/\" rel=\"noopener\">Open-Meteo</a>. No se envía nada más con ella.",
     "hosting": "<strong>Alojamiento:</strong> el sitio lo sirve <a href=\"https://www.cloudflare.com/privacypolicy/\" rel=\"noopener\">Cloudflare</a>, que, como cualquier alojamiento web, ve tu dirección IP y las páginas que se piden.",
-    "twoPhones": "<strong>Dos móviles:</strong> cuando enlazas dos móviles, se comunican directamente entre sí por tu red local. Nada pasa por un servidor. Si activas \"Sincronizar mediante Dos móviles\" en los dos, tus listas, diario y equipo se copian entre ellos.",
+    "twoPhones": "<strong>Dos móviles:</strong> cuando enlazas dos móviles, se comunican directamente entre sí por tu red local. Nada pasa por un servidor. Si activas \"Sincronizar con el móvil enlazado\" en los dos, tus listas, diario y equipo se copian entre ellos.",
     "driveTitle": "Sincronización con Google Drive (opcional)",
     "driveIntro": "Si eliges conectar Google Drive para mantener tus dispositivos sincronizados:",
     "driveSignIn": "Inicias sesión a través de Google. La página de inicio de sesión de Google pone sus propias cookies, bajo la <a href=\"https://policies.google.com/privacy\" rel=\"noopener\">política de privacidad de Google</a>.",

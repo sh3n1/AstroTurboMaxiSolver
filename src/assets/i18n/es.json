@@ -93,12 +93,11 @@
     "alignment": "Alineación del telescopio",
     "alignedOn": "Alineado con {{star}}",
     "notAligned": "Sin alinear",
-    "twoPhones": "Dos móviles",
     "thisIsFinder": "Este móvil es el buscador",
     "linkedToFinder": "Conectado al buscador",
     "linkPaused": "Enlace en pausa",
     "linkLost": "Enlace perdido",
-    "twoPhonesNote": "Buscador en el telescopio, pantalla en la mano",
+    "twoPhonesNote": "Otro móvil, o el puck, como mando",
     "autoSolve": "Resolver al quedarse quieto",
     "solveSound": "Sonido de obturador al resolver",
     "shutterAligns": "El disparador remoto alinea y resuelve",
@@ -131,8 +130,8 @@
     "now": "Sincronizar ahora",
     "disconnect": "Desconectar {{provider}}",
     "disconnectNote": "Los datos guardados allí se conservan",
-    "overLink": "Sincronizar mediante Dos móviles",
-    "overLinkActive": "Sincronizando mediante Dos móviles",
+    "overLink": "Sincronizar con el móvil enlazado",
+    "overLinkActive": "Sincronizando con el móvil enlazado",
     "syncing": "Sincronizando…",
     "tapToSync": "Toca para sincronizar",
     "failed": "No se pudo sincronizar. Comprueba la conexión.",
@@ -537,8 +536,7 @@
       "upNow": "Sobre el horizonte ahora",
       "risesLater": "Salen más tarde",
       "notUpToday": "No salen hoy",
-      "tonight": "Esta noche",
-      "notUpTonight": "No salen esta noche"
+      "tonight": "Esta noche"
     },
     "seen": "Vistos",
     "toSee": "Por ver",
@@ -612,7 +610,7 @@
       "noneSeen": "Aún no has visto nada de esta lista.",
       "allSeen": "Todo visto. ¡Bien hecho!",
       "filtered": "Nada en esta lista cumple los filtros.",
-      "reticle": "No hay objetos dentro de los anillos. Mueve el telescopio o el mapa para llenar esta lista.",
+      "reticle": "No había nada dentro de los anillos al abrir Listas. Apunta el telescopio y vuelve a abrir Listas.",
       "notPlaced": "No hay objetos bien situados a esa hora.",
       "mine": "Esta lista está vacía. Toca el marcador de un objeto para guardarlo aquí.",
       "noMatch": "Ningún objeto coincide con tu búsqueda."
@@ -620,6 +618,10 @@
     "imported": {
       "one": "Se ha importado {{count}} lista",
       "other": "Se han importado {{count}} listas"
+    },
+    "notes": {
+      "best": "mejor a las {{time}}, a {{degrees}}°",
+      "away": "a {{degrees}}°"
     }
   },
   "bookmark": {
@@ -795,6 +797,10 @@
     "replyCode": "Código de respuesta",
     "waiting": "Esperando al buscador",
     "scanFinder": "Escanea el código del móvil buscador",
+    "linkedToPuck": "Enlazado con el puck",
+    "unlinkPuck": "Desvincular el puck",
+    "linkPuck": "Enlazar con el puck",
+    "scanPuck": "Escanea el código del puck",
     "paste": "O pega el código",
     "pause": "Pausar enlace",
     "unlink": "Desvincular",
@@ -807,7 +813,10 @@
     "couldNotStart": "No se pudo iniciar el enlace en este móvil.",
     "couldNotRead": "No se pudo leer el código.",
     "finderDisconnected": "Móvil buscador desconectado",
-    "finderDisconnectedReason": "El móvil buscador se ha desconectado."
+    "finderDisconnectedReason": "El móvil buscador se ha desconectado.",
+    "title": "Remoto",
+    "twoDevices": "Dos dispositivos",
+    "puck": "Puck"
   },
   "plan": {
     "chartLabel": "Altura durante la noche: ",

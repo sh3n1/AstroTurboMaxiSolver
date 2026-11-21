@@ -31,6 +31,17 @@ const SEEING: IconPath[] = [{ d: 'M2.5 8.5c3-3 6 3 9.5 0s6.5 3 9.5 0' }, { d: 'M
  */
 const EYEPIECE: IconPath[] = [{ d: 'M6 3.5h12v8H6Z' }, { d: 'M6 7.5h12' }, { d: 'M8.5 11.5v9h7v-9' }];
 
+/**
+ * A hand remote: a rounded body with a big round button and two small ones. For Remote, where
+ * a second phone or the puck works this phone from the hand.
+ */
+const REMOTE: IconPath[] = [
+  { d: 'M8.5 2.5h7a2.5 2.5 0 0 1 2.5 2.5v14a2.5 2.5 0 0 1-2.5 2.5h-7A2.5 2.5 0 0 1 6 19V5a2.5 2.5 0 0 1 2.5-2.5Z' },
+  { d: circle(12, 8.5, 2.6) },
+  { d: circle(9.7, 15, 1), fill: true },
+  { d: circle(14.3, 15, 1), fill: true },
+];
+
 /** The icons as image URLs, made once. */
 export const APP_ICONS = {
   reticle: iconDataUrl(RETICLE),
@@ -38,6 +49,7 @@ export const APP_ICONS = {
   magnitude: iconDataUrl(MAGNITUDE),
   seeing: iconDataUrl(SEEING),
   eyepiece: iconDataUrl(EYEPIECE),
+  remote: iconDataUrl(REMOTE),
   constellation: iconDataUrl(CONSTELLATION),
 } as const;
 

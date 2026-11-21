@@ -233,9 +233,9 @@ type NumericSetting = 'latitudeDeg' | 'longitudeDeg';
           </ion-item>
           <!-- One phone on the telescope as the finder, another in the hand as the screen. -->
           <ion-item button detail="true" data-testid="open-remote" (click)="openRemote()">
-            <ion-icon slot="start" name="phone-landscape-outline" aria-hidden="true"></ion-icon>
+            <ion-icon slot="start" [src]="appIcons.remote" aria-hidden="true"></ion-icon>
             <ion-label class="ion-text-wrap">
-              <h2>{{ 'settings.twoPhones' | translate }}</h2>
+              <h2>{{ 'remote.title' | translate }}</h2>
               @switch (remote.status()) {
                 @case ('connected') {
                   <p class="good">

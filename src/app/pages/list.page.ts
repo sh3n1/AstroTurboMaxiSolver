@@ -164,8 +164,8 @@ import { ObservingLogService } from '../core/log/observing-log.service';
                   'readout.altAz'
                     | translate
                       : {
-                          alt: (state.pointing().altDeg | num: '1.0-0'),
-                          az: (state.pointing().azDeg | num: '1.0-0'),
+                          alt: (lists.reticlePointing().altDeg | num: '1.0-0'),
+                          az: (lists.reticlePointing().azDeg | num: '1.0-0'),
                         }
                 }}
               </p>
@@ -235,7 +235,7 @@ export class ListPage {
 
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
-  private readonly lists = inject(ListsService);
+  protected readonly lists = inject(ListsService);
   protected readonly state = inject(AppState);
   private readonly alerts = inject(AlertController);
   private readonly actionSheets = inject(ActionSheetController);

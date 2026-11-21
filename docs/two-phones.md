@@ -4,10 +4,12 @@ One phone sits on the telescope as the **finder**. Another, in the hand, is the 
 The finder does what only the phone on the tube can do: read the sensors and plate solve.
 The screen does everything else: the map, guidance, lists, the log and alignment.
 
+A hand remote, the puck, is planned to take the screen's part: see [puck.md](puck.md).
+
 ## Pairing
 
 There is no server, so the phones swap their WebRTC session descriptions as QR codes, once
-per session, before the finder goes on the tube (Settings → Two phones):
+per session, before the finder goes on the tube (the menu's Remote tile, Two devices):
 
 1. The finder shows its code.
 2. The screen reads it with its camera and shows a reply code.
@@ -40,13 +42,13 @@ JSON over one reliable, ordered data channel (`remote-link.ts`):
 | Either | `pause`        | The link is paused: each phone works on its own, and the link stays open underneath. Two phones offers Reconnect, which sends `resume` and needs no new codes. While paused, silence doesn't count as the link being lost. It lasts while both phones keep the app open.                                                                                                       |
 | Either | `resume`       | The paused link is back: each phone takes its part again, and the finder sends `hello`.                                                                                                                                                                                                                                                                                        |
 | Both   | `alignment`    | An alignment made or removed on either phone.                                                                                                                                                                                                                                                                                                                                  |
-| Either | `dataOn`       | Whether "Sync over Two phones link" is on there. Sent once linked and on every change. Link sync runs only while both are on.                                                                                                                                                                                                                                                  |
+| Either | `dataOn`       | Whether "Sync with the linked phone" is on there. Sent once linked and on every change. Link sync runs only while both are on.                                                                                                                                                                                                                                                 |
 | Either | `dataManifest` | Link sync: every record's type, id and revision, in parts, the last one marked.                                                                                                                                                                                                                                                                                                |
 | Either | `dataRecords`  | Link sync: records the other phone lacks, or has in another revision, up to 100 a message, and each change as it happens.                                                                                                                                                                                                                                                      |
 
 ### Link sync
 
-With "Sync over Two phones link" on in Settings on both phones (in the Sync section, hidden
+With "Sync with the linked phone" on in Settings on both phones (in the Sync section, hidden
 for now behind five taps on the Settings title), the log, lists and kit sync straight over
 the link, with no drive. Off by default, since a phone linked for a night may be someone
 else's. Each phone sends its manifest, then the records the other lacks, then each change as
