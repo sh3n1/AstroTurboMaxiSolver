@@ -2,7 +2,6 @@ import { Injectable, inject } from '@angular/core';
 
 import { AppState } from '../app-state.service';
 import { CatalogLoaderService } from '../catalog/catalog-loader.service';
-import { t } from '../i18n/t';
 import { StarFieldService } from '../sky-map/star-field.service';
 
 import { buildPuckCatalog, catalogId, crc32 } from './puck-catalog';
@@ -11,8 +10,6 @@ import { buildPuckCatalog, catalogId, crc32 } from './puck-catalog';
 const MAP_STAR_LIMIT = 6.5;
 /** How long to wait for the map's stars to load before sending a catalogue anyway. */
 const STARS_WAIT_MS = 15_000;
-/** The data credits the puck shows (Settings, Data credits, in the app). */
-const CREDIT_KEYS = ['credits.xhip', 'credits.openngc', 'credits.hyg', 'credits.messier', 'credits.caldwell'];
 
 /** A catalogue built for the puck, with its identity and check. */
 export interface BuiltCatalog {
@@ -43,12 +40,11 @@ export class PuckCatalogService {
     const stars = this.starField.allStars().filter((star) => star.mag <= MAP_STAR_LIMIT);
     const constellations = this.starField.constellations();
     const targets = this.state.targets().filter((target) => !target.body);
-    const credits = CREDIT_KEYS.map((key) => t(key));
-    const from = [stars.length, constellations.length, targets.length, credits.join('|')].join('/');
+    const from = [stars.length, constellations.length, targets.length].join('/');
     if (!this.built || from !== this.builtFrom) {
       this.builtFrom = from;
       this.built = (async () => {
-        const bytes = buildPuckCatalog({ stars, constellations, targets, credits });
+        const bytes = buildPuckCatalog({ stars, constellations, targets });
         return { id: await catalogId(bytes), bytes, crc32: crc32(bytes) };
       })();
     }

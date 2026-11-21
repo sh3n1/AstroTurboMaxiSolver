@@ -21,7 +21,6 @@ export const SECTION = {
   constellationNames: 3,
   objects: 4,
   strings: 5,
-  credits: 6,
 } as const;
 
 const STAR_BYTES = 12;
@@ -79,8 +78,6 @@ export interface PuckCatalogInput {
   constellations: readonly Constellation[];
   /** The targets: those that move (with a `body`) and constellations are left out here. */
   targets: readonly Target[];
-  /** The app's data credits, in the user's language, one per line. */
-  credits: readonly string[];
 }
 
 /** UTF-8 strings, each ending in a zero byte, kept once however often they are used. */
@@ -127,7 +124,7 @@ function recordSection(type: number, count: number, size: number, write: (data: 
 }
 
 /** The catalogue's bytes, as docs/puck.md lays them out. */
-export function buildPuckCatalog({ stars, constellations, targets, credits }: PuckCatalogInput): Uint8Array {
+export function buildPuckCatalog({ stars, constellations, targets }: PuckCatalogInput): Uint8Array {
   const strings = new StringTable();
 
   // Brightest first, so the puck can stop drawing at its limit, as the map does.
@@ -181,7 +178,8 @@ export function buildPuckCatalog({ stars, constellations, targets, credits }: Pu
     nameSection,
     objectSection,
     { type: SECTION.strings, count: stringBytes.length, bytes: stringBytes },
-    { type: SECTION.credits, count: 1, bytes: new TextEncoder().encode(credits.join('\n')) },
+    // Nothing translated goes in: the same data must give the same catalogue, and the same
+    // id, in every language. Translated words come in the `texts` message (puck-messages.ts).
   ];
 
   // The header, the table, then each section at an offset that is a multiple of 4.

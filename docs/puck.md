@@ -52,9 +52,18 @@ This phone is the puck's **host** below.
   local sky (sidereal time, precession, the site, the alignment), the positions of what moves,
   the magnitude limit, and which objects show at which field of view. The puck only does the
   geometry of drawing.
+- **The puck shows what the phone's map shows** (decided 2026-11-21): the same items (stars,
+  lines, objects, labels, the horizon, the grid, the Moon's phase, the target and guidance),
+  wherever the puck can technically draw them. What it can't yet is listed in the puck's
+  `TODO.md`.
 - **The data drives the puck.** A new kind of object, a change of label rules or a new star
   list is a change to the data the host sends, not to the firmware, as far as the formats
   below allow.
+- **Every translated word comes from the host** (decided 2026-11-21), in the `texts`
+  message, so the firmware holds no translations: the compass points, the data credits, and
+  later the menu's words. Names and designations are never translated, and come in the
+  catalogue and `objects`. Only what the puck shows before any link (joining the Wi-Fi, the
+  QR code) is written in the firmware, in English.
 - **Three kinds of message, on one WebRTC link:**
   - **Control messages:** JSON text, rare and small.
   - **The view:** binary, many times a second, in the fixed layout below. No Protobuf or other
@@ -232,8 +241,10 @@ faint ones, so the catalogue (and its `id`) stays the same. Built by `puck-catal
 - The NGC and IC objects are OpenNGC's, CC BY-SA 4.0, and the star names are the HYG Database's, CC BY-SA 4.0. Both are aggregate data (see the app's `AGENTS.md`).
 
 The catalogue reaches the puck only over the link, from the app: it is never built into the
-firmware or its repository, and the puck keeps a copy as a browser's cache does. It carries
-the app's data credits (section 6), which the puck shows in its Settings.
+firmware or its repository, and the puck keeps a copy as a browser's cache does. The data
+credits come in the `texts` message instead, translated, and the puck shows them in its
+Settings. Nothing translated goes in the catalogue: the same data must give the same `id`
+in every language, or a change of language would send it all again.
 
 ### Its identity
 
@@ -285,7 +296,7 @@ The puck skips a section type it doesn't know, so new ones can be added without 
 | 3    | Constellation names | 12:<br>• `f32` raDeg and decDeg of the label<br>• `u32` the name's offset in the strings.                                                                                                                                                                                                                                                                              |
 | 4    | Objects             | 20:<br>• `f32` raDeg and decDeg<br>• `u32` the label's offset in the strings: what the map writes beside it, its first designation (`designations()[0]`, such as M1)<br>• `i16` magnitude × 100 (32767 for none)<br>• `u16` size × 10, in arcminutes (0 for none)<br>• `u16` minor axis × 10 (0 for round)<br>• `u8` kind<br>• `u8` `showBelowFieldDeg` (255: always). |
 | 5    | Strings             | UTF-8 strings, each ending in a zero byte. Names are never translated (as in the app).                                                                                                                                                                                                                                                                                 |
-| 6    | Credits             | One UTF-8 text, the app's data credits in the host's language, lines split by `\n`.                                                                                                                                                                                                                                                                                    |
+| 6    | (none)              | Was the data credits: no longer sent, as they are translated (see `texts`). Don't use this number again.                                                                                                                                                                                                                                                               |
 | 7    | Faint stars         | As section 1. Optional, for the eyepiece view, if the puck's flash and the transfer time allow (open).                                                                                                                                                                                                                                                                 |
 | 8    | Palette             | Optional: the colours (`STAR_TINTS`, the line and label colours, by name), so the look follows the app. Layout to agree when it's built.                                                                                                                                                                                                                               |
 
@@ -335,6 +346,7 @@ Closing the puck's link ends it; the host's own link to a finder, if any, carrie
 | Puck | `catalogFailed` | `{ t: 'catalogFailed', reason }`: the CRC didn't match, or the flash is full.                                                                                                  |
 | Host | `objects`       | What moves, and the user's own targets: `{ t: 'objects', sun, items: [...] }`, below. Sent once linked, every minute, and on every change.                                     |
 | Host | `state`         | What the puck shows besides the map: `{ t: 'state', night, solving, sensorsOn, aligned }`. Sent once linked and on every change.                                               |
+| Host | `texts`         | The puck's words in the host's language, right after `auth`: `{ t: 'texts', compass: { n, e, s, w }, credits }`, credits one per line. See "Principles".                       |
 | Host | `targetInfo`    | The target's name to show: `{ t: 'targetInfo', id: string \| null, name: string }`. Sent once linked and on every change.                                                      |
 | Host | `solveLog`      | Each plate solve attempt, as Two phones sends it, so the puck can show "solved" or why not.                                                                                    |
 | Puck | `solveNow`      | A tap on the reticle: `{ t: 'solveNow', trigger: 'tap' }`. The host solves, or asks its finder to, as for its own tap.                                                         |

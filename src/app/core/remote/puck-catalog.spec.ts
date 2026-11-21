@@ -58,7 +58,6 @@ describe('puck catalogue', () => {
     stars: [star(279.235, 38.784, 0.03, 1), star(101.287, -16.716, -1.44, 1), star(10, 10, 5.5, 3)],
     constellations: [orion],
     targets: [crab, moon, sirius],
-    credits: ['Stars from XHIP', 'NGC objects from OpenNGC, CC BY-SA 4.0'],
   });
   const data = new DataView(bytes.buffer);
   const table = sections(bytes);
@@ -66,7 +65,7 @@ describe('puck catalogue', () => {
   it('starts with the magic, the version and the section table', () => {
     expect(new TextDecoder().decode(bytes.subarray(0, 4))).toBe('ATMC');
     expect(data.getUint16(4, true)).toBe(1);
-    expect([...table.keys()]).toEqual([1, 2, 3, 4, 5, 6]);
+    expect([...table.keys()]).toEqual([1, 2, 3, 4, 5]);
     for (const [offset] of table.values()) expect(offset % 4).toBe(0);
   });
 
@@ -101,13 +100,6 @@ describe('puck catalogue', () => {
     expect(data.getUint16(offset + 16, true)).toBe(40);
     expect(data.getUint8(offset + 18)).toBe(kindCode('Nebula'));
     expect(data.getUint8(offset + 19)).toBe(showBelowFieldDeg(crab));
-  });
-
-  it('carries the credits', () => {
-    const [offset, , size] = table.get(SECTION.credits)!;
-    expect(new TextDecoder().decode(bytes.subarray(offset, offset + size))).toBe(
-      'Stars from XHIP\nNGC objects from OpenNGC, CC BY-SA 4.0',
-    );
   });
 
   it("writes the map's label rules as the field below which each object shows", () => {
