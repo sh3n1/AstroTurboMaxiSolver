@@ -21,7 +21,12 @@ export const SECTION = {
   constellationNames: 3,
   objects: 4,
   strings: 5,
+  faintStars: 7,
 } as const;
+
+/** Faint stars are sorted into declination bands this wide, then by right ascension, so the
+ * puck finds those near where it looks without going through them all. */
+export const FAINT_BAND_DEG = 2;
 
 const STAR_BYTES = 12;
 const SEGMENT_BYTES = 16;
@@ -75,6 +80,8 @@ function raDecOf([x, y, z]: Vector3): [number, number] {
 export interface PuckCatalogInput {
   /** The map's stars, in any order. */
   stars: readonly Star[];
+  /** The fainter stars the eyepiece view shows, in any order. */
+  faintStars?: readonly Star[];
   constellations: readonly Constellation[];
   /** The targets: those that move (with a `body`) and constellations are left out here. */
   targets: readonly Target[];
@@ -124,13 +131,25 @@ function recordSection(type: number, count: number, size: number, write: (data: 
 }
 
 /** The catalogue's bytes, as docs/puck.md lays them out. */
-export function buildPuckCatalog({ stars, constellations, targets }: PuckCatalogInput): Uint8Array {
+export function buildPuckCatalog({ stars, faintStars = [], constellations, targets }: PuckCatalogInput): Uint8Array {
   const strings = new StringTable();
 
   // Brightest first, so the puck can stop drawing at its limit, as the map does.
   const sortedStars = [...stars].sort((a, b) => a.mag - b.mag);
   const starSection = recordSection(SECTION.stars, sortedStars.length, STAR_BYTES, (data, i) => {
     const star = sortedStars[i];
+    data.setFloat32(0, star.raDeg, true);
+    data.setFloat32(4, star.decDeg, true);
+    data.setInt16(8, Math.round(star.mag * 100), true);
+    data.setUint8(10, star.colorIndex);
+  });
+
+  // The faint stars: the same records, by declination band, then right ascension.
+  const band = (star: Star): number =>
+    Math.min(Math.floor((star.decDeg + 90) / FAINT_BAND_DEG), 180 / FAINT_BAND_DEG - 1);
+  const sortedFaint = [...faintStars].sort((a, b) => band(a) - band(b) || a.raDeg - b.raDeg);
+  const faintSection = recordSection(SECTION.faintStars, sortedFaint.length, STAR_BYTES, (data, i) => {
+    const star = sortedFaint[i];
     data.setFloat32(0, star.raDeg, true);
     data.setFloat32(4, star.decDeg, true);
     data.setInt16(8, Math.round(star.mag * 100), true);
@@ -178,6 +197,7 @@ export function buildPuckCatalog({ stars, constellations, targets }: PuckCatalog
     nameSection,
     objectSection,
     { type: SECTION.strings, count: stringBytes.length, bytes: stringBytes },
+    ...(sortedFaint.length > 0 ? [faintSection] : []),
     // Nothing translated goes in: the same data must give the same catalogue, and the same
     // id, in every language. Translated words come in the `texts` message (puck-messages.ts).
   ];

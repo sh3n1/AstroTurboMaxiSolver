@@ -34,6 +34,7 @@ describe('puck messages', () => {
       id: '0123456789abcdef',
     });
     expect(parsePuckMessage('{"t":"catalogFailed","reason":"crc"}')).toEqual({ t: 'catalogFailed', reason: 'crc' });
+    expect(parsePuckMessage('{"t":"catalogAck","bytes":32768}')).toEqual({ t: 'catalogAck', bytes: 32768 });
   });
 
   it("writes the puck's words in the app's language", () => {

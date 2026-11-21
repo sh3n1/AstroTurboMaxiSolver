@@ -15,6 +15,8 @@ export interface MapView {
   flipY: number;
   /** Whether the eyepiece view is drawn, rather than the sky map. */
   eyepiece: boolean;
+  /** Whether the sky map shows the eyepiece's field as its one ring, instead of the three. */
+  ring: boolean;
   /** The faintest stars drawn. */
   starLimitMag: number;
   /** J2000 to local, at the frame's moment. */

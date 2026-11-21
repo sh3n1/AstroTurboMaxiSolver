@@ -4,10 +4,11 @@ import { ToastController } from '@ionic/angular';
 import { AppState } from '../app-state.service';
 import { t } from '../i18n/t';
 import { PlaylistService } from '../lists/playlist.service';
+import { ScreenWakeService } from '../platform/screen-wake.service';
 import { MapViewService } from '../sky-map/map-view.service';
 import { LiveSolverService } from '../solver/live-solver.service';
 
-import { catalogParts } from './puck-catalog';
+import { PART_BYTES, catalogParts } from './puck-catalog';
 import { PuckCatalogService } from './puck-catalog.service';
 import { mapRulesMessage, parsePuckMessage, textsMessage } from './puck-messages';
 import type { PuckHostMessage, PuckMessage } from './puck-messages';
@@ -30,8 +31,16 @@ const CONTROL_CHANNEL = 'astroturbomaxisolver';
 const VIEW_CHANNEL = 'astroturbomaxisolver-view';
 /** The catalogue's channel, reliable and ordered, apart so it doesn't hold back control messages. */
 const CATALOG_CHANNEL = 'astroturbomaxisolver-catalog';
-/** Parts are queued on the channel while this much at most is waiting to go. */
-const CATALOG_BUFFER_BYTES = 256 * 1024;
+/**
+ * At most this many of the catalogue's parts go before the puck says it has them
+ * (catalogAck). Sent all at once, the puck dropped most of each burst, and the resends held
+ * up the views too, until the link was taken as lost.
+ */
+const CATALOG_PARTS_AHEAD = 2;
+/** Without a catalogAck for this long, the transfer is given up: the link is likely gone. */
+const CATALOG_ACK_TIMEOUT_MS = 10_000;
+/** How many times a catalogue the puck failed to take is sent again. */
+const CATALOG_TRIES = 3;
 /** How often to look for a new frame of the map to send: about 30 a second. */
 const VIEW_INTERVAL_MS = 33;
 /**
@@ -55,6 +64,7 @@ export class PuckLinkService {
   private readonly playlist = inject(PlaylistService);
   private readonly toasts = inject(ToastController);
   private readonly catalogs = inject(PuckCatalogService);
+  private readonly screenWake = inject(ScreenWakeService);
 
   readonly status = signal<PuckStatus>('idle');
   /** What went wrong, in a few words for the user, or empty. */
@@ -64,8 +74,11 @@ export class PuckLinkService {
   private control: RTCDataChannel | null = null;
   private view: RTCDataChannel | null = null;
   private catalog: RTCDataChannel | null = null;
-  /** A catalogue the puck failed to take is sent once more, not for ever. */
-  private catalogRetried = false;
+  /** A catalogue the puck failed to take is sent again, a few times, not for ever. */
+  private catalogTries = 0;
+  /** How many of the catalogue's bytes the puck has said it has, and who waits to know. */
+  private catalogAcked = 0;
+  private catalogAckWaiter: (() => void) | null = null;
   /** The secret from the puck's code, sent first once the control channel opens. */
   private secret = '';
   private viewTimer?: ReturnType<typeof setInterval>;
@@ -79,6 +92,11 @@ export class PuckLinkService {
   private openedAt = 0;
 
   constructor() {
+    // The phone must stay awake while the puck is linked: asleep, it stops sending.
+    effect(() => {
+      const linked = this.status() === 'connecting' || this.status() === 'connected';
+      untracked(() => this.screenWake.keepOnFor('puck', linked));
+    });
     // The target's name, for the puck's bottom third, on every change.
     effect(() => {
       const target = this.state.selectedTarget();
@@ -137,7 +155,7 @@ export class PuckLinkService {
     this.view = connection.createDataChannel(VIEW_CHANNEL, { ordered: false, maxRetransmits: 0 });
     this.catalog = connection.createDataChannel(CATALOG_CHANNEL);
     this.catalog.binaryType = 'arraybuffer';
-    this.catalogRetried = false;
+    this.catalogTries = 0;
     this.status.set('connecting');
     try {
       const offer = await connection.createOffer();
@@ -202,12 +220,13 @@ export class PuckLinkService {
       case 'puckHello':
         void this.sendCatalog(command.catalog);
         break;
+      case 'catalogAck':
+        this.catalogAcked = command.bytes;
+        this.catalogAckWaiter?.();
+        break;
       case 'catalogFailed':
-        // Once more, in case a part was spoilt on the way.
-        if (!this.catalogRetried) {
-          this.catalogRetried = true;
-          void this.sendCatalog(null);
-        }
+        // Again, in case parts were lost on the way or stopped coming.
+        if (++this.catalogTries <= CATALOG_TRIES) void this.sendCatalog(null);
         break;
       case 'solveNow':
         // As a tap on the rings: one at a time. In Two phones, the finder solves.
@@ -253,14 +272,24 @@ export class PuckLinkService {
     };
     channel.send(JSON.stringify(start));
     this.lastSent = Date.now();
-    channel.bufferedAmountLowThreshold = CATALOG_BUFFER_BYTES / 2;
+    this.catalogAcked = 0;
+    let sent = 0;
     for (const part of parts) {
-      if (channel !== this.catalog || channel.readyState !== 'open') return;
-      // Not all at once: the browser keeps what it hasn't sent in memory.
-      if (channel.bufferedAmount > CATALOG_BUFFER_BYTES) {
-        await new Promise((resolve) => channel.addEventListener('bufferedamountlow', resolve, { once: true }));
+      // Wait while too many parts are unanswered: the puck takes them as fast as it can.
+      while (sent - this.catalogAcked >= CATALOG_PARTS_AHEAD * PART_BYTES) {
+        const answered = await new Promise<boolean>((resolve) => {
+          const timer = setTimeout(() => resolve(false), CATALOG_ACK_TIMEOUT_MS);
+          this.catalogAckWaiter = () => {
+            clearTimeout(timer);
+            resolve(true);
+          };
+        });
+        this.catalogAckWaiter = null;
+        if (!answered) return;
       }
+      if (channel !== this.catalog || channel.readyState !== 'open') return;
       channel.send(part.slice());
+      sent += part.length;
     }
   }
 

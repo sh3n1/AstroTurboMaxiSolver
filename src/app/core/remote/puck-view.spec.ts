@@ -37,6 +37,7 @@ function mapView(overrides: Partial<MapView> = {}): MapView {
     flipX: 1,
     flipY: 1,
     eyepiece: false,
+    ring: false,
     starLimitMag: 6,
     rotation: skyRotation(new Date('2026-11-21T22:00:00Z'), 40.4, -3.7),
     frame: 1,
@@ -95,6 +96,11 @@ describe('puck view', () => {
     expect(data.getFloat32(56, true)).toBeNaN();
     expect(data.getFloat32(60, true)).toBe(6);
     expect(data.getUint8(64)).toBe(1 | 4);
+  });
+
+  it('says when the sky map shows the eyepiece ring', () => {
+    const data = new DataView(encodeView(mapView({ ring: true }), null, 0, 0));
+    expect(data.getUint8(64)).toBe(8);
   });
 
   it('measures the distance to a target', () => {
