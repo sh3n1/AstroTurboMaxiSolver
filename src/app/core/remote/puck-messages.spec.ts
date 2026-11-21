@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { parsePuckMessage, textsMessage } from './puck-messages';
+import { magnitudeLimit } from '../sky-map/sky-style';
+
+import { mapRulesMessage, parsePuckMessage, textsMessage } from './puck-messages';
 
 describe('puck messages', () => {
   it('reads the commands the puck sends, as its firmware writes them', () => {
@@ -39,6 +41,16 @@ describe('puck messages', () => {
     const message = textsMessage((key) => spanish[key] ?? key);
     expect(message.compass).toEqual({ n: 'compass.short.N', e: 'compass.short.E', s: 'compass.short.S', w: 'O' });
     expect(message.credits.split('\n')[0]).toBe('Estrellas de XHIP');
+  });
+
+  it("sends the puck the map's own rules for its zoom", () => {
+    const { field, starLimits } = mapRulesMessage();
+    expect(field).toEqual({ minDeg: 5, maxDeg: 120, step: 1.5, startDeg: 20 });
+    // The puck picks the first limit whose field its own is at least, as the map does.
+    for (const fieldDeg of [120, 90, 60, 40, 20, 5]) {
+      const limit = starLimits.find(([from]) => fieldDeg >= from)?.[1];
+      expect(limit).toBe(magnitudeLimit(fieldDeg));
+    }
   });
 
   it('ignores anything else', () => {

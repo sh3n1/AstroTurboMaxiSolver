@@ -111,11 +111,19 @@ export function starTintIndex(colorIndex: number): number {
   return 4;
 }
 
+/**
+ * The faintest stars shown from each field of view up, widest first: [field, magnitude].
+ * A table, so the puck can be sent the same rule (puck-messages.ts).
+ */
+export const STAR_LIMITS: readonly (readonly [number, number])[] = [
+  [90, 5.5],
+  [40, 6],
+  [0, 6.5],
+];
+
 /** Faint stars only clutter a wide view, so show more of them when zoomed in. */
 export function magnitudeLimit(fieldDeg: number): number {
-  if (fieldDeg >= 90) return 5.5;
-  if (fieldDeg >= 40) return 6;
-  return 6.5;
+  return (STAR_LIMITS.find(([from]) => fieldDeg >= from) ?? STAR_LIMITS[STAR_LIMITS.length - 1])[1];
 }
 
 /** Hides fainter labelled objects in wide views, where they would crowd the map. */

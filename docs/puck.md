@@ -164,22 +164,22 @@ On a lost link, the puck shows a new QR code and says the link was lost. The hos
 
 Where the host's map points, and the guidance to the target. 68 bytes.
 
-| Offset | Type     | Field           | Meaning                                                                                                                       |
-| ------ | -------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| 0      | `u8`     | `type`          | 1. Unknown types are ignored.                                                                                                 |
-| 1      | `u8`     | `version`       | Layout version, 1. A version not known is ignored.                                                                            |
-| 2      | `u16`    | `seq`           | Counts up for each `view`, wrapping at 65535. Older than the last used (by wrapping comparison) means late: dropped.          |
-| 4      | `u32`    | `timeMs`        | The host's clock, in ms since the link opened.                                                                                |
-| 8      | `f32[4]` | `sky`           | Unit quaternion (w, x, y, z): J2000 vectors to local vectors, before refraction. The app's `rotationAt(frameTime)`.           |
-| 24     | `f32[4]` | `view`          | Unit quaternion (w, x, y, z): local vectors to view vectors (right, up, back). The map's smoothed `viewBasis`, roll included. |
-| 40     | `f32`    | `fovDeg`        | The angle the puck's full diameter covers.                                                                                    |
-| 44     | `f32`    | `altDeg`        | Altitude of the view's centre, as it appears, for the top edge.                                                               |
-| 48     | `f32`    | `azDeg`         | Azimuth of the view's centre, for the top edge.                                                                               |
-| 52     | `f32`    | `targetDistDeg` | Angle from the centre to the target. NaN when there is no target.                                                             |
-| 56     | `f32`    | `targetDirDeg`  | Direction to the target on the puck's screen, clockwise from up. NaN when there is no target.                                 |
-| 60     | `f32`    | `starLimitMag`  | The faintest stars to draw, as the host's map does (`magnitudeLimit`, or the eyepiece's `starLimit`).                         |
-| 64     | `u8`     | `flags`         | Bit 0: mirror left to right. Bit 1: mirror top to bottom (the host's `imageFlip`). Bit 2: the host shows the eyepiece view.   |
-| 65     | `u8[3]`  |                 | Zero, for later.                                                                                                              |
+| Offset | Type     | Field           | Meaning                                                                                                                                          |
+| ------ | -------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 0      | `u8`     | `type`          | 1. Unknown types are ignored.                                                                                                                    |
+| 1      | `u8`     | `version`       | Layout version, 1. A version not known is ignored.                                                                                               |
+| 2      | `u16`    | `seq`           | Counts up for each `view`, wrapping at 65535. Older than the last used (by wrapping comparison) means late: dropped.                             |
+| 4      | `u32`    | `timeMs`        | The host's clock, in ms since the link opened.                                                                                                   |
+| 8      | `f32[4]` | `sky`           | Unit quaternion (w, x, y, z): J2000 vectors to local vectors, before refraction. The app's `rotationAt(frameTime)`.                              |
+| 24     | `f32[4]` | `view`          | Unit quaternion (w, x, y, z): local vectors to view vectors (right, up, back). The map's smoothed `viewBasis`, roll included.                    |
+| 40     | `f32`    | `fovDeg`        | The host's field: what its map shows across. The puck uses it only in the eyepiece view; on the sky map it zooms on its own ("The puck's zoom"). |
+| 44     | `f32`    | `altDeg`        | Altitude of the view's centre, as it appears, for the top edge.                                                                                  |
+| 48     | `f32`    | `azDeg`         | Azimuth of the view's centre, for the top edge.                                                                                                  |
+| 52     | `f32`    | `targetDistDeg` | Angle from the centre to the target. NaN when there is no target.                                                                                |
+| 56     | `f32`    | `targetDirDeg`  | Direction to the target on the puck's screen, clockwise from up. NaN when there is no target.                                                    |
+| 60     | `f32`    | `starLimitMag`  | The faintest stars to draw, as the host's map does (`magnitudeLimit`, or the eyepiece's `starLimit`).                                            |
+| 64     | `u8`     | `flags`         | Bit 0: mirror left to right. Bit 1: mirror top to bottom (the host's `imageFlip`). Bit 2: the host shows the eyepiece view.                      |
+| 65     | `u8[3]`  |                 | Zero, for later.                                                                                                                                 |
 
 Quaternions rather than 3×3 matrices: 16 bytes instead of 36, and two of them blend smoothly
 (slerp) when the puck glides between messages. The puck draws with the newest `view` it has.
@@ -187,8 +187,25 @@ Its `sky` changes slowly, so a late one costs nothing visible.
 
 The host sends the view it draws (smoothed, as `steadyPointing`): its map publishes each
 frame (`map-view.service.ts`), and the puck's link sends a new frame at most every 33 ms
-(`puck-link.service.ts`, `puck-view.ts`). The host decides how its
-field maps to the puck's round screen in `fovDeg`: still open (see "Open questions").
+(`puck-link.service.ts`, `puck-view.ts`). `fovDeg` is the width of the host's map; the
+puck takes it as its diameter only in the eyepiece view (see "The puck's zoom").
+
+## The puck's zoom (decided 2026-11-21)
+
+The puck's sky map is **not tied to the phone's zoom**: it follows where the phone points,
+but shows a field of its own. The menu's Zoom shows +, −, ✓ and ✗ over the map: ✓ keeps the
+new field, ✗ goes back to the one before. Nothing is sent to the host, whose own zoom stays
+as it is.
+
+- **In the host's eyepiece view** (flag bit 2), the puck follows the host's field (`fovDeg`)
+  and draws the eyepiece's circle, as the phone does. Back on the sky map, it returns to
+  its own field.
+- **The rules are the map's**, sent by the host once linked, so both zoom the same way:
+  `{ t: 'mapRules', field: { minDeg, maxDeg, step, startDeg }, starLimits: [[field, mag], …] }`.
+  `starLimits` runs widest first: the faintest stars from that field up (the app's
+  `STAR_LIMITS`). The puck draws to the limit for its own field, and the objects and labels
+  for its own field (`showBelowFieldDeg`). On the sky map, `starLimitMag` in the `view` is
+  the host's, for its own field, and the puck doesn't use it.
 
 ## Drawing on the puck
 
@@ -207,17 +224,18 @@ To match the app's map (`sky-canvas.component.ts`, `draw-sky.ts`, `draw-targets.
 3. **Local to view:** `(x, y, z) = view · local`, and forward `f = −z`. Skip what has
    `f < −0.2`, too far behind.
 4. **Stereographic projection:**
-   - `k = 2 / (1 + f)`, and `scale = 233 / (2 tan(fovDeg / 4))` pixels per unit;
+   - `k = 2 / (1 + f)`, and `scale = 233 / (2 tan(field / 4))` pixels per unit, field being the puck's own (or `fovDeg` in the eyepiece view);
    - `px = 233 + sx · k · x · scale` and `py = 233 − sy · k · y · scale`;
    - `sx` and `sy` are −1 when the `flags` mirror bits are set, else 1.
 5. **Below the horizon** (`local.z < 0` after refraction), the sky map draws at a lower opacity
    (`BELOW_HORIZON_OPACITY`); the eyepiece view (flag bit 2) draws it in full.
 6. **Stars:**
-   - draw the stars down to `starLimitMag`;
+   - draw the stars down to the limit for the field shown (`starLimits`; `starLimitMag` in the eyepiece view);
    - the radius is `max(0.8, 3.4 − 0.42 · mag)` px, scaled for the puck;
    - the colour is the star's tint (`STAR_TINTS`);
    - the opacity is `min(1, max(0.55, 1.15 − 0.1 · floor(mag)))`.
-7. **Objects** show when `fovDeg` is under their `showBelowFieldDeg`. Their icons and labels
+7. **Objects** show when the field the puck shows (its own zoom, or `fovDeg` in the
+   eyepiece view) is under their `showBelowFieldDeg`. Their icons and labels
    follow the app's look in `draw-targets.ts` and `target-icons.ts`.
 8. **Night mode** (`state.night`): everything in full-strength red, no grey.
 
@@ -347,11 +365,11 @@ Closing the puck's link ends it; the host's own link to a finder, if any, carrie
 | Host | `objects`       | What moves, and the user's own targets: `{ t: 'objects', sun, items: [...] }`, below. Sent once linked, every minute, and on every change.                                                                                                                                |
 | Host | `state`         | What the puck shows besides the map: `{ t: 'state', night, solving, sensorsOn, aligned, eyepieceFieldDeg }`, the last being the eyepiece's true field, for its circle in the eyepiece view and for "on target" (within half of it). Sent once linked and on every change. |
 | Host | `texts`         | The puck's words in the host's language, right after `auth`: `{ t: 'texts', compass: { n, e, s, w }, credits }`, credits one per line. See "Principles".                                                                                                                  |
+| Host | `mapRules`      | The map's rules for the puck's own zoom, right after `texts`. See "The puck's zoom".                                                                                                                                                                                      |
 | Host | `targetInfo`    | The target's name to show: `{ t: 'targetInfo', id: string \| null, name: string }`. Sent once linked and on every change.                                                                                                                                                 |
 | Host | `solveLog`      | Each plate solve attempt, as Two phones sends it, so the puck can show "solved" or why not.                                                                                                                                                                               |
 | Puck | `solveNow`      | A tap on the reticle: `{ t: 'solveNow', trigger: 'tap' }`. The host solves, or asks its finder to, as for its own tap.                                                                                                                                                    |
 | Puck | `step`          | The left or right arrow: `{ t: 'step', by: -1 \| 1 }`: the previous or next target of the list playing on the host.                                                                                                                                                       |
-| Puck | `zoom`          | `{ t: 'zoom', by: -1 \| 1 }`: the host's map zooms out or in one step, as its zoom buttons do; the next `view` shows it.                                                                                                                                                  |
 | Puck | `ping`          | `{ t: 'ping' }`: the puck is still there. See "Keeping the link alive".                                                                                                                                                                                                   |
 | Puck | `night`         | `{ t: 'night', on: boolean }`: night mode on the host, which passes it on to its finder as usual.                                                                                                                                                                         |
 
@@ -376,7 +394,6 @@ on and off, the eyepiece, choosing a list or target, and alignment.
 
 ## Open questions
 
-- How the host's rectangular map fits the round screen: which field `fovDeg` gives.
 - The faint stars (section 7) for the eyepiece view: whether to send them, and to which
   magnitude (about 100,000 stars, 1.2 MB, to 9).
 - The palette section's layout, and night mode's colours (full-strength red, no grey).
