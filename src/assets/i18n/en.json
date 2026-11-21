@@ -797,6 +797,8 @@
     "replyCode": "Reply code",
     "waiting": "Waiting for the finder",
     "scanFinder": "Scan the finder phone's code",
+    "linkedToPuck": "Linked to the puck",
+    "unlinkPuck": "Unlink the puck",
     "linkPuck": "Link to the puck",
     "scanPuck": "Scan the puck's code",
     "paste": "Or paste the code",

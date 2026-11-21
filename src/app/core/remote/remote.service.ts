@@ -12,7 +12,6 @@ import { isDataMessage } from '../sync/link-sync';
 import type { DataMessage } from '../sync/link-sync';
 
 import { PoseGlide } from './pose-glide';
-import { decodePuckCode, puckAnswer } from './puck-pairing';
 import type { FinderMessage, RemoteMessage, RemoteRole, RemoteSite, ScreenMessage } from './remote-link';
 import { alignmentKey, decodePairingCode, encodePairingCode, parseMessage, toRemoteEntry } from './remote-link';
 
@@ -103,8 +102,6 @@ export class RemoteService {
   private lastLogSent = 0;
   private requestId = 0;
   private readonly pendingSolves = new Map<number, (result: SolveNowResult) => void>();
-  /** Linked to the puck: the secret from its code, sent first once the channel opens. */
-  private puckSecret: string | null = null;
   /** The alignment the other phone is known to have, so one isn't sent back to where it came from. */
   private sharedAlignment = alignmentKey(null);
   private sharedSite = '';
@@ -223,35 +220,6 @@ export class RemoteService {
     }
   }
 
-  /**
-   * Links to the puck, the hand remote, from its code: this phone is the finder, and the puck
-   * takes the screen's place. The puck can't read a reply, so its answer is built here from
-   * its code (puck-pairing.ts).
-   */
-  async startWithPuck(code: string): Promise<void> {
-    let puck;
-    try {
-      puck = decodePuckCode(code);
-    } catch {
-      this.error.set(t('remote.couldNotRead'));
-      return;
-    }
-    this.reset();
-    this.role.set('finder');
-    this.puckSecret = puck.secret;
-    const connection = this.newConnection();
-    this.useChannel(connection.createDataChannel(CHANNEL));
-    this.usePoseChannel(connection.createDataChannel(POSE_CHANNEL, { ordered: false, maxRetransmits: 0 }));
-    try {
-      const offer = await connection.createOffer();
-      await connection.setLocalDescription(offer);
-      await connection.setRemoteDescription({ type: 'answer', sdp: puckAnswer(puck, offer.sdp ?? '') });
-      this.status.set('connecting');
-    } catch {
-      this.fail(t('remote.couldNotStart'));
-    }
-  }
-
   /** Ends the link, on purpose. Linking again needs new codes. */
   disconnect(): void {
     this.reset();
@@ -334,8 +302,6 @@ export class RemoteService {
   private opened(): void {
     this.code.set('');
     this.error.set('');
-    // The puck drops a link whose first message isn't its secret.
-    if (this.puckSecret) this.send({ t: 'auth', secret: this.puckSecret });
     this.startLinkedMode();
   }
 
@@ -581,7 +547,6 @@ export class RemoteService {
     channel?.close();
     poseChannel?.close();
     this.poseNumber = 0;
-    this.puckSecret = null;
     connection?.close();
     this.code.set('');
   }
