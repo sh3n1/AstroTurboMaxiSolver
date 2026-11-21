@@ -25,7 +25,7 @@ import {
   timeOutline,
 } from 'ionicons/icons';
 
-import { isIconUrl } from '../app-icons';
+import { APP_ICONS, isIconUrl } from '../app-icons';
 import { AppState } from '../app-state.service';
 import { ListsService } from '../lists/lists.service';
 import { FullscreenService } from '../platform/fullscreen.service';
@@ -224,8 +224,8 @@ export interface ViewTile {
         {{ 'menu.fullScreen' | translate }}
       </button>
       <button type="button" class="tile" data-testid="more-remote" (click)="go('/remote')">
-        <ion-icon name="phone-landscape-outline" aria-hidden="true"></ion-icon>
-        {{ 'settings.twoPhones' | translate }}
+        <ion-icon [src]="appIcons.remote" aria-hidden="true"></ion-icon>
+        {{ 'remote.title' | translate }}
       </button>
       <button type="button" class="tile" data-testid="open-settings" (click)="go('/tabs/settings')">
         <ion-icon name="settings-outline" aria-hidden="true"></ion-icon>
@@ -244,6 +244,7 @@ export class MoreSheetComponent implements OnDestroy {
   readonly nextView = output<void>();
 
   protected readonly state = inject(AppState);
+  protected readonly appIcons = APP_ICONS;
   protected readonly fullscreen = inject(FullscreenService);
   private readonly sensors = inject(SensorService);
   private readonly lists = inject(ListsService);
