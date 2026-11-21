@@ -48,11 +48,10 @@ puck works through it.
 
 ## Channels
 
-| Channel                     | Carries                           | Delivery                                |
-| --------------------------- | --------------------------------- | --------------------------------------- |
-| `astroturbomaxisolver`      | Control messages, JSON text       | Reliable, ordered (as Two phones)       |
-| `astroturbomaxisolver-pose` | `pose`, JSON text (as Two phones) | Never resent, any order (as Two phones) |
-| `astroturbomaxisolver-view` | View messages, binary             | Never resent, any order                 |
+| Channel                     | Carries                     | Delivery                          |
+| --------------------------- | --------------------------- | --------------------------------- |
+| `astroturbomaxisolver`      | Control messages, JSON text | Reliable, ordered (as Two phones) |
+| `astroturbomaxisolver-view` | View messages, binary       | Never resent, any order           |
 
 A lost view message is never resent: the next one, a few tens of milliseconds later,
 replaces it. Each binary message stays under 16 KB, which every browser handles.
@@ -130,21 +129,34 @@ Later types, not yet designed: constellation lines, deep-sky objects, labels, th
 
 ## Control messages (JSON)
 
-The puck uses the screen phone's messages from [Two phones](two-phones.md):
+The puck talks to one phone only, its **host**: the phone on the telescope in normal mode, or
+the screen phone in Two phones (see "Who the puck links to"). The puck mirrors the host's map,
+and the host's map already follows the finder in Two phones, so the messages are the same in
+both cases. The host passes on to the finder what needs it, as the screen does for its own
+taps.
 
-- **It receives** `hello`, `site`, `solveLog`, `solveResult`, `alignment`, `pause`, `resume`,
-  and `pose` (which it may ignore, since `view` has the same and more).
-- **It sends** `solveNow` (a tap on the reticle, `trigger: 'tap'`), `night`, `target`,
-  `pause`, `resume`.
-- **It never sends** `fullscreen`, `dataOn`, `dataManifest` or `dataRecords`: no link sync.
+The puck's link is its own: none of Two phones' messages between finder and screen (`hello`,
+`site`, `alignment`, `pause`, `resume`, `fullscreen`, `dataOn`, `dataManifest`,
+`dataRecords`) go to or come from the puck. Closing the puck's link ends it; the host's own
+link to a finder, if any, carries on.
 
-Proposed new messages, since the puck has no lists of its own:
+| From | Message       | Meaning                                                                                                                                                             |
+| ---- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Puck | `puckHello`   | Sent first: `{ t: 'puckHello', version: 1, screenPx: 466 }`, so the host knows it is a puck and projects for its screen. A finder answers `puckRefused` and closes. |
+| Host | `puckRefused` | `{ t: 'puckRefused', reason: 'finder' }`: this phone is a finder, which a puck can't link to. The puck says so on its screen.                                       |
+| Host | `state`       | What the puck shows besides the map: `{ t: 'state', night, solving, sensorsOn, aligned }`. Sent once linked and on every change.                                    |
+| Host | `targetInfo`  | The target's name to show: `{ t: 'targetInfo', id: string \| null, name: string }`. Sent once linked and on every change.                                           |
+| Host | `solveLog`    | Each plate solve attempt, as Two phones sends it, so the puck can show "solved" or why not.                                                                         |
+| Puck | `solveNow`    | A tap on the reticle: `{ t: 'solveNow', trigger: 'tap' }`. The host solves, or asks its finder to, as for its own tap.                                              |
+| Puck | `step`        | The left or right arrow: `{ t: 'step', by: -1 \| 1 }`: the previous or next target of the list playing on the host.                                                 |
+| Puck | `zoom`        | `{ t: 'zoom', by: -1 \| 1 }`: the host's map zooms out or in one step, as its zoom buttons do; the next `view` shows it.                                            |
+| Puck | `night`       | `{ t: 'night', on: boolean }`: night mode on the host, which passes it on to its finder as usual.                                                                   |
 
-| From  | Message      | Meaning                                                                                                                   |
-| ----- | ------------ | ------------------------------------------------------------------------------------------------------------------------- |
-| Puck  | `puckHello`  | Sent first: `{ t: 'puckHello', version: 1, screenPx: 466 }`, so the phone knows it is a puck and projects for its screen. |
-| Puck  | `step`       | The left or right arrow: `{ t: 'step', by: -1 \| 1 }`, the previous or next item in the current list.                     |
-| Phone | `targetInfo` | The target's name to show: `{ t: 'targetInfo', id: string \| null, name: string }`. Sent once linked and on every change. |
+The map itself, where it points and its zoom, reaches the puck only in the binary `view` and
+`stars` messages; the `pose` channel isn't used with a puck.
+
+Still to define, with the puck's menu (see its `docs/screen-layout.md`): messages for sensors on
+and off, the eyepiece, choosing a list or target, and alignment.
 
 ## Pairing
 
@@ -160,5 +172,4 @@ fingerprint); how the phone's answer reaches the puck is still to be worked out.
 - The colour table for `colour`, and how night mode changes it (full-strength red, no grey).
 - The menu items (Sensors, Eyepiece, Lists, Alignment, Settings, Meade LX200 Repeater): which
   need new messages. See the puck's `docs/screen-layout.md`.
-- The control messages below were written for the puck taking the screen phone's part. With
-  the puck linked to a normal or screen phone instead (above), check which still fit.
+- The messages for the rest of the puck's menu, under "Control messages".
