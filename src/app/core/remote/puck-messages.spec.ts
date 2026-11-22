@@ -85,10 +85,23 @@ describe('puck messages', () => {
 
   it('names a planet by its own name, not its kind', () => {
     const saturn = { id: 'Saturn', name: 'planet', kind: 'planet', body: 'Saturn', raDeg: 0, decDeg: 0, mag: 0.5 };
-    expect(targetInfoMessage(saturn as Target)).toEqual({ t: 'targetInfo', id: 'Saturn', name: 'Saturn' });
+    expect(targetInfoMessage(saturn as Target)).toMatchObject({
+      t: 'targetInfo',
+      id: 'Saturn',
+      name: 'Saturn',
+      label: 'Saturn',
+    });
     const crab = { id: 'M1', name: 'Crab Nebula', kind: 'nebula', raDeg: 83.6, decDeg: 22, mag: 8.4 };
     expect(targetInfoMessage(crab as Target).name).toBe('Crab Nebula');
-    expect(targetInfoMessage(null)).toEqual({ t: 'targetInfo', id: null, name: '' });
+    expect(targetInfoMessage({ ...crab, sizeArcmin: 6 } as Target)).toMatchObject({ label: 'M1', sizeArcmin: 6 });
+    expect(targetInfoMessage(null)).toEqual({
+      t: 'targetInfo',
+      id: null,
+      name: '',
+      label: '',
+      kind: 0,
+      sizeArcmin: null,
+    });
   });
 
   it("sends the puck the map's own rules for its zoom", () => {

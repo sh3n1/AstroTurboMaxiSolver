@@ -2,6 +2,7 @@ import { Injectable, computed, effect, inject, signal, untracked } from '@angula
 import { ToastController } from '@ionic/angular';
 
 import { AppState } from '../app-state.service';
+import type { Horizontal } from '../astronomy/astronomy';
 import { t } from '../i18n/t';
 import { ListsService } from '../lists/lists.service';
 import type { ListView } from '../lists/lists.service';
@@ -16,6 +17,7 @@ import { LiveSolverService } from '../solver/live-solver.service';
 import { PuckAlignService } from './puck-align.service';
 import { PART_BYTES, catalogParts } from './puck-catalog';
 import { PuckCatalogService } from './puck-catalog.service';
+import { iconMessages } from './puck-icons';
 import { listTargetsMessage, listsMessage, puckLists } from './puck-lists';
 import { mapRulesMessage, parsePuckMessage, targetInfoMessage, textsMessage } from './puck-messages';
 import type { PuckHostMessage, PuckMessage } from './puck-messages';
@@ -240,6 +242,8 @@ export class PuckLinkService {
     this.sendControl(textsMessage((key, params) => t(key, params)));
     // The rules for the puck's own zoom, which are the map's.
     this.sendControl(mapRulesMessage());
+    // The planets' icons, one message each (puck-icons.ts).
+    for (const icon of iconMessages(this.state.targets())) this.sendControl(icon);
     // This side's record of the link lost before, for the puck's log.
     if (this.lossRecord) this.sendControl({ t: 'appLog', text: this.lossRecord });
     this.lossRecord = '';
@@ -317,11 +321,11 @@ export class PuckLinkService {
         this.state.viewMode.set(NEXT_VIEW[this.state.viewMode()]);
         break;
       case 'lists':
-        this.sendControl(listsMessage(this.puckLists(), this.isUp()));
+        this.sendControl(listsMessage(this.puckLists(), this.positionOf()));
         break;
       case 'listTargets': {
         const list = this.puckLists().find((candidate) => candidate.id === command.id);
-        if (list) this.sendControl(listTargetsMessage(list, this.isUp()));
+        if (list) this.sendControl(listTargetsMessage(list, this.positionOf()));
         break;
       }
       case 'alignStars':
@@ -359,10 +363,10 @@ export class PuckLinkService {
     return puckLists(this.lists.fixedLists(), this.lists.userLists());
   }
 
-  /** Whether a target is above the horizon now, as the playlist's steps count it. */
-  private isUp(): (target: ListedTarget) => boolean {
+  /** Where targets are now, by the minute clock, as the playlist's steps see them. */
+  private positionOf(): (target: ListedTarget) => Horizontal {
     const time = this.state.now();
-    return (target) => this.state.positionAt(target, time).altDeg > 0;
+    return (target) => this.state.positionAt(target, time);
   }
 
   /**

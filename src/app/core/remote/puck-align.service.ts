@@ -2,7 +2,6 @@ import { Injectable, inject } from '@angular/core';
 
 import { newAlignment, offsetAngleDeg, suggestAlignmentStars } from '../alignment/alignment';
 import { AppState } from '../app-state.service';
-import { compassShort } from '../astronomy/astronomy';
 import type { Target } from '../catalog/targets';
 import { num, t } from '../i18n/t';
 import { rearCameraDirection } from '../sensors/attitude';
@@ -10,20 +9,23 @@ import { cameraPointing } from '../sensors/device-orientation';
 import { alignmentStarLimit } from '../sky-conditions/sky-quality';
 import { LiveSolverService } from '../solver/live-solver.service';
 
+import type { PuckTargetRow } from './puck-lists';
+import { targetRow } from './puck-lists';
+
 /** How many of the easiest stars the puck offers, as the app's Align page. */
 const SUGGESTED_STARS = 4;
 
 /**
  * `{ t: 'alignStars' }`: the puck's Alignment page. `current` says what the phone is aligned
  * on, or is empty; `remove` and `removeAgain` are the words of its Remove chip, before and
- * after a first tap. Each star's `sub` is where it is and how bright: "E 60° · mag 0.0".
+ * after a first tap. Each star is a row as a list's (puck-lists.ts), how bright under it.
  */
 export interface PuckAlignStarsMessage {
   t: 'alignStars';
   current: string;
   remove: string;
   removeAgain: string;
-  stars: { id: string; name: string; sub: string }[];
+  stars: PuckTargetRow[];
 }
 
 /**
@@ -69,11 +71,11 @@ export class PuckAlignService {
       current: alignment ? t('settings.alignedOn', { star: alignment.starId }) : '',
       remove: t('align.remove'),
       removeAgain: t('align.removeQuestion'),
-      stars: this.candidates().map((target) => {
-        const { altDeg, azDeg } = this.state.positionOf(target);
-        const where = `${compassShort(azDeg)} ${Math.round(altDeg)}°`;
-        return { id: target.id, name: target.id, sub: `${where} · ${t('details.mag', { mag: num(target.mag, 1) })}` };
-      }),
+      // Named by id, as the Align page; how bright under it, and where, as a list's rows.
+      stars: this.candidates().map((target) => ({
+        ...targetRow(target, this.state.positionOf(target), t('details.mag', { mag: num(target.mag, 1) })),
+        name: target.id,
+      })),
     };
   }
 

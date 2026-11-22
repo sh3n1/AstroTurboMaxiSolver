@@ -175,6 +175,14 @@ const PLANETS: Record<string, IconPath[]> = {
   Juno: ASTEROID,
 };
 
+/** The bodies with an icon of their own, such as "Saturn". */
+export const ICON_BODIES = Object.keys(PLANETS);
+
+/** A body's own icon, or null if it has none. */
+export function planetIcon(body: string): IconPath[] | null {
+  return PLANETS[body] ?? null;
+}
+
 /**
  * A phase: the sunlit part filled, the unlit edge dashed. Used for the Moon and Venus.
  *
@@ -209,6 +217,14 @@ export function phaseIcon(litFraction: number, litOnRight: boolean): IconPath[] 
  */
 /** A double star: a bright star with a smaller companion beside it. */
 const DOUBLE_STAR: IconPath[] = [{ d: circle(9, 14, 4.5) }, { d: circle(17.5, 7, 2.5), fill: true }];
+
+/** The kinds with an icon of their own, by kind: those targetIcon picks for what isn't a body. */
+export const KIND_ICONS: Record<string, IconPath[]> = {
+  Galaxy: GALAXY,
+  Nebula: NEBULA,
+  Constellation: CONSTELLATION,
+  'Double star': DOUBLE_STAR,
+};
 
 export function targetIcon(target: Target): IconPath[] | null {
   if (target.phase) return phaseIcon(target.phase.litFraction, target.phase.litOnRight);

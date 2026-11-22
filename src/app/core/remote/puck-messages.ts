@@ -8,6 +8,8 @@ import type { ViewMode } from '../sky-map/sky-style';
 import { DEFAULT_FIELD_DEG, MAX_FIELD_DEG, MIN_FIELD_DEG, STAR_LIMITS, ZOOM_STEP } from '../sky-map/sky-style';
 
 import type { PuckAlignStarsMessage, PuckAlignStatusMessage } from './puck-align.service';
+import { kindCode } from './puck-catalog';
+import type { PuckIconMessage } from './puck-icons';
 import type { PuckListTargetsMessage, PuckListsMessage } from './puck-lists';
 import type { PuckObjectsMessage } from './puck-objects';
 
@@ -52,8 +54,10 @@ export type PuckMessage =
 export type PuckHostMessage =
   /** Always first: the secret from the puck's QR code. */
   | { t: 'auth'; secret: string }
-  /** The target's name for the puck's bottom third; id null when there is none. */
-  | { t: 'targetInfo'; id: string | null; name: string }
+  /** The target for the puck's bottom third and map (targetInfoMessage); id null when there is none. */
+  | PuckTargetInfoMessage
+  /** A planet's icon, flattened for the puck (puck-icons.ts). */
+  | PuckIconMessage
   /**
    * What the puck shows besides the map. eyepieceFieldDeg: the eyepiece's true field, for
    * its circle in the eyepiece view and for "on target" (within half of it), as the app's.
@@ -88,13 +92,35 @@ export type PuckHostMessage =
   | { t: 'catalogStart'; id: string; bytes: number; parts: number; crc32: number };
 
 /**
- * The `targetInfo` message: the selected target's name for the puck's bottom third. A
- * planet's or the Moon's `name` is its kind ("planet"), so those go by their label, as the
- * map writes it (and the `objects` message sends it).
+ * The selected target: `name` for the puck's bottom third, and for its map, `label` (what
+ * the map writes beside it, as in the catalogue), `kind` (the catalogue's number, for its
+ * colour) and `sizeArcmin` (or null), so the puck draws it first and in full, as the app's
+ * map does.
  */
-export function targetInfoMessage(target: Target | null): { t: 'targetInfo'; id: string | null; name: string } {
-  if (!target) return { t: 'targetInfo', id: null, name: '' };
-  return { t: 'targetInfo', id: target.id, name: target.body ? designations(target)[0] : target.name };
+export interface PuckTargetInfoMessage {
+  t: 'targetInfo';
+  id: string | null;
+  name: string;
+  label: string;
+  kind: number;
+  sizeArcmin: number | null;
+}
+
+/**
+ * The `targetInfo` message. A planet's or the Moon's `name` is its kind ("planet"), so
+ * those go by their label, as the map writes it (and the `objects` message sends it).
+ */
+export function targetInfoMessage(target: Target | null): PuckTargetInfoMessage {
+  if (!target) return { t: 'targetInfo', id: null, name: '', label: '', kind: 0, sizeArcmin: null };
+  const label = designations(target)[0];
+  return {
+    t: 'targetInfo',
+    id: target.id,
+    name: target.body ? label : target.name,
+    label,
+    kind: kindCode(target.kind),
+    sizeArcmin: target.sizeArcmin ?? null,
+  };
 }
 
 /**
