@@ -24,7 +24,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { addIcons } from 'ionicons';
 import { checkmark, checkmarkCircleOutline, locateOutline, refresh, timeOutline, trashOutline } from 'ionicons/icons';
 
-import { cameraOffset, offsetAngleDeg, suggestAlignmentStars } from '../core/alignment/alignment';
+import { newAlignment, offsetAngleDeg, suggestAlignmentStars } from '../core/alignment/alignment';
 import type { AlignmentMethod } from '../core/app-state.service';
 import { AppState } from '../core/app-state.service';
 import type { Horizontal } from '../core/astronomy/astronomy';
@@ -601,15 +601,7 @@ export class AlignPage {
   private save(camera: Horizontal, method: AlignmentMethod): void {
     const star = this.chosen();
     if (!star) return;
-    const position = this.state.positionOf(star);
-    // A new alignment starts without syncs: they measured the camera as it sat before.
-    this.state.alignment.set({
-      starId: star.id,
-      alignedAt: new Date().toISOString(),
-      offset: cameraOffset(camera, position),
-      position,
-      method,
-    });
+    this.state.alignment.set(newAlignment(star.id, this.state.positionOf(star), camera, method));
     this.step.set('done');
   }
 

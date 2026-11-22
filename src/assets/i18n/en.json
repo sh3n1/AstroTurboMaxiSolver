@@ -393,6 +393,18 @@
     "startSensors": "Finder · tap to start sensors",
     "pause": "Pause remote mode"
   },
+  "puck": {
+    "zoom": "Zoom",
+    "brightness": "Brightness",
+    "sensors": "Sensors",
+    "alignment": "Alignment",
+    "wifi": "Wi-Fi",
+    "wifiClient": "Client",
+    "wifiAp": "Access point",
+    "lx200": "Meade LX200 Repeater",
+    "on": "On",
+    "off": "Off"
+  },
   "readout": {
     "noCompass": "No compass",
     "finderSensorsOff": "Finder sensors off",

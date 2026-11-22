@@ -27,7 +27,14 @@ import { SensorService } from '../core/sensors/sensor.service';
 import { isShutterPress } from '../core/sensors/shutter-remote';
 import { SkyCanvasComponent } from '../core/sky-map/sky-canvas.component';
 import type { ViewMode } from '../core/sky-map/sky-style';
-import { DEFAULT_FIELD_DEG, MAX_FIELD_DEG, MIN_FIELD_DEG, ZOOM_STEP, clampField } from '../core/sky-map/sky-style';
+import {
+  DEFAULT_FIELD_DEG,
+  MAX_FIELD_DEG,
+  MIN_FIELD_DEG,
+  NEXT_VIEW,
+  ZOOM_STEP,
+  clampField,
+} from '../core/sky-map/sky-style';
 import { EyepiecePanelComponent } from '../core/sky-page/eyepiece-panel.component';
 import { MENU_TAP_GUARD_MS, MoreSheetComponent } from '../core/sky-page/more-sheet.component';
 import { PointingReadoutComponent } from '../core/sky-page/pointing-readout.component';
@@ -35,8 +42,6 @@ import { TargetBarComponent } from '../core/sky-page/target-bar.component';
 import { LiveSolverService } from '../core/solver/live-solver.service';
 import { SyncService } from '../core/sync/sync.service';
 
-/** The view each view comes before, as the view tile steps through them: see ViewMode. */
-const NEXT_VIEW: Record<ViewMode, ViewMode> = { sky: 'eyepiece', eyepiece: 'ring', ring: 'sky' };
 /** The button shows the view it switches to: its icon, and its name for screen readers. */
 const VIEW_BUTTONS: Record<ViewMode, { icon: string; label: string }> = {
   sky: { icon: 'map-outline', label: i18n('views.sky') },
@@ -231,7 +236,8 @@ export class SkyPage implements AfterViewInit, OnDestroy {
   /** When the alignment shown last was made, or undefined before the first check. */
   private shownAlignedAt?: string | null;
 
-  protected readonly mode = signal<ViewMode>('sky');
+  /** In the app's state, so the puck's menu can step it too. */
+  protected readonly mode = this.state.viewMode;
   protected readonly nextView = computed(() => NEXT_VIEW[this.mode()]);
   protected readonly viewButtons = VIEW_BUTTONS;
   protected readonly fieldDeg = signal(DEFAULT_FIELD_DEG);

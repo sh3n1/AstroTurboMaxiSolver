@@ -1,16 +1,23 @@
-import { Injectable, effect, inject, signal, untracked } from '@angular/core';
+import { Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
 import { ToastController } from '@ionic/angular';
 
 import { AppState } from '../app-state.service';
 import { t } from '../i18n/t';
+import { ListsService } from '../lists/lists.service';
+import type { ListView } from '../lists/lists.service';
 import { PlaylistService } from '../lists/playlist.service';
+import type { ListedTarget } from '../lists/target-lists';
 import { ScreenWakeService } from '../platform/screen-wake.service';
+import { SensorService } from '../sensors/sensor.service';
 import { MapViewService } from '../sky-map/map-view.service';
+import { NEXT_VIEW } from '../sky-map/sky-style';
 import { LiveSolverService } from '../solver/live-solver.service';
 
+import { PuckAlignService } from './puck-align.service';
 import { PART_BYTES, catalogParts } from './puck-catalog';
 import { PuckCatalogService } from './puck-catalog.service';
-import { mapRulesMessage, parsePuckMessage, textsMessage } from './puck-messages';
+import { listTargetsMessage, listsMessage, puckLists } from './puck-lists';
+import { mapRulesMessage, parsePuckMessage, targetInfoMessage, textsMessage } from './puck-messages';
 import type { PuckHostMessage, PuckMessage } from './puck-messages';
 import { objectsMessage } from './puck-objects';
 import { decodePuckCode, puckAnswer } from './puck-pairing';
@@ -49,6 +56,17 @@ const VIEW_INTERVAL_MS = 33;
  */
 const HEARTBEAT_MS = 1000;
 const SILENCE_LIMIT_MS = 4000;
+/**
+ * After a lost link, this phone links again by itself, this many times, this long apart:
+ * the puck keeps its code until it restarts, so no new scan is needed (docs/puck.md).
+ */
+const AUTO_RECONNECT_TRIES = 10;
+const AUTO_RECONNECT_DELAY_MS = 2000;
+/** A try that hasn't linked by then is given up, and the next one goes. */
+const CONNECT_TIMEOUT_MS = 8000;
+/** A gap this long between the view timer's ticks: the page stalled. Kept for the loss's record. */
+const STALL_MS = 500;
+const STALLS_KEPT = 5;
 
 /**
  * The link to the puck, the hand remote (docs/puck.md). It is the puck's own, apart from
@@ -62,13 +80,24 @@ export class PuckLinkService {
   private readonly mapView = inject(MapViewService);
   private readonly liveSolver = inject(LiveSolverService);
   private readonly playlist = inject(PlaylistService);
+  private readonly lists = inject(ListsService);
+  private readonly align = inject(PuckAlignService);
   private readonly toasts = inject(ToastController);
   private readonly catalogs = inject(PuckCatalogService);
   private readonly screenWake = inject(ScreenWakeService);
+  private readonly sensors = inject(SensorService);
 
   readonly status = signal<PuckStatus>('idle');
   /** What went wrong, in a few words for the user, or empty. */
   readonly error = signal('');
+  /**
+   * The puck's code last read, kept after a lost link: the puck keeps the same code until it
+   * restarts (docs/puck.md, "Pairing"), so reconnect() links again without a new scan.
+   * Forgotten when the link is ended on purpose.
+   */
+  private readonly lastCode = signal('');
+  /** Whether reconnect() can link again: the link is lost and its code is known. */
+  readonly canReconnect = computed(() => this.status() === 'lost' && this.lastCode() !== '');
 
   private connection: RTCPeerConnection | null = null;
   private control: RTCDataChannel | null = null;
@@ -90,6 +119,18 @@ export class PuckLinkService {
   private lastHeard = 0;
   private viewSeq = 0;
   private openedAt = 0;
+  /** Linking again by itself after a loss: how many tries so far, and the next one's timer. */
+  private reconnectTries = 0;
+  private reconnectTimer?: ReturnType<typeof setTimeout>;
+  private connectTimer?: ReturnType<typeof setTimeout>;
+  /**
+   * For finding why links drop: the view timer's last tick and its recent stalls, and this
+   * side's record of the last loss, sent to the puck once linked again (`appLog`), where it
+   * is kept in the puck's log.
+   */
+  private lastTick = 0;
+  private stalls: string[] = [];
+  private lossRecord = '';
 
   constructor() {
     // The phone must stay awake while the puck is linked: asleep, it stops sending.
@@ -101,7 +142,7 @@ export class PuckLinkService {
     effect(() => {
       const target = this.state.selectedTarget();
       if (this.status() !== 'connected') return;
-      untracked(() => this.sendControl({ t: 'targetInfo', id: target?.id ?? null, name: target?.name ?? '' }));
+      untracked(() => this.sendControl(targetInfoMessage(target)));
     });
     // What moves (the Moon, planets): once linked, and as the app's list moves them, once a minute.
     effect(() => {
@@ -116,6 +157,7 @@ export class PuckLinkService {
       this.state.sensorsActive();
       this.state.alignment();
       this.state.trueField();
+      this.state.viewMode();
       if (this.status() !== 'connected') return;
       untracked(() => this.sendState());
     });
@@ -132,6 +174,7 @@ export class PuckLinkService {
     }
     this.close();
     this.error.set('');
+    this.lastCode.set(code);
     this.secret = puck.secret;
     // No servers: the puck is on the same network, so the addresses are enough.
     const connection = new RTCPeerConnection({ iceServers: [] });
@@ -157,6 +200,10 @@ export class PuckLinkService {
     this.catalog.binaryType = 'arraybuffer';
     this.catalogTries = 0;
     this.status.set('connecting');
+    clearTimeout(this.connectTimer);
+    this.connectTimer = setTimeout(() => {
+      if (connection === this.connection && this.status() === 'connecting') this.lose();
+    }, CONNECT_TIMEOUT_MS);
     try {
       const offer = await connection.createOffer();
       await connection.setLocalDescription(offer);
@@ -168,8 +215,18 @@ export class PuckLinkService {
     }
   }
 
-  /** Ends the link, on purpose. Linking again needs the puck's new code. */
+  /** Links again with the code last read, after a lost link: the Reconnect button. */
+  reconnect(): void {
+    this.reconnectTries = 0;
+    clearTimeout(this.reconnectTimer);
+    if (this.lastCode()) void this.start(this.lastCode());
+  }
+
+  /** Ends the link, on purpose. Linking again needs the puck's code read again. */
   disconnect(): void {
+    clearTimeout(this.reconnectTimer);
+    this.reconnectTries = 0;
+    this.lastCode.set('');
     this.close();
     this.status.set('idle');
     this.error.set('');
@@ -180,10 +237,15 @@ export class PuckLinkService {
     this.sendControl({ t: 'auth', secret: this.secret });
     // The words the puck shows, in this phone's language. The language is set as the app
     // starts, so once a link is enough.
-    this.sendControl(textsMessage((key) => t(key)));
+    this.sendControl(textsMessage((key, params) => t(key, params)));
     // The rules for the puck's own zoom, which are the map's.
     this.sendControl(mapRulesMessage());
-    this.openedAt = this.lastHeard = Date.now();
+    // This side's record of the link lost before, for the puck's log.
+    if (this.lossRecord) this.sendControl({ t: 'appLog', text: this.lossRecord });
+    this.lossRecord = '';
+    this.reconnectTries = 0;
+    this.stalls = [];
+    this.openedAt = this.lastHeard = this.lastTick = Date.now();
     this.lastFrame = 0;
     this.viewSeq = 0;
     // Setting the status sends targetInfo and state, through the effects above.
@@ -194,6 +256,12 @@ export class PuckLinkService {
   /** About 30 times a second: the newest view, a heartbeat if needed, and the silence check. */
   private tick(): void {
     const now = Date.now();
+    // The page stalled (the timer came late): kept, in case the link drops.
+    if (now - this.lastTick > STALL_MS) {
+      this.stalls.push(`${Math.round((now - this.openedAt) / 1000)} s: ${now - this.lastTick} ms`);
+      if (this.stalls.length > STALLS_KEPT) this.stalls.shift();
+    }
+    this.lastTick = now;
     if (now - this.lastHeard > SILENCE_LIMIT_MS) {
       this.lose();
       return;
@@ -211,6 +279,7 @@ export class PuckLinkService {
       sensorsOn: this.state.sensorsActive(),
       aligned: this.state.alignment() !== null,
       eyepieceFieldDeg: this.state.trueField(),
+      view: this.state.viewMode(),
     });
   }
 
@@ -239,7 +308,61 @@ export class PuckLinkService {
       case 'night':
         if (this.state.settings().nightMode !== command.on) this.state.updateSettings({ nightMode: command.on });
         break;
+      case 'sensors':
+        // As the menu's Sensors tile.
+        if (command.on && !this.state.sensorsActive()) void this.sensors.start();
+        else if (!command.on && this.state.sensorsActive()) this.sensors.stop();
+        break;
+      case 'view':
+        this.state.viewMode.set(NEXT_VIEW[this.state.viewMode()]);
+        break;
+      case 'lists':
+        this.sendControl(listsMessage(this.puckLists(), this.isUp()));
+        break;
+      case 'listTargets': {
+        const list = this.puckLists().find((candidate) => candidate.id === command.id);
+        if (list) this.sendControl(listTargetsMessage(list, this.isUp()));
+        break;
+      }
+      case 'alignStars':
+        this.sendControl(this.align.starsMessage());
+        break;
+      case 'alignChoose': {
+        const status = this.align.choose(command.id);
+        if (status) this.sendControl(status);
+        break;
+      }
+      case 'alignNow':
+        // One at a time, as the Align page's button.
+        if (this.state.plateSolving()) break;
+        this.sendControl(this.align.solvingMessage());
+        void this.align.alignNow().then((status) => this.sendControl(status));
+        break;
+      case 'alignRemove':
+        this.align.remove();
+        this.sendControl(this.align.starsMessage());
+        break;
+      case 'play': {
+        // As a tap on a target in the list's page: the list plays on the map from it.
+        const list = this.lists.list(command.list);
+        if (list?.targets.some((target) => target.id === command.target)) {
+          const ids = list.targets.map((target) => target.id);
+          this.playlist.play(list.name, ids, command.target, `/tabs/lists/${list.id}`);
+        }
+        break;
+      }
     }
+  }
+
+  /** The lists the puck's menu offers (puck-lists.ts). */
+  private puckLists(): ListView[] {
+    return puckLists(this.lists.fixedLists(), this.lists.userLists());
+  }
+
+  /** Whether a target is above the horizon now, as the playlist's steps count it. */
+  private isUp(): (target: ListedTarget) => boolean {
+    const time = this.state.now();
+    return (target) => this.state.positionAt(target, time).altDeg > 0;
   }
 
   /**
@@ -316,25 +439,58 @@ export class PuckLinkService {
   private lose(): void {
     if (this.status() !== 'connected' && this.status() !== 'connecting') return;
     const wasConnected = this.status() === 'connected';
+    if (wasConnected) this.lossRecord = this.describeLoss();
     this.close();
     this.status.set('lost');
+    // Again by itself, a few times: the puck still has the same code.
+    if (this.lastCode() && this.reconnectTries < AUTO_RECONNECT_TRIES) {
+      this.reconnectTries++;
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = setTimeout(() => {
+        if (this.status() === 'lost') void this.start(this.lastCode());
+      }, AUTO_RECONNECT_DELAY_MS);
+    }
     // Said wherever the user is, as for a lost finder phone: they are likely on the map.
-    if (wasConnected) void this.tell(t('remote.puckDisconnected'));
+    // With a button to link again at once, with the same code.
+    if (wasConnected) void this.tell(t('remote.puckDisconnected'), true);
   }
 
-  private async tell(message: string): Promise<void> {
+  /** What this side saw when the link dropped, in a line for the puck's log. */
+  private describeLoss(): string {
+    const now = Date.now();
+    const { connection, control } = this;
+    return [
+      `lost after ${Math.round((now - this.openedAt) / 1000)} s`,
+      `heard ${now - this.lastHeard} ms ago, sent ${now - this.lastSent} ms ago`,
+      `connection ${connection?.connectionState}, ICE ${connection?.iceConnectionState}`,
+      `control ${control?.readyState}, ${control?.bufferedAmount} bytes waiting`,
+      `stalls: ${this.stalls.join(', ') || 'none'}`,
+    ].join('; ');
+  }
+
+  private async tell(message: string, offerReconnect = false): Promise<void> {
     const toast = await this.toasts.create({
       message,
-      duration: 4000,
+      duration: offerReconnect ? 8000 : 4000,
       position: 'top',
       color: 'warning',
       htmlAttributes: { 'data-testid': 'puck-toast' },
+      buttons: offerReconnect
+        ? [
+            {
+              text: t('remote.reconnect'),
+              htmlAttributes: { 'data-testid': 'puck-toast-reconnect' },
+              handler: () => this.reconnect(),
+            },
+          ]
+        : [],
     });
     await toast.present();
   }
 
   private close(): void {
     clearInterval(this.viewTimer);
+    clearTimeout(this.connectTimer);
     this.viewTimer = undefined;
     const { connection, control, view, catalog } = this;
     this.connection = null;

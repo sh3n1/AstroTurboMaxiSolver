@@ -239,6 +239,12 @@ import { RemoteService } from '../core/remote/remote.service';
               @if (puck.status() === 'lost') {
                 <p class="error" data-testid="puck-lost">{{ 'settings.linkLost' | translate }}</p>
               }
+              <!-- The puck keeps its code until it restarts, so the code read before works. -->
+              @if (puck.canReconnect() && !scanning()) {
+                <ion-button expand="block" data-testid="puck-reconnect" (click)="puck.reconnect()">{{
+                  'remote.reconnect' | translate
+                }}</ion-button>
+              }
               @if (scanning()) {
                 <p class="step">{{ 'remote.scanPuck' | translate }}</p>
                 <app-qr-scanner (scanned)="read($event)" />

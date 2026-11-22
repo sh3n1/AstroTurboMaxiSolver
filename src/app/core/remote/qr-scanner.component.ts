@@ -5,10 +5,14 @@ import jsQR from 'jsqr';
 
 import { t } from '../i18n/t';
 
+import { darkerExposures } from './qr-exposure';
+
 /** How often a frame is checked for a code. Often enough to feel instant, light on the battery. */
 const SCAN_INTERVAL_MS = 200;
 /** Frames are shrunk to this width before reading, which is plenty for a code filling the view. */
 const SCAN_WIDTH_PX = 640;
+/** How long each exposure is tried before the next (stepExposure). */
+const EXPOSURE_STEP_MS = 1000;
 
 /** The browser's own QR reader, where there is one: Chrome on Android has it, Safari doesn't. */
 interface BarcodeDetectorLike {
@@ -56,6 +60,7 @@ export class QrScannerComponent implements OnInit, OnDestroy {
   private detector: BarcodeDetectorLike | null = null;
   private readonly canvas = document.createElement('canvas');
   private busy = false;
+  private exposureTimer?: ReturnType<typeof setInterval>;
 
   async ngOnInit(): Promise<void> {
     try {
@@ -74,10 +79,36 @@ export class QrScannerComponent implements OnInit, OnDestroy {
       this.detector = null; // Present but without QR support: jsQR reads instead.
     }
     this.timer = setInterval(() => void this.scan(), SCAN_INTERVAL_MS);
+    this.stepExposure();
+  }
+
+  /**
+   * In the dark, auto exposure brightens the mostly black picture, and a bright screen's code
+   * (the puck's, or a phone's) burns out white. Where the camera allows it (Chrome on
+   * Android), the exposure steps through normal, one stop darker and two, so one of them
+   * reads it. Elsewhere it stays automatic.
+   */
+  private stepExposure(): void {
+    const track = this.stream?.getVideoTracks()[0];
+    const range = (track?.getCapabilities?.() as { exposureCompensation?: MediaSettingsRange } | undefined)
+      ?.exposureCompensation;
+    if (!track || range?.min === undefined || range.max === undefined) return;
+    const { min, max } = range;
+    const steps = darkerExposures(min, max);
+    let next = 0;
+    const apply = (): void => {
+      const exposureCompensation = steps[next++ % steps.length];
+      track.applyConstraints({ advanced: [{ exposureCompensation } as MediaTrackConstraintSet] }).catch(() => {
+        clearInterval(this.exposureTimer); // not allowed after all: left automatic
+      });
+    };
+    apply();
+    this.exposureTimer = setInterval(apply, EXPOSURE_STEP_MS);
   }
 
   ngOnDestroy(): void {
     clearInterval(this.timer);
+    clearInterval(this.exposureTimer);
     this.stream?.getTracks().forEach((track) => track.stop());
   }
 
