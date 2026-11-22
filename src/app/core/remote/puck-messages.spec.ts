@@ -27,6 +27,13 @@ describe('puck messages', () => {
     expect(parsePuckMessage('{"t":"alignChoose"}')).toBeNull();
     expect(parsePuckMessage('{"t":"alignNow"}')).toEqual({ t: 'alignNow' });
     expect(parsePuckMessage('{"t":"alignRemove"}')).toEqual({ t: 'alignRemove' });
+    expect(parsePuckMessage('{"t":"lx200","on":true}')).toEqual({ t: 'lx200', on: true });
+    expect(parsePuckMessage('{"t":"goto","raDeg":83.8,"decDeg":-5.4}')).toEqual({
+      t: 'goto',
+      raDeg: 83.8,
+      decDeg: -5.4,
+    });
+    expect(parsePuckMessage('{"t":"goto","raDeg":"x","decDeg":1}')).toBeNull();
   });
 
   it('reads the hello, with or without a catalogue', () => {

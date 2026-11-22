@@ -19,6 +19,7 @@ import { PART_BYTES, catalogParts } from './puck-catalog';
 import { PuckCatalogService } from './puck-catalog.service';
 import { iconMessages } from './puck-icons';
 import { listTargetsMessage, listsMessage, puckLists } from './puck-lists';
+import { POINTING_INTERVAL_MS, gotoTarget, pointingMessage } from './puck-lx200';
 import { mapRulesMessage, parsePuckMessage, targetInfoMessage, textsMessage } from './puck-messages';
 import type { PuckHostMessage, PuckMessage } from './puck-messages';
 import { objectsMessage } from './puck-objects';
@@ -133,6 +134,9 @@ export class PuckLinkService {
   private lastTick = 0;
   private stalls: string[] = [];
   private lossRecord = '';
+  /** The puck's LX200 repeater is on: the pointing goes to it, once a second. */
+  private lx200On = false;
+  private lastPointingSent = 0;
 
   constructor() {
     // The phone must stay awake while the puck is linked: asleep, it stops sending.
@@ -271,6 +275,10 @@ export class PuckLinkService {
       return;
     }
     this.sendView(now);
+    if (this.lx200On && now - this.lastPointingSent >= POINTING_INTERVAL_MS) {
+      this.lastPointingSent = now;
+      this.sendControl(pointingMessage(this.state.pointingEquatorial(), new Date(now)));
+    }
     // Before the map has drawn a frame there is no view to send, so the state goes instead.
     if (now - this.lastSent >= HEARTBEAT_MS) this.sendState();
   }
@@ -331,6 +339,17 @@ export class PuckLinkService {
       case 'alignStars':
         this.sendControl(this.align.starsMessage());
         break;
+      case 'lx200':
+        this.lx200On = command.on;
+        this.lastPointingSent = 0;
+        break;
+      case 'goto': {
+        // A planetarium's GoTo: the object there becomes the target, as if chosen here.
+        const target = gotoTarget(this.state.targets(), command.raDeg, command.decDeg, new Date());
+        if (target) this.state.selectedTargetId.set(target.id);
+        else void this.tell(t('puck.gotoNothing'));
+        break;
+      }
       case 'alignChoose': {
         const status = this.align.choose(command.id);
         if (status) this.sendControl(status);
@@ -496,6 +515,7 @@ export class PuckLinkService {
     clearInterval(this.viewTimer);
     clearTimeout(this.connectTimer);
     this.viewTimer = undefined;
+    this.lx200On = false; // the puck says again once linked
     const { connection, control, view, catalog } = this;
     this.connection = null;
     this.control = null;

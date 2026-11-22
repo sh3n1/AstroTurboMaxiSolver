@@ -403,7 +403,8 @@
     "wifiAp": "Access point",
     "lx200": "Meade LX200 Repeater",
     "on": "On",
-    "off": "Off"
+    "off": "Off",
+    "gotoNothing": "No object near where the planetarium went"
   },
   "readout": {
     "noCompass": "No compass",

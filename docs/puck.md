@@ -392,6 +392,9 @@ Closing the puck's link ends it; the host's own link to a finder, if any, carrie
 | Puck | `alignNow`      | `{ t: 'alignNow' }`: the star is centred: plate solve and align. The host answers `alignStatus` (solving), then (done or failed).                                                                                                                                                                                                                                                                                                                                                 |
 | Puck | `alignRemove`   | `{ t: 'alignRemove' }`: remove the alignment (the puck asks for a second tap). The host answers with its `alignStars`.                                                                                                                                                                                                                                                                                                                                                            |
 | Host | `alignStatus`   | `{ t: 'alignStatus', step: 'centre' \| 'solving' \| 'failed' \| 'done', text }`: where the alignment is, and the words to show over the puck's map.                                                                                                                                                                                                                                                                                                                               |
+| Puck | `lx200`         | `{ t: 'lx200', on }`: the puck's LX200 repeater on or off, sent once linked and on every change. While on, the host sends `pointing`. See "LX200" below.                                                                                                                                                                                                                                                                                                                          |
+| Host | `pointing`      | `{ t: 'pointing', raDeg, decDeg }`: where the telescope points, on the equator and equinox of the date (JNow), once a second while the repeater is on (`puck-lx200.ts`).                                                                                                                                                                                                                                                                                                          |
+| Puck | `goto`          | `{ t: 'goto', raDeg, decDeg }`: a planetarium's GoTo, of the date. The host selects the nearest object within 2° as the target, or says there is none.                                                                                                                                                                                                                                                                                                                            |
 
 Each item of `objects`:
 
@@ -416,6 +419,15 @@ own lists, then Messier and Caldwell; the other catalogues hold too many targets
 through on a round screen. Only the targets above the horizon are sent, as the arrows skip
 the others anyway (`playlist.ts`, `stepIndex`). The host builds both answers in
 `puck-lists.ts`; the puck asks again each time its Lists page opens, so they follow the sky.
+
+### LX200 (built 2026-11-22)
+
+The puck's Settings → Meade LX200 Repeater: the puck answers LX200 commands over TCP on
+port 4030, so planetarium apps (Stellarium, SkySafari) show where the telescope points
+and can send it a GoTo. The puck only repeats: it asks for the pointing (`lx200`), the host
+sends it in coordinates of the date (`pointing`, as LX200 telescopes report), and a GoTo
+comes back (`goto`), which the host turns into the nearest object, as if chosen on the
+phone. Set the planetarium to JNow (equinox of date) for this telescope.
 
 ### Alignment (built 2026-11-22)
 

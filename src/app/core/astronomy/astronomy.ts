@@ -13,10 +13,15 @@ import {
   Equator,
   Horizon,
   Illumination,
+  MakeTime,
   Observer,
   Refraction,
+  RotateVector,
+  Rotation_EQD_EQJ,
+  Rotation_EQJ_EQD,
   Rotation_EQJ_HOR,
   SearchAltitude,
+  Vector,
 } from 'astronomy-engine';
 
 import { num, t } from '../i18n/t';
@@ -72,6 +77,31 @@ export function equatorialVector(raDeg: number, decDeg: number): Vector3 {
   const ra = raDeg * RAD;
   const dec = decDeg * RAD;
   return [Math.cos(dec) * Math.cos(ra), Math.cos(dec) * Math.sin(ra), Math.sin(dec)];
+}
+
+/** Turns a sky position by one of astronomy-engine's rotations, at a date. */
+function rotateRaDec(
+  rotation: ReturnType<typeof Rotation_EQJ_EQD>,
+  raDeg: number,
+  decDeg: number,
+  date: Date,
+): { raDeg: number; decDeg: number } {
+  const [x, y, z] = equatorialVector(raDeg, decDeg);
+  const v = RotateVector(rotation, new Vector(x, y, z, MakeTime(date)));
+  return { raDeg: normalizeDeg(Math.atan2(v.y, v.x) / RAD), decDeg: Math.asin(Math.max(-1, Math.min(1, v.z))) / RAD };
+}
+
+/**
+ * A J2000 position on the equator and equinox of the date ("JNow"), as LX200 telescopes and
+ * the planetarium apps that drive them use, by precession and nutation.
+ */
+export function toEquinoxOfDate(raDeg: number, decDeg: number, date: Date): { raDeg: number; decDeg: number } {
+  return rotateRaDec(Rotation_EQJ_EQD(date), raDeg, decDeg, date);
+}
+
+/** The other way: a position of the date back to J2000. */
+export function fromEquinoxOfDate(raDeg: number, decDeg: number, date: Date): { raDeg: number; decDeg: number } {
+  return rotateRaDec(Rotation_EQD_EQJ(date), raDeg, decDeg, date);
 }
 
 /**

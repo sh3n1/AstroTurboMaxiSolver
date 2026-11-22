@@ -11,6 +11,7 @@ import type { PuckAlignStarsMessage, PuckAlignStatusMessage } from './puck-align
 import { kindCode } from './puck-catalog';
 import type { PuckIconMessage } from './puck-icons';
 import type { PuckListTargetsMessage, PuckListsMessage } from './puck-lists';
+import type { PuckPointingMessage } from './puck-lx200';
 import type { PuckObjectsMessage } from './puck-objects';
 
 /** What the puck sends. */
@@ -41,6 +42,10 @@ export type PuckMessage =
   | { t: 'alignNow' }
   /** Remove the alignment, after a second tap on the puck (answered with `alignStars`). */
   | { t: 'alignRemove' }
+  /** The puck's LX200 repeater on or off: while on, this phone sends `pointing`. */
+  | { t: 'lx200'; on: boolean }
+  /** A planetarium's GoTo, through the puck, on the equator and equinox of the date. */
+  | { t: 'goto'; raDeg: number; decDeg: number }
   /** How many of the catalogue's bytes have come, after each part, so the next parts go. */
   | { t: 'catalogAck'; bytes: number }
   /** The catalogue sent is received, checked and kept. */
@@ -84,6 +89,8 @@ export type PuckHostMessage =
   /** The puck's guided alignment (puck-align.service.ts). */
   | PuckAlignStarsMessage
   | PuckAlignStatusMessage
+  /** Where the telescope points, for the puck's LX200 repeater (puck-lx200.ts). */
+  | PuckPointingMessage
   /** The puck's catalogue is current. */
   | { t: 'catalogOk' }
   /** This side's record of the link lost before, for the puck's log: once linked again. */
@@ -244,6 +251,12 @@ export function parsePuckMessage(text: string): PuckMessage | null {
       return { t: 'alignNow' };
     case 'alignRemove':
       return { t: 'alignRemove' };
+    case 'lx200':
+      return typeof m['on'] === 'boolean' ? { t: 'lx200', on: m['on'] } : null;
+    case 'goto':
+      return Number.isFinite(m['raDeg']) && Number.isFinite(m['decDeg'])
+        ? { t: 'goto', raDeg: m['raDeg'] as number, decDeg: m['decDeg'] as number }
+        : null;
     case 'play':
       return typeof m['list'] === 'string' && typeof m['target'] === 'string'
         ? { t: 'play', list: m['list'], target: m['target'] }

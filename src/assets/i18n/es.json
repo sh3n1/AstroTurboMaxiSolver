@@ -403,7 +403,8 @@
     "wifiAp": "Punto de acceso",
     "lx200": "Repetidor Meade LX200",
     "on": "Activado",
-    "off": "Desactivado"
+    "off": "Desactivado",
+    "gotoNothing": "Ningún objeto cerca de donde fue el planetario"
   },
   "readout": {
     "noCompass": "Sin brújula",
