@@ -10,6 +10,10 @@ Fix the phone to the telescope with its camera looking at the sky, and the app s
 
 Move the telescope and the phone's sensors move the map with it. Every plate solve from the camera fine-tunes the position.
 
+<p align="center">
+  <img src="src/landing/images/telescope.jpg" width="480" alt="A phone running the app on a Dobsonian telescope's tube, with the round puck remote beside the eyepiece">
+</p>
+
 **Try it:** open [astroturbomaxisolver.app/](https://astroturbomaxisolver.app/) in your phone's
 browser, and install it from there.
 
@@ -23,7 +27,8 @@ browser, and install it from there.
 - **Eyepiece view**, from your telescope and eyepieces.
 - **Planning**: what is up tonight, the weather forecast, and how dark your sky is.
 - **Observing log**, synced between your devices through your own Google Drive.
-- **Two phones**: one on the telescope, the other in your hand, linked directly.
+- **Remote**: a second phone or a tablet in your hand, linked directly to the one on the telescope,
+  or [AstroTurboMaxiPuck](https://github.com/sh3n1/AstroTurboMaxiPuck), a round hand remote on a Waveshare ESP32-S3 display.
 - **Night mode** in full red.
 
 ## Building it

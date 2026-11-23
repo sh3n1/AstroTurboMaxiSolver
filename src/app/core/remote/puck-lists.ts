@@ -21,7 +21,11 @@ const CATALOGUES = ['messier', 'caldwell'];
 /** The most targets of one list sent at once: about 7 KB, within the puck's 16 KB. */
 export const PUCK_LIST_TARGETS_MAX = 60;
 
-/** `{ t: 'lists' }`: the lists to choose from, each with how many of its targets are up. */
+/**
+ * `{ t: 'lists' }`: the lists to choose from, each with how many targets it has, as the
+ * phone's Lists page counts them (Messier 110), though the puck's list then offers only
+ * those that are up.
+ */
 export interface PuckListsMessage {
   t: 'lists';
   lists: { id: string; name: string; count: number }[];
@@ -88,10 +92,10 @@ function upTargets(list: ListView, positionOf: PositionOf): { target: ListedTarg
   });
 }
 
-export function listsMessage(lists: readonly ListView[], positionOf: PositionOf): PuckListsMessage {
+export function listsMessage(lists: readonly ListView[]): PuckListsMessage {
   return {
     t: 'lists',
-    lists: lists.map((list) => ({ id: list.id, name: list.name, count: upTargets(list, positionOf).length })),
+    lists: lists.map((list) => ({ id: list.id, name: list.name, count: list.targets.length })),
   };
 }
 

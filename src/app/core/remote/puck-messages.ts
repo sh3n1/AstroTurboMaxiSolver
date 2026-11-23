@@ -1,7 +1,7 @@
 // The JSON control messages between the puck and this phone (docs/puck.md, "Control
 // messages"). Plain functions, so they can be tested without a link.
 
-import { designations } from '../catalog/designations';
+import { designationText, designations } from '../catalog/designations';
 import type { Target } from '../catalog/targets';
 import type { TextParams } from '../i18n/t';
 import type { ViewMode } from '../sky-map/sky-style';
@@ -108,6 +108,10 @@ export interface PuckTargetInfoMessage {
   t: 'targetInfo';
   id: string | null;
   name: string;
+  /** Every designation, as the target bar's, such as "M31 · NGC 224". */
+  designations: string;
+  /** The list being observed through, as the sky map's playlist bar: "3/110  Messier", or "". */
+  list: string;
   label: string;
   kind: number;
   sizeArcmin: number | null;
@@ -117,13 +121,17 @@ export interface PuckTargetInfoMessage {
  * The `targetInfo` message. A planet's or the Moon's `name` is its kind ("planet"), so
  * those go by their label, as the map writes it (and the `objects` message sends it).
  */
-export function targetInfoMessage(target: Target | null): PuckTargetInfoMessage {
-  if (!target) return { t: 'targetInfo', id: null, name: '', label: '', kind: 0, sizeArcmin: null };
+export function targetInfoMessage(target: Target | null, list = ''): PuckTargetInfoMessage {
+  if (!target) {
+    return { t: 'targetInfo', id: null, name: '', designations: '', list: '', label: '', kind: 0, sizeArcmin: null };
+  }
   const label = designations(target)[0];
   return {
     t: 'targetInfo',
     id: target.id,
     name: target.body ? label : target.name,
+    designations: designationText(target),
+    list,
     label,
     kind: kindCode(target.kind),
     sizeArcmin: target.sizeArcmin ?? null,

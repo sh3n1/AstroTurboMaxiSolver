@@ -247,6 +247,25 @@ h2 {
 .facts {
   color: var(--muted);
 }
+/*
+ * The photo of the app on a telescope, under the way in. Its edges fade into the page's sky,
+ * so it sits in the night rather than in a frame.
+ */
+.hero-photo {
+  display: block;
+  width: min(100%, 560px);
+  height: auto;
+  margin: 24px auto 0;
+  /* Two fades, top to bottom and side to side, kept where both are solid. */
+  -webkit-mask-image:
+    linear-gradient(to bottom, transparent, #000 8%, #000 92%, transparent),
+    linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(to bottom, transparent, #000 8%, #000 92%, transparent),
+    linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
+  mask-composite: intersect;
+}
 
 .button {
   display: inline-block;
@@ -257,6 +276,19 @@ h2 {
   font-size: 20px;
   font-weight: 700;
   text-decoration: none;
+}
+/* A real button styled as the links above, such as the puck's install button. */
+button.button {
+  border: 0;
+  font-family: inherit;
+  cursor: pointer;
+}
+/* The puck's install button: its own line, and its dialog in the page's colours. */
+.install {
+  display: block;
+  margin: 20px 0;
+  --md-sys-color-primary: var(--accent);
+  --md-sys-color-on-primary: var(--sky);
 }
 .button:focus-visible,
 .button:hover {
@@ -333,6 +365,43 @@ h2 {
   .carousel-track {
     scroll-behavior: auto;
   }
+}
+
+/* The puck's page: the way back home, above its name. */
+.hero .back {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+.hero .back a {
+  color: var(--accent);
+}
+
+/* The puck's page: the ways to combine it, beside a photo; one under the other on a phone. */
+.setups {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px 40px;
+  align-items: center;
+}
+@media (min-width: 760px) {
+  .setups {
+    grid-template-columns: 3fr 2fr;
+  }
+}
+.setups figure {
+  max-width: 380px;
+  margin: 16px auto 0;
+  text-align: center;
+}
+.setups img {
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--edge);
+  border-radius: 20px;
+}
+.setups figcaption {
+  margin-top: 8px;
+  color: var(--muted);
 }
 
 .features {

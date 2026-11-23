@@ -18,6 +18,7 @@
     "tagline": "Push-to for any telescope, with just your phone. No encoders, no mount to change: it reads the stars to know where your telescope points, and guides you to your target.",
     "open": "Open the app",
     "facts": "Free · Open source · Works offline · Web app",
+    "photoAlt": "A phone running the app, held on a Dobsonian telescope's tube, with the round puck remote beside the eyepiece",
     "carousel": {
       "label": "Screens of the app",
       "previous": "Previous screen",
@@ -47,8 +48,10 @@
       "takes": "Pick a target, follow the arrows, and there it is in the rings. Then in your eyepiece.",
       "targetsTitle": "Never runs out of targets",
       "targets": "Messier, Caldwell, NGC and IC objects, planets and double stars, with a list of the best in the sky right now. Plus your own lists and an observing log.",
-      "oldPhoneTitle": "Old phone in a drawer?",
-      "oldPhone": "Give it a new job: put it on the telescope as the finder, and use your own phone as the remote. Optional: one phone is all you need.",
+      "oldPhoneTitle": "Remote control, your way",
+      "oldPhone": "Old phone in a drawer? Put it on the telescope as the finder, and use another phone to see and control it.",
+      "puck": "Or use AstroTurboMaxiPuck, our remote firmware for the Waveshare 1.75″ round display. Or combine them: a phone as the finder, the puck to aim, and a tablet to choose targets and plan your lists. You decide.",
+      "puckLink": "Discover AstroTurboMaxiPuck",
       "cityTitle": "Made for city skies",
       "city": "Tested under Bortle 8 and 9 city skies, the brightest there are. If it finds the stars there, it finds them anywhere.",
       "dataTitle": "Your data is yours",
@@ -87,6 +90,69 @@
       "copyright": "Copyright © 2026 The AstroTurboMaxiSolver authors. Free software under the <a href=\"{{@gpl}}\" rel=\"noopener\">GNU GPL version 3</a>.",
       "source": "Source code"
     }
+  },
+  "puck": {
+    "title": "AstroTurboMaxiPuck · A round hand remote for AstroTurboMaxiSolver",
+    "description": "Free, open source firmware that turns a Waveshare 1.75″ round display into a hand remote for AstroTurboMaxiSolver: the sky map, guidance and your lists, by the eyepiece.",
+    "githubLabel": "The puck's source code on GitHub",
+    "subtitle": "Small, round, and it glows in the dark.",
+    "tagline": "A hand remote for AstroTurboMaxiSolver, on a round 1.75″ display. It shows the app's sky map and guides you to your target, so the phone can stay where it is.",
+    "get": "Install it",
+    "facts": "Free · Open source · Wi-Fi, no server · ESP32-S3",
+    "photoAlt": "The puck's round screen in red night mode: the reticle's rings, nearby objects, and the Alt, Az and field of view along the edge",
+    "features": {
+      "title": "What it does",
+      "mapTitle": "The map, in your hand",
+      "map": "The phone's sky map, with the reticle and arrows to your target. Alt, Az and the field of view run along the edge.",
+      "solveTitle": "Tap to solve",
+      "solve": "Tap the reticle and the phone plate solves, as if you had tapped it there.",
+      "listsTitle": "Your lists",
+      "lists": "Step to the next or previous target, open any of your lists, and align on a bright star, all from the puck's menu.",
+      "nightTitle": "Red at night",
+      "night": "Night mode turns it full red, in step with the phone. Its brightness is set on the puck.",
+      "planetariumTitle": "Planetarium apps",
+      "planetarium": "Speaking Meade LX200 over Wi-Fi, it shows Stellarium or SkySafari where your telescope points. A GoTo from them becomes your target.",
+      "linkTitle": "One QR code",
+      "link": "It joins your Wi-Fi or your phone's hotspot, or makes its own network. Scan its QR code from the app and they are linked, with no server."
+    },
+    "setups": {
+      "title": "Combine it your way",
+      "intro": "The puck is a remote for a phone or tablet. Where the telescope points always comes from the phone on the telescope.",
+      "one": "<strong>One phone and the puck:</strong> the phone on the telescope finds where it points, and the puck guides you from the eyepiece.",
+      "two": "<strong>Two phones and the puck:</strong> a phone on the telescope as the finder, a phone or tablet to choose targets and plan your lists, and the puck to aim.",
+      "note": "The puck links to the phone or tablet, never to the finder: the finder reaches it through them.",
+      "photoAlt": "A Dobsonian telescope from the side: a phone on its tube, and the puck's round screen beside the eyepiece",
+      "caption": "The puck by the eyepiece, the phone on the tube."
+    },
+    "needs": {
+      "title": "What you need",
+      "board": "A Waveshare ESP32-S3-Touch-AMOLED-1.75: a round 1.75″ touch screen with Wi-Fi.",
+      "cable": "A USB-C cable, to install the firmware and power the puck.",
+      "app": "AstroTurboMaxiSolver on a phone.",
+      "computer": "A computer with Chrome or Edge, to install it."
+    },
+    "install": {
+      "title": "Install it",
+      "step1": "Install Espressif's ESP-IDF tools, for example with its extension for VS Code.",
+      "step2": "Download the firmware's source code <a href=\"{{@puckGithub}}\" rel=\"noopener\">from GitHub</a>.",
+      "step3": "Connect the board by USB, then build and install it: <code>idf.py build</code> and <code>idf.py -p COMx flash</code>.",
+      "note": "The firmware's README has the details, and what to do if the board isn't detected.",
+      "warning": "Work in progress: so far tested on a single board.",
+      "browser": "Connect the board to a computer by USB, open this page in Chrome or Edge, and press Install.",
+      "button": "Install the firmware",
+      "unsupported": "This browser can't install it: open this page on a computer, in Chrome or Edge.",
+      "notAllowed": "Installing needs this page over https.",
+      "erase": "Updating? Don't erase the board when asked: it keeps its Wi-Fi networks and sky catalogue.",
+      "link": "Then, on the puck, join a Wi-Fi network with its QR code. In the app, open Remote, Puck, and scan the code the puck shows.",
+      "buildTitle": "Or build it yourself"
+    },
+    "about": {
+      "title": "About",
+      "licence": "AstroTurboMaxiPuck is free software under the GNU GPL version 3, like the app, made by the same authors.",
+      "disclaimer": "Not made by or affiliated with Waveshare or Espressif. Their names only say which board it runs on."
+    },
+    "cta": "Ready to aim?",
+    "source": "The puck's source code"
   },
   "privacy": {
     "title": "Privacy policy · AstroTurboMaxiSolver",

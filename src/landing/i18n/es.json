@@ -18,6 +18,7 @@
     "tagline": "Push-to para cualquier telescopio, solo con tu móvil. Sin encoders y sin cambiar la montura: lee las estrellas para saber adónde apunta tu telescopio y te guía hasta tu objetivo.",
     "open": "Abrir la app",
     "facts": "Gratis · Código abierto · Funciona sin conexión · App web",
+    "photoAlt": "Un móvil con la app, sujeto al tubo de un telescopio Dobson, con el puck redondo junto al ocular",
     "carousel": {
       "label": "Pantallas de la app",
       "previous": "Pantalla anterior",
@@ -47,8 +48,10 @@
       "takes": "Elige un objetivo, sigue las flechas y ahí lo tienes, en los anillos. Y luego en tu ocular.",
       "targetsTitle": "Nunca te quedas sin objetivos",
       "targets": "Objetos Messier, Caldwell, NGC e IC, planetas y estrellas dobles, con una lista de lo mejor que hay en el cielo en este momento. Además de tus propias listas y un diario de observación.",
-      "oldPhoneTitle": "¿Un móvil viejo en un cajón?",
-      "oldPhone": "Dale un nuevo trabajo: ponlo en el telescopio como buscador y usa tu móvil como mando. Es opcional: con un solo móvil basta.",
+      "oldPhoneTitle": "El mando, a tu manera",
+      "oldPhone": "¿Un móvil viejo en un cajón? Ponlo en el telescopio como buscador y usa otro móvil para verlo y controlarlo.",
+      "puck": "O usa AstroTurboMaxiPuck, nuestro firmware de mando para la pantalla redonda Waveshare de 1,75″. O combínalos: un móvil como buscador, el puck para apuntar y una tablet para elegir objetivos y preparar tus listas. Tú decides.",
+      "puckLink": "Descubre AstroTurboMaxiPuck",
       "cityTitle": "Hecha para cielos de ciudad",
       "city": "Probada bajo cielos urbanos de Bortle 8 y 9, los más brillantes que hay. Si encuentra las estrellas ahí, las encuentra en cualquier sitio.",
       "dataTitle": "Tus datos son tuyos",
@@ -87,6 +90,69 @@
       "copyright": "Copyright © 2026 The AstroTurboMaxiSolver authors. Software libre con la <a href=\"{{@gpl}}\" rel=\"noopener\">GNU GPL versión 3</a>.",
       "source": "Código fuente"
     }
+  },
+  "puck": {
+    "title": "AstroTurboMaxiPuck · Un mando redondo para AstroTurboMaxiSolver",
+    "description": "Firmware libre y gratuito que convierte una pantalla redonda Waveshare de 1,75″ en un mando para AstroTurboMaxiSolver: el mapa del cielo, la guía y tus listas, junto al ocular.",
+    "githubLabel": "El código fuente del puck en GitHub",
+    "subtitle": "Pequeño, redondo y brilla en la oscuridad.",
+    "tagline": "Un mando para AstroTurboMaxiSolver, en una pantalla redonda de 1,75″. Muestra el mapa del cielo de la app y te guía hasta tu objetivo, sin tener que tocar el móvil.",
+    "get": "Instálalo",
+    "facts": "Gratis · Código abierto · Wi-Fi, sin servidor · ESP32-S3",
+    "photoAlt": "La pantalla redonda del puck en modo noche rojo: los anillos de la retícula, objetos cercanos, y Alt, Az y el campo de visión por el borde",
+    "features": {
+      "title": "Qué hace",
+      "mapTitle": "El mapa, en tu mano",
+      "map": "El mapa del cielo del móvil, con la retícula y flechas hacia tu objetivo. Alt, Az y el campo de visión van por el borde.",
+      "solveTitle": "Toca para resolver",
+      "solve": "Toca la retícula y el móvil resuelve la placa, como si la hubieras tocado en él.",
+      "listsTitle": "Tus listas",
+      "lists": "Pasa al objetivo siguiente o anterior, abre cualquiera de tus listas y alinea con una estrella brillante, todo desde el menú del puck.",
+      "nightTitle": "Rojo de noche",
+      "night": "El modo noche lo pone todo en rojo, a la vez que el móvil. El brillo se ajusta en el puck.",
+      "planetariumTitle": "Planetarios",
+      "planetarium": "Habla Meade LX200 por Wi-Fi, así que Stellarium o SkySafari ven adónde apunta tu telescopio. Un GoTo desde ellos se convierte en tu objetivo.",
+      "linkTitle": "Un código QR",
+      "link": "Se conecta a tu Wi-Fi o al punto de acceso del móvil, o crea su propia red. Escanea su código QR desde la app y quedan enlazados, sin servidor."
+    },
+    "setups": {
+      "title": "Combínalo a tu manera",
+      "intro": "El puck es un mando para un móvil o una tablet. Adónde apunta el telescopio lo dice siempre el móvil que va en el telescopio.",
+      "one": "<strong>Un móvil y el puck:</strong> el móvil en el telescopio sabe adónde apunta, y el puck te guía desde el ocular.",
+      "two": "<strong>Dos móviles y el puck:</strong> un móvil en el telescopio como buscador, un móvil o una tablet para elegir objetivos y preparar tus listas, y el puck para apuntar.",
+      "note": "El puck se enlaza al móvil o a la tablet, nunca al buscador: le llega a través de ellos.",
+      "photoAlt": "Un telescopio Dobson de lado: un móvil en el tubo y la pantalla redonda del puck junto al ocular",
+      "caption": "El puck junto al ocular, el móvil en el tubo."
+    },
+    "needs": {
+      "title": "Qué necesitas",
+      "board": "Una Waveshare ESP32-S3-Touch-AMOLED-1.75: una pantalla táctil redonda de 1,75″ con Wi-Fi.",
+      "cable": "Un cable USB-C, para instalar el firmware y alimentar el puck.",
+      "app": "AstroTurboMaxiSolver en un móvil.",
+      "computer": "Un ordenador con Chrome o Edge, para instalarlo."
+    },
+    "install": {
+      "title": "Instálalo",
+      "step1": "Instala las herramientas ESP-IDF de Espressif, por ejemplo con su extensión para VS Code.",
+      "step2": "Descarga el código fuente del firmware <a href=\"{{@puckGithub}}\" rel=\"noopener\">desde GitHub</a>.",
+      "step3": "Conecta la placa por USB, compílalo e instálalo: <code>idf.py build</code> y <code>idf.py -p COMx flash</code>.",
+      "note": "El README del firmware tiene los detalles, y qué hacer si no se detecta la placa.",
+      "warning": "En desarrollo: de momento probado en una sola placa.",
+      "browser": "Conecta la placa a un ordenador por USB, abre esta página en Chrome o Edge y pulsa Instalar.",
+      "button": "Instalar el firmware",
+      "unsupported": "Este navegador no puede instalarlo: abre esta página en un ordenador, con Chrome o Edge.",
+      "notAllowed": "Para instalarlo, esta página tiene que abrirse por https.",
+      "erase": "¿Actualizando? No borres la placa cuando te lo pregunte: así conserva sus redes Wi-Fi y el catálogo del cielo.",
+      "link": "Después, en el puck, conéctate a una red Wi-Fi con su código QR. En la app, abre Remoto, Puck, y escanea el código que muestra el puck.",
+      "buildTitle": "O compílalo tú"
+    },
+    "about": {
+      "title": "Acerca de",
+      "licence": "AstroTurboMaxiPuck es software libre bajo la GNU GPL versión 3, como la app, y de los mismos autores.",
+      "disclaimer": "No está hecho por Waveshare ni Espressif, ni asociado a ellas. Sus nombres solo dicen en qué placa funciona."
+    },
+    "cta": "¿Listo para apuntar?",
+    "source": "El código fuente del puck"
   },
   "privacy": {
     "title": "Política de privacidad · AstroTurboMaxiSolver",
