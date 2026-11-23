@@ -1,7 +1,7 @@
 // Builds the landing page into www/, next to the app (built into www/app/, served at /app/).
 // See docs/deploy.md for how the two are hosted together.
 //
-// The landing is plain HTML and CSS in src/landing/. Its pages (index, privacy and terms) are
+// The landing is plain HTML and CSS in src/landing/. Its pages (index, puck, privacy and terms) are
 // templates: each text is a {{key}} in the language files in src/landing/i18n/, one per
 // language, and each page is written once per language: English, the default, as
 // index.html, the others as index.<language>.html. Every other file is copied as it is.
@@ -14,7 +14,8 @@
 //   {{@redirect}}              the English home page only: sends a visitor whose browser
 //                              speaks another of the languages to it, before anything shows
 //   {{@translationNote}}       on a translation of the legal pages, that English prevails
-//   {{@home}} {{@privacy}} {{@terms}} {{@github}} {{@gpl}}   addresses, in the page's language
+//   {{@home}} {{@puck}} {{@privacy}} {{@terms}}   the pages' addresses, in the page's language
+//   {{@github}} {{@puckGithub}} {{@gpl}}           the source code's and the licence's
 // Texts may use the address ones too, such as a link to {{@privacy}}.
 //
 // The build fails if a page uses a text a language lacks, or a language has texts no page uses.
@@ -26,7 +27,9 @@ const LANGUAGES_DIR = `${SOURCE}/i18n`;
 const OUT = 'www';
 const SITE = 'https://astroturbomaxisolver.app';
 const DEFAULT = 'en';
-const PAGES = ['index', 'privacy', 'terms'];
+const PAGES = ['index', 'puck', 'privacy', 'terms'];
+/** The pages whose English text prevails over their translations. */
+const LEGAL_PAGES = ['privacy', 'terms'];
 /** Where the language chosen with the links is remembered, read by the redirect. */
 const CHOICE_KEY = 'astroturbomaxisolver.landingLanguage';
 /** Each language's Open Graph locale, for link previews. */
@@ -98,11 +101,15 @@ function pageValues(page, lang) {
       '    </script>',
     redirect: page === 'index' && lang === DEFAULT ? redirectScript() : '',
     translationNote:
-      lang === DEFAULT || page === 'index' ? '' : `<p class="note translation">${texts.get(lang).get('common.translationNote')}</p>`,
+      lang === DEFAULT || !LEGAL_PAGES.includes(page)
+        ? ''
+        : `<p class="note translation">${texts.get(lang).get('common.translationNote')}</p>`,
     home: path('index', lang),
+    puck: path('puck', lang),
     privacy: path('privacy', lang),
     terms: path('terms', lang),
     github: 'https://github.com/sh3n1/AstroTurboMaxiSolver',
+    puckGithub: 'https://github.com/sh3n1/AstroTurboMaxiPuck',
     gpl: 'https://www.gnu.org/licenses/gpl-3.0.html',
   };
   return values;

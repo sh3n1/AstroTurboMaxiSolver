@@ -21,13 +21,10 @@ describe('puck lists', () => {
     expect(puckLists(fixed, user).map((l) => l.id)).toEqual(['now', 'reticle', 'saved', 'messier', 'caldwell']);
   });
 
-  it('counts only the targets above the horizon, each once', () => {
+  it('counts every target of a list, as the phone does', () => {
     const m31 = target('M31', 'Andromeda Galaxy');
-    const message = listsMessage([list('now', [m31, m31, target('M83', '')])], (t) => ({
-      altDeg: t.id === 'M31' ? 20 : -5,
-      azDeg: 0,
-    }));
-    expect(message).toEqual({ t: 'lists', lists: [{ id: 'now', name: 'now', count: 1 }] });
+    const message = listsMessage([list('now', [m31, m31, target('M83', '')])]);
+    expect(message).toEqual({ t: 'lists', lists: [{ id: 'now', name: 'now', count: 3 }] });
   });
 
   it('names each target, with its designation under it where that is not the name', () => {

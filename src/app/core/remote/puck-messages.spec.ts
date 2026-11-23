@@ -105,9 +105,27 @@ describe('puck messages', () => {
       t: 'targetInfo',
       id: null,
       name: '',
+      designations: '',
+      list: '',
       label: '',
       kind: 0,
       sizeArcmin: null,
+    });
+  });
+
+  it('sends every designation, for the bottom edge of the puck', () => {
+    const andromeda = {
+      id: 'M31',
+      name: 'Andromeda Galaxy',
+      aliases: 'NGC 224',
+      kind: 'galaxy',
+      raDeg: 10.7,
+      decDeg: 41.3,
+      mag: 3.4,
+    };
+    expect(targetInfoMessage(andromeda as Target)).toMatchObject({
+      name: 'Andromeda Galaxy',
+      designations: 'M31 · NGC 224',
     });
   });
 
