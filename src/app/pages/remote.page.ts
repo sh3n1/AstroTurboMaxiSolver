@@ -16,7 +16,14 @@ import {
 } from '@ionic/angular';
 import { TranslatePipe } from '@ngx-translate/core';
 import { addIcons } from 'ionicons';
-import { discOutline, phonePortraitOutline, scanOutline, telescopeOutline } from 'ionicons/icons';
+import {
+  closeCircleOutline,
+  discOutline,
+  phonePortraitOutline,
+  refreshOutline,
+  scanOutline,
+  telescopeOutline,
+} from 'ionicons/icons';
 
 import { PuckLinkService } from '../core/remote/puck-link.service';
 import { isPuckCode } from '../core/remote/puck-pairing';
@@ -53,15 +60,22 @@ import { RemoteService } from '../core/remote/remote.service';
       text-align: center;
       margin: 16px 0 12px;
     }
-    .choice {
-      --padding-top: 16px;
-      --padding-bottom: 16px;
+    /*
+     * The page's buttons, one under another, with room between them, and all the same height:
+     * enough for two short lines, for the words that don't fit on one.
+     */
+    ion-button[expand='block'] {
+      --padding-top: 6px;
+      --padding-bottom: 6px;
       height: auto;
+      margin: 0 0 12px;
       font-size: calc(17px * var(--af-scale, 1));
-      margin-bottom: 12px;
+    }
+    ion-button[expand='block']::part(native) {
+      min-height: calc(56px * var(--af-scale, 1));
     }
     .choice ion-icon {
-      font-size: 28px;
+      font-size: 24px;
       margin-right: 12px;
     }
     /* The page's two sections: two devices, and the puck. */
@@ -84,6 +98,9 @@ import { RemoteService } from '../core/remote/remote.service';
     }
     .paste {
       margin-top: 16px;
+    }
+    .paste ion-button {
+      margin-top: 12px;
     }
     ion-spinner {
       display: block;
@@ -222,18 +239,31 @@ import { RemoteService } from '../core/remote/remote.service';
             @case ('connected') {
               <p class="status">{{ 'remote.linkedToPuck' | translate }}</p>
               <ion-button
+                class="choice"
                 expand="block"
                 fill="outline"
                 color="danger"
                 data-testid="puck-disconnect"
                 (click)="puck.disconnect()"
               >
+                <ion-icon name="close-circle-outline" aria-hidden="true"></ion-icon>
                 {{ 'remote.unlinkPuck' | translate }}
               </ion-button>
             }
             @case ('connecting') {
               <p class="status">{{ 'remote.connecting' | translate }}</p>
               <ion-spinner [attr.aria-label]="'remote.connecting' | translate"></ion-spinner>
+              <!-- A new code, as after the puck restarted: stops the try with the old one. -->
+              <ion-button
+                class="choice"
+                expand="block"
+                fill="outline"
+                data-testid="remote-puck-connecting"
+                (click)="scan(true)"
+              >
+                <ion-icon name="disc-outline" aria-hidden="true"></ion-icon>
+                {{ 'remote.linkPuck' | translate }}
+              </ion-button>
             }
             @default {
               @if (puck.status() === 'lost') {
@@ -241,9 +271,10 @@ import { RemoteService } from '../core/remote/remote.service';
               }
               <!-- The puck keeps its code until it restarts, so the code read before works. -->
               @if (puck.canReconnect() && !scanning()) {
-                <ion-button expand="block" data-testid="puck-reconnect" (click)="puck.reconnect()">{{
-                  'remote.reconnect' | translate
-                }}</ion-button>
+                <ion-button class="choice" expand="block" data-testid="puck-reconnect" (click)="puck.reconnect()">
+                  <ion-icon name="refresh-outline" aria-hidden="true"></ion-icon>
+                  {{ 'remote.reconnect' | translate }}
+                </ion-button>
               }
               @if (scanning()) {
                 <p class="step">{{ 'remote.scanPuck' | translate }}</p>
@@ -306,7 +337,7 @@ export class RemotePage {
   private readonly puckConnected = computed(() => this.puck.status() === 'connected');
 
   constructor() {
-    addIcons({ discOutline, phonePortraitOutline, scanOutline, telescopeOutline });
+    addIcons({ closeCircleOutline, discOutline, phonePortraitOutline, refreshOutline, scanOutline, telescopeOutline });
     // Linked just now: both phones go to the map, the finder to solve, the screen to guide.
     // Opened while already linked, the page stays, to pause or unlink.
     this.openSkyWhenLinked(this.connected);
@@ -325,6 +356,8 @@ export class RemotePage {
 
   /** Opens the camera, for the finder phone's code or the puck's. */
   protected scan(puck: boolean): void {
+    // A new code for the puck: no more tries with the old one, which would hide the camera.
+    if (puck) this.puck.stopReconnecting();
     this.scanningPuck.set(puck);
     this.scanning.set(true);
   }

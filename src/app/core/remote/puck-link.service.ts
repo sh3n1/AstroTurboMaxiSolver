@@ -144,11 +144,17 @@ export class PuckLinkService {
       const linked = this.status() === 'connecting' || this.status() === 'connected';
       untracked(() => this.screenWake.keepOnFor('puck', linked));
     });
-    // The target's name, for the puck's bottom third, on every change.
+    // The target, for the puck's player and bottom edge, on every change; with the list it
+    // is observed through, as the sky map's playlist bar shows it.
     effect(() => {
       const target = this.state.selectedTarget();
+      const playlist = this.playlist.playlist();
+      const list =
+        playlist && this.playlist.playing()
+          ? `${this.playlist.index() + 1}/${playlist.ids.length}  ${playlist.name}`
+          : '';
       if (this.status() !== 'connected') return;
-      untracked(() => this.sendControl(targetInfoMessage(target)));
+      untracked(() => this.sendControl(targetInfoMessage(target, list)));
     });
     // What moves (the Moon, planets): once linked, and as the app's list moves them, once a minute.
     effect(() => {
@@ -226,6 +232,18 @@ export class PuckLinkService {
     this.reconnectTries = 0;
     clearTimeout(this.reconnectTimer);
     if (this.lastCode()) void this.start(this.lastCode());
+  }
+
+  /**
+   * Stops linking again with the old code, and any try under way: the user is reading a new
+   * code, as after the puck restarted. Otherwise the next try would take the page back to
+   * "Connecting", away from the camera, again and again.
+   */
+  stopReconnecting(): void {
+    clearTimeout(this.reconnectTimer);
+    if (this.status() !== 'connecting') return;
+    this.close();
+    this.status.set(this.lastCode() ? 'lost' : 'idle');
   }
 
   /** Ends the link, on purpose. Linking again needs the puck's code read again. */
@@ -329,7 +347,7 @@ export class PuckLinkService {
         this.state.viewMode.set(NEXT_VIEW[this.state.viewMode()]);
         break;
       case 'lists':
-        this.sendControl(listsMessage(this.puckLists(), this.positionOf()));
+        this.sendControl(listsMessage(this.puckLists()));
         break;
       case 'listTargets': {
         const list = this.puckLists().find((candidate) => candidate.id === command.id);
