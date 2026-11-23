@@ -73,6 +73,15 @@
       <p class="tagline">{{index.tagline}}</p>
       <a class="button" href="app/">{{index.open}}</a>
       <p class="facts">{{index.facts}}</p>
+      <!-- The app at work: the phone on the tube, and the puck beside the eyepiece. -->
+      <img
+        class="hero-photo"
+        src="images/telescope.jpg"
+        width="900"
+        height="932"
+        fetchpriority="high"
+        alt="{{index.photoAlt}}"
+      />
     </header>
 
     <main>
@@ -142,6 +151,8 @@
           <li>
             <h3>{{index.features.oldPhoneTitle}}</h3>
             <p>{{index.features.oldPhone}}</p>
+            <p>{{index.features.puck}}</p>
+            <p><a href="{{@puck}}">{{index.features.puckLink}} &rarr;</a></p>
           </li>
           <li>
             <h3>{{index.features.cityTitle}}</h3>

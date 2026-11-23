@@ -92,7 +92,7 @@ Before finishing a change, run: `npm run lint`, `npm run test:unit` and `npm run
   - `sync/` - device sync through the user's cloud storage or the two-phone link
 - `src/assets/data/` - generated star and target data, built by the scripts in `scripts/`
 - `src/assets/data/aggregate/` - data under its own licence, not the GPL, one folder per source (see Licence)
-- `src/landing/` - the landing page: plain HTML, CSS and pictures, built into the root of `www/` by `scripts/build-landing.mjs`. Its pages (`index`, `privacy`, `terms`) are templates whose texts are in `src/landing/i18n/<language>.json`: English is written as `index.html`, each other language as `index.<language>.html`. The English home page sends a browser in another of its languages to it, unless the visitor chose a language with the links at the top. The build fails if a language lacks a text.
+- `src/landing/` - the landing page: plain HTML, CSS and pictures, built into the root of `www/` by `scripts/build-landing.mjs`. Its pages (`index`, `puck`, `privacy`, `terms`) are templates whose texts are in `src/landing/i18n/<language>.json`: English is written as `index.html`, each other language as `index.<language>.html`. The English home page sends a browser in another of its languages to it, unless the visitor chose a language with the links at the top. The build fails if a language lacks a text.
 
 ## PWA constraints
 
