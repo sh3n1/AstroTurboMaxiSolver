@@ -97,7 +97,7 @@
     "githubLabel": "El código fuente del puck en GitHub",
     "subtitle": "Pequeño, redondo y brilla en la oscuridad.",
     "tagline": "Un mando para AstroTurboMaxiSolver, en una pantalla redonda de 1,75″. Muestra el mapa del cielo de la app y te guía hasta tu objetivo, sin tener que tocar el móvil.",
-    "get": "Consíguelo en GitHub",
+    "get": "Instálalo",
     "facts": "Gratis · Código abierto · Wi-Fi, sin servidor · ESP32-S3",
     "photoAlt": "La pantalla redonda del puck en modo noche rojo: los anillos de la retícula, objetos cercanos, y Alt, Az y el campo de visión por el borde",
     "features": {
@@ -128,16 +128,23 @@
       "title": "Qué necesitas",
       "board": "Una Waveshare ESP32-S3-Touch-AMOLED-1.75: una pantalla táctil redonda de 1,75″ con Wi-Fi.",
       "cable": "Un cable USB-C, para instalar el firmware y alimentar el puck.",
-      "app": "AstroTurboMaxiSolver en un móvil."
+      "app": "AstroTurboMaxiSolver en un móvil.",
+      "computer": "Un ordenador con Chrome o Edge, para instalarlo."
     },
     "install": {
       "title": "Instálalo",
       "step1": "Instala las herramientas ESP-IDF de Espressif, por ejemplo con su extensión para VS Code.",
       "step2": "Descarga el código fuente del firmware <a href=\"{{@puckGithub}}\" rel=\"noopener\">desde GitHub</a>.",
       "step3": "Conecta la placa por USB, compílalo e instálalo: <code>idf.py build</code> y <code>idf.py -p COMx flash</code>.",
-      "step4": "En el puck, conéctate a una red Wi-Fi con su código QR. Después, en la app, abre Remoto, Puck, y escanea el código que muestra el puck.",
       "note": "El README del firmware tiene los detalles, y qué hacer si no se detecta la placa.",
-      "warning": "En desarrollo: de momento probado en una sola placa."
+      "warning": "En desarrollo: de momento probado en una sola placa.",
+      "browser": "Conecta la placa a un ordenador por USB, abre esta página en Chrome o Edge y pulsa Instalar.",
+      "button": "Instalar el firmware",
+      "unsupported": "Este navegador no puede instalarlo: abre esta página en un ordenador, con Chrome o Edge.",
+      "notAllowed": "Para instalarlo, esta página tiene que abrirse por https.",
+      "erase": "¿Actualizando? No borres la placa cuando te lo pregunte: así conserva sus redes Wi-Fi y el catálogo del cielo.",
+      "link": "Después, en el puck, conéctate a una red Wi-Fi con su código QR. En la app, abre Remoto, Puck, y escanea el código que muestra el puck.",
+      "buildTitle": "O compílalo tú"
     },
     "about": {
       "title": "Acerca de",
