@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 
 import { newAlignment, offsetAngleDeg, suggestAlignmentStars } from '../alignment/alignment';
 import { AppState } from '../app-state.service';
+import { compassPoint } from '../astronomy/astronomy';
 import type { Target } from '../catalog/targets';
 import { num, t } from '../i18n/t';
 import { rearCameraDirection } from '../sensors/attitude';
@@ -29,19 +30,24 @@ export interface PuckAlignStarsMessage {
 }
 
 /**
- * `{ t: 'alignStatus' }`: where the puck's alignment is, with the words to show over its
- * map: centre the star, solving, failed (with why, and Align again), or done.
+ * `{ t: 'alignStatus' }`: where the puck's alignment is, with the words of its page, as the
+ * Align page's steps: the heading (centre the star, solving, failed, aligned), a line or two
+ * under it (where the star is and the hint, hold still, why it failed, the offset), and the
+ * big round button's word (Align, Solving…, Retry, Done).
  */
 export interface PuckAlignStatusMessage {
   t: 'alignStatus';
   step: 'centre' | 'solving' | 'failed' | 'done';
   text: string;
+  detail: string;
+  button: string;
 }
 
 /**
  * Guided alignment from the puck (docs/puck.md, "Alignment"), as the app's Align page does
- * it: a star is chosen and becomes the target, so both maps guide to it; once it is centred
- * in the eyepiece, a plate solve measures how the camera sits.
+ * it: a star is chosen, the user centres it in the eyepiece by eye (it doesn't become the
+ * target: the map, not yet aligned, would guide the camera onto it, not the telescope), and
+ * a plate solve then measures how the camera sits.
  */
 @Injectable({ providedIn: 'root' })
 export class PuckAlignService {
@@ -79,31 +85,56 @@ export class PuckAlignService {
     };
   }
 
-  /** A star chosen on the puck: it becomes the target, to centre. Null if it isn't offered. */
+  /** A star chosen on the puck, to centre in the eyepiece. Null if it isn't offered. */
   choose(id: string): PuckAlignStatusMessage | null {
     const target = this.candidates().find((candidate) => candidate.id === id);
     if (!target) return null;
     this.chosen = target;
-    this.state.selectedTargetId.set(target.id);
-    return { t: 'alignStatus', step: 'centre', text: t('align.centre', { name: target.id }) };
+    const position = this.state.positionOf(target);
+    const where = t('align.position', {
+      direction: compassPoint(position.azDeg),
+      degrees: Math.round(position.altDeg),
+    });
+    return {
+      t: 'alignStatus',
+      step: 'centre',
+      text: t('align.centre', { name: target.id }),
+      detail: `${where}. ${t('align.centreHint')}`,
+      button: t('align.align'),
+    };
   }
 
   /** The words while the plate solve runs. */
   solvingMessage(): PuckAlignStatusMessage {
-    return { t: 'alignStatus', step: 'solving', text: t('align.solving') };
+    return {
+      t: 'alignStatus',
+      step: 'solving',
+      text: t('align.solving'),
+      detail: t('align.holdStill'),
+      button: t('align.solvingShort'),
+    };
   }
 
   /** The chosen star is centred in the eyepiece: a plate solve shows how the camera sits. */
   async alignNow(): Promise<PuckAlignStatusMessage> {
     const star = this.chosen;
-    if (!star) return { t: 'alignStatus', step: 'failed', text: t('align.failed') };
+    if (!star) return this.failed('');
     const result = await this.liveSolver.solveNow();
-    if (!result.ok) return { t: 'alignStatus', step: 'failed', text: `${t('align.failed')}. ${result.reason}` };
+    if (!result.ok) return this.failed(result.reason);
     const camera = cameraPointing(rearCameraDirection(result.attitude));
     const alignment = newAlignment(star.id, this.state.positionOf(star), camera, 'plate-solve');
     this.state.alignment.set(alignment);
-    const offset = t('align.offset', { degrees: num(offsetAngleDeg(alignment.offset), 1) });
-    return { t: 'alignStatus', step: 'done', text: `${t('settings.alignedOn', { star: star.id })} · ${offset}` };
+    return {
+      t: 'alignStatus',
+      step: 'done',
+      text: t('settings.alignedOn', { star: star.id }),
+      detail: t('align.offset', { degrees: num(offsetAngleDeg(alignment.offset), 1) }),
+      button: t('common.done'),
+    };
+  }
+
+  private failed(reason: string): PuckAlignStatusMessage {
+    return { t: 'alignStatus', step: 'failed', text: t('align.failed'), detail: reason, button: t('align.retry') };
   }
 
   remove(): void {
