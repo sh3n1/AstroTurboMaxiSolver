@@ -20,7 +20,7 @@ Features:
 .
 
 - **Platform:** PWA only. Do not add native iOS or Android projects, native plugins, or anything that needs an app store build.
-  - Exception: the **puck**, a hand remote on an ESP32-S3 (approved 2026-11-20). Its firmware lives in its own repository, AstroTurboMaxiPuck (the `AstroTurboMaxiPuck/` folder, ignored by this repository's git), never in this one. What the app and the puck send each other is in `docs/puck.md`.
+  - Exception: the **puck**, a hand remote on an ESP32-S3 (approved 2026-11-20). Its firmware lives in its own public repository, [AstroTurboMaxiPuck](https://github.com/sh3n1/AstroTurboMaxiPuck) (the `AstroTurboMaxiPuck/` folder, ignored by this repository's git), never in this one. Only its built image travels with the landing, under `src/landing/firmware/`, for installing it from the puck's page. What the app and the puck send each other is in `docs/puck.md`.
 - **Hosting:** on the project's own domain, on Cloudflare, over HTTPS, as two copies: dev (`dev.astroturbomaxisolver.app`, private behind Cloudflare Access, for trying versions on phones) and production (`astroturbomaxisolver.app`, public). The code must not depend on the host: no host's files or settings in the project. What any host must do, and how to publish, is in `docs/deploy.md`.
 - **Site layout:** a static landing page at `/`, for people and search engines, and the app at `/app/` (Angular's base address in production builds). The dev server still serves the app at `/`.
 - **Current state:** Work in progress
@@ -92,7 +92,7 @@ Before finishing a change, run: `npm run lint`, `npm run test:unit` and `npm run
   - `sync/` - device sync through the user's cloud storage or the two-phone link
 - `src/assets/data/` - generated star and target data, built by the scripts in `scripts/`
 - `src/assets/data/aggregate/` - data under its own licence, not the GPL, one folder per source (see Licence)
-- `src/landing/` - the landing page: plain HTML, CSS and pictures, built into the root of `www/` by `scripts/build-landing.mjs`. Its pages (`index`, `privacy`, `terms`) are templates whose texts are in `src/landing/i18n/<language>.json`: English is written as `index.html`, each other language as `index.<language>.html`. The English home page sends a browser in another of its languages to it, unless the visitor chose a language with the links at the top. The build fails if a language lacks a text.
+- `src/landing/` - the landing page: plain HTML, CSS and pictures, built into the root of `www/` by `scripts/build-landing.mjs`. Its pages (`index`, `puck`, `privacy`, `terms`) are templates whose texts are in `src/landing/i18n/<language>.json`: English is written as `index.html`, each other language as `index.<language>.html`. The English home page sends a browser in another of its languages to it, unless the visitor chose a language with the links at the top. The build fails if a language lacks a text.
 
 ## PWA constraints
 

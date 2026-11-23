@@ -1,0 +1,51 @@
+ESP Web Tools 10.4.0, by ESPHome (Nabu Casa), Apache License 2.0 (LICENSE.txt).
+Source: https://github.com/esphome/esp-web-tools, its npm package's dist/web/ folder, copied
+here unchanged on 2026-11-23 for the puck's page (puck.html) to install the puck's firmware
+from the browser.
+
+Its files bundle these libraries, each under its own licence:
+
+- esptool-js, by Espressif Systems: Apache License 2.0.
+  https://github.com/espressif/esptool-js
+- improv-wifi-serial-sdk, by Improv Wi-Fi: Apache License 2.0.
+  https://github.com/improv-wifi/sdk-serial-js
+- @material/web, by Google LLC: Apache License 2.0.
+  https://github.com/material-components/material-web
+- lit, Copyright (c) 2017 Google LLC: BSD 3-Clause License.
+  https://github.com/lit/lit
+- pako, Copyright (C) 2014-2017 by Vitaly Puzrin and Andrei Tuputcyn: MIT and Zlib licences.
+  https://github.com/nodeca/pako
+- atob-lite, by Hugh Kennedy: MIT License.
+  https://github.com/hughsk/atob-lite
+- tslib, by Microsoft: 0BSD.
+  https://github.com/microsoft/tslib
+
+lit's BSD 3-Clause License:
+
+  Redistribution and use in source and binary forms, with or without modification, are
+  permitted provided that the following conditions are met:
+  1. Redistributions of source code must retain the above copyright notice, this list of
+     conditions and the following disclaimer.
+  2. Redistributions in binary form must reproduce the above copyright notice, this list of
+     conditions and the following disclaimer in the documentation and/or other materials
+     provided with the distribution.
+  3. Neither the name of the copyright holder nor the names of its contributors may be used
+     to endorse or promote products derived from this software without specific prior
+     written permission.
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS
+  OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+
+pako's and atob-lite's MIT License:
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of this
+  software and associated documentation files (the "Software"), to deal in the Software
+  without restriction, including without limitation the rights to use, copy, modify, merge,
+  publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons
+  to whom the Software is furnished to do so, subject to the following conditions: The above
+  copyright notice and this permission notice shall be included in all copies or substantial
+  portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
+
+The firmware it installs, firmware/astroturbomaxipuck.bin, is AstroTurboMaxiPuck, GPL-3.0-only,
+built from https://github.com/sh3n1/AstroTurboMaxiPuck at the commit named in
+firmware/manifest.json.
