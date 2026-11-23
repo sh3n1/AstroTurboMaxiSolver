@@ -5,8 +5,15 @@
 // and sends the secret as its first message, so the puck knows who scanned its screen.
 // Plain functions, so they can be tested without a link.
 
-/** Every puck code starts with this, so it is told apart from a phone's code at once. */
-const PUCK_PREFIX = 'AFP1:';
+/**
+ * Every puck code starts with one of these, so it is told apart from a phone's code at once.
+ * AFP2: the payload in base32 (capitals and 2 to 7), which a QR code holds in its compact
+ * alphanumeric mode, for fewer, bigger squares that a phone reads easily in the dark.
+ * AFP1: the same payload in base64url, as the first firmware wrote it.
+ */
+const PUCK_PREFIX = 'AFP2:';
+const OLD_PUCK_PREFIX = 'AFP1:';
+const BASE32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 const NOT_A_PUCK_CODE = "This isn't a puck's code";
 
 /** The puck's ICE username and password are made by libpeer with exactly these lengths. */
@@ -33,7 +40,26 @@ export interface PuckCode {
 
 /** Whether a scanned or pasted text is a puck's code rather than a phone's. */
 export function isPuckCode(code: string): boolean {
-  return code.trim().startsWith(PUCK_PREFIX);
+  const text = code.trim();
+  return text.startsWith(PUCK_PREFIX) || text.startsWith(OLD_PUCK_PREFIX);
+}
+
+/** Base32 (RFC 4648) without padding, as the puck writes it. */
+function fromBase32(text: string): Uint8Array {
+  const out: number[] = [];
+  let bits = 0;
+  let value = 0;
+  for (const c of text) {
+    const digit = BASE32.indexOf(c);
+    if (digit < 0) throw new Error(NOT_A_PUCK_CODE);
+    value = (value << 5) | digit;
+    bits += 5;
+    if (bits >= 8) {
+      bits -= 8;
+      out.push((value >> bits) & 0xff);
+    }
+  }
+  return Uint8Array.from(out);
 }
 
 function fromBase64Url(text: string): Uint8Array {
@@ -50,10 +76,12 @@ function toBase64Url(bytes: Uint8Array): string {
 /** Reads a puck's code. Throws an error with a message for the user when it is wrong. */
 export function decodePuckCode(code: string): PuckCode {
   const text = code.trim();
-  if (!text.startsWith(PUCK_PREFIX)) throw new Error(NOT_A_PUCK_CODE);
+  if (!isPuckCode(text)) throw new Error(NOT_A_PUCK_CODE);
   let bytes: Uint8Array;
   try {
-    bytes = fromBase64Url(text.slice(PUCK_PREFIX.length));
+    bytes = text.startsWith(PUCK_PREFIX)
+      ? fromBase32(text.slice(PUCK_PREFIX.length))
+      : fromBase64Url(text.slice(OLD_PUCK_PREFIX.length));
   } catch {
     throw new Error(NOT_A_PUCK_CODE);
   }

@@ -13,6 +13,9 @@ import { THEME } from '../theme';
  */
 export type ViewMode = 'sky' | 'eyepiece' | 'ring';
 
+/** The view each view comes before, as the view tile (and the puck's menu) steps through them. */
+export const NEXT_VIEW: Record<ViewMode, ViewMode> = { sky: 'eyepiece', eyepiece: 'ring', ring: 'sky' };
+
 /** A place on the canvas, in CSS pixels. */
 export type Point = { x: number; y: number };
 

@@ -11,6 +11,7 @@
 // as long as the phone stays fixed in its mount. One star is enough, because a
 // plate solve gives the camera's full orientation.
 
+import type { Alignment, AlignmentMethod } from '../app-state.service';
 import type { Horizontal, Vector3 } from '../astronomy/astronomy';
 import {
   fromViewCoordinates,
@@ -56,6 +57,25 @@ export function suggestAlignmentStars<T>(
 /** The offset: the telescope's direction, in the camera's own axes. */
 export function cameraOffset(camera: Horizontal, telescope: Horizontal): Vector3 {
   return toViewCoordinates(viewBasis(camera), horizontalVector(telescope));
+}
+
+/**
+ * A new alignment, the telescope on the star at `telescope` and the camera at `camera`. It
+ * starts without syncs: they measured the camera as it sat before.
+ */
+export function newAlignment(
+  starId: string,
+  telescope: Horizontal,
+  camera: Horizontal,
+  method: AlignmentMethod,
+): Alignment {
+  return {
+    starId,
+    alignedAt: new Date().toISOString(),
+    offset: cameraOffset(camera, telescope),
+    position: telescope,
+    method,
+  };
 }
 
 /** Uses a saved offset to work out where the telescope points from the camera's pointing. */

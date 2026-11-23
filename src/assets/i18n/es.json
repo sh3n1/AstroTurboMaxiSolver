@@ -393,6 +393,19 @@
     "startSensors": "Buscador · toca para activar los sensores",
     "pause": "Pausar modo remoto"
   },
+  "puck": {
+    "zoom": "Zoom",
+    "brightness": "Brillo",
+    "sensors": "Sensores",
+    "alignment": "Alineación",
+    "wifi": "Wi-Fi",
+    "wifiClient": "Cliente",
+    "wifiAp": "Punto de acceso",
+    "lx200": "Repetidor Meade LX200",
+    "on": "Activado",
+    "off": "Desactivado",
+    "gotoNothing": "Ningún objeto cerca de donde fue el planetario"
+  },
   "readout": {
     "noCompass": "Sin brújula",
     "finderSensorsOff": "Sensores del buscador desactivados",

@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import { decodePuckCode, isPuckCode, puckAnswer } from './puck-pairing';
 
-/** A puck code as the firmware makes it (main/link.c in AstroTurboMaxiPuck). */
-function makeCode(): string {
-  const bytes = [
+/** A puck code's payload, as the firmware makes it (main/link.c in AstroTurboMaxiPuck). */
+function payload(): number[] {
+  return [
     ...[192, 168, 1, 140], // IP
     ...[0xdc, 0x45], // port 56389
     ...[...'abcd'].map((c) => c.charCodeAt(0)), // ICE username
@@ -12,7 +12,30 @@ function makeCode(): string {
     ...Array.from({ length: 32 }, (_, i) => i), // fingerprint 00:01:…:1F
     ...Array.from({ length: 16 }, () => 0xff), // secret
   ];
-  const base64 = btoa(String.fromCharCode(...bytes));
+}
+
+/** A puck code as the firmware writes it now: base32, for the QR code's alphanumeric mode. */
+function makeCode(): string {
+  const abc = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  let text = '';
+  let bits = 0;
+  let value = 0;
+  for (const byte of payload()) {
+    value = (value << 8) | byte;
+    bits += 8;
+    while (bits >= 5) {
+      bits -= 5;
+      text += abc[(value >> bits) & 31];
+    }
+    value &= (1 << bits) - 1;
+  }
+  if (bits > 0) text += abc[(value << (5 - bits)) & 31];
+  return 'AFP2:' + text;
+}
+
+/** A puck code as the first firmware wrote it, in base64url. */
+function makeOldCode(): string {
+  const base64 = btoa(String.fromCharCode(...payload()));
   return 'AFP1:' + base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
@@ -33,9 +56,16 @@ describe('puck pairing', () => {
     expect(puck.secret).toBe('_____________________w');
   });
 
+  it('reads the old base64url codes too', () => {
+    expect(isPuckCode(makeOldCode())).toBe(true);
+    expect(decodePuckCode(makeOldCode())).toEqual(decodePuckCode(makeCode()));
+  });
+
   it('refuses a code that is not a puck code, or is damaged', () => {
     expect(() => decodePuckCode('AF1:abc')).toThrow();
     expect(() => decodePuckCode('AFP1:abc')).toThrow();
+    expect(() => decodePuckCode('AFP2:ABC')).toThrow();
+    expect(() => decodePuckCode('AFP2:' + 'a'.repeat(132))).toThrow();
   });
 
   it("writes the puck's answer with the offer's media id", () => {

@@ -34,6 +34,7 @@ import {
 import { i18n } from './i18n/t';
 import { LOCATION_BLOCKED, LOCATION_UPDATED, isPermissionDenied } from './platform/permission-help';
 import { telescopeLimit } from './sky-conditions/sky-quality';
+import type { ViewMode } from './sky-map/sky-style';
 import type { CaptureMode } from './solver/camera';
 import { LocalDb } from './storage/local-db';
 import { settingsWithoutKit } from './storage/storage-migration';
@@ -307,6 +308,9 @@ export class AppState {
   readonly planning = computed(() => this.plannedTime() !== null);
   /** Whether the time control is open for changing the time, on whichever tab. */
   readonly timeControlOpen = signal(false);
+  /** The sky page's view: the map, the eyepiece view or the field ring. Shared, so the
+   *  puck's menu can step it as the view tile does. */
+  readonly viewMode = signal<ViewMode>('sky');
   /**
    * Whether the sky map is the tab on show. The map and the live plate solver stay alive
    * behind the other tabs, and rest while it is hidden: see the sky page and the solver.

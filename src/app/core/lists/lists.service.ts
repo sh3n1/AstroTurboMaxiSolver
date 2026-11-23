@@ -44,7 +44,7 @@ import {
 type Equatorial = { raDeg: number; decDeg: number };
 
 // The best right now: objects well up in the sky at this moment, brightest first.
-const GOOD_ALTITUDE_DEG = 30;
+export const GOOD_ALTITUDE_DEG = 30;
 const BEST_NOW_COUNT = 20;
 /** Formats the planned time for the list's name, as the pages do. */
 const TIME_PIPE = new LocalTimePipe();

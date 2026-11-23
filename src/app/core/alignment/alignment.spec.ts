@@ -1,7 +1,14 @@
 import { separationDeg } from '../astronomy/astronomy';
 
 import type { AlignmentCandidate } from './alignment';
-import { apparentMagnitude, cameraOffset, offsetAngleDeg, suggestAlignmentStars, telescopePointing } from './alignment';
+import {
+  apparentMagnitude,
+  cameraOffset,
+  newAlignment,
+  offsetAngleDeg,
+  suggestAlignmentStars,
+  telescopePointing,
+} from './alignment';
 
 const candidate = (star: string, mag: number, altDeg: number): AlignmentCandidate<string> => ({
   star,
@@ -60,5 +67,13 @@ describe('alignment', () => {
       expect(offsetAngleDeg(offset)).toBeCloseTo(50, 9);
       expect(separationDeg(telescopePointing(camera, offset), telescope)).toBeLessThan(1e-9);
     });
+  });
+  it('makes a new alignment that points the telescope back at the star', () => {
+    const star = { altDeg: 50, azDeg: 120 };
+    const camera = { altDeg: 52, azDeg: 123 };
+    const alignment = newAlignment('Vega', star, camera, 'plate-solve');
+    expect(alignment).toMatchObject({ starId: 'Vega', position: star, method: 'plate-solve' });
+    expect(alignment.syncs).toBeUndefined();
+    expect(separationDeg(telescopePointing(camera, alignment.offset), star)).toBeLessThan(1e-6);
   });
 });

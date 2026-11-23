@@ -393,6 +393,19 @@
     "startSensors": "Finder · tap to start sensors",
     "pause": "Pause remote mode"
   },
+  "puck": {
+    "zoom": "Zoom",
+    "brightness": "Brightness",
+    "sensors": "Sensors",
+    "alignment": "Alignment",
+    "wifi": "Wi-Fi",
+    "wifiClient": "Client",
+    "wifiAp": "Access point",
+    "lx200": "Meade LX200 Repeater",
+    "on": "On",
+    "off": "Off",
+    "gotoNothing": "No object near where the planetarium went"
+  },
   "readout": {
     "noCompass": "No compass",
     "finderSensorsOff": "Finder sensors off",
