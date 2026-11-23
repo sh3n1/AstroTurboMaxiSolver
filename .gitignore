@@ -93,3 +93,6 @@ Thumbs.db
 
 # The puck's firmware: its own repository, kept beside the app while it is built.
 /AstroTurboMaxiPuck/
+
+# Pictures kept on this computer only, such as screenshots.
+/.images/
