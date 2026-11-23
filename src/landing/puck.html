@@ -22,6 +22,9 @@
     <meta property="og:image" content="https://astroturbomaxisolver.app/images/puck-night.jpg" />
     <meta property="og:image:width" content="900" />
     <meta property="og:image:height" content="900" />
+
+    <!-- The install button, loaded only on this page. -->
+    <script type="module" src="vendor/esp-web-tools/install-button.js"></script>
   </head>
   <body>
     <!-- The same twinkling sky as the home page. Decoration only. -->
@@ -52,7 +55,7 @@
       <h1>AstroTurboMaxiPuck</h1>
       <p class="subtitle">{{puck.subtitle}}</p>
       <p class="tagline">{{puck.tagline}}</p>
-      <a class="button" href="{{@puckGithub}}" rel="noopener">{{puck.get}}</a>
+      <a class="button" href="#install">{{puck.get}}</a>
       <p class="facts">{{puck.facts}}</p>
       <img
         class="hero-photo"
@@ -117,17 +120,32 @@
         <ul class="steps">
           <li>{{puck.needs.board}}</li>
           <li>{{puck.needs.cable}}</li>
+          <li>{{puck.needs.computer}}</li>
           <li>{{puck.needs.app}}</li>
         </ul>
       </section>
 
-      <section>
+      <!--
+        Installing from the browser, with ESP Web Tools (vendor/esp-web-tools/, Apache-2.0):
+        it writes firmware/astroturbomaxipuck.bin through the browser's USB serial port, which
+        only Chrome and Edge on a computer have. Building it yourself follows.
+      -->
+      <section id="install">
         <h2>{{puck.install.title}}</h2>
+        <p>{{puck.install.browser}}</p>
+        <esp-web-install-button class="install" manifest="firmware/manifest.json">
+          <button slot="activate" type="button" class="button">{{puck.install.button}}</button>
+          <p slot="unsupported" class="warning">{{puck.install.unsupported}}</p>
+          <p slot="not-allowed" class="warning">{{puck.install.notAllowed}}</p>
+        </esp-web-install-button>
+        <p class="note">{{puck.install.erase}}</p>
+        <p>{{puck.install.link}}</p>
+
+        <h3>{{puck.install.buildTitle}}</h3>
         <ol class="steps">
           <li>{{puck.install.step1}}</li>
           <li>{{puck.install.step2}}</li>
           <li>{{puck.install.step3}}</li>
-          <li>{{puck.install.step4}}</li>
         </ol>
         <p class="note">{{puck.install.note}}</p>
         <p class="warning">{{puck.install.warning}}</p>
@@ -141,7 +159,7 @@
 
       <p class="cta">
         <span class="cta-line">{{puck.cta}}</span>
-        <a class="button" href="app/">{{index.open}}</a>
+        <a class="button" href="#install">{{puck.get}}</a>
       </p>
     </main>
 

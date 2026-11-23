@@ -7,7 +7,7 @@ transfer. The rest is agreed but not built.
 
 The puck is a hand remote for the app: a small round screen (a Waveshare
 ESP32-S3-Touch-AMOLED-1.75, 466×466 px) that shows the phone's sky map and guides to the
-target. Its firmware lives in its own repository, AstroTurboMaxiPuck.
+target. Its firmware lives in its own repository, [AstroTurboMaxiPuck](https://github.com/sh3n1/AstroTurboMaxiPuck).
 
 This file is the contract between the app and the puck's firmware. Change it first, then
 both sides.

@@ -97,7 +97,7 @@
     "githubLabel": "The puck's source code on GitHub",
     "subtitle": "Small, round, and it glows in the dark.",
     "tagline": "A hand remote for AstroTurboMaxiSolver, on a round 1.75″ display. It shows the app's sky map and guides you to your target, so the phone can stay where it is.",
-    "get": "Get it on GitHub",
+    "get": "Install it",
     "facts": "Free · Open source · Wi-Fi, no server · ESP32-S3",
     "photoAlt": "The puck's round screen in red night mode: the reticle's rings, nearby objects, and the Alt, Az and field of view along the edge",
     "features": {
@@ -128,16 +128,23 @@
       "title": "What you need",
       "board": "A Waveshare ESP32-S3-Touch-AMOLED-1.75: a round 1.75″ touch screen with Wi-Fi.",
       "cable": "A USB-C cable, to install the firmware and power the puck.",
-      "app": "AstroTurboMaxiSolver on a phone."
+      "app": "AstroTurboMaxiSolver on a phone.",
+      "computer": "A computer with Chrome or Edge, to install it."
     },
     "install": {
       "title": "Install it",
       "step1": "Install Espressif's ESP-IDF tools, for example with its extension for VS Code.",
       "step2": "Download the firmware's source code <a href=\"{{@puckGithub}}\" rel=\"noopener\">from GitHub</a>.",
       "step3": "Connect the board by USB, then build and install it: <code>idf.py build</code> and <code>idf.py -p COMx flash</code>.",
-      "step4": "On the puck, join a Wi-Fi network with its QR code. Then, in the app, open Remote, Puck, and scan the code the puck shows.",
       "note": "The firmware's README has the details, and what to do if the board isn't detected.",
-      "warning": "Work in progress: so far tested on a single board."
+      "warning": "Work in progress: so far tested on a single board.",
+      "browser": "Connect the board to a computer by USB, open this page in Chrome or Edge, and press Install.",
+      "button": "Install the firmware",
+      "unsupported": "This browser can't install it: open this page on a computer, in Chrome or Edge.",
+      "notAllowed": "Installing needs this page over https.",
+      "erase": "Updating? Don't erase the board when asked: it keeps its Wi-Fi networks and sky catalogue.",
+      "link": "Then, on the puck, join a Wi-Fi network with its QR code. In the app, open Remote, Puck, and scan the code the puck shows.",
+      "buildTitle": "Or build it yourself"
     },
     "about": {
       "title": "About",

@@ -277,6 +277,19 @@ h2 {
   font-weight: 700;
   text-decoration: none;
 }
+/* A real button styled as the links above, such as the puck's install button. */
+button.button {
+  border: 0;
+  font-family: inherit;
+  cursor: pointer;
+}
+/* The puck's install button: its own line, and its dialog in the page's colours. */
+.install {
+  display: block;
+  margin: 20px 0;
+  --md-sys-color-primary: var(--accent);
+  --md-sys-color-on-primary: var(--sky);
+}
 .button:focus-visible,
 .button:hover {
   outline: 3px solid var(--text);
