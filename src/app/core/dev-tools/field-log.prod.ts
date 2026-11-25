@@ -1,19 +1,28 @@
 // field-log.ts in a production build (angular.json, fileReplacements): never on, and each
-// call does nothing, so no field test code is in it.
+// call does nothing, so no field test code is in it. Its functions and types must match
+// field-log.ts's: the production build's type check fails if they don't.
 
-// Its own copy of the type: this file takes field-log.ts's place, so can't import from it.
 export interface FieldEvent {
   at: number;
   kind: string;
   [field: string]: unknown;
 }
 
-export function fieldActive(): boolean {
-  return false;
+export interface FieldSolve {
+  id: string;
+  step: number | null;
+  trigger: string;
 }
 
-export function fieldStep(): number | null {
-  return null;
+export interface FieldSolveTags {
+  fieldStep: number | null;
+  fieldSolve: string | null;
+}
+
+export const MAX_WAITING = 0;
+
+export function fieldActive(): boolean {
+  return false;
 }
 
 export function fieldEvent(_kind: string, _fields: Record<string, unknown> = {}): void {
@@ -32,20 +41,18 @@ export function takeFieldEvents(): FieldEvent[] {
   return [];
 }
 
-export interface FieldSolve {
-  id: string;
-  step: number | null;
-  trigger: string;
+export function fieldSolveStarted(_trigger: string): void {
+  // Nothing.
 }
 
-export function fieldSolveStarted(_trigger: string): FieldSolve | null {
-  return null;
-}
-
-export function fieldSolveDone(_solve: FieldSolve | null): void {
+export function fieldSolveDone(): void {
   // Nothing.
 }
 
 export function onFieldSolveDone(_listener: (solve: FieldSolve) => void): void {
   // Nothing.
+}
+
+export function fieldSolveTags(): FieldSolveTags {
+  return { fieldStep: null, fieldSolve: null };
 }

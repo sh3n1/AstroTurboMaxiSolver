@@ -55,7 +55,7 @@ async function takeNormalPhoto(): Promise<string> {
 }
 
 /**
- * Field tests (the puck's docs/field-tests.md), in development only: while the laptop's
+ * Field tests (docs/field-tests.md), in development only: while the laptop's
  * collector answers through the dev server's proxy, it sends what the app does (where it
  * points, the target, solves, alignment, the puck's link) and carries out the agent's
  * commands, such as a step's normal photo and plate solve. With no collector it only looks
