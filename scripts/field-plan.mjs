@@ -1,4 +1,4 @@
-// Makes a night's field test plan (the puck's docs/field-tests.md) from what is up at the
+// Makes a night's field test plan (docs/field-tests.md) from what is up at the
 // site and time: bright stars to align on, then targets spread low, middle and high in
 // every direction, the Moon and planets, a few deep-sky objects, and steps for the link.
 // It adapts to the night and the place, never a fixed list, and suits any telescope.
