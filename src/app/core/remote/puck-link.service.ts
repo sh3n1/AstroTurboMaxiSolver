@@ -3,6 +3,7 @@ import { ToastController } from '@ionic/angular';
 
 import { AppState } from '../app-state.service';
 import type { Horizontal } from '../astronomy/astronomy';
+import { fieldEvent } from '../dev-tools/field-log';
 import { t } from '../i18n/t';
 import { ListsService } from '../lists/lists.service';
 import type { ListView } from '../lists/lists.service';
@@ -70,6 +71,8 @@ const CONNECT_TIMEOUT_MS = 8000;
 /** A gap this long between the view timer's ticks: the page stalled. Kept for the loss's record. */
 const STALL_MS = 500;
 const STALLS_KEPT = 5;
+/** In a field test, a silence from the puck this long is noted: it pings every second. */
+const HEARD_GAP_NOTED_MS = 1500;
 
 /**
  * The link to the puck, the hand remote (docs/puck.md). It is the puck's own, apart from
@@ -193,6 +196,7 @@ export class PuckLinkService {
     this.connection = connection;
     connection.onconnectionstatechange = () => {
       if (connection !== this.connection) return;
+      fieldEvent('puckConnection', { state: connection.connectionState, ice: connection.iceConnectionState });
       if (connection.connectionState === 'failed' || connection.connectionState === 'closed') this.lose();
     };
     const control = connection.createDataChannel(CONTROL_CHANNEL);
@@ -203,8 +207,12 @@ export class PuckLinkService {
     };
     control.onmessage = (event) => {
       // Anything at all, a ping included, shows the puck is still there.
-      this.lastHeard = Date.now();
+      const heard = Date.now();
+      // In a field test, a long silence from the puck, even one that didn't lose the link.
+      if (heard - this.lastHeard > HEARD_GAP_NOTED_MS) fieldEvent('puckSilence', { ms: heard - this.lastHeard });
+      this.lastHeard = heard;
       const message = parsePuckMessage(String(event.data));
+      if (message && message.t !== 'ping') fieldEvent('puckIn', { message });
       if (message && control === this.control) this.obey(message);
     };
     this.view = connection.createDataChannel(VIEW_CHANNEL, { ordered: false, maxRetransmits: 0 });
@@ -285,6 +293,7 @@ export class PuckLinkService {
     // The page stalled (the timer came late): kept, in case the link drops.
     if (now - this.lastTick > STALL_MS) {
       this.stalls.push(`${Math.round((now - this.openedAt) / 1000)} s: ${now - this.lastTick} ms`);
+      fieldEvent('pageStall', { ms: now - this.lastTick });
       if (this.stalls.length > STALLS_KEPT) this.stalls.shift();
     }
     this.lastTick = now;
@@ -481,6 +490,7 @@ export class PuckLinkService {
     if (this.status() !== 'connected' && this.status() !== 'connecting') return;
     const wasConnected = this.status() === 'connected';
     if (wasConnected) this.lossRecord = this.describeLoss();
+    fieldEvent('puckLost', { wasConnected, record: wasConnected ? this.lossRecord : this.describeLoss() });
     this.close();
     this.status.set('lost');
     // Again by itself, a few times: the puck still has the same code.

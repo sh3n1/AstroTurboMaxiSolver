@@ -1,6 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { IonApp, IonRouterOutlet } from '@ionic/angular';
 
+import { startFieldTest } from './core/dev-tools/field-test';
 import { InstallService } from './core/platform/install.service';
 import { ScreenWakeService } from './core/platform/screen-wake.service';
 import { UpdateService } from './core/platform/update.service';
@@ -24,5 +25,8 @@ export class AppComponent {
     inject(LinkSyncService);
     // Sets the Bortle class from the location, while Auto is on, wherever the location is set.
     inject(SkyBrightnessService);
+    // In development, records field tests while the laptop's collector answers. Not in a
+    // production build, which swaps in an empty field-test.prod.ts.
+    startFieldTest();
   }
 }

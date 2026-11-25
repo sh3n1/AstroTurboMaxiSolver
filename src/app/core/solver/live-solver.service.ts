@@ -9,6 +9,8 @@ import {
   equatorialVector,
   separationDeg,
 } from '../astronomy/astronomy';
+import type { FieldSolve } from '../dev-tools/field-log';
+import { fieldActive, fieldSolveDone, fieldSolveStarted, fieldStep } from '../dev-tools/field-log';
 import { t, tn } from '../i18n/t';
 import { isPermissionDenied } from '../platform/permission-help';
 import { NotNowError, PermissionsService } from '../platform/permissions.service';
@@ -134,6 +136,8 @@ export class LiveSolverService {
 
   private camera: OpenCamera | null = null;
   private opening = false;
+  /** In a field test, the solve under way (dev-tools/field-log.ts); null otherwise. */
+  private fieldSolve: FieldSolve | null = null;
   /**
    * The camera was refused, or put off with "Not now": automatic solving waits, rather than
    * asking or failing again every few seconds, until the user asks for a solve themselves.
@@ -225,6 +229,7 @@ export class LiveSolverService {
   private async attempt(): Promise<void> {
     this.status.set('solving');
     this.state.plateSolving.set(true);
+    this.fieldSolve = fieldSolveStarted('auto');
     // Where the sensors say the camera points, before any correction.
     const before = this.state.cameraPointing();
     const entry = { trigger: 'auto' as const, startedAt: Date.now(), iso: this.iso, frames: this.plan.frames };
@@ -304,6 +309,7 @@ export class LiveSolverService {
    */
   private retrySoon(pauseMs: number): void {
     this.state.plateSolving.set(false);
+    this.endFieldSolve();
     this.nextAttemptAt = Date.now() + pauseMs;
     if (this.status() === 'solving') this.status.set('waiting');
     // The map was hidden meanwhile: the camera was only kept for this attempt.
@@ -312,6 +318,7 @@ export class LiveSolverService {
 
   private finish(solved: boolean, pauseMs: number): void {
     this.state.plateSolving.set(false);
+    this.endFieldSolve();
     this.nextAttemptAt = Date.now() + pauseMs;
     if (this.status() === 'solving') this.status.set(solved ? 'solved' : 'failed');
     if (this.resting) this.freeCamera();
@@ -376,6 +383,7 @@ export class LiveSolverService {
     const wasRunning = !!this.timer;
     this.status.set('solving');
     this.state.plateSolving.set(true);
+    this.fieldSolve = fieldSolveStarted(trigger);
     const startedAt = Date.now();
     const before = this.state.cameraPointing();
     try {
@@ -462,12 +470,38 @@ export class LiveSolverService {
         this.camera = null;
         this.status.set('off');
       }
+      this.endFieldSolve();
     }
   }
 
-  /** Whether each attempt is sent to the PC: a debugging setting, only in development. */
+  /** In a field test, says the solve under way is over, so its normal photo can follow. */
+  private endFieldSolve(): void {
+    fieldSolveDone(this.fieldSolve);
+    this.fieldSolve = null;
+  }
+
+  /**
+   * Runs `work` with this phone's camera free for it, as for a field test's normal photo
+   * (dev-tools): after any solve under way, with no automatic solve starting meanwhile.
+   * The solver opens its camera again when it next needs it.
+   */
+  async withCameraFree<T>(work: () => Promise<T>): Promise<T> {
+    for (let waited = 0; this.status() === 'solving' && waited < 30_000; waited += 100) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    // Opening keeps automatic solving from starting meanwhile (see tick).
+    this.opening = true;
+    try {
+      this.freeCamera();
+      return await work();
+    } finally {
+      this.opening = false;
+    }
+  }
+
+  /** Whether each attempt is sent to the PC: a debugging setting, or a field test, only in development. */
   private reporting(): boolean {
-    return isDevMode() && this.state.settings().sendSolves;
+    return isDevMode() && (this.state.settings().sendSolves || fieldActive());
   }
 
   /** Sends a finished attempt, with its frame, to the PC. Does nothing unless reporting. */
@@ -502,6 +536,8 @@ export class LiveSolverService {
         sensorsBefore: attempt.before,
         sensorsAfter: this.state.cameraPointing(),
         sensors: this.sensors.snapshot(),
+        fieldStep: this.fieldSolve?.step ?? fieldStep(),
+        fieldSolve: this.fieldSolve?.id ?? null,
       },
       attempt.kept,
       attempt.response,

@@ -29,6 +29,10 @@ export interface SolveReport {
   sensorsBefore: Horizontal | null;
   sensorsAfter: Horizontal | null;
   sensors: unknown;
+  /** In a field test, the step this solve belongs to (dev-tools/field-log.ts). */
+  fieldStep?: number | null;
+  /** In a field test, the solve's id, which its telescope picture and normal photo share. */
+  fieldSolve?: string | null;
   /** The screen's orientation, which may turn the camera's frames. */
   screen: { type: string | null; angle: number | null; width: number; height: number };
   result: Omit<SolveResponse, 'id'>;
