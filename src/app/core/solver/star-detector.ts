@@ -146,6 +146,22 @@ const BRIGHT_FLAT_LEVELS = 10;
  */
 const RING_GAP_PX = 3;
 const RING_WIDTH_PX = 3;
+/**
+ * A star sits on smooth sky; a lit window, an antenna or a building's edge sits among other
+ * edges. So the surroundings' busyness is measured: the mean brightness step between
+ * neighbouring pixels in a box this many pixels either side, leaving out the detection
+ * itself, in multiples of the frame's noise.
+ */
+const BUSY_BOX_HALF_PX = 24;
+/**
+ * Above this the surroundings are too busy for a star. Measured on 75 solved field test
+ * frames (2026-11-24, spikes/solver-replay/features.test.ts): it kept 97% of the real
+ * stars and dropped about a third of everything else. With it, frames half filled with lit
+ * buildings solved too: 82 of 84 instead of 75, the rest unchanged.
+ */
+const MAX_BUSYNESS = 4.4;
+/** Around a detection, this much beyond its own radius is left out, so a bright star's halo isn't counted. */
+const BUSY_GAP_PX = 6;
 
 function median(values: number[]): number {
   if (values.length === 0) return 0;
@@ -275,6 +291,34 @@ function withTypicalSize(
     const relative = sizeOf.get(star)! / typical;
     return relative >= MIN_RELATIVE_SIZE && relative <= MAX_RELATIVE_SIZE;
   });
+}
+
+/**
+ * How busy the surroundings of a detection are: the mean brightness step between
+ * neighbouring pixels in a box around it, leaving out the detection and a margin. Smooth
+ * sky gives about the noise; windows, edges and antennas many times more. See MAX_BUSYNESS.
+ */
+export function busyness(pixels: Float32Array, width: number, height: number, star: DetectedStar): number {
+  const gap = Math.sqrt(star.pixels / Math.PI) + BUSY_GAP_PX;
+  const [left, right] = [
+    Math.max(1, Math.round(star.x - BUSY_BOX_HALF_PX)),
+    Math.min(width - 1, Math.round(star.x + BUSY_BOX_HALF_PX)),
+  ];
+  const [top, bottom] = [
+    Math.max(1, Math.round(star.y - BUSY_BOX_HALF_PX)),
+    Math.min(height - 1, Math.round(star.y + BUSY_BOX_HALF_PX)),
+  ];
+  let sum = 0;
+  let count = 0;
+  for (let y = top; y < bottom; y++) {
+    for (let x = left; x < right; x++) {
+      if (Math.hypot(x - star.x, y - star.y) < gap) continue;
+      const i = y * width + x;
+      sum += Math.abs(pixels[i + 1] - pixels[i - 1]) + Math.abs(pixels[i + width] - pixels[i - width]);
+      count++;
+    }
+  }
+  return count ? sum / count : 0;
 }
 
 /**
@@ -431,11 +475,14 @@ export function detectStars(pixels: Float32Array, width: number, height: number)
     unglared.filter((other) => other !== star && Math.hypot(other.x - star.x, other.y - star.y) < CLUSTER_RADIUS_PX)
       .length >= CLUSTER_NEIGHBOURS;
   const unclustered = unglared.filter((star) => !isInCluster(star));
-  const real = withTypicalSize(unclustered, stars, measures);
+  const sized = withTypicalSize(unclustered, stars, measures);
+  // Spots among windows, edges and antennas: see MAX_BUSYNESS.
+  const noise = median(Array.from(noiseGrid));
+  const real = sized.filter((star) => busyness(pixels, width, height, star) <= MAX_BUSYNESS * noise);
 
   return {
     stars: spreadOver(real, width, height).slice(0, MAX_STARS),
     background: median(Array.from(sky)),
-    noise: median(Array.from(noiseGrid)),
+    noise,
   };
 }

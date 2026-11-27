@@ -209,8 +209,10 @@ describe('plate solving from a rendered image', () => {
     const { stars: found } = detectStars(pixels, FRAME.width, FRAME.height);
     const near = solveFrame(found, FRAME, index, { direction: equatorialVector(90, 5), radiusDeg: 20 });
     expect(angleDeg(near!.pointing, truth)).toBeLessThan(0.2);
-    // A hint pointing at the opposite side of the sky must not produce an answer.
-    expect(solveFrame(found, FRAME, index, { direction: equatorialVector(264, 0), radiusDeg: 5 })).toBeNull();
+    // A hint pointing at the opposite side of the sky, as from sensors far off: the whole
+    // sky is searched next, and the answer is the true one, not one near the hint.
+    const wrongHint = solveFrame(found, FRAME, index, { direction: equatorialVector(264, 0), radiusDeg: 5 });
+    expect(angleDeg(wrongHint!.pointing, truth)).toBeLessThan(0.2);
   }, 20_000);
 
   it('gives no answer rather than a wrong one for random dots', () => {

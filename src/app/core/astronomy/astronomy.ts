@@ -58,7 +58,8 @@ const RAD = Math.PI / 180;
 // The Sun's altitude when astronomical twilight ends and the sky is fully dark.
 const FULL_DARKNESS_SUN_ALT_DEG = -18;
 
-const normalizeDeg = (deg: number): number => ((deg % 360) + 360) % 360;
+/** An angle brought into 0 to 360°. */
+export const normalizeDeg = (deg: number): number => ((deg % 360) + 360) % 360;
 
 const dot = (a: Vector3, b: Vector3): number => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const cross = (a: Vector3, b: Vector3): Vector3 => [

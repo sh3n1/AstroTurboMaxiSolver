@@ -13,6 +13,7 @@ import type { PuckIconMessage } from './puck-icons';
 import type { PuckListTargetsMessage, PuckListsMessage } from './puck-lists';
 import type { PuckPointingMessage } from './puck-lx200';
 import type { PuckObjectsMessage } from './puck-objects';
+import type { RemoteSolveEntry } from './remote-link';
 
 /** What the puck sends. */
 export type PuckMessage =
@@ -95,6 +96,11 @@ export type PuckHostMessage =
   | { t: 'catalogOk' }
   /** This side's record of the link lost before, for the puck's log: once linked again. */
   | { t: 'appLog'; text: string }
+  /**
+   * Each plate solve attempt as it ends, this phone's or its finder's, as Two phones sends
+   * it (remote-link.ts), so the puck can show "solved" or why not.
+   */
+  | { t: 'solveLog'; entry: RemoteSolveEntry }
   /** A new catalogue follows on the catalogue channel, in this many parts. */
   | { t: 'catalogStart'; id: string; bytes: number; parts: number; crc32: number };
 

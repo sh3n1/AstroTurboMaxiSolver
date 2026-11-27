@@ -63,6 +63,25 @@ test('moves the map with the phone sensors', async ({ page }) => {
   await expect(pointing).not.toContainText('Alt 0° Az 0°');
 });
 
+test('turns the sensors back on when the app opens again, if they were on', async ({ page }) => {
+  await page.goto('/');
+  await startSensors(page);
+  await sendOrientation(page, 0, 90, 0);
+  await expect(page.locator('[data-testid=pointing]')).toContainText('Alt 0° Az 0°');
+
+  // As when the browser reloads the page: the sensors come back on, with no tap.
+  await page.reload();
+  await expect(await moreTile(page, 'sensor-toggle')).toContainText('Sensors on');
+  await sendOrientation(page, 90, 90, 0);
+  await expect(page.locator('[data-testid=pointing]')).toContainText('Alt 0° Az 270°');
+
+  // Turned off, they stay off next time.
+  await tapMore(page, 'sensor-toggle');
+  await expect(await moreTile(page, 'sensor-toggle')).toContainText('Use sensors');
+  await page.reload();
+  await expect(await moreTile(page, 'sensor-toggle')).toContainText('Use sensors');
+});
+
 test('turns compass headings to true north for the location', async ({ page }) => {
   // In Seattle, magnetic north is about 15° east of true north.
   await page.addInitScript(() =>

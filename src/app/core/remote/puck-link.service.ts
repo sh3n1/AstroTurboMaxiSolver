@@ -3,6 +3,7 @@ import { ToastController } from '@ionic/angular';
 
 import { AppState } from '../app-state.service';
 import type { Horizontal } from '../astronomy/astronomy';
+import { fieldEvent } from '../dev-tools/field-log';
 import { t } from '../i18n/t';
 import { ListsService } from '../lists/lists.service';
 import type { ListView } from '../lists/lists.service';
@@ -25,6 +26,7 @@ import type { PuckHostMessage, PuckMessage } from './puck-messages';
 import { objectsMessage } from './puck-objects';
 import { decodePuckCode, puckAnswer } from './puck-pairing';
 import { encodeView } from './puck-view';
+import { toRemoteEntry } from './remote-link';
 
 /**
  * Where the puck's link is:
@@ -70,6 +72,8 @@ const CONNECT_TIMEOUT_MS = 8000;
 /** A gap this long between the view timer's ticks: the page stalled. Kept for the loss's record. */
 const STALL_MS = 500;
 const STALLS_KEPT = 5;
+/** In a field test, a silence from the puck this long is noted: it pings every second. */
+const HEARD_GAP_NOTED_MS = 1500;
 
 /**
  * The link to the puck, the hand remote (docs/puck.md). It is the puck's own, apart from
@@ -137,6 +141,8 @@ export class PuckLinkService {
   /** The puck's LX200 repeater is on: the pointing goes to it, once a second. */
   private lx200On = false;
   private lastPointingSent = 0;
+  /** The newest plate solve attempt the puck has heard of, by its log id. */
+  private lastSolveSent = 0;
 
   constructor() {
     // The phone must stay awake while the puck is linked: asleep, it stops sending.
@@ -173,6 +179,17 @@ export class PuckLinkService {
       if (this.status() !== 'connected') return;
       untracked(() => this.sendState());
     });
+    // Each plate solve attempt as it ends, so the puck can say how it went. The log holds
+    // this phone's attempts, and on a screen phone its finder's too (RemoteService).
+    effect(() => {
+      const log = this.liveSolver.log();
+      if (this.status() !== 'connected') return;
+      for (const entry of [...log].reverse()) {
+        if (entry.id <= this.lastSolveSent) continue;
+        this.lastSolveSent = entry.id;
+        untracked(() => this.sendControl({ t: 'solveLog', entry: toRemoteEntry(entry) }));
+      }
+    });
   }
 
   /** Links to the puck from its code. Its answer is built here (puck-pairing.ts). */
@@ -193,6 +210,7 @@ export class PuckLinkService {
     this.connection = connection;
     connection.onconnectionstatechange = () => {
       if (connection !== this.connection) return;
+      fieldEvent('puckConnection', { state: connection.connectionState, ice: connection.iceConnectionState });
       if (connection.connectionState === 'failed' || connection.connectionState === 'closed') this.lose();
     };
     const control = connection.createDataChannel(CONTROL_CHANNEL);
@@ -203,8 +221,12 @@ export class PuckLinkService {
     };
     control.onmessage = (event) => {
       // Anything at all, a ping included, shows the puck is still there.
-      this.lastHeard = Date.now();
+      const heard = Date.now();
+      // In a field test, a long silence from the puck, even one that didn't lose the link.
+      if (heard - this.lastHeard > HEARD_GAP_NOTED_MS) fieldEvent('puckSilence', { ms: heard - this.lastHeard });
+      this.lastHeard = heard;
       const message = parsePuckMessage(String(event.data));
+      if (message && message.t !== 'ping') fieldEvent('puckIn', { message });
       if (message && control === this.control) this.obey(message);
     };
     this.view = connection.createDataChannel(VIEW_CHANNEL, { ordered: false, maxRetransmits: 0 });
@@ -268,6 +290,8 @@ export class PuckLinkService {
     for (const icon of iconMessages(this.state.targets())) this.sendControl(icon);
     // This side's record of the link lost before, for the puck's log.
     if (this.lossRecord) this.sendControl({ t: 'appLog', text: this.lossRecord });
+    // Only attempts from now on: the puck has no use for older ones.
+    this.lastSolveSent = this.liveSolver.log()[0]?.id ?? 0;
     this.lossRecord = '';
     this.reconnectTries = 0;
     this.stalls = [];
@@ -285,6 +309,7 @@ export class PuckLinkService {
     // The page stalled (the timer came late): kept, in case the link drops.
     if (now - this.lastTick > STALL_MS) {
       this.stalls.push(`${Math.round((now - this.openedAt) / 1000)} s: ${now - this.lastTick} ms`);
+      fieldEvent('pageStall', { ms: now - this.lastTick });
       if (this.stalls.length > STALLS_KEPT) this.stalls.shift();
     }
     this.lastTick = now;
@@ -481,6 +506,7 @@ export class PuckLinkService {
     if (this.status() !== 'connected' && this.status() !== 'connecting') return;
     const wasConnected = this.status() === 'connected';
     if (wasConnected) this.lossRecord = this.describeLoss();
+    fieldEvent('puckLost', { wasConnected, record: wasConnected ? this.lossRecord : this.describeLoss() });
     this.close();
     this.status.set('lost');
     // Again by itself, a few times: the puck still has the same code.

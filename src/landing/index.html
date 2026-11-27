@@ -183,8 +183,8 @@
       <section class="faq">
         <h2>{{index.faq.title}}</h2>
         <details>
-          <summary>{{index.faq.nameQuestion}}</summary>
-          <p>{{index.faq.nameAnswer}}</p>
+          <summary>{{index.faq.devicesQuestion}}</summary>
+          <p>{{index.faq.devicesAnswer}} <a href="{{@puck}}">{{index.faq.devicesPuckLink}} &rarr;</a></p>
         </details>
         <details>
           <summary>{{index.faq.internetQuestion}}</summary>
@@ -193,6 +193,10 @@
         <details>
           <summary>{{index.faq.telescopeQuestion}}</summary>
           <p>{{index.faq.telescopeAnswer}}</p>
+        </details>
+        <details>
+          <summary>{{index.faq.phoneQuestion}}</summary>
+          <p>{{index.faq.phoneAnswer}}</p>
         </details>
         <details>
           <summary>{{index.faq.costQuestion}}</summary>
@@ -242,6 +246,7 @@
       document.querySelector('.carousel-arrow.prev').addEventListener('click', () => go(-1));
       document.querySelector('.carousel-arrow.next').addEventListener('click', () => go(1));
     </script>
+    <script src="mail.js"></script>
     {{@remember}}
   </body>
 </html>

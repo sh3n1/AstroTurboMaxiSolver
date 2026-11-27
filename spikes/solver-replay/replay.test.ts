@@ -2,7 +2,8 @@
 // their raw .f32 frames) through the current star detector and solver, so a change can be
 // measured on real frames before going outside. Run from the repository root:
 //   npx vitest run spikes/solver-replay --config vitest.config.mts
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { test } from 'vitest';
@@ -78,5 +79,8 @@ test('replay sky map solves', () => {
         `  stars ${detection.stars.length}  noise ${detection.noise.toFixed(2)}${agree}  ${fits}`,
     );
   }
-  console.log(`${lines.join('\n')}\nSolved: phone ${solvedBefore}/${files.length}, now ${solvedNow}/${files.length}`);
+  const summary = `${lines.join('\n')}\nSolved: phone ${solvedBefore}/${files.length}, now ${solvedNow}/${files.length}`;
+  console.log(summary);
+  // Also written to a file: vitest may keep a test's console output out of sight.
+  writeFileSync(join(tmpdir(), 'solver-replay.txt'), `${summary}\n`);
 }, 600_000);

@@ -112,6 +112,34 @@ export class StillnessDetector {
   }
 }
 
+/**
+ * Notices a pause in the sensor readings, such as with the screen locked, after which the
+ * phone's own orientation takes a while to settle again.
+ */
+export class PauseDetector {
+  private last: number | null = null;
+  private settleUntil = 0;
+
+  constructor(
+    private readonly pauseMs: number,
+    private readonly settleMs: number,
+  ) {}
+
+  /** Adds a reading's time, in ms. Returns how long the pause was if one just ended, or 0. */
+  note(timeMs: number): number {
+    const gap = this.last === null ? 0 : timeMs - this.last;
+    this.last = timeMs;
+    if (gap <= this.pauseMs) return 0;
+    this.settleUntil = timeMs + this.settleMs;
+    return gap;
+  }
+
+  /** Whether the readings are still settling after a pause, at this time. */
+  settling(timeMs: number): boolean {
+    return timeMs < this.settleUntil;
+  }
+}
+
 /** The reverse rotation. For a unit quaternion this is its conjugate. */
 export function inverseAttitude([w, x, y, z]: Quaternion): Quaternion {
   return [w, -x, -y, -z];
@@ -146,8 +174,21 @@ export function attitudeFromAxes(x: Vector3, y: Vector3, z: Vector3): Quaternion
  * The phone's attitude from a plate solve. Image axes are x right, y down and z out
  * through the lens. The rear camera looks out of the back of the phone, so the image's
  * y and z are the reverse of the phone's.
+ *
+ * The browser turns the camera's picture with the screen, so it shows upright: on its side
+ * (screen angle 90 or 270) the picture's axes are the phone's turned by that angle about its
+ * z axis, which is turned back here. Without this, a solve on a phone on its side taught the
+ * sensors an attitude 90° out about the camera's axis (field tests, 2026-11-24: 41 to 76°
+ * of tilt in the compass correction on its side, 1.5 to 1.8° upright or once turned back).
  */
-export function attitudeFromImageAxes(imageX: Vector3, imageY: Vector3, imageZ: Vector3): Quaternion {
+export function attitudeFromImageAxes(
+  imageX: Vector3,
+  imageY: Vector3,
+  imageZ: Vector3,
+  screenAngleDeg = 0,
+): Quaternion {
   const negate = (v: Vector3): Vector3 => [-v[0], -v[1], -v[2]];
-  return attitudeFromAxes(imageX, negate(imageY), negate(imageZ));
+  const asIfUpright = attitudeFromAxes(imageX, negate(imageY), negate(imageZ));
+  const half = (screenAngleDeg * RAD) / 2;
+  return combineAttitudes(asIfUpright, [Math.cos(half), 0, 0, Math.sin(half)]);
 }

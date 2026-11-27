@@ -9,6 +9,7 @@ import {
   equatorialVector,
   separationDeg,
 } from '../astronomy/astronomy';
+import { fieldActive, fieldSolveDone, fieldSolveStarted, fieldSolveTags } from '../dev-tools/field-log';
 import { t, tn } from '../i18n/t';
 import { isPermissionDenied } from '../platform/permission-help';
 import { NotNowError, PermissionsService } from '../platform/permissions.service';
@@ -29,35 +30,18 @@ import {
   closeCamera,
   openRearCamera,
 } from './camera';
+import { SolveLog } from './solve-log';
+import type { SolveLogEntry, SolveTrigger } from './solve-log';
 import type { SolveInputs } from './solve-report';
 import { buildSolveReport, sendSolveReport } from './solve-report';
-import type { SolveRequest, SolveResponse } from './solver-messages';
+import type { SolveResponse } from './solver-messages';
+import { SolverWorker } from './solver-worker';
+import { waitWhile } from './wait-while';
 
 type Status = 'off' | 'waiting' | 'solving' | 'solved' | 'failed';
 
-/** One plate solve attempt, as the log in Settings shows it. */
-export interface SolveLogEntry {
-  /** Counts up, so a new entry can be told apart from one already seen. */
-  id: number;
-  at: Date;
-  /** Automatic while the phone is still, or asked for by alignment. */
-  trigger: SolveTrigger;
-  /** A retry means the frame was unusable, such as too bright, so it tries again soon. */
-  outcome: 'solved' | 'failed' | 'retry';
-  /** One short line for a toast or the log, such as "No match in 14 stars". */
-  message: string;
-  starCount: number;
-  matched: number;
-  iso: number;
-  /** How many frames were averaged into the picture. */
-  frames: number;
-  durationMs: number;
-  /** After a solve, how far the sensors were from the true position. */
-  sensorErrorDeg: number | null;
-}
-
-/** What started a solve: the phone lying still, alignment, or a tap on the rings. */
-export type SolveTrigger = 'auto' | 'alignment' | 'tap';
+// The log's types, where the rest of the app has always found them.
+export type { SolveLogEntry, SolveTrigger } from './solve-log';
 
 /** The result of a plate solve the user asked for, such as during alignment. */
 export type SolveNowResult = { ok: true; attitude: Quaternion; matched: number } | { ok: false; reason: string };
@@ -90,8 +74,6 @@ const MAX_FOCAL_FACTOR = 1.3;
  * slightly differently, and every change means a new solver index and a settings write.
  */
 const FOCAL_FACTOR_TOLERANCE = 0.005;
-/** How many attempts the log keeps. */
-const LOG_LENGTH = 20;
 /** The camera must move at least this far before another automatic attempt. */
 const SAME_POSITION_DEG = 1;
 /**
@@ -112,13 +94,14 @@ export class LiveSolverService {
   private readonly state = inject(AppState);
   private readonly permissions = inject(PermissionsService);
   private readonly sensors = inject(SensorService);
+  private readonly solveLog = new SolveLog();
 
   readonly status = signal<Status>('off');
   /**
    * The latest attempts, newest first, kept in memory for this session. The sky map
    * shows a toast for each new one, and Settings lists them for debugging.
    */
-  readonly log = signal<SolveLogEntry[]>([]);
+  readonly log = this.solveLog.entries.asReadonly();
 
   /**
    * On a screen phone linked to a finder phone, solves are asked of the finder, whose
@@ -146,11 +129,7 @@ export class LiveSolverService {
   private cameraMode: CaptureMode | null = null;
   private timer?: ReturnType<typeof setInterval>;
   private nextAttemptAt = 0;
-  private worker: Worker | null = null;
-  private workerReady: Promise<void> | null = null;
-  private requestId = 0;
-  private logCount = 0;
-  private readonly pending = new Map<number, (response: SolveResponse) => void>();
+  private readonly worker = new SolverWorker();
 
   constructor() {
     // Run only while the sensors are on and automatic solving is allowed.
@@ -225,6 +204,7 @@ export class LiveSolverService {
   private async attempt(): Promise<void> {
     this.status.set('solving');
     this.state.plateSolving.set(true);
+    fieldSolveStarted('auto');
     // Where the sensors say the camera points, before any correction.
     const before = this.state.cameraPointing();
     const entry = { trigger: 'auto' as const, startedAt: Date.now(), iso: this.iso, frames: this.plan.frames };
@@ -237,18 +217,18 @@ export class LiveSolverService {
       if (this.plan.manual && averageLevel(frame.pixels) > MAX_SKY_LEVEL && this.iso > MIN_ISO) {
         this.iso = Math.max(MIN_ISO, Math.round(this.iso / 2));
         await applyCameraSettings(camera.track, this.captureSettings());
-        this.record({ ...entry, outcome: 'retry', message: t('solver.isoLowered', { iso: this.iso }) });
+        this.solveLog.add({ ...entry, outcome: 'retry', message: t('solver.isoLowered', { iso: this.iso }) });
         this.retrySoon(FAILED_PAUSE_MS / 5);
         return;
       }
       // If the phone moved during the exposure, the stars are smeared.
       if (!this.sensors.isStill()) {
-        this.record({ ...entry, outcome: 'retry', message: t('solver.moved') });
+        this.solveLog.add({ ...entry, outcome: 'retry', message: t('solver.moved') });
         this.retrySoon(0);
         return;
       }
 
-      const { response, inputs, kept, frames } = await this.solveWithFallback(camera, frame, true);
+      const { response, inputs, kept, frames, screenAngleDeg } = await this.solveWithFallback(camera, frame, true);
       entry.frames = frames;
       const report = (outcome: 'solved' | 'failed', message: string): void =>
         this.report({
@@ -265,12 +245,12 @@ export class LiveSolverService {
       if (response.solution && this.status() === 'solving') {
         const rotation = this.state.realSkyRotation();
         const [x, y, z] = apparentAxes(rotation, response.solution.axes);
-        this.sensors.applyPlateSolve(attitudeFromImageAxes(x, y, z));
+        this.sensors.applyPlateSolve(attitudeFromImageAxes(x, y, z, screenAngleDeg));
         this.learnFieldOfView(response.solution.focalPx, frame.width, frame.height);
         // The sensors now show the solved position, so that is where this attempt was.
         const after = this.state.cameraPointing();
         this.lastAttemptPointing = after ?? before;
-        this.record({
+        this.solveLog.add({
           ...entry,
           outcome: 'solved',
           message: tn('solver.solved', response.solution.matched),
@@ -283,7 +263,7 @@ export class LiveSolverService {
         return;
       }
       this.lastAttemptPointing = before;
-      this.record({
+      this.solveLog.add({
         ...entry,
         outcome: 'failed',
         message: failureMessage(response.starCount),
@@ -293,7 +273,7 @@ export class LiveSolverService {
       this.finish(false, FAILED_PAUSE_MS);
     } catch (error) {
       this.lastAttemptPointing = before;
-      this.record({ ...entry, outcome: 'failed', message: this.cameraFailed(error) });
+      this.solveLog.add({ ...entry, outcome: 'failed', message: this.cameraFailed(error) });
       this.finish(false, FAILED_PAUSE_MS);
     }
   }
@@ -304,6 +284,7 @@ export class LiveSolverService {
    */
   private retrySoon(pauseMs: number): void {
     this.state.plateSolving.set(false);
+    fieldSolveDone();
     this.nextAttemptAt = Date.now() + pauseMs;
     if (this.status() === 'solving') this.status.set('waiting');
     // The map was hidden meanwhile: the camera was only kept for this attempt.
@@ -312,38 +293,10 @@ export class LiveSolverService {
 
   private finish(solved: boolean, pauseMs: number): void {
     this.state.plateSolving.set(false);
+    fieldSolveDone();
     this.nextAttemptAt = Date.now() + pauseMs;
     if (this.status() === 'solving') this.status.set(solved ? 'solved' : 'failed');
     if (this.resting) this.freeCamera();
-  }
-
-  /** Adds an attempt to the top of the log, dropping the oldest once it is full. */
-  private record(entry: {
-    trigger: SolveLogEntry['trigger'];
-    startedAt: number;
-    iso: number;
-    outcome: SolveLogEntry['outcome'];
-    message: string;
-    starCount?: number;
-    matched?: number;
-    sensorErrorDeg?: number | null;
-    /** How many frames were averaged, if not the plan's usual number. */
-    frames?: number;
-  }): void {
-    const newest: SolveLogEntry = {
-      id: ++this.logCount,
-      at: new Date(),
-      trigger: entry.trigger,
-      outcome: entry.outcome,
-      message: entry.message,
-      starCount: entry.starCount ?? 0,
-      matched: entry.matched ?? 0,
-      iso: entry.iso,
-      frames: entry.frames ?? this.plan.frames,
-      durationMs: Date.now() - entry.startedAt,
-      sensorErrorDeg: entry.sensorErrorDeg ?? null,
-    };
-    this.log.update((log) => [newest, ...log].slice(0, LOG_LENGTH));
   }
 
   /**
@@ -351,8 +304,7 @@ export class LiveSolverService {
    * toasts and lists it in Settings, as if it had made it itself.
    */
   addRemoteEntry(entry: Omit<SolveLogEntry, 'id'>): void {
-    const newest: SolveLogEntry = { ...entry, id: ++this.logCount };
-    this.log.update((log) => [newest, ...log].slice(0, LOG_LENGTH));
+    this.solveLog.push(entry);
   }
 
   /**
@@ -369,13 +321,12 @@ export class LiveSolverService {
       return { ok: false, reason: t('solver.pausedForTime') };
     }
     // Let an automatic solve that is already running finish first.
-    for (let waited = 0; this.status() === 'solving' && waited < 10_000; waited += 100) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
+    await waitWhile(() => this.status() === 'solving', 10_000);
 
     const wasRunning = !!this.timer;
     this.status.set('solving');
     this.state.plateSolving.set(true);
+    fieldSolveStarted(trigger);
     const startedAt = Date.now();
     const before = this.state.cameraPointing();
     try {
@@ -395,12 +346,12 @@ export class LiveSolverService {
       }
       const entry = { trigger, startedAt, iso: this.iso, frames: this.plan.frames };
       if (averageLevel(frame.pixels) > MAX_SKY_LEVEL) {
-        this.record({ ...entry, outcome: 'failed', message: t('solver.tooBright') });
+        this.solveLog.add({ ...entry, outcome: 'failed', message: t('solver.tooBright') });
         return { ok: false, reason: t('solver.tooBrightReason') };
       }
 
       // The user holds the telescope still on purpose, so no need to ask the sensors.
-      const { response, inputs, kept, frames } = await this.solveWithFallback(
+      const { response, inputs, kept, frames, screenAngleDeg } = await this.solveWithFallback(
         camera,
         frame,
         false,
@@ -410,7 +361,7 @@ export class LiveSolverService {
       const report = (outcome: 'solved' | 'failed', message: string): void =>
         this.report({ trigger, outcome, message, startedAt, before, kept, inputs, response, frames });
       if (!response.solution) {
-        this.record({
+        this.solveLog.add({
           ...entry,
           outcome: 'failed',
           message: failureMessage(response.starCount),
@@ -425,13 +376,13 @@ export class LiveSolverService {
 
       const rotation = this.state.realSkyRotation();
       const [x, y, z] = apparentAxes(rotation, response.solution.axes);
-      const attitude = attitudeFromImageAxes(x, y, z);
+      const attitude = attitudeFromImageAxes(x, y, z, screenAngleDeg);
       this.sensors.applyPlateSolve(attitude);
       this.learnFieldOfView(response.solution.focalPx, frame.width, frame.height);
       const after = this.state.cameraPointing();
       // Automatic solving needn't repeat this one from the same place.
       this.lastAttemptPointing = after ?? before;
-      this.record({
+      this.solveLog.add({
         ...entry,
         outcome: 'solved',
         message: tn('solver.solved', response.solution.matched),
@@ -443,7 +394,7 @@ export class LiveSolverService {
       return { ok: true, attitude, matched: response.solution.matched };
     } catch (error) {
       const message = this.cameraFailed(error);
-      this.record({ trigger, startedAt, iso: this.iso, outcome: 'failed', message });
+      this.solveLog.add({ trigger, startedAt, iso: this.iso, frames: this.plan.frames, outcome: 'failed', message });
       const refused = error instanceof NotNowError || isPermissionDenied(error);
       return {
         ok: false,
@@ -462,12 +413,31 @@ export class LiveSolverService {
         this.camera = null;
         this.status.set('off');
       }
+      // In a field test, its normal photo can follow (dev-tools/field-log.ts).
+      fieldSolveDone();
     }
   }
 
-  /** Whether each attempt is sent to the PC: a debugging setting, only in development. */
+  /**
+   * Runs `work` with this phone's camera free for it, as for a field test's normal photo
+   * (dev-tools): after any solve under way, with no automatic solve starting meanwhile.
+   * The solver opens its camera again when it next needs it.
+   */
+  async withCameraFree<T>(work: () => Promise<T>): Promise<T> {
+    await waitWhile(() => this.status() === 'solving', 30_000);
+    // Opening keeps automatic solving from starting meanwhile (see tick).
+    this.opening = true;
+    try {
+      this.freeCamera();
+      return await work();
+    } finally {
+      this.opening = false;
+    }
+  }
+
+  /** Whether each attempt is sent to the PC: a debugging setting, or a field test, only in development. */
   private reporting(): boolean {
-    return isDevMode() && this.state.settings().sendSolves;
+    return isDevMode() && (this.state.settings().sendSolves || fieldActive());
   }
 
   /** Sends a finished attempt, with its frame, to the PC. Does nothing unless reporting. */
@@ -484,7 +454,7 @@ export class LiveSolverService {
     frames: number;
   }): void {
     if (!attempt.kept) return;
-    const report = buildSolveReport(
+    const pending = buildSolveReport(
       {
         trigger: attempt.trigger,
         outcome: attempt.outcome,
@@ -502,11 +472,12 @@ export class LiveSolverService {
         sensorsBefore: attempt.before,
         sensorsAfter: this.state.cameraPointing(),
         sensors: this.sensors.snapshot(),
+        ...fieldSolveTags(),
       },
       attempt.kept,
       attempt.response,
     );
-    void sendSolveReport(report);
+    void sendSolveReport(pending);
   }
 
   /**
@@ -582,7 +553,14 @@ export class LiveSolverService {
     frame: CapturedFrame,
     mustStayStill: boolean,
     timeLimitMs?: number,
-  ): Promise<{ response: SolveResponse; inputs: SolveInputs; kept: Float32Array | null; frames: number }> {
+  ): Promise<{
+    response: SolveResponse;
+    inputs: SolveInputs;
+    kept: Float32Array | null;
+    frames: number;
+    /** The screen's angle as the solved picture was taken (camera.ts, CapturedFrame). */
+    screenAngleDeg: number;
+  }> {
     // The worker takes the pixels, so keep a copy if this attempt will be reported.
     let kept = this.reporting() ? frame.pixels.slice() : null;
     let frames = this.plan.frames;
@@ -590,14 +568,16 @@ export class LiveSolverService {
 
     const canStack = this.plan.manual && this.plan.frames === 1 && this.cameraMode === 'normal';
     if (response.solution || !canStack || (mustStayStill && !this.sensors.isStill())) {
-      return { response, inputs, kept, frames };
+      return { response, inputs, kept, frames, screenAngleDeg: frame.screenAngleDeg };
     }
     const stack = await captureStack(camera.video, { ...this.captureSettings(), frames: FALLBACK_STACK_FRAMES });
-    if (mustStayStill && !this.sensors.isStill()) return { response, inputs, kept, frames };
+    if (mustStayStill && !this.sensors.isStill()) {
+      return { response, inputs, kept, frames, screenAngleDeg: frame.screenAngleDeg };
+    }
     frames = FALLBACK_STACK_FRAMES;
     kept = this.reporting() ? stack.pixels.slice() : null;
     ({ response, inputs } = await this.solve(stack.pixels, stack.width, stack.height, timeLimitMs));
-    return { response, inputs, kept, frames };
+    return { response, inputs, kept, frames, screenAngleDeg: stack.screenAngleDeg };
   }
 
   /** The settings for the next picture, from the plan and the current ISO. */
@@ -619,8 +599,6 @@ export class LiveSolverService {
     height: number,
     timeLimitMs = SOLVE_TIME_LIMIT_MS,
   ): Promise<{ response: SolveResponse; inputs: SolveInputs }> {
-    const worker = await this.ensureWorker();
-    const id = ++this.requestId;
     const inputs: SolveInputs = {
       width,
       height,
@@ -628,27 +606,7 @@ export class LiveSolverService {
       hint: this.hint(),
       timeLimitMs,
     };
-    const request: SolveRequest = { type: 'solve', id, pixels, ...inputs };
-    return new Promise((resolve) => {
-      this.pending.set(id, (response) => resolve({ response, inputs }));
-      // The pixels move to the worker rather than being copied, which is much faster.
-      worker.postMessage(request, [pixels.buffer]);
-    });
-  }
-
-  private ensureWorker(): Promise<Worker> {
-    if (!this.worker) {
-      this.worker = new Worker(new URL('./solver.worker', import.meta.url), { type: 'module' });
-      this.worker.addEventListener('message', ({ data }: MessageEvent<SolveResponse>) => {
-        this.pending.get(data.id)?.(data);
-        this.pending.delete(data.id);
-      });
-      this.workerReady = fetch('assets/data/stars.json')
-        .then((response) => response.json())
-        .then((starRows: number[][]) => this.worker?.postMessage({ type: 'init', starRows } satisfies SolveRequest));
-    }
-    const worker = this.worker;
-    return this.workerReady!.then(() => worker);
+    return { response: await this.worker.solve(pixels, inputs), inputs };
   }
 }
 

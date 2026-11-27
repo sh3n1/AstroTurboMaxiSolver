@@ -53,6 +53,7 @@ Features:
 | Run the dev server | `ionic serve` |
 | Run the dev server for a phone on the same Wi-Fi, at `https://<PC address>:8443` | `npm run start:phone` |
 | Receive device test reports from the phone, in `device-reports/` | `npm run phone:reports` |
+| Plan a night's field test, from what is up at the site (`docs/field-tests.md`) | `node scripts/field-plan.mjs --lat <deg> --lon <deg>` |
 | Production build (output in `www/`) | `npm run build` |
 | Lint, type check and format check | `npm run lint` |
 | Fix lint and formatting | `npm run lint:fix` |
@@ -74,7 +75,7 @@ Before finishing a change, run: `npm run lint`, `npm run test:unit` and `npm run
   - `alignment/` - telescope alignment and syncs
   - `astronomy/` - sky positions and projections, the planets, Moon and asteroids, double stars
   - `catalog/` - the targets: loading and joining the catalogue files, searching, names, details and icons
-  - `dev-tools/` - the device test and the clear-sky test, for development
+  - `dev-tools/` - the device test, the clear-sky test and field tests (`docs/field-tests.md`), for development only
   - `equipment/` - telescopes, eyepieces and the rest of the kit
   - `i18n/` - the app's languages: ngx-translate's setup, and `t()` for plain code
   - `lists/` - the user's lists, the shared list view, the playlist; `lists/programs/` holds the observing programmes' lists

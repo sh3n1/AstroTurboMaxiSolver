@@ -2,5 +2,9 @@
   "/device-report": {
     "target": "http://127.0.0.1:8445",
     "secure": false
+  },
+  "/field": {
+    "target": "http://127.0.0.1:8445",
+    "secure": false
   }
 }
