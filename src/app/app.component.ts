@@ -5,6 +5,7 @@ import { startFieldTest } from './core/dev-tools/field-test';
 import { InstallService } from './core/platform/install.service';
 import { ScreenWakeService } from './core/platform/screen-wake.service';
 import { UpdateService } from './core/platform/update.service';
+import { SensorService } from './core/sensors/sensor.service';
 import { SkyBrightnessService } from './core/sky-conditions/sky-brightness.service';
 import { LinkSyncService } from './core/sync/link-sync.service';
 
@@ -25,6 +26,8 @@ export class AppComponent {
     inject(LinkSyncService);
     // Sets the Bortle class from the location, while Auto is on, wherever the location is set.
     inject(SkyBrightnessService);
+    // The sensors come back on if they were on when the app closed, as after a reload.
+    inject(SensorService).resumeIfWereOn();
     // In development, records field tests while the laptop's collector answers. Not in a
     // production build, which swaps in an empty field-test.prod.ts.
     startFieldTest();
