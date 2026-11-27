@@ -72,7 +72,8 @@ describe('puck view', () => {
   it('gives the direction to the target as the map draws it', () => {
     const above = { altDeg: 40, azDeg: 180 };
     expect(targetDirectionDeg(mapView(), above)).toBeCloseTo(0, 6);
-    expect(targetDirectionDeg(mapView({ rollDeg: 90 }), above)).toBeCloseTo(270, 6);
+    // The puck keeps the sky up, whatever the phone's roll.
+    expect(targetDirectionDeg(mapView({ rollDeg: 90 }), above)).toBeCloseTo(0, 6);
     expect(targetDirectionDeg(mapView({ flipY: -1 }), above)).toBeCloseTo(180, 6);
     // Facing south, west is on the right.
     expect(targetDirectionDeg(mapView(), { altDeg: 30, azDeg: 190 })).toBeGreaterThan(80);
@@ -96,6 +97,21 @@ describe('puck view', () => {
     expect(data.getFloat32(56, true)).toBeNaN();
     expect(data.getFloat32(60, true)).toBe(6);
     expect(data.getUint8(64)).toBe(1 | 4);
+  });
+
+  it('keeps the sky up whatever the phone does, as its screen turns or it sits rolled on the tube', () => {
+    const viewOf = (rollDeg: number): number[] => {
+      const data = new DataView(encodeView(mapView({ rollDeg }), null, 0, 0));
+      return [24, 28, 32, 36].map((at) => data.getFloat32(at, true));
+    };
+    for (const rollDeg of [22, 90, -90, 180]) expect(viewOf(rollDeg)).toEqual(viewOf(0));
+  });
+
+  it('guides the puck round in azimuth rather than over the zenith', () => {
+    // Low in the east, to a target low in the west: the shortest path goes straight up.
+    const view = mapView({ pointing: { altDeg: 30, azDeg: 90 } });
+    const direction = targetDirectionDeg(view, { altDeg: 30, azDeg: 270 });
+    expect(Math.abs(direction - 180)).toBeCloseTo(90, 6);
   });
 
   it('says when the sky map shows the eyepiece ring', () => {

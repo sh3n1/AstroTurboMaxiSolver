@@ -177,12 +177,12 @@ Where the host's map points, and the guidance to the target. 68 bytes.
 | 2      | `u16`    | `seq`           | Counts up for each `view`, wrapping at 65535. Older than the last used (by wrapping comparison) means late: dropped.                                                                                                                         |
 | 4      | `u32`    | `timeMs`        | The host's clock, in ms since the link opened.                                                                                                                                                                                               |
 | 8      | `f32[4]` | `sky`           | Unit quaternion (w, x, y, z): J2000 vectors to local vectors, before refraction. The app's `rotationAt(frameTime)`.                                                                                                                          |
-| 24     | `f32[4]` | `view`          | Unit quaternion (w, x, y, z): local vectors to view vectors (right, up, back). The map's smoothed `viewBasis`, roll included.                                                                                                                |
+| 24     | `f32[4]` | `view`          | Unit quaternion (w, x, y, z): local vectors to view vectors (right, up, back). The map's smoothed `viewBasis`, with no roll: sky up.                                                                                                         |
 | 40     | `f32`    | `fovDeg`        | The host's field: what its map shows across. The puck uses it only in the eyepiece view; on the sky map it zooms on its own ("The puck's zoom").                                                                                             |
 | 44     | `f32`    | `altDeg`        | Altitude of the view's centre, as it appears, for the top edge.                                                                                                                                                                              |
 | 48     | `f32`    | `azDeg`         | Azimuth of the view's centre, for the top edge.                                                                                                                                                                                              |
 | 52     | `f32`    | `targetDistDeg` | Angle from the centre to the target. NaN when there is no target.                                                                                                                                                                            |
-| 56     | `f32`    | `targetDirDeg`  | Direction to the target on the puck's screen, clockwise from up. NaN when there is no target.                                                                                                                                                |
+| 56     | `f32`    | `targetDirDeg`  | Which way to move, clockwise from up, along the mount's axes. NaN when there is no target.                                                                                                                                                   |
 | 60     | `f32`    | `starLimitMag`  | The faintest stars to draw, as the host's map does (`magnitudeLimit`, or the eyepiece's `starLimit`).                                                                                                                                        |
 | 64     | `u8`     | `flags`         | Bit 0: mirror left to right. Bit 1: mirror top to bottom (the host's `imageFlip`). Bit 2: the host shows the eyepiece view. Bit 3: the sky map shows the eyepiece's field as its one ring (the app's ring view), instead of the three rings. |
 | 65     | `u8[3]`  |                 | Zero, for later.                                                                                                                                                                                                                             |
@@ -195,6 +195,16 @@ The host sends the view it draws (smoothed, as `steadyPointing`): its map publis
 frame (`map-view.service.ts`), and the puck's link sends a new frame at most every 33 ms
 (`puck-link.service.ts`, `puck-view.ts`). `fovDeg` is the width of the host's map; the
 puck takes it as its diameter only in the eyepiece view (see "The puck's zoom").
+
+Decided 2026-11-26, the view and the arrow on the puck don't follow the phone:
+
+- **Sky up.** The `view` keeps the zenith up and the horizon level, whatever the phone does.
+  The map's own roll comes from the top of the phone's screen: with it, the puck's map
+  turned 90° whenever the phone's screen turned.
+- **Along the mount's axes.** `targetDirDeg` points the way to turn in azimuth and tilt in
+  altitude (`mount-guidance.ts`), as an alt-az mount moves. It isn't the shortest path
+  across the sky, which can lead over the zenith. Close to the target the two agree. The
+  phone's own guidance does the same.
 
 ## The puck's zoom (decided 2026-11-21)
 

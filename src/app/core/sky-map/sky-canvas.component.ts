@@ -14,6 +14,7 @@ import {
   toViewCoordinates,
   viewBasis,
 } from '../astronomy/astronomy';
+import { mountBearingDeg } from '../astronomy/mount-guidance';
 import type { Target } from '../catalog/targets';
 import { sideways } from '../sensors/sideways';
 import {
@@ -466,16 +467,13 @@ export class SkyCanvasComponent implements AfterViewInit, OnDestroy {
   }
 
   /**
-   * Which way on screen the target lies from the view's centre, in radians from straight
-   * up, also noted on the canvas for tests.
+   * Which way on screen to move towards the target, in radians from straight up, also noted
+   * on the canvas for tests. Along the mount's axes rather than the shortest way across the
+   * sky, which can lead over the zenith (mount-guidance.ts).
    */
   private guideAngle(position: Horizontal): number {
-    // Work in the view's own axes, which stay valid for a target behind the viewer.
-    const [x, y] = toViewCoordinates(
-      viewBasis(this.shownPointing ?? this.state.pointing()),
-      horizontalVector(position),
-    );
-    const angle = (guideAngleDeg(x, y, 1, 1, this.state.viewRollDeg()) * Math.PI) / 180;
+    const bearing = (mountBearingDeg(this.shownPointing ?? this.state.pointing(), position) * Math.PI) / 180;
+    const angle = (guideAngleDeg(Math.sin(bearing), Math.cos(bearing), 1, 1, this.state.viewRollDeg()) * Math.PI) / 180;
     this.canvasRef().nativeElement.dataset['guideAngle'] = String(Math.round((angle * 180) / Math.PI));
     return angle;
   }

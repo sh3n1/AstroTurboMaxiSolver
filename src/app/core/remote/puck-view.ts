@@ -3,7 +3,8 @@
 // without a link.
 
 import type { Horizontal, Matrix3, Vector3 } from '../astronomy/astronomy';
-import { bearingInViewDeg, equatorialToHorizontal, separationDeg, viewBasis } from '../astronomy/astronomy';
+import { equatorialToHorizontal, separationDeg, viewBasis } from '../astronomy/astronomy';
+import { mountBearingDeg } from '../astronomy/mount-guidance';
 import type { MapView } from '../sky-map/map-view.service';
 
 /** The message's size, type and layout version, as docs/puck.md defines them. */
@@ -57,15 +58,23 @@ export function viewMatrix(pointing: Horizontal, rollDeg: number): Matrix3 {
   return [mix(right, cos, up, -sin), mix(right, sin, up, cos), [-forward[0], -forward[1], -forward[2]]];
 }
 
-/** Direction to the target on the puck's screen, clockwise from up, as the map draws it. */
+/**
+ * Direction to the target on the puck's screen, clockwise from up: the way to move along the
+ * mount's axes (mount-guidance.ts), with the sky up whatever the phone's roll (see encodeView).
+ */
 export function targetDirectionDeg(view: MapView, target: Horizontal): number {
-  let direction = bearingInViewDeg(viewBasis(view.pointing), target) - view.rollDeg;
+  let direction = mountBearingDeg(view.pointing, target);
   if (view.flipX < 0) direction = -direction;
   if (view.flipY < 0) direction = 180 - direction;
   return ((direction % 360) + 360) % 360;
 }
 
-/** The `view` message for a frame of the map, and the selected target's J2000 position, if any. */
+/**
+ * The `view` message for a frame of the map, and the selected target's J2000 position, if any.
+ * The puck keeps the sky up and the horizon level, whatever the phone does: otherwise its roll
+ * on the tube, or its screen turning, would turn the puck's map with it. So the map's own roll
+ * is left out (decided 2026-11-26).
+ */
 export function encodeView(
   view: MapView,
   target: { raDeg: number; decDeg: number } | null,
@@ -81,7 +90,7 @@ export function encodeView(
   const floats = (offset: number, values: readonly number[]): void =>
     values.forEach((value, i) => data.setFloat32(offset + i * 4, value, true));
   floats(8, matrixToQuaternion(view.rotation));
-  floats(24, matrixToQuaternion(viewMatrix(view.pointing, view.rollDeg)));
+  floats(24, matrixToQuaternion(viewMatrix(view.pointing, 0)));
   const at = target ? equatorialToHorizontal(view.rotation, target.raDeg, target.decDeg) : null;
   floats(40, [
     view.fieldDeg,
