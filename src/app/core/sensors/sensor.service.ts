@@ -4,12 +4,14 @@ import { telescopePointing } from '../alignment/alignment';
 import { offsetFor } from '../alignment/alignment-sync';
 import { AppState } from '../app-state.service';
 import { viewRollDeg } from '../astronomy/astronomy';
+import { fieldEvent } from '../dev-tools/field-log';
 import { t } from '../i18n/t';
 import { InstallService } from '../platform/install.service';
 import { NotNowError, PermissionsService } from '../platform/permissions.service';
 
 import type { Quaternion } from './attitude';
 import {
+  PauseDetector,
   StillnessDetector,
   attitudeFromOrientation,
   blendAttitude,
@@ -31,10 +33,29 @@ const ORIENTATION_ONLY_WEIGHT = 0.2;
  * without the compass's jitter reaching the map.
  */
 const WITH_GYROSCOPE_WEIGHT = 0.02;
-/** Longest gap between gyroscope readings to trust. A longer one means the page paused. */
-const MAX_GYROSCOPE_STEP_SECONDS = 0.1;
+/**
+ * Longest gap between gyroscope readings still taken as one step, at the rate the reading
+ * after it gives. A page busy for a moment (the screen turning, a big upload) delays them,
+ * and throwing those steps away lost the turn made meanwhile: the map then lagged, and the
+ * compass dragged it back over the next seconds (field tests, 2026-11-24).
+ */
+const MAX_GYROSCOPE_STEP_SECONDS = 1;
+/**
+ * A longer gap than PAUSE_MS between any sensor readings means the page was paused, such as
+ * with the screen locked. The phone's own orientation then settles again for a few seconds,
+ * sweeping wildly while the telescope is still (167° in 12 s, field tests, 2026-11-24), so
+ * for SETTLE_AFTER_PAUSE_MS the gyroscope alone moves the map and readings aren't blended in.
+ */
+const PAUSE_MS = 2000;
+const SETTLE_AFTER_PAUSE_MS = 8000;
 /** If no sensor data arrives by then, the phone has no usable sensors. */
 const NO_DATA_TIMEOUT_MS = 3000;
+/**
+ * Whether this phone's own sensors were on, so they come back on when the app opens again,
+ * as after the browser reloaded the page: they stayed off until tapped, and the map sat at
+ * its default for a minute (field tests, 2026-11-24). This device only (docs/local-data.md).
+ */
+const SENSORS_ON_KEY = 'astroturbomaxisolver.sensorsOn';
 
 /** iOS adds a compass heading to the standard orientation event. */
 type OrientationEventWithCompass = DeviceOrientationEvent & { webkitCompassHeading?: number };
@@ -58,6 +79,8 @@ export class SensorService {
 
   private attitude: Quaternion | null = null;
   private lastGyroscopeTime: number | null = null;
+  /** Notices the page was paused, after which readings settle: see PAUSE_MS. */
+  private pauses = new PauseDetector(PAUSE_MS, SETTLE_AFTER_PAUSE_MS);
   private stillness = new StillnessDetector();
   private noDataTimer?: ReturnType<typeof setTimeout>;
   private compassOffsetDeg: number | null = null;
@@ -102,11 +125,15 @@ export class SensorService {
   private readonly onMotion = (event: DeviceMotionEvent): void => {
     const rate = event.rotationRate;
     if (rate?.alpha == null || rate.beta == null || rate.gamma == null) return;
+    this.notePause(event.timeStamp);
     const previous = this.lastGyroscopeTime;
     this.lastGyroscopeTime = event.timeStamp;
     if (previous === null || !this.attitude) return;
     const seconds = (event.timeStamp - previous) / 1000;
-    if (seconds <= 0 || seconds > MAX_GYROSCOPE_STEP_SECONDS) return;
+    if (seconds <= 0) return;
+    // Noted in field tests, to see how often the page holds the readings back.
+    if (seconds > 0.1) fieldEvent('gyroGap', { ms: Math.round(seconds * 1000) });
+    if (seconds > MAX_GYROSCOPE_STEP_SECONDS) return;
 
     // Browsers report these rates about the phone's x, y and z axes respectively.
     const rates = [rate.alpha, rate.beta, rate.gamma] as const;
@@ -115,12 +142,26 @@ export class SensorService {
     this.publish();
   };
 
+  /** Whether the sensors were on when the app last closed, read before the effect below saves. */
+  private readonly wereOn = readSensorsOn();
+
   constructor() {
     // A new alignment changes where the telescope points, even if the phone doesn't move.
     effect(() => {
       this.state.alignment();
       untracked(() => this.publish());
     });
+    // Remembers whether this phone's own sensors are on; not a finder phone's, which steer
+    // a screen phone only while linked.
+    effect(() => saveSensorsOn(this.state.sensorsActive() && !this.state.remoteFinder()));
+  }
+
+  /**
+   * Turns the sensors back on as the app opens, if they were on when it last closed. Not on
+   * an iPhone, which only allows them after a tap: there the user taps the tile as usual.
+   */
+  resumeIfWereOn(): void {
+    if (this.wereOn && !this.install.isApple) void this.start({ automatic: true });
   }
 
   /**
@@ -152,6 +193,7 @@ export class SensorService {
 
     this.attitude = null;
     this.lastGyroscopeTime = null;
+    this.pauses = new PauseDetector(PAUSE_MS, SETTLE_AFTER_PAUSE_MS);
     this.stillness = new StillnessDetector();
     this.isStill.set(false);
     this.compassOffsetDeg = null;
@@ -182,8 +224,15 @@ export class SensorService {
     this.isStill.set(false);
   }
 
+  /** Notes a reading's time, to notice the page was paused: see PAUSE_MS. */
+  private notePause(timeStamp: number): void {
+    const pausedMs = this.pauses.note(timeStamp);
+    if (pausedMs) fieldEvent('sensorPause', { ms: Math.round(pausedMs) });
+  }
+
   private applyOrientation(event: DeviceOrientationEvent, alphaOffsetDeg = 0): void {
     clearTimeout(this.noDataTimer);
+    this.notePause(event.timeStamp);
     // Alpha grows turning left, against compass headings, so an eastward declination is
     // taken off it to turn the magnetic reading to true north.
     const alphaDeg = (event.alpha ?? 0) + alphaOffsetDeg - this.declinationDeg();
@@ -192,6 +241,8 @@ export class SensorService {
     const reading = this.compassCorrection
       ? combineAttitudes(this.compassCorrection, this.lastReading)
       : this.lastReading;
+    // Just after a pause the reading is still settling: the gyroscope alone moves the map.
+    if (this.attitude && this.lastGyroscopeTime !== null && this.pauses.settling(event.timeStamp)) return;
     // Follow the gyroscope if it is running, and otherwise steady the jittery reading.
     const weight = this.lastGyroscopeTime === null ? ORIENTATION_ONLY_WEIGHT : WITH_GYROSCOPE_WEIGHT;
     this.attitude = this.attitude ? blendAttitude(this.attitude, reading, weight) : reading;
@@ -251,5 +302,22 @@ export class SensorService {
     const alignment = this.state.alignment();
     // The alignment, corrected by any syncs near where the camera points.
     this.state.pointing.set(alignment ? telescopePointing(camera, offsetFor(alignment, camera, new Date())) : camera);
+  }
+}
+
+/** Whether the sensors were on when the app last closed. Blocked storage counts as off. */
+function readSensorsOn(): boolean {
+  try {
+    return localStorage.getItem(SENSORS_ON_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function saveSensorsOn(on: boolean): void {
+  try {
+    localStorage.setItem(SENSORS_ON_KEY, String(on));
+  } catch {
+    // Blocked storage: the sensors simply stay off next time.
   }
 }

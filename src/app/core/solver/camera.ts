@@ -1,5 +1,7 @@
 // Shared camera handling for the clear-sky test and live plate solving.
 
+import { screenAngleDeg } from '../sensors/sideways';
+
 /** A browser unit: the specification measures exposure in 100 microsecond steps. */
 export const EXPOSURE_UNITS_PER_SECOND = 10_000;
 
@@ -194,6 +196,11 @@ export interface CapturedFrame {
   width: number;
   height: number;
   /**
+   * The screen's angle as the picture was taken (sideways.ts): the browser turns the
+   * camera's picture with the screen, which the attitude from a solve must turn back.
+   */
+  screenAngleDeg: number;
+  /**
    * The stack part way through, when asked for: the average of its first few frames, for
    * each count asked. The sky test compares them, to see how many frames are worth taking.
    */
@@ -210,6 +217,7 @@ export async function captureStack(
   partialAt: readonly number[] = [],
 ): Promise<CapturedFrame> {
   const [width, height] = [video.videoWidth, video.videoHeight];
+  const screenAngle = screenAngleDeg();
   if (!captureCanvas) {
     captureCanvas = document.createElement('canvas');
     captureContext = captureCanvas.getContext('2d', { willReadFrequently: true });
@@ -235,7 +243,7 @@ export async function captureStack(
     }
   }
   for (let i = 0; i < pixels.length; i++) pixels[i] /= settings.frames;
-  return { pixels, width, height, partial };
+  return { pixels, width, height, screenAngleDeg: screenAngle, partial };
 }
 
 /** Average brightness of a greyscale image, from 0 to 255. */

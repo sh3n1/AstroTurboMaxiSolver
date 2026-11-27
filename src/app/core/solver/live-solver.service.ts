@@ -228,7 +228,7 @@ export class LiveSolverService {
         return;
       }
 
-      const { response, inputs, kept, frames } = await this.solveWithFallback(camera, frame, true);
+      const { response, inputs, kept, frames, screenAngleDeg } = await this.solveWithFallback(camera, frame, true);
       entry.frames = frames;
       const report = (outcome: 'solved' | 'failed', message: string): void =>
         this.report({
@@ -245,7 +245,7 @@ export class LiveSolverService {
       if (response.solution && this.status() === 'solving') {
         const rotation = this.state.realSkyRotation();
         const [x, y, z] = apparentAxes(rotation, response.solution.axes);
-        this.sensors.applyPlateSolve(attitudeFromImageAxes(x, y, z));
+        this.sensors.applyPlateSolve(attitudeFromImageAxes(x, y, z, screenAngleDeg));
         this.learnFieldOfView(response.solution.focalPx, frame.width, frame.height);
         // The sensors now show the solved position, so that is where this attempt was.
         const after = this.state.cameraPointing();
@@ -351,7 +351,7 @@ export class LiveSolverService {
       }
 
       // The user holds the telescope still on purpose, so no need to ask the sensors.
-      const { response, inputs, kept, frames } = await this.solveWithFallback(
+      const { response, inputs, kept, frames, screenAngleDeg } = await this.solveWithFallback(
         camera,
         frame,
         false,
@@ -376,7 +376,7 @@ export class LiveSolverService {
 
       const rotation = this.state.realSkyRotation();
       const [x, y, z] = apparentAxes(rotation, response.solution.axes);
-      const attitude = attitudeFromImageAxes(x, y, z);
+      const attitude = attitudeFromImageAxes(x, y, z, screenAngleDeg);
       this.sensors.applyPlateSolve(attitude);
       this.learnFieldOfView(response.solution.focalPx, frame.width, frame.height);
       const after = this.state.cameraPointing();
@@ -454,7 +454,7 @@ export class LiveSolverService {
     frames: number;
   }): void {
     if (!attempt.kept) return;
-    const report = buildSolveReport(
+    const pending = buildSolveReport(
       {
         trigger: attempt.trigger,
         outcome: attempt.outcome,
@@ -477,7 +477,7 @@ export class LiveSolverService {
       attempt.kept,
       attempt.response,
     );
-    void sendSolveReport(report);
+    void sendSolveReport(pending);
   }
 
   /**
@@ -553,7 +553,14 @@ export class LiveSolverService {
     frame: CapturedFrame,
     mustStayStill: boolean,
     timeLimitMs?: number,
-  ): Promise<{ response: SolveResponse; inputs: SolveInputs; kept: Float32Array | null; frames: number }> {
+  ): Promise<{
+    response: SolveResponse;
+    inputs: SolveInputs;
+    kept: Float32Array | null;
+    frames: number;
+    /** The screen's angle as the solved picture was taken (camera.ts, CapturedFrame). */
+    screenAngleDeg: number;
+  }> {
     // The worker takes the pixels, so keep a copy if this attempt will be reported.
     let kept = this.reporting() ? frame.pixels.slice() : null;
     let frames = this.plan.frames;
@@ -561,14 +568,16 @@ export class LiveSolverService {
 
     const canStack = this.plan.manual && this.plan.frames === 1 && this.cameraMode === 'normal';
     if (response.solution || !canStack || (mustStayStill && !this.sensors.isStill())) {
-      return { response, inputs, kept, frames };
+      return { response, inputs, kept, frames, screenAngleDeg: frame.screenAngleDeg };
     }
     const stack = await captureStack(camera.video, { ...this.captureSettings(), frames: FALLBACK_STACK_FRAMES });
-    if (mustStayStill && !this.sensors.isStill()) return { response, inputs, kept, frames };
+    if (mustStayStill && !this.sensors.isStill()) {
+      return { response, inputs, kept, frames, screenAngleDeg: frame.screenAngleDeg };
+    }
     frames = FALLBACK_STACK_FRAMES;
     kept = this.reporting() ? stack.pixels.slice() : null;
     ({ response, inputs } = await this.solve(stack.pixels, stack.width, stack.height, timeLimitMs));
-    return { response, inputs, kept, frames };
+    return { response, inputs, kept, frames, screenAngleDeg: stack.screenAngleDeg };
   }
 
   /** The settings for the next picture, from the plan and the current ISO. */

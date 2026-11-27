@@ -396,6 +396,12 @@ function solveAtFocal(
 /**
  * Solves a frame, trying a range of focal lengths around the expected one. Returns null
  * if nothing fits confidently. A frame with no answer is better than a wrong answer.
+ *
+ * With a hint, it searches near it first, which is quick; failing that, the whole sky in
+ * the time left, since the hint itself may be wrong. In the field tests of 2026-11-24, 20 of
+ * 30 failed solves had good stars but sensors 48 to 147° off; the whole sky solved each of
+ * them in under 0.6 s. The confidence check is the same either way: it is already set for
+ * millions of candidates.
  */
 export function solveFrame(
   imageStars: ImageStar[],
@@ -404,19 +410,24 @@ export function solveFrame(
   hint?: SolveHint,
   timeLimitMs = DEFAULT_TIME_LIMIT_MS,
 ): Solution | null {
-  const deadline = performance.now() + timeLimitMs;
+  const started = performance.now();
+  const deadline = started + timeLimitMs;
+  // Near the hint gets half the time at most, so the whole sky still gets the rest on a
+  // slow phone. A good hint solves in a small part of it.
+  const nearHintDeadline = hint ? started + timeLimitMs / 2 : deadline;
   for (const factor of FOCAL_FACTORS) {
-    if (performance.now() > deadline) return null;
+    if (performance.now() > nearHintDeadline) break;
     const solution = solveAtFocal(
       imageStars,
       { ...geometry, focalPx: geometry.focalPx * factor },
       index,
-      deadline,
+      nearHintDeadline,
       hint,
     );
     if (solution) return solution;
   }
-  return null;
+  const timeLeftMs = deadline - performance.now();
+  return hint && timeLeftMs > 0 ? solveFrame(imageStars, geometry, index, undefined, timeLeftMs) : null;
 }
 
 export interface DepthBin {

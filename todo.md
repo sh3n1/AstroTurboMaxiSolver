@@ -1,7 +1,7 @@
 # AstroTurboMaxiSolver TODO
 
 What is done and what is next. Decisions and rules are in `AGENTS.md`; technical approaches here
-are proposals until recorded there. Last reviewed 2026-11-18.
+are proposals until recorded there. Last reviewed 2026-11-27.
 
 ## Next up
 
@@ -17,6 +17,10 @@ are proposals until recorded there. Last reviewed 2026-11-18.
   - [ ] Sensor inertia: the map keeps moving after the telescope stops. Record the sensors after a
         stop first, then fix the smoothing and the compass pull
   - [ ] Clear-sky test: real star counts against the simulation, stacking, focus at infinity
+  - [x] Screen rotation, sensors back on after a reload, settling after a screen lock,
+        buildings in view, failure shown on the puck (field tests of 2026-11-26 and 27)
+  - [ ] Still to try: night mode with the puck (red QR code, red start-up screen), two phones
+        with the frame turn fix, the phone on its other side, the eyepiece in use set in the app
 - [ ] **Suggested session** for tonight, which the user can edit into their own plan, in the
       common list view
 - [ ] **Sync on real phones**: Google Drive sync between two phones, and over the two-phone link
@@ -64,6 +68,9 @@ are proposals until recorded there. Last reviewed 2026-11-18.
 - [x] Complementary filter: gyroscope with slow compass correction, true north from the World
       Magnetic Model
 - [x] Detect when the phone is still
+- [ ] Keep the gyroscope readings flowing during a solve: 124 of 145 gaps of 100 to 450 ms on
+      2026-11-26 came while frames were captured and processed on the page's main thread. Move
+      that work to a worker. It may be part of the 2 to 7° off after a long slew
 - [ ] Measure drift while moving, and compass error near the telescope
 - [ ] Limit how much the compass is trusted when the telescope disturbs it
 - [ ] Move to a Kalman filter only if testing shows it is needed
@@ -76,6 +83,13 @@ are proposals until recorded there. Last reviewed 2026-11-18.
 - [x] Playlist: next and previous target above the horizon
 - [ ] Confirm arrival at the target with a plate solve
 - [ ] Decide what happens when the phone is removed and refitted between sessions
+- [ ] Tell the user when the alignment looks spoiled (the phone moved on the tube): solves keep
+      putting a centred target off by more than the eyepiece's field. At least a line on the
+      alignment page: don't move the phone after aligning
+- [x] Guide along the mount's own motions (altitude and azimuth on an alt-az mount), never the
+      shortest path over the zenith, on the phone and the puck (`mount-guidance.ts`)
+- [ ] Make the eyepiece in use easier to see and change: on 2026-11-26 the app had the 25 mm
+      52° while the 28 mm 82° was in, so the eyepiece circle was the wrong size
 
 ## Catalogues and lists
 
@@ -101,6 +115,10 @@ are proposals until recorded there. Last reviewed 2026-11-18.
 - [x] Data in IndexedDB as sync-ready records, with persistent storage requested
 - [x] Google Drive sync, shown to everyone in Settings
 - [x] Two phones linked by WebRTC after swapping QR codes
+- [x] The puck's map with the sky up (zenith up, horizon level), whatever the phone's screen or
+      mount (decided 2026-11-26): the app no longer sends it the phone's roll (`puck-view.ts`)
+- [ ] Slow link recovery: one loss in 50 minutes took 23 s and three tries to come back, two
+      stuck at "ICE checking" (1 to 2 s on 2026-11-24). Watch it; likely the phone's Wi-Fi
 - [x] Mark log entries edited on two phones, and choose a version in Settings, Conflicts
 - [ ] Dropbox and OneDrive, behind `SyncProvider`
 - [x] Snapshots of old sync files, and purging deletions over six months old
@@ -118,5 +136,38 @@ are proposals until recorded there. Last reviewed 2026-11-18.
 ## Ideas, later
 
 - [ ] A guide for the first night
-- [ ] Spanish language
-- [ ] ESP32 round AMOLED hand remote showing the sky map (brainstorm only, open decisions first)
+- [x] Spanish language
+- [x] ESP32 round AMOLED hand remote showing the sky map: the puck, in its own repository
+
+## History
+
+The last 20 things done, newest first. Keep it at 20: add at the top, drop the last.
+
+1. 2026-11-27 Night-tested branch `camera-frame-turn`: camera frames turned back with the
+   screen, gyroscope gaps and settling after a pause, sensors back on after a reload, slimmer
+   solve reports, solve results sent to the puck, whole-sky search after a wrong hint, and the
+   detector dropping spots among windows and edges (field replay 82 of 84, was 54)
+2. 2026-11-25 Field test logging, left out of production builds; the solver's worker and log
+   split out (`docs/field-tests.md`)
+3. 2026-11-23 Release 0.1.0 merged to `main` and tagged
+4. 2026-11-23 The puck's landing page in English and Spanish, installing its firmware from the
+   browser with ESP Web Tools
+5. 2026-11-23 The puck's public repository linked, and the app on a telescope in the README
+   and on the landing page
+6. 2026-11-23 Alignment from the puck, as on the Align page
+7. 2026-11-22 The telescope's position repeated to planetarium apps through the puck's LX200
+8. 2026-11-22 The puck picks lists, aligns and reconnects by itself; it gets the app's icons and
+   the lists' rows
+9. 2026-11-21 The puck zooms on its own, with the eyepiece's field, faint stars and ring view
+10. 2026-11-21 The puck gets the Moon, the planets, the sky catalogue and its words in the app's
+    language
+11. 2026-11-21 The puck's own link, by its QR code, with its messages defined in `docs/puck.md`
+12. 2026-11-21 Two phones renamed Remote, with Two devices and Puck sections
+13. 2026-11-20 In the reticle frozen as Lists opens, Best time ordered by the full night
+14. 2026-11-19 Landing, privacy and terms pages built in each language from templates
+15. 2026-11-19 A full backup saved and restored as one zip file, from Settings
+16. 2026-11-19 Sync snapshots, old deletions purged, conflicts settled from Settings
+17. 2026-11-19 Spanish, with numbers, dates and counts in the app's language
+18. 2026-11-19 Every on-screen text moved into `en.json` with ngx-translate
+19. 2026-11-19 Google Drive sync shown to everyone
+20. 2026-11-18 Work on `develop`, releases from `main`, production published only from `main`

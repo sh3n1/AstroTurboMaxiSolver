@@ -26,6 +26,7 @@ import type { PuckHostMessage, PuckMessage } from './puck-messages';
 import { objectsMessage } from './puck-objects';
 import { decodePuckCode, puckAnswer } from './puck-pairing';
 import { encodeView } from './puck-view';
+import { toRemoteEntry } from './remote-link';
 
 /**
  * Where the puck's link is:
@@ -140,6 +141,8 @@ export class PuckLinkService {
   /** The puck's LX200 repeater is on: the pointing goes to it, once a second. */
   private lx200On = false;
   private lastPointingSent = 0;
+  /** The newest plate solve attempt the puck has heard of, by its log id. */
+  private lastSolveSent = 0;
 
   constructor() {
     // The phone must stay awake while the puck is linked: asleep, it stops sending.
@@ -175,6 +178,17 @@ export class PuckLinkService {
       this.state.viewMode();
       if (this.status() !== 'connected') return;
       untracked(() => this.sendState());
+    });
+    // Each plate solve attempt as it ends, so the puck can say how it went. The log holds
+    // this phone's attempts, and on a screen phone its finder's too (RemoteService).
+    effect(() => {
+      const log = this.liveSolver.log();
+      if (this.status() !== 'connected') return;
+      for (const entry of [...log].reverse()) {
+        if (entry.id <= this.lastSolveSent) continue;
+        this.lastSolveSent = entry.id;
+        untracked(() => this.sendControl({ t: 'solveLog', entry: toRemoteEntry(entry) }));
+      }
     });
   }
 
@@ -276,6 +290,8 @@ export class PuckLinkService {
     for (const icon of iconMessages(this.state.targets())) this.sendControl(icon);
     // This side's record of the link lost before, for the puck's log.
     if (this.lossRecord) this.sendControl({ t: 'appLog', text: this.lossRecord });
+    // Only attempts from now on: the puck has no use for older ones.
+    this.lastSolveSent = this.liveSolver.log()[0]?.id ?? 0;
     this.lossRecord = '';
     this.reconnectTries = 0;
     this.stalls = [];

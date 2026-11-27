@@ -1,4 +1,7 @@
+import type { Vector3 } from '../astronomy/astronomy';
+
 import {
+  PauseDetector,
   StillnessDetector,
   attitudeFromOrientation,
   blendAttitude,
@@ -110,6 +113,27 @@ describe('attitude', () => {
       rearCameraDirection(fromSolve).forEach((value, i) => expect(value).toBeCloseTo(imageZ[i], 9));
     });
 
+    it('turns back the picture the browser turned with the screen, on a phone on its side', () => {
+      const q = attitudeFromOrientation(40, 110, 15);
+      const { z } = axesOf(q);
+      const out: Vector3 = [z[0], z[1], z[2]];
+      for (const angle of [0, 90, 180, 270]) {
+        // The picture shows upright on the screen: its top is the screen's top, its right
+        // the screen's right (up × out), whichever way the phone is turned.
+        const up = screenUpDirection(q, angle);
+        const right: Vector3 = [
+          up[1] * out[2] - up[2] * out[1],
+          up[2] * out[0] - up[0] * out[2],
+          up[0] * out[1] - up[1] * out[0],
+        ];
+        const imageY: Vector3 = [-up[0], -up[1], -up[2]];
+        const imageZ: Vector3 = [-z[0], -z[1], -z[2]];
+        const fromSolve = attitudeFromImageAxes(right, imageY, imageZ, angle);
+        const sign = Math.sign(fromSolve[0] * q[0] + fromSolve[1] * q[1] + fromSolve[2] * q[2] + fromSolve[3] * q[3]);
+        fromSolve.forEach((value, i) => expect(sign * value).toBeCloseTo(q[i], 9));
+      }
+    });
+
     it('learns a fixed compass error, so later readings come out right', () => {
       const truth = attitudeFromOrientation(100, 95, 0);
       const compassSaid = attitudeFromOrientation(112, 95, 0); // 12° out
@@ -174,6 +198,29 @@ describe('attitude', () => {
     it('takes the short way round when the signs differ', () => {
       const negated = upright.map((value) => -value) as unknown as typeof upright;
       blendAttitude(upright, negated, 0.5).forEach((value, i) => expect(value).toBeCloseTo(upright[i], 9));
+    });
+  });
+
+  describe('pauses', () => {
+    it('sees no pause while readings come steadily', () => {
+      const pauses = new PauseDetector(2000, 8000);
+      for (let t = 0; t < 10_000; t += 16) expect(pauses.note(t)).toBe(0);
+      expect(pauses.settling(10_000)).toBe(false);
+    });
+
+    it('notices a pause, and settles for a while after it', () => {
+      const pauses = new PauseDetector(2000, 8000);
+      pauses.note(0);
+      expect(pauses.note(18_400)).toBe(18_400);
+      expect(pauses.settling(18_400 + 7999)).toBe(true);
+      expect(pauses.settling(18_400 + 8000)).toBe(false);
+    });
+
+    it('takes a brief hold-up for no pause', () => {
+      const pauses = new PauseDetector(2000, 8000);
+      pauses.note(0);
+      expect(pauses.note(600)).toBe(0);
+      expect(pauses.settling(600)).toBe(false);
     });
   });
 
